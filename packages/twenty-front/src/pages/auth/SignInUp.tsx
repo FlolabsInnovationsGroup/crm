@@ -1,3 +1,4 @@
+import { APP_NAME } from '@/app/constants/AppName';
 import { StyledAuthContent } from '@/auth/components/StyledAuthContent';
 import { useSignInUp } from '@/auth/sign-in-up/hooks/useSignInUp';
 import { useSignInUpForm } from '@/auth/sign-in-up/hooks/useSignInUpForm';
@@ -122,7 +123,7 @@ export const SignInUp = () => {
     }
 
     if (isGlobalScope) {
-      return t`Welcome to Twenty`;
+      return t`Welcome to ${APP_NAME}`;
     }
 
     const workspaceName = workspacePublicData?.displayName;

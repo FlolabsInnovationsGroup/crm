@@ -1,3 +1,4 @@
+import { APP_NAME } from '@/app/constants/AppName';
 import { EmptyState } from '@/ui/feedback/empty-state/components/EmptyState';
 import { ErrorState } from '@/ui/feedback/empty-state/components/ErrorState';
 import { NavigationButton } from '@/ui/input/components/NavigationButton';
@@ -42,7 +43,7 @@ export const NotFound = () => {
 
   return (
     <>
-      <PageTitle title={t`Page Not Found | Twenty`} />
+      <PageTitle title={t`Page Not Found | ${APP_NAME}`} />
       <StyledBackDrop>
         <ErrorState.Root>
           <AnimatedPlaceholder type="error404" />

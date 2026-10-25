@@ -1,3 +1,4 @@
+import { APP_NAME } from '@/app/constants/AppName';
 import { t } from '@lingui/core/macro';
 import { type TimelineActivity } from '@/activities/timeline-activities/types/TimelineActivity';
 import { type CurrentWorkspaceMember } from '@/auth/states/currentWorkspaceMemberState';
@@ -12,5 +13,5 @@ export const getTimelineActivityAuthorFullName = (
       ? t`You`
       : `${event.workspaceMember?.name.firstName} ${event.workspaceMember?.name.lastName}`;
   }
-  return 'Twenty';
+  return APP_NAME;
 };
