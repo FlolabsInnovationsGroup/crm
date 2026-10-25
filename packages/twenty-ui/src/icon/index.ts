@@ -70,6 +70,7 @@ export {
   IconArchive,
   IconArchiveOff,
   IconArrowBackUp,
+  IconArrowBackUpDouble,
   IconArrowBarToDown,
   IconArrowBarToDownDashed,
   IconArrowDown,

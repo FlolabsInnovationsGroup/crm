@@ -5,6 +5,7 @@ import {
   type ReplyContext,
   type ReplyContextReady,
 } from '@/activities/emails/types/ReplyContext';
+import { getReplyAllCcRecipients } from '@/activities/emails/utils/getReplyAllCcRecipients';
 import { getReplyToRecipients } from '@/activities/emails/utils/getReplyToRecipients';
 import { isDefined } from 'twenty-shared/utils';
 
@@ -45,6 +46,7 @@ export const useReplyContext = (
       return {
         loading: false,
         to: '',
+        replyAllCc: '',
         subject: '',
         inReplyTo: '',
         connectedAccountId,
@@ -57,6 +59,12 @@ export const useReplyContext = (
       connectedAccountHandle,
     });
 
+    const replyAllCc = getReplyAllCcRecipients({
+      message: lastSentMessage,
+      connectedAccountHandle,
+      replyToRecipients: replyTo,
+    });
+
     const rawSubject = lastSentMessage.subject ?? '';
     // oxlint-disable-next-line lingui/no-unlocalized-strings -- Re: is the standard email reply prefix used for threading.
     const subject = rawSubject.startsWith('Re: ')
@@ -67,6 +75,7 @@ export const useReplyContext = (
     return {
       loading: false,
       to: replyTo,
+      replyAllCc,
       subject,
       inReplyTo: lastSentMessage.headerMessageId ?? '',
       connectedAccountId,

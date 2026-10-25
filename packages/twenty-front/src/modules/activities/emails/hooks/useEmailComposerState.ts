@@ -14,6 +14,7 @@ type UseEmailComposerStateArgs = {
   connectedAccountId: string;
   draftPrefill?: EmailDraftPrefill | null;
   defaultTo?: string;
+  defaultCc?: string;
   defaultSubject?: string;
   defaultInReplyTo?: string;
   onSent?: (messageThreadId: string | null) => void;
@@ -28,12 +29,13 @@ export const useEmailComposerState = ({
   connectedAccountId: initialConnectedAccountId,
   draftPrefill,
   defaultTo = '',
+  defaultCc = '',
   defaultSubject = '',
   defaultInReplyTo,
   onSent,
 }: UseEmailComposerStateArgs) => {
   const initialTo = draftPrefill?.to ?? defaultTo;
-  const initialCc = draftPrefill?.cc ?? '';
+  const initialCc = draftPrefill?.cc ?? defaultCc;
   const initialBcc = draftPrefill?.bcc ?? '';
   const initialSubject = draftPrefill?.subject ?? defaultSubject;
   const initialBody = draftPrefill?.body ?? '';
@@ -62,6 +64,26 @@ export const useEmailComposerState = ({
   );
   const [subject, setSubject] = useState(initialSubject);
   const [body, setBody] = useState(initialBody);
+  // Subject and body inputs are uncontrolled, so replacing their content
+  // means remounting them with new defaults.
+  const [editorSeed, setEditorSeed] = useState({
+    subject: initialSubject,
+    body: initialBody,
+    version: 0,
+  });
+
+  const applyTemplate = useCallback(
+    (template: { subject: string; body: string }) => {
+      setSubject(template.subject);
+      setBody(template.body);
+      setEditorSeed((previousSeed) => ({
+        subject: template.subject,
+        body: template.body,
+        version: previousSeed.version + 1,
+      }));
+    },
+    [],
+  );
   const [showCcBcc, setShowCcBcc] = useState(
     initialCc.length > 0 || initialBcc.length > 0,
   );
@@ -149,8 +171,10 @@ export const useEmailComposerState = ({
     handleSend,
     loading,
     canSend,
-    initialSubject,
-    initialBody,
+    initialSubject: editorSeed.subject,
+    initialBody: editorSeed.body,
+    contentVersion: editorSeed.version,
+    applyTemplate,
     recipientCount,
     exceedsRecipientLimit,
     maxRecipients: MAX_EMAIL_RECIPIENTS,

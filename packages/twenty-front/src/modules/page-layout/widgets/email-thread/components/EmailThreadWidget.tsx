@@ -7,6 +7,7 @@ import { EmailThreadMessage } from '@/activities/emails/components/EmailThreadMe
 import { useEmailThread } from '@/activities/emails/hooks/useEmailThread';
 import { useReplyContext } from '@/activities/emails/hooks/useReplyContext';
 import { type EmailDraftPrefill } from '@/activities/emails/types/EmailDraftPrefill';
+import { type EmailReplyMode } from '@/activities/emails/types/EmailReplyMode';
 import { type EmailThreadMessageWithSender } from '@/activities/emails/types/EmailThreadMessageWithSender';
 import { getEmailDraftPrefillFromMessage } from '@/activities/emails/utils/getEmailDraftPrefillFromMessage';
 import { type PageLayoutWidget } from '@/page-layout/types/PageLayoutWidget';
@@ -44,6 +45,7 @@ export const EmailThreadWidget = ({
   >(null);
   const [clickedDraftPrefill, setClickedDraftPrefill] =
     useState<EmailDraftPrefill | null>(null);
+  const [replyMode, setReplyMode] = useState<EmailReplyMode>('reply');
   const [previousTargetRecordId, setPreviousTargetRecordId] = useState(
     targetRecord.id,
   );
@@ -52,6 +54,7 @@ export const EmailThreadWidget = ({
     setPreviousTargetRecordId(targetRecord.id);
     setComposerIntent(null);
     setClickedDraftPrefill(null);
+    setReplyMode('reply');
   }
 
   const handleComposerOpenChange = useCallback((open: boolean) => {
@@ -60,6 +63,11 @@ export const EmailThreadWidget = ({
     if (!open) {
       setClickedDraftPrefill(null);
     }
+  }, []);
+
+  const handleReplyOpen = useCallback((mode: EmailReplyMode) => {
+    setReplyMode(mode);
+    setComposerIntent('opened');
   }, []);
 
   const handleDraftClick = useCallback(
@@ -152,8 +160,10 @@ export const EmailThreadWidget = ({
       </StyledWidgetScrollContainer>
       {canReply && (
         <EmailThreadComposer
-          key={draftPrefill?.messageId ?? 'reply'}
+          key={`${draftPrefill?.messageId ?? 'reply'}-${replyMode}`}
           replyContext={replyContext}
+          replyMode={replyMode}
+          onReplyOpen={handleReplyOpen}
           isInSidePanel={isInSidePanel}
           isComposerOpen={isComposerOpen}
           setIsComposerOpen={handleComposerOpenChange}

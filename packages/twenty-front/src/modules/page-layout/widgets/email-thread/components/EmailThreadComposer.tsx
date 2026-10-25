@@ -5,6 +5,7 @@ import { EmailComposerFields } from '@/activities/emails/components/EmailCompose
 import { useEmailComposerState } from '@/activities/emails/hooks/useEmailComposerState';
 import { useAttachEmailFiles } from '@/activities/emails/hooks/useAttachEmailFiles';
 import { type ReplyContextReady } from '@/activities/emails/hooks/useReplyContext';
+import { type EmailReplyMode } from '@/activities/emails/types/EmailReplyMode';
 import { type EmailDraftPrefill } from '@/activities/emails/types/EmailDraftPrefill';
 import { EmailThreadComposerFooterEffect } from '@/page-layout/widgets/email-thread/components/EmailThreadComposerFooterEffect';
 import { SIDE_PANEL_FOCUS_ID } from '@/side-panel/constants/SidePanelFocusId';
@@ -14,8 +15,10 @@ import { useHotkeysOnFocusedElement } from '@/ui/utilities/hotkey/hooks/useHotke
 import { t } from '@lingui/core/macro';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
+import { isNonEmptyString } from '@sniptt/guards';
 import {
   IconArrowBackUp,
+  IconArrowBackUpDouble,
   IconPaperclip,
   IconSend,
   IconX,
@@ -38,8 +41,18 @@ const StyledReplyBar = styled.button`
   }
 `;
 
+const StyledReplyBarRow = styled.div`
+  display: flex;
+
+  & > * {
+    flex: 1;
+  }
+`;
+
 type EmailThreadComposerProps = {
   replyContext: ReplyContextReady;
+  replyMode: EmailReplyMode;
+  onReplyOpen: (mode: EmailReplyMode) => void;
   isInSidePanel: boolean;
   isComposerOpen: boolean;
   setIsComposerOpen: (open: boolean) => void;
@@ -48,6 +61,8 @@ type EmailThreadComposerProps = {
 
 export const EmailThreadComposer = ({
   replyContext,
+  replyMode,
+  onReplyOpen,
   isInSidePanel,
   isComposerOpen,
   setIsComposerOpen,
@@ -73,6 +88,7 @@ export const EmailThreadComposer = ({
     connectedAccountId: replyContext.connectedAccountId,
     draftPrefill,
     defaultTo: replyContext.to,
+    defaultCc: replyMode === 'reply-all' ? replyContext.replyAllCc : '',
     defaultSubject: replyContext.subject,
     defaultInReplyTo: replyContext.inReplyTo,
     onSent: handleReplySent,
@@ -86,17 +102,32 @@ export const EmailThreadComposer = ({
 
   const canSendReply = canSend && !isUploadingAttachments;
 
+  const canReplyAll = isNonEmptyString(replyContext.replyAllCc);
+
   const footerCommandMenuItems =
     useMemo((): SidePanelFooterCommandMenuItem[] => {
       if (!isComposerOpen) {
+        const replyItem: SidePanelFooterCommandMenuItem = {
+          id: 'reply',
+          label: t`Reply`,
+          Icon: IconArrowBackUp,
+          isPrimaryCTA: true,
+          onClick: () => onReplyOpen('reply'),
+        };
+
+        if (!canReplyAll) {
+          return [replyItem];
+        }
+
         return [
           {
-            id: 'reply',
-            label: t`Reply`,
-            Icon: IconArrowBackUp,
-            isPrimaryCTA: true,
-            onClick: () => setIsComposerOpen(true),
+            id: 'reply-all',
+            label: t`Reply all`,
+            Icon: IconArrowBackUpDouble,
+            isPinned: true,
+            onClick: () => onReplyOpen('reply-all'),
           },
+          replyItem,
         ];
       }
 
@@ -129,6 +160,8 @@ export const EmailThreadComposer = ({
       isComposerOpen,
       handleSend,
       canSendReply,
+      canReplyAll,
+      onReplyOpen,
       setIsComposerOpen,
       openAttachmentPicker,
     ]);
@@ -160,10 +193,18 @@ export const EmailThreadComposer = ({
         />
       ) : (
         !isInSidePanel && (
-          <StyledReplyBar onClick={() => setIsComposerOpen(true)}>
-            <IconArrowBackUp size={16} />
-            {t`Reply...`}
-          </StyledReplyBar>
+          <StyledReplyBarRow>
+            <StyledReplyBar onClick={() => onReplyOpen('reply')}>
+              <IconArrowBackUp size={16} />
+              {t`Reply...`}
+            </StyledReplyBar>
+            {canReplyAll && (
+              <StyledReplyBar onClick={() => onReplyOpen('reply-all')}>
+                <IconArrowBackUpDouble size={16} />
+                {t`Reply all...`}
+              </StyledReplyBar>
+            )}
+          </StyledReplyBarRow>
         )
       )}
     </>
