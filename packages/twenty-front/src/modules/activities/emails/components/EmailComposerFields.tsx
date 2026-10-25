@@ -15,6 +15,7 @@ import { ComposerFieldRow } from '@/activities/components/ComposerFieldRow';
 import { ComposerHeader } from '@/activities/components/ComposerHeader';
 import { StyledComposerTextInput } from '@/activities/components/ComposerTextInput';
 import { EmailAttachmentsField } from '@/activities/emails/components/EmailAttachmentsField';
+import { EmailTemplatePicker } from '@/activities/emails/components/EmailTemplatePicker';
 import { INLINE_EMAIL_BODY_EDITOR_PROFILE } from '@/activities/emails/editor/constants/InlineEmailBodyEditorProfile';
 import { useUploadEmailImage } from '@/activities/emails/hooks/useUploadEmailImage';
 import { EmailRecipientsFieldInput } from '@/activities/emails/recipients/components/EmailRecipientsFieldInput';
@@ -270,8 +271,13 @@ export const EmailComposerFields = ({
                 </ComposerFieldRow>
               </>
             )}
+            <EmailTemplatePicker
+              composerState={composerState}
+              contextRecord={contextRecord}
+            />
             <ComposerFieldRow label={t`Subject`}>
               <StyledComposerTextInput
+                key={composerState.contentVersion}
                 type="text"
                 aria-label={t`Subject`}
                 defaultValue={composerState.initialSubject}
@@ -290,6 +296,7 @@ export const EmailComposerFields = ({
       )}
       <StyledBody>
         <FormAdvancedTextFieldInput
+          key={composerState.contentVersion}
           defaultValue={composerState.initialBody}
           onChange={composerState.setBody}
           profile={INLINE_EMAIL_BODY_EDITOR_PROFILE}
