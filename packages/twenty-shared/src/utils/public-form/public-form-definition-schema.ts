@@ -1,0 +1,98 @@
+import { z } from 'zod';
+
+export const PUBLIC_FORM_DEFINITION_VERSION = 1;
+
+export const PUBLIC_FORM_FIELD_TYPES = [
+  'shortText',
+  'longText',
+  'email',
+  'phone',
+  'number',
+  'url',
+  'date',
+  'select',
+  'multiSelect',
+  'checkbox',
+  'file',
+  'heading',
+  'paragraph',
+] as const;
+
+export const PUBLIC_FORM_CONDITION_OPERATORS = [
+  'equals',
+  'notEquals',
+  'contains',
+  'notContains',
+  'isEmpty',
+  'isNotEmpty',
+] as const;
+
+const hexColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, 'Colors must be #RRGGBB');
+
+export const publicFormConditionSchema = z.object({
+  fieldId: z.string().min(1),
+  operator: z.enum(PUBLIC_FORM_CONDITION_OPERATORS),
+  value: z.string().optional(),
+});
+
+export const publicFormFieldOptionSchema = z.object({
+  value: z.string().min(1),
+  label: z.string().min(1),
+});
+
+// `mapTo` is a dotted path on the target record, e.g. `name.firstName`,
+// `emails.primaryEmail` or a custom field name such as `country`.
+export const publicFormFieldSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(PUBLIC_FORM_FIELD_TYPES),
+  label: z.string(),
+  description: z.string().optional(),
+  placeholder: z.string().optional(),
+  required: z.boolean().default(false),
+  options: z.array(publicFormFieldOptionSchema).optional(),
+  mapTo: z.string().optional(),
+  visibleWhen: z.array(publicFormConditionSchema).optional(),
+  maxFileSizeMb: z.number().positive().max(25).optional(),
+  acceptedFileExtensions: z.array(z.string()).optional(),
+});
+
+export const publicFormThemeSchema = z.object({
+  primaryColor: hexColorSchema.default('#111111'),
+  backgroundColor: hexColorSchema.default('#ffffff'),
+  textColor: hexColorSchema.default('#1f1f1f'),
+  fontFamily: z.string().default('Inter, system-ui, sans-serif'),
+  borderRadiusPx: z.number().min(0).max(32).default(8),
+  logoUrl: z.string().url().optional(),
+  submitButtonLabel: z.string().default('Submit'),
+});
+
+export const publicFormSettingsSchema = z.object({
+  successMessage: z.string().default('Thank you! Your answers were sent.'),
+  redirectUrl: z.string().url().optional(),
+});
+
+export const publicFormDefinitionSchema = z.object({
+  version: z.literal(PUBLIC_FORM_DEFINITION_VERSION),
+  title: z.string(),
+  description: z.string().optional(),
+  fields: z.array(publicFormFieldSchema),
+  theme: publicFormThemeSchema.default(publicFormThemeSchema.parse({})),
+  settings: publicFormSettingsSchema.default(
+    publicFormSettingsSchema.parse({}),
+  ),
+});
+
+export type PublicFormFieldType = (typeof PUBLIC_FORM_FIELD_TYPES)[number];
+export type PublicFormConditionOperator =
+  (typeof PUBLIC_FORM_CONDITION_OPERATORS)[number];
+export type PublicFormCondition = z.infer<typeof publicFormConditionSchema>;
+export type PublicFormField = z.infer<typeof publicFormFieldSchema>;
+export type PublicFormTheme = z.infer<typeof publicFormThemeSchema>;
+export type PublicFormSettings = z.infer<typeof publicFormSettingsSchema>;
+export type PublicFormDefinition = z.infer<typeof publicFormDefinitionSchema>;
+
+// Answers keyed by field id. Multi-select answers are arrays; files are
+// handled outside the answer map.
+export type PublicFormAnswers = Record<string, string | string[] | boolean>;

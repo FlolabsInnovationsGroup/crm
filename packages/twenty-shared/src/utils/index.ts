@@ -220,6 +220,34 @@ export { getAppPath } from './navigation/getAppPath';
 export { getSettingsPath } from './navigation/getSettingsPath';
 export { getPageLayoutWidgetHeightBehavior } from './pageLayout/getPageLayoutWidgetHeightBehavior';
 export { parseJson } from './parseJson';
+export {
+  isValidPublicFormMapTo,
+  buildPublicFormRecordValues,
+} from './public-form/build-public-form-record-values';
+export { isPublicFormFieldVisible } from './public-form/is-public-form-field-visible';
+export type {
+  PublicFormFieldType,
+  PublicFormConditionOperator,
+  PublicFormCondition,
+  PublicFormField,
+  PublicFormTheme,
+  PublicFormSettings,
+  PublicFormDefinition,
+  PublicFormAnswers,
+} from './public-form/public-form-definition-schema';
+export {
+  PUBLIC_FORM_DEFINITION_VERSION,
+  PUBLIC_FORM_FIELD_TYPES,
+  PUBLIC_FORM_CONDITION_OPERATORS,
+  publicFormConditionSchema,
+  publicFormFieldOptionSchema,
+  publicFormFieldSchema,
+  publicFormThemeSchema,
+  publicFormSettingsSchema,
+  publicFormDefinitionSchema,
+} from './public-form/public-form-definition-schema';
+export type { PublicFormValidationError } from './public-form/validate-public-form-answers';
+export { validatePublicFormAnswers } from './public-form/validate-public-form-answers';
 export { removePropertiesFromRecord } from './removePropertiesFromRecord';
 export { removeUndefinedFields } from './removeUndefinedFields';
 export { safeParseRelativeDateFilterJsonStringified } from './safeParseRelativeDateFilterJsonStringified';
