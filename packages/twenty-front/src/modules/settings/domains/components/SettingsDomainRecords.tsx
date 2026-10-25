@@ -1,0 +1,71 @@
+import { isDefined } from 'twenty-shared/utils';
+import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
+import { SettingsDnsRecordsTable } from '@/settings/components/SettingsDnsRecordsTable';
+import { t } from '@lingui/core/macro';
+import { Section } from 'twenty-ui/components/layout';
+import { type ThemeColor } from 'twenty-ui/theme';
+import {
+  type DomainRecord,
+  type DomainValidRecords,
+} from '~/generated-metadata/graphql';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
+
+export const SettingsDomainRecords = ({
+  records,
+}: {
+  records: DomainValidRecords['records'];
+}) => {
+  const currentWorkspace = useAtomStateValue(currentWorkspaceState);
+
+  // These names are only used in developer errors and keep their fingerprints stable.
+  // oxlint-disable lingui/no-unlocalized-strings
+  const rowsDefinitions = [
+    { name: 'Domain Setup', validationType: 'redirection' as const },
+    { name: 'Secure Connection', validationType: 'ssl' as const },
+  ];
+  // oxlint-enable lingui/no-unlocalized-strings
+
+  const defaultValues: { status: string; statusColor: ThemeColor } =
+    currentWorkspace?.customDomain
+      ? {
+          status: 'success',
+          statusColor: 'green',
+        }
+      : {
+          status: 'loading',
+          statusColor: 'gray',
+        };
+
+  const transformedRecords = rowsDefinitions.map<
+    { statusColor: ThemeColor } & DomainRecord
+  >((row) => {
+    const record = records.find(
+      ({ validationType }) => validationType === row.validationType,
+    );
+
+    if (!record) {
+      // oxlint-disable-next-line lingui/no-unlocalized-strings -- Keep this developer invariant stable for error grouping.
+      throw new Error(`Record ${row.name} not found`);
+    }
+
+    return {
+      statusColor:
+        isDefined(record) && record.status === 'error'
+          ? 'red'
+          : isDefined(record) && record.status === 'pending'
+            ? 'yellow'
+            : defaultValues.statusColor,
+      ...record,
+    };
+  });
+
+  return (
+    <Section.Root>
+      <Section.Header
+        title={t`Domain Setup`}
+        description={t`Configure these DNS records with your domain provider`}
+      />
+      <SettingsDnsRecordsTable records={transformedRecords} />
+    </Section.Root>
+  );
+};

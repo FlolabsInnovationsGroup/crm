@@ -1,0 +1,21 @@
+import { type BarPosition } from '@/page-layout/widgets/graph/graph-widget-bar-chart/types/BarPosition';
+
+export const findAnchorBarInSlice = ({
+  bars,
+  isVerticalLayout,
+}: {
+  bars: BarPosition[];
+  isVerticalLayout: boolean;
+}): BarPosition => {
+  if (bars.length === 0) {
+    // oxlint-disable-next-line lingui/no-unlocalized-strings -- This message describes a developer-only invariant; keeping it stable preserves error reporting fingerprints.
+    throw new Error('Cannot find anchor bar in empty slice');
+  }
+
+  return bars.reduce((anchor, bar) => {
+    if (isVerticalLayout) {
+      return bar.y < anchor.y ? bar : anchor;
+    }
+    return bar.x + bar.width > anchor.x + anchor.width ? bar : anchor;
+  });
+};
