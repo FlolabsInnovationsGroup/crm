@@ -14,8 +14,29 @@ export const PUBLIC_FORM_FIELD_TYPES = [
   'multiSelect',
   'checkbox',
   'file',
+  'hidden',
   'heading',
   'paragraph',
+] as const;
+
+export const PUBLIC_FORM_FIELD_WIDTHS = ['full', 'half'] as const;
+export const PUBLIC_FORM_DIRECTIONS = ['ltr', 'rtl'] as const;
+export const PUBLIC_FORM_LANGUAGES = ['en', 'ar'] as const;
+
+// Loaded from Google Fonts when picked; anything else must be a system font.
+export const PUBLIC_FORM_GOOGLE_FONTS = [
+  'Inter',
+  'Cairo',
+  'Tajawal',
+  'IBM Plex Sans Arabic',
+  'Almarai',
+  'Poppins',
+  'Montserrat',
+  'DM Sans',
+  'Roboto',
+  'Open Sans',
+  'Lato',
+  'Nunito',
 ] as const;
 
 export const PUBLIC_FORM_CONDITION_OPERATORS = [
@@ -45,7 +66,9 @@ export const publicFormFieldOptionSchema = z.object({
 // `mapTo` is a dotted path on the target record, e.g. `name.firstName`,
 // `emails.primaryEmail` or a custom field name such as `country`.
 export const publicFormFieldSchema = z.object({
-  id: z.string().min(1),
+  id: z
+    .string()
+    .regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/, 'Field ids must be simple slugs'),
   type: z.enum(PUBLIC_FORM_FIELD_TYPES),
   label: z.string(),
   description: z.string().optional(),
@@ -56,33 +79,70 @@ export const publicFormFieldSchema = z.object({
   visibleWhen: z.array(publicFormConditionSchema).optional(),
   maxFileSizeMb: z.number().positive().max(25).optional(),
   acceptedFileExtensions: z.array(z.string()).optional(),
+  width: z.enum(PUBLIC_FORM_FIELD_WIDTHS).default('full'),
+  defaultValue: z.string().optional(),
+  // Lets an embedding site pass e.g. `?utm_source=linkedin` into a field.
+  prefillQueryParam: z.string().optional(),
 });
 
 export const publicFormThemeSchema = z.object({
   primaryColor: hexColorSchema.default('#111111'),
   backgroundColor: hexColorSchema.default('#ffffff'),
   textColor: hexColorSchema.default('#1f1f1f'),
+  buttonTextColor: hexColorSchema.default('#ffffff'),
+  inputBackgroundColor: hexColorSchema.default('#ffffff'),
+  borderColor: hexColorSchema.default('#d6d6d6'),
   fontFamily: z.string().default('Inter, system-ui, sans-serif'),
   borderRadiusPx: z.number().min(0).max(32).default(8),
   logoUrl: z.string().url().optional(),
   submitButtonLabel: z.string().default('Submit'),
+  direction: z.enum(PUBLIC_FORM_DIRECTIONS).default('ltr'),
+  customCss: z.string().max(20000).optional(),
 });
 
 export const publicFormSettingsSchema = z.object({
   successMessage: z.string().default('Thank you! Your answers were sent.'),
   redirectUrl: z.string().url().optional(),
+  // Language of the built-in texts (errors, "Sending…"), not of the questions.
+  language: z.enum(PUBLIC_FORM_LANGUAGES).default('en'),
 });
 
-export const publicFormDefinitionSchema = z.object({
-  version: z.literal(PUBLIC_FORM_DEFINITION_VERSION),
-  title: z.string(),
-  description: z.string().optional(),
-  fields: z.array(publicFormFieldSchema),
-  theme: publicFormThemeSchema.default(publicFormThemeSchema.parse({})),
-  settings: publicFormSettingsSchema.default(
-    publicFormSettingsSchema.parse({}),
-  ),
-});
+export const publicFormDefinitionSchema = z
+  .object({
+    version: z.literal(PUBLIC_FORM_DEFINITION_VERSION),
+    title: z.string(),
+    description: z.string().optional(),
+    fields: z.array(publicFormFieldSchema),
+    theme: publicFormThemeSchema.default(publicFormThemeSchema.parse({})),
+    settings: publicFormSettingsSchema.default(
+      publicFormSettingsSchema.parse({}),
+    ),
+  })
+  .superRefine((definition, context) => {
+    const seenFieldIds = new Set<string>();
+
+    definition.fields.forEach((field, fieldIndex) => {
+      if (seenFieldIds.has(field.id)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['fields', fieldIndex, 'id'],
+          message: `Duplicate field id "${field.id}"`,
+        });
+      }
+
+      (field.visibleWhen ?? []).forEach((condition, conditionIndex) => {
+        if (!seenFieldIds.has(condition.fieldId)) {
+          context.addIssue({
+            code: 'custom',
+            path: ['fields', fieldIndex, 'visibleWhen', conditionIndex],
+            message: 'A condition can only depend on an earlier field',
+          });
+        }
+      });
+
+      seenFieldIds.add(field.id);
+    });
+  });
 
 export type PublicFormFieldType = (typeof PUBLIC_FORM_FIELD_TYPES)[number];
 export type PublicFormConditionOperator =
@@ -92,6 +152,9 @@ export type PublicFormField = z.infer<typeof publicFormFieldSchema>;
 export type PublicFormTheme = z.infer<typeof publicFormThemeSchema>;
 export type PublicFormSettings = z.infer<typeof publicFormSettingsSchema>;
 export type PublicFormDefinition = z.infer<typeof publicFormDefinitionSchema>;
+export type PublicFormDefinitionInput = z.input<
+  typeof publicFormDefinitionSchema
+>;
 
 // Answers keyed by field id. Multi-select answers are arrays; files are
 // handled outside the answer map.

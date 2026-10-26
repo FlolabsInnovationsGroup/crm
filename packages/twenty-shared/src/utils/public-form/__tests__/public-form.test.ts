@@ -167,3 +167,62 @@ describe('buildPublicFormRecordValues', () => {
     });
   });
 });
+
+describe('chained conditions', () => {
+  const chainedDefinition = publicFormDefinitionSchema.parse({
+    version: 1,
+    title: 'Chained',
+    fields: [
+      {
+        id: 'hasLaptop',
+        type: 'select',
+        label: 'Do you have a laptop?',
+        options: [
+          { value: 'YES', label: 'Yes' },
+          { value: 'NO', label: 'No' },
+        ],
+      },
+      {
+        id: 'laptopOs',
+        type: 'select',
+        label: 'Which OS?',
+        options: [
+          { value: 'MAC', label: 'macOS' },
+          { value: 'OTHER', label: 'Other' },
+        ],
+        visibleWhen: [
+          { fieldId: 'hasLaptop', operator: 'equals', value: 'YES' },
+        ],
+      },
+      {
+        id: 'otherOs',
+        type: 'shortText',
+        label: 'Which one?',
+        required: true,
+        mapTo: 'jobTitle',
+        visibleWhen: [
+          { fieldId: 'laptopOs', operator: 'equals', value: 'OTHER' },
+        ],
+      },
+      { id: 'utm', type: 'hidden', label: 'Source', mapTo: 'city' },
+    ],
+  });
+
+  it('hides a field whose parent is hidden even if a stale answer remains', () => {
+    const answers = { hasLaptop: 'NO', laptopOs: 'OTHER', utm: 'linkedin' };
+
+    expect(validatePublicFormAnswers(chainedDefinition, answers)).toEqual([]);
+    expect(buildPublicFormRecordValues(chainedDefinition, answers)).toEqual({
+      city: 'linkedin',
+    });
+  });
+
+  it('requires the grandchild once the whole chain is visible', () => {
+    expect(
+      validatePublicFormAnswers(chainedDefinition, {
+        hasLaptop: 'YES',
+        laptopOs: 'OTHER',
+      }),
+    ).toEqual([{ fieldId: 'otherOs', message: 'This field is required' }]);
+  });
+});

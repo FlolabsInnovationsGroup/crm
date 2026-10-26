@@ -10,8 +10,8 @@ import { isNonEmptyString } from '@sniptt/guards';
 import { STANDARD_OBJECTS } from 'twenty-shared/metadata';
 import {
   buildPublicFormRecordValues,
+  getPublicFormVisibleFieldIds,
   isDefined,
-  isPublicFormFieldVisible,
   publicFormDefinitionSchema,
   validatePublicFormAnswers,
   type PublicFormAnswers,
@@ -254,9 +254,10 @@ export class PublicFormService {
     definition: PublicFormDefinition,
     answers: PublicFormAnswers,
   ): PublicFormField[] {
+    const visibleFieldIds = getPublicFormVisibleFieldIds(definition, answers);
+
     return definition.fields.filter(
-      (field) =>
-        field.type === 'file' && isPublicFormFieldVisible(field, answers),
+      (field) => field.type === 'file' && visibleFieldIds.has(field.id),
     );
   }
 

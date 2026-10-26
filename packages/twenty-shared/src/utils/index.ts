@@ -224,6 +224,7 @@ export {
   isValidPublicFormMapTo,
   buildPublicFormRecordValues,
 } from './public-form/build-public-form-record-values';
+export { getPublicFormVisibleFieldIds } from './public-form/get-public-form-visible-field-ids';
 export { isPublicFormFieldVisible } from './public-form/is-public-form-field-visible';
 export type {
   PublicFormFieldType,
@@ -233,11 +234,16 @@ export type {
   PublicFormTheme,
   PublicFormSettings,
   PublicFormDefinition,
+  PublicFormDefinitionInput,
   PublicFormAnswers,
 } from './public-form/public-form-definition-schema';
 export {
   PUBLIC_FORM_DEFINITION_VERSION,
   PUBLIC_FORM_FIELD_TYPES,
+  PUBLIC_FORM_FIELD_WIDTHS,
+  PUBLIC_FORM_DIRECTIONS,
+  PUBLIC_FORM_LANGUAGES,
+  PUBLIC_FORM_GOOGLE_FONTS,
   PUBLIC_FORM_CONDITION_OPERATORS,
   publicFormConditionSchema,
   publicFormFieldOptionSchema,

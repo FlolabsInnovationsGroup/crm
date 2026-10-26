@@ -4,9 +4,14 @@ import {
   Controller,
   Get,
   HttpCode,
+  HttpException,
+  HttpStatus,
+  Logger,
   Param,
   Post,
+  Query,
   Req,
+  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -14,15 +19,18 @@ import {
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 
 import { isNonEmptyString } from '@sniptt/guards';
-import { type Request } from 'express';
+import { randomBytes } from 'crypto';
+import { type Request, type Response } from 'express';
 import { ApiPath } from 'twenty-shared/types';
 import { isPlainObject, type PublicFormAnswers } from 'twenty-shared/utils';
 
-import { NoPermissionGuard } from 'src/engine/guards/no-permission.guard';
-import { PublicEndpointGuard } from 'src/engine/guards/public-endpoint.guard';
+import { buildUnsubscribeResultPage } from 'src/engine/core-modules/emailing-domain/utils/build-unsubscribe-result-page.util';
 import { ThrottlerException } from 'src/engine/core-modules/throttler/throttler.exception';
 import { ThrottlerService } from 'src/engine/core-modules/throttler/throttler.service';
 import { throttlerToRestApiExceptionHandler } from 'src/engine/core-modules/throttler/utils/throttler-to-rest-api-exception-handler.util';
+import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
+import { NoPermissionGuard } from 'src/engine/guards/no-permission.guard';
+import { PublicEndpointGuard } from 'src/engine/guards/public-endpoint.guard';
 import {
   PUBLIC_FORM_HONEYPOT_FIELD,
   PUBLIC_FORM_MAX_FILES,
@@ -30,6 +38,12 @@ import {
   PUBLIC_FORM_RATE_LIMIT,
 } from 'src/modules/public-form/constants/public-form.constants';
 import { PublicFormService } from 'src/modules/public-form/services/public-form.service';
+import { buildPublicFormEmbedScript } from 'src/modules/public-form/utils/build-public-form-embed-script.util';
+import {
+  buildPublicFormContentSecurityPolicy,
+  buildPublicFormPage,
+} from 'src/modules/public-form/utils/build-public-form-page.util';
+import { PUBLIC_FORM_PAGE_MESSAGES } from 'src/modules/public-form/utils/public-form-page-messages';
 
 type MulterFile = {
   fieldname: string;
@@ -41,6 +55,14 @@ type MulterFile = {
 type SubmissionBody = Record<string, unknown> & {
   answers?: unknown;
   sourceUrl?: unknown;
+};
+
+const safeJsonParse = (value: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 };
 
 const parseAnswers = (rawAnswers: unknown): PublicFormAnswers => {
@@ -62,24 +84,73 @@ const parseAnswers = (rawAnswers: unknown): PublicFormAnswers => {
   ) as PublicFormAnswers;
 };
 
-const safeJsonParse = (value: string): unknown => {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-};
-
-@Controller(`${ApiPath.Webhooks}/forms`)
+@Controller(ApiPath.Forms)
 @UseGuards(PublicEndpointGuard, NoPermissionGuard)
 export class PublicFormController {
+  private readonly logger = new Logger(PublicFormController.name);
+
   constructor(
     private readonly publicFormService: PublicFormService,
     private readonly throttlerService: ThrottlerService,
+    private readonly twentyConfigService: TwentyConfigService,
   ) {}
 
   @Get(':workspaceId/:formId')
-  async getForm(
+  async getPage(
+    @Param('workspaceId') workspaceId: string,
+    @Param('formId') formId: string,
+    @Query('embed') embed: string | undefined,
+    @Res() response: Response,
+  ) {
+    const nonce = randomBytes(16).toString('base64');
+
+    response.setHeader(
+      'Content-Security-Policy',
+      buildPublicFormContentSecurityPolicy(nonce),
+    );
+    response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('Cache-Control', 'no-store');
+
+    try {
+      const form = await this.publicFormService.getPublishedForm({
+        workspaceId,
+        formId,
+      });
+
+      response.type('html').send(
+        buildPublicFormPage({
+          formId: form.id,
+          definition: form.definition,
+          submitUrl: `/${ApiPath.Forms}/${workspaceId}/${formId}`,
+          isEmbedded: embed === '1',
+          nonce,
+        }),
+      );
+    } catch (error) {
+      const status =
+        error instanceof HttpException
+          ? error.getStatus()
+          : HttpStatus.INTERNAL_SERVER_ERROR;
+
+      if (status !== HttpStatus.NOT_FOUND) {
+        this.logger.error(`Unable to render form ${formId}`, error);
+      }
+
+      response
+        .status(status)
+        .type('html')
+        .send(
+          buildUnsubscribeResultPage(
+            PUBLIC_FORM_PAGE_MESSAGES.en.notFoundTitle,
+            PUBLIC_FORM_PAGE_MESSAGES.en.notFoundMessage,
+          ),
+        );
+    }
+  }
+
+  @Get(':workspaceId/:formId/definition')
+  async getDefinition(
     @Param('workspaceId') workspaceId: string,
     @Param('formId') formId: string,
   ) {
@@ -89,6 +160,31 @@ export class PublicFormController {
     });
 
     return { id: form.id, definition: form.definition };
+  }
+
+  @Get(':workspaceId/:formId/embed.js')
+  async getEmbedScript(
+    @Param('workspaceId') workspaceId: string,
+    @Param('formId') formId: string,
+    @Res() response: Response,
+  ) {
+    const form = await this.publicFormService.getPublishedForm({
+      workspaceId,
+      formId,
+    });
+    const serverUrl = this.twentyConfigService
+      .get('SERVER_URL')
+      .replace(/\/$/, '');
+
+    response.setHeader('Cache-Control', 'public, max-age=300');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.type('application/javascript').send(
+      buildPublicFormEmbedScript({
+        formId: form.id,
+        pageUrl: `${serverUrl}/${ApiPath.Forms}/${workspaceId}/${formId}`,
+        title: form.definition.title,
+      }),
+    );
   }
 
   @Post(':workspaceId/:formId')

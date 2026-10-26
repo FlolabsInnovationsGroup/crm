@@ -1,4 +1,4 @@
-import { isPublicFormFieldVisible } from './is-public-form-field-visible';
+import { getPublicFormVisibleFieldIds } from './get-public-form-visible-field-ids';
 import {
   type PublicFormAnswers,
   type PublicFormDefinition,
@@ -10,9 +10,11 @@ export type PublicFormValidationError = {
   message: string;
 };
 
-const NON_INPUT_FIELD_TYPES: PublicFormField['type'][] = [
+const UNVALIDATED_FIELD_TYPES: PublicFormField['type'][] = [
   'heading',
   'paragraph',
+  'hidden',
+  'file',
 ];
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -72,12 +74,13 @@ const validateFieldFormat = (
 export const validatePublicFormAnswers = (
   definition: PublicFormDefinition,
   answers: PublicFormAnswers,
-): PublicFormValidationError[] =>
-  definition.fields.flatMap((field) => {
+): PublicFormValidationError[] => {
+  const visibleFieldIds = getPublicFormVisibleFieldIds(definition, answers);
+
+  return definition.fields.flatMap((field) => {
     if (
-      NON_INPUT_FIELD_TYPES.includes(field.type) ||
-      field.type === 'file' ||
-      !isPublicFormFieldVisible(field, answers)
+      UNVALIDATED_FIELD_TYPES.includes(field.type) ||
+      !visibleFieldIds.has(field.id)
     ) {
       return [];
     }
@@ -96,3 +99,4 @@ export const validatePublicFormAnswers = (
       ? []
       : [{ fieldId: field.id, message: formatError }];
   });
+};

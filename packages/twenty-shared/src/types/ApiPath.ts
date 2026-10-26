@@ -12,6 +12,8 @@ export enum ApiPath {
   File = 'file',
   FileUpload = 'file-upload',
   Files = 'files',
+  // FloLabs: public form pages, embed script and submissions.
+  Forms = 'forms',
   GraphQL = 'graphql',
   Health = 'healthz',
   Mcp = 'mcp',
