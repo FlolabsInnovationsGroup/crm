@@ -45,6 +45,7 @@ const StyledPanel = styled.div`
   flex: 0 0 min(560px, 48%);
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
 `;
 
 const StyledPanelHeader = styled.div`
@@ -112,6 +113,7 @@ const StyledTab = styled.button<{ isActive: boolean }>`
 
 const StyledTabContent = styled.div`
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   padding: ${themeCssVariables.spacing[4]};
 `;
