@@ -24,6 +24,7 @@ import {
 } from 'twenty-shared/utils';
 import { Repository } from 'typeorm';
 
+import { transformPhonesValue } from 'src/engine/core-modules/record-transformer/utils/transform-phones-value.util';
 import { FilesFieldService } from 'src/engine/core-modules/file/files-field/services/files-field.service';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
@@ -170,7 +171,10 @@ export class PublicFormService {
       throw new BadRequestException({ errors: allErrors });
     }
 
-    const recordValues = buildPublicFormRecordValues(definition, answers);
+    const recordValues = this.normalizePhones(
+      buildPublicFormRecordValues(definition, answers),
+      definition.settings.defaultPhoneCountryCode,
+    );
     const email = (recordValues.emails as { primaryEmail?: string } | undefined)
       ?.primaryEmail;
 
@@ -186,7 +190,11 @@ export class PublicFormService {
     }
 
     return this.workspaceOrmManager.executeInWorkspaceContext(async () => {
-      const person = await this.upsertPerson(email, recordValues);
+      const person = await this.upsertPersonKeepingTheLead(
+        email,
+        recordValues,
+        formId,
+      );
 
       const submissionRepository = this.workspaceOrmManager.getRepository(
         PUBLIC_FORM_SUBMISSION_OBJECT_NAME,
@@ -196,7 +204,7 @@ export class PublicFormService {
       const insertResult = await submissionRepository.insert({
         name: `${form.name} · ${email}`,
         formId: form.id,
-        personId: person.id,
+        personId: person?.id ?? null,
         answers,
         submittedAt: new Date().toISOString(),
         sourceUrl: sourceUrl?.slice(0, 2000) ?? null,
@@ -204,15 +212,82 @@ export class PublicFormService {
 
       const submissionId = insertResult.identifiers[0]?.id as string;
 
-      await this.attachFiles({
-        workspaceId,
-        personId: person.id,
-        fileFields,
-        files,
-      });
+      if (isDefined(person)) {
+        await this.attachFiles({
+          workspaceId,
+          personId: person.id,
+          fileFields,
+          files,
+        });
+      }
 
       return { submissionId };
     }, buildSystemAuthContext(workspaceId));
+  }
+
+  // Repositories skip the API's input transformers, so phones are split into
+  // calling code and national number here; unparsable numbers stay as typed.
+  private normalizePhones(
+    recordValues: Record<string, unknown>,
+    defaultCountryCode: string | undefined,
+  ): Record<string, unknown> {
+    const phones = recordValues.phones as
+      | { primaryPhoneNumber?: string }
+      | undefined;
+    const phoneNumber = phones?.primaryPhoneNumber;
+
+    if (!isNonEmptyString(phoneNumber)) {
+      return recordValues;
+    }
+
+    try {
+      const normalizedPhones = transformPhonesValue({
+        input: {
+          primaryPhoneNumber: phoneNumber,
+          primaryPhoneCountryCode: phoneNumber.startsWith('+')
+            ? undefined
+            : defaultCountryCode,
+        },
+      });
+
+      return {
+        ...recordValues,
+        phones: {
+          primaryPhoneNumber: normalizedPhones?.primaryPhoneNumber,
+          primaryPhoneCountryCode: normalizedPhones?.primaryPhoneCountryCode,
+          primaryPhoneCallingCode: normalizedPhones?.primaryPhoneCallingCode,
+        },
+      };
+    } catch {
+      return recordValues;
+    }
+  }
+
+  // A mapping the CRM rejects (e.g. a removed select option) must not lose
+  // the lead: retry with the email only, and keep the raw answers anyway.
+  private async upsertPersonKeepingTheLead(
+    email: string,
+    recordValues: Record<string, unknown>,
+    formId: string,
+  ): Promise<PersonRecord | null> {
+    try {
+      return await this.upsertPerson(email, recordValues);
+    } catch (error) {
+      this.logger.warn(
+        `Form ${formId}: saving mapped answers failed, retrying with email only`,
+        error,
+      );
+    }
+
+    try {
+      return await this.upsertPerson(email, {
+        emails: recordValues.emails,
+      });
+    } catch (error) {
+      this.logger.error(`Form ${formId}: could not save the person`, error);
+
+      return null;
+    }
   }
 
   private async upsertPerson(

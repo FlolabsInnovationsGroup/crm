@@ -105,6 +105,11 @@ export const publicFormSettingsSchema = z.object({
   redirectUrl: z.string().url().optional(),
   // Language of the built-in texts (errors, "Sending…"), not of the questions.
   language: z.enum(PUBLIC_FORM_LANGUAGES).default('en'),
+  // Country assumed for phone numbers typed without a "+" prefix, e.g. "EG".
+  defaultPhoneCountryCode: z
+    .string()
+    .regex(/^[A-Z]{2}$/)
+    .optional(),
 });
 
 export const publicFormDefinitionSchema = z

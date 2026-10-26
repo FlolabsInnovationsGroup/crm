@@ -27,6 +27,8 @@ export enum AppPath {
   WorkflowCoreShowPage = '/workflow/:coreWorkflowId',
   AgentIndexPage = '/agents',
   AgentShowPage = '/agent/:agentId',
+  // FloLabs: builder for the public forms served under /forms.
+  FormBuilder = '/form-builder/:formId?',
 
   Settings = `settings`,
   SettingsCatchAll = `/${Settings}/*`,

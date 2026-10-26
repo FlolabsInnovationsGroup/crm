@@ -27,6 +27,12 @@ const WorkflowCoreShowPage = lazy(() =>
   })),
 );
 
+const FormBuilderPage = lazy(() =>
+  import('~/pages/form-builder/FormBuilderPage').then((module) => ({
+    default: module.FormBuilderPage,
+  })),
+);
+
 const RecordIndexPage = lazy(() =>
   import('~/pages/object-record/RecordIndexPage').then((module) => ({
     default: module.RecordIndexPage,
@@ -109,6 +115,14 @@ export const createWorkspaceRouteObjects = ({
       element: (
         <LazyRoute>
           <AgentCoreShowPage />
+        </LazyRoute>
+      ),
+    },
+    {
+      path: AppPath.FormBuilder,
+      element: (
+        <LazyRoute>
+          <FormBuilderPage />
         </LazyRoute>
       ),
     },
