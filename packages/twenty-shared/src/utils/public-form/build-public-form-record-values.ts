@@ -1,4 +1,4 @@
-import { getPublicFormVisibleFieldIds } from './get-public-form-visible-field-ids';
+import { PUBLIC_FORM_ENGINE } from './public-form-engine';
 import {
   type PublicFormAnswers,
   type PublicFormDefinition,
@@ -34,7 +34,7 @@ export const buildPublicFormRecordValues = (
   answers: PublicFormAnswers,
 ): RecordValues => {
   const values: RecordValues = {};
-  const visibleFieldIds = getPublicFormVisibleFieldIds(definition, answers);
+  const { visible } = PUBLIC_FORM_ENGINE.evaluate(definition, answers);
 
   for (const field of definition.fields) {
     const answer = answers[field.id];
@@ -45,7 +45,7 @@ export const buildPublicFormRecordValues = (
       field.type === 'file' ||
       answer === undefined ||
       (typeof answer === 'string' && answer.trim() === '') ||
-      !visibleFieldIds.has(field.id)
+      visible[field.id] !== true
     ) {
       continue;
     }

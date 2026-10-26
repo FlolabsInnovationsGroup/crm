@@ -1,6 +1,5 @@
 import { buildPublicFormRecordValues } from '../build-public-form-record-values';
 import { getPublicFormVisibleFieldIds } from '../get-public-form-visible-field-ids';
-import { isPublicFormFieldVisible } from '../is-public-form-field-visible';
 import {
   publicFormDefinitionSchema,
   type PublicFormDefinition,
@@ -72,32 +71,57 @@ describe('public form definition', () => {
   });
 });
 
-describe('isPublicFormFieldVisible', () => {
-  const sourceDetails = definition.fields[4];
-
+describe('field visibility', () => {
   it('shows a conditional field only when its condition holds', () => {
-    expect(isPublicFormFieldVisible(sourceDetails, { source: 'OTHER' })).toBe(
-      true,
-    );
     expect(
-      isPublicFormFieldVisible(sourceDetails, { source: 'LINKEDIN' }),
+      getPublicFormVisibleFieldIds(definition, { source: 'OTHER' }).has(
+        'sourceDetails',
+      ),
+    ).toBe(true);
+    expect(
+      getPublicFormVisibleFieldIds(definition, { source: 'LINKEDIN' }).has(
+        'sourceDetails',
+      ),
     ).toBe(false);
   });
 
   it('supports empty checks and multi-select answers', () => {
-    const field = {
-      ...sourceDetails,
-      visibleWhen: [
-        { fieldId: 'teams', operator: 'contains' as const, value: 'ai' },
-        { fieldId: 'notes', operator: 'isEmpty' as const },
+    const teamsDefinition = publicFormDefinitionSchema.parse({
+      version: 1,
+      title: 'x',
+      fields: [
+        {
+          id: 'teams',
+          type: 'multiSelect',
+          label: 'Teams',
+          options: [
+            { value: 'AI', label: 'AI' },
+            { value: 'Web', label: 'Web' },
+          ],
+        },
+        { id: 'notes', type: 'shortText', label: 'Notes' },
+        {
+          id: 'target',
+          type: 'shortText',
+          label: 'Target',
+          visibleWhen: [
+            { fieldId: 'teams', operator: 'contains', value: 'ai' },
+            { fieldId: 'notes', operator: 'isEmpty' },
+          ],
+        },
       ],
-    };
+    });
 
-    expect(isPublicFormFieldVisible(field, { teams: ['AI', 'Web'] })).toBe(
-      true,
-    );
     expect(
-      isPublicFormFieldVisible(field, { teams: ['AI'], notes: 'hi' }),
+      getPublicFormVisibleFieldIds(teamsDefinition, {
+        teams: ['AI', 'Web'],
+      }).has('target'),
+    ).toBe(true);
+    expect(
+      getPublicFormVisibleFieldIds(teamsDefinition, {
+        teams: ['AI'],
+        notes: 'hi',
+      }).has('target'),
     ).toBe(false);
   });
 });
@@ -121,7 +145,11 @@ describe('validatePublicFormAnswers', () => {
     });
 
     expect(errors).toEqual([
-      { fieldId: 'sourceDetails', message: 'This field is required' },
+      {
+        fieldId: 'sourceDetails',
+        code: 'required',
+        message: 'This field is required',
+      },
     ]);
   });
 
@@ -224,7 +252,13 @@ describe('chained conditions', () => {
         hasLaptop: 'YES',
         laptopOs: 'OTHER',
       }),
-    ).toEqual([{ fieldId: 'otherOs', message: 'This field is required' }]);
+    ).toEqual([
+      {
+        fieldId: 'otherOs',
+        code: 'required',
+        message: 'This field is required',
+      },
+    ]);
   });
 });
 

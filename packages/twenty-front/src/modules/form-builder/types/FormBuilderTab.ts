@@ -1,1 +1,6 @@
-export type FormBuilderTab = 'fields' | 'design' | 'settings' | 'share';
+export type FormBuilderTab =
+  | 'fields'
+  | 'logic'
+  | 'design'
+  | 'settings'
+  | 'share';

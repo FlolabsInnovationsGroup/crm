@@ -35,16 +35,34 @@ const getGoogleFontName = (fontFamily: string) => {
 const isSafeImageUrl = (url: string | undefined): url is string =>
   typeof url === 'string' && /^https:\/\//i.test(url);
 
+const PIPED_TOKEN_PATTERN = /\{\{\s*[a-zA-Z][a-zA-Z0-9_-]*\s*\}\}/g;
+
+// Texts with `{{fieldId}}` are re-rendered by the page script as answers change.
+const renderText = (text: string) =>
+  text.includes('{{')
+    ? `<span data-template="${escapeHtml(text)}">${escapeHtml(text.replace(PIPED_TOKEN_PATTERN, ''))}</span>`
+    : escapeHtml(text);
+
+const hasConditions = (
+  groups: PublicFormField['requiredWhenGroups'],
+): boolean => (groups ?? []).some((group) => group.conditions.length > 0);
+
+const renderRequiredMark = (field: PublicFormField) => {
+  if (field.required) {
+    return '<span class="ff-required" aria-hidden="true"> *</span>';
+  }
+
+  return hasConditions(field.requiredWhenGroups)
+    ? '<span class="ff-required" aria-hidden="true" data-required-when hidden> *</span>'
+    : '';
+};
+
 const renderLabel = (field: PublicFormField, inputId: string) =>
-  `<label class="ff-label" for="${inputId}">${escapeHtml(field.label)}${
-    field.required
-      ? '<span class="ff-required" aria-hidden="true"> *</span>'
-      : ''
-  }</label>`;
+  `<label class="ff-label" for="${inputId}">${renderText(field.label)}${renderRequiredMark(field)}</label>`;
 
 const renderDescription = (field: PublicFormField) =>
   field.description
-    ? `<p class="ff-description" id="${field.id}-description">${escapeHtml(field.description)}</p>`
+    ? `<p class="ff-description" id="${field.id}-description">${renderText(field.description)}</p>`
     : '';
 
 const describedBy = (field: PublicFormField) =>
@@ -142,31 +160,27 @@ const renderField = (
     case 'hidden':
       return `<div class="ff-field" ${fieldAttributes} hidden><input type="hidden" name="${escapeHtml(field.id)}" /></div>`;
     case 'heading':
-      return `<div class="ff-field ff-full" ${fieldAttributes}><h2 class="ff-heading">${escapeHtml(field.label)}</h2>${
+      return `<div class="ff-field ff-full" ${fieldAttributes}><h2 class="ff-heading">${renderText(field.label)}</h2>${
         field.description
-          ? `<p class="ff-paragraph">${escapeHtml(field.description)}</p>`
+          ? `<p class="ff-paragraph">${renderText(field.description)}</p>`
           : ''
       }</div>`;
     case 'pageBreak':
       return `<div class="ff-field ff-full ff-step-header" ${fieldAttributes}>${
         field.label
-          ? `<h2 class="ff-heading">${escapeHtml(field.label)}</h2>`
+          ? `<h2 class="ff-heading">${renderText(field.label)}</h2>`
           : ''
       }${
         field.description
-          ? `<p class="ff-paragraph">${escapeHtml(field.description)}</p>`
+          ? `<p class="ff-paragraph">${renderText(field.description)}</p>`
           : ''
       }</div>`;
     case 'paragraph':
-      return `<div class="ff-field ff-full" ${fieldAttributes}><p class="ff-paragraph">${escapeHtml(field.description ?? field.label)}</p></div>`;
+      return `<div class="ff-field ff-full" ${fieldAttributes}><p class="ff-paragraph">${renderText(field.description ?? field.label)}</p></div>`;
     case 'checkbox':
       return `<div class="ff-field ${widthClass}" ${fieldAttributes}><label class="ff-choice ff-consent"><input type="checkbox" id="${inputId}" name="${escapeHtml(field.id)}" value="true"${
         field.required ? ' aria-required="true"' : ''
-      }${describedBy(field)} /><span>${escapeHtml(field.label)}${
-        field.required
-          ? '<span class="ff-required" aria-hidden="true"> *</span>'
-          : ''
-      }</span></label>${renderDescription(field)}<p class="ff-error" id="${escapeHtml(field.id)}-error" aria-live="polite"></p></div>`;
+      }${describedBy(field)} /><span>${renderText(field.label)}${renderRequiredMark(field)}</span></label>${renderDescription(field)}<p class="ff-error" id="${escapeHtml(field.id)}-error" aria-live="polite"></p></div>`;
     default:
       return `<div class="ff-field ${widthClass}" ${fieldAttributes}>${renderLabel(field, inputId)}${renderDescription(field)}${renderControl(field, inputId, messages)}<p class="ff-error" id="${escapeHtml(field.id)}-error" aria-live="polite"></p></div>`;
   }
@@ -329,7 +343,7 @@ ${renderSteps(definition.fields, messages)}
 </form>
 <div class="ff-success" id="ff-success" tabindex="-1" role="status" hidden>
 <div class="ff-success-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div>
-<p>${escapeHtml(settings.successMessage)}</p>
+<p id="ff-success-message">${escapeHtml(settings.successMessage)}</p>
 </div>
 </div>
 </main>

@@ -51,6 +51,8 @@ export const createFormField = (
     required: false,
     width: 'full',
     visibleWhenMatch: 'all',
+    visibleWhenGroupsMatch: 'any',
+    requiredWhenGroupsMatch: 'any',
   };
 
   if (fieldType === 'select' || fieldType === 'multiSelect') {

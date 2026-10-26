@@ -4,7 +4,7 @@ import { i18n } from '@lingui/core';
 import {
   PUBLIC_FORM_CONDITION_OPERATORS,
   type PublicFormCondition,
-  type PublicFormField,
+  type PublicFormConditionMatch,
 } from 'twenty-shared/utils';
 import { IconPlus, IconTrash } from 'twenty-ui/icon';
 import { Button } from 'twenty-ui/primitives/input';
@@ -13,24 +13,20 @@ import { themeCssVariables } from 'twenty-ui/theme';
 import { FormBuilderNativeSelect } from '@/form-builder/components/FormBuilderNativeSelect';
 import { FormBuilderTextInput } from '@/form-builder/components/FormBuilderTextInput';
 import { FORM_BUILDER_CONDITION_OPERATOR_LABELS } from '@/form-builder/constants/FormBuilderConditionOperatorLabels';
+import { type FormBuilderConditionSource } from '@/form-builder/types/FormBuilderConditionSource';
+import {
+  createDefaultCondition,
+  getDefaultConditionValue,
+} from '@/form-builder/utils/createDefaultCondition';
 
 const VALUELESS_OPERATORS: PublicFormCondition['operator'][] = [
   'isEmpty',
   'isNotEmpty',
 ];
 
-const ANSWERABLE_FIELD_TYPES: PublicFormField['type'][] = [
-  'shortText',
-  'longText',
-  'email',
-  'phone',
-  'number',
-  'url',
-  'date',
-  'select',
-  'multiSelect',
-  'checkbox',
-  'hidden',
+const OPTION_OPERATORS: PublicFormCondition['operator'][] = [
+  'equals',
+  'notEquals',
 ];
 
 const StyledList = styled.div`
@@ -41,51 +37,30 @@ const StyledList = styled.div`
 
 const StyledConditionRow = styled.div`
   align-items: center;
-  background: ${themeCssVariables.background.secondary};
-  border-radius: ${themeCssVariables.border.radius.sm};
   display: grid;
   gap: ${themeCssVariables.spacing[2]};
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr) auto;
-  padding: ${themeCssVariables.spacing[2]};
 `;
 
 const StyledMatchRow = styled.div`
   max-width: 240px;
 `;
 
-const StyledHint = styled.p`
-  color: ${themeCssVariables.font.color.light};
-  font-size: ${themeCssVariables.font.size.xs};
-  margin: 0;
-`;
-
 type FormBuilderConditionsEditorProps = {
   conditions: PublicFormCondition[];
-  match: PublicFormField['visibleWhenMatch'];
-  previousFields: PublicFormField[];
+  match: PublicFormConditionMatch;
+  sources: FormBuilderConditionSource[];
   onChange: (conditions: PublicFormCondition[]) => void;
-  onMatchChange: (match: PublicFormField['visibleWhenMatch']) => void;
+  onMatchChange: (match: PublicFormConditionMatch) => void;
 };
 
 export const FormBuilderConditionsEditor = ({
   conditions,
   match,
-  previousFields,
+  sources,
   onChange,
   onMatchChange,
 }: FormBuilderConditionsEditorProps) => {
-  const sourceFields = previousFields.filter((field) =>
-    ANSWERABLE_FIELD_TYPES.includes(field.type),
-  );
-
-  if (sourceFields.length === 0) {
-    return (
-      <StyledHint>
-        {t`Add a question above this one to show it only for some answers.`}
-      </StyledHint>
-    );
-  }
-
   const updateCondition = (
     conditionIndex: number,
     update: Partial<PublicFormCondition>,
@@ -97,31 +72,13 @@ export const FormBuilderConditionsEditor = ({
     );
   };
 
-  const handleSourceFieldChange = (conditionIndex: number, fieldId: string) => {
-    const sourceField = sourceFields.find((field) => field.id === fieldId);
-    const firstOptionValue = sourceField?.options?.[0]?.value;
-
+  const handleSourceChange = (conditionIndex: number, sourceId: string) => {
     updateCondition(conditionIndex, {
-      fieldId,
-      value:
-        sourceField?.type === 'checkbox' ? 'true' : (firstOptionValue ?? ''),
+      fieldId: sourceId,
+      value: getDefaultConditionValue(
+        sources.find((source) => source.id === sourceId),
+      ),
     });
-  };
-
-  const handleAddCondition = () => {
-    const lastField = sourceFields[sourceFields.length - 1];
-
-    onChange([
-      ...conditions,
-      {
-        fieldId: lastField.id,
-        operator: 'equals',
-        value:
-          lastField.type === 'checkbox'
-            ? 'true'
-            : (lastField.options?.[0]?.value ?? ''),
-      },
-    ]);
   };
 
   const renderValueInput = (
@@ -132,11 +89,11 @@ export const FormBuilderConditionsEditor = ({
       return <span />;
     }
 
-    const sourceField = sourceFields.find(
-      (field) => field.id === condition.fieldId,
+    const source = sources.find(
+      (candidate) => candidate.id === condition.fieldId,
     );
 
-    if (sourceField?.type === 'checkbox') {
+    if (source?.fieldType === 'checkbox') {
       return (
         <FormBuilderNativeSelect
           value={condition.value ?? 'true'}
@@ -151,14 +108,14 @@ export const FormBuilderConditionsEditor = ({
     }
 
     if (
-      (sourceField?.type === 'select' || sourceField?.type === 'multiSelect') &&
-      (condition.operator === 'equals' || condition.operator === 'notEquals')
+      (source?.options ?? []).length > 0 &&
+      OPTION_OPERATORS.includes(condition.operator)
     ) {
       return (
         <FormBuilderNativeSelect
           value={condition.value ?? ''}
           ariaLabel={t`Value`}
-          options={(sourceField.options ?? []).map((option) => ({
+          options={(source?.options ?? []).map((option) => ({
             value: option.value,
             label: option.label,
           }))}
@@ -171,7 +128,7 @@ export const FormBuilderConditionsEditor = ({
       <FormBuilderTextInput
         value={condition.value ?? ''}
         ariaLabel={t`Value`}
-        placeholder={t`Value`}
+        placeholder={condition.operator === 'isAnyOf' ? t`a, b, c` : t`Value`}
         onChange={(value) => updateCondition(conditionIndex, { value })}
       />
     );
@@ -189,7 +146,7 @@ export const FormBuilderConditionsEditor = ({
               { value: 'any', label: t`Any of these is true` },
             ]}
             onChange={(value) =>
-              onMatchChange(value as PublicFormField['visibleWhenMatch'])
+              onMatchChange(value as PublicFormConditionMatch)
             }
           />
         </StyledMatchRow>
@@ -199,11 +156,16 @@ export const FormBuilderConditionsEditor = ({
           <FormBuilderNativeSelect
             value={condition.fieldId}
             ariaLabel={t`Question`}
-            options={sourceFields.map((field) => ({
-              value: field.id,
-              label: field.label || field.id,
-            }))}
-            onChange={(fieldId) => handleSourceFieldChange(index, fieldId)}
+            options={[
+              ...sources.map((source) => ({
+                value: source.id,
+                label: source.label,
+              })),
+              ...(sources.some((source) => source.id === condition.fieldId)
+                ? []
+                : [{ value: condition.fieldId, label: condition.fieldId }]),
+            ]}
+            onChange={(sourceId) => handleSourceChange(index, sourceId)}
           />
           <FormBuilderNativeSelect
             value={condition.operator}
@@ -239,9 +201,11 @@ export const FormBuilderConditionsEditor = ({
           variant="ghost"
           size="sm"
           startIcon={<IconPlus size={14} />}
-          onClick={handleAddCondition}
+          onClick={() =>
+            onChange([...conditions, createDefaultCondition(sources)])
+          }
         >
-          {conditions.length === 0 ? t`Show only when…` : t`Add condition`}
+          {t`Add condition`}
         </Button>
       </div>
     </StyledList>

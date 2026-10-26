@@ -230,8 +230,8 @@ export {
   buildPublicFormRecordValues,
 } from './public-form/build-public-form-record-values';
 export { escapePublicFormHtml } from './public-form/escape-public-form-html';
+export { formatPublicFormError } from './public-form/format-public-form-error';
 export { getPublicFormVisibleFieldIds } from './public-form/get-public-form-visible-field-ids';
-export { isPublicFormFieldVisible } from './public-form/is-public-form-field-visible';
 export {
   PUBLIC_FORM_OBJECT_NAME,
   PUBLIC_FORM_SUBMISSION_OBJECT_NAME,
@@ -245,6 +245,13 @@ export type {
   PublicFormFieldType,
   PublicFormConditionOperator,
   PublicFormCondition,
+  PublicFormConditionGroup,
+  PublicFormValidationRules,
+  PublicFormVariable,
+  PublicFormEnding,
+  PublicFormAction,
+  PublicFormActionType,
+  PublicFormConditionMatch,
   PublicFormField,
   PublicFormTheme,
   PublicFormSettings,
@@ -261,17 +268,33 @@ export {
   PUBLIC_FORM_LANGUAGES,
   PUBLIC_FORM_GOOGLE_FONTS,
   PUBLIC_FORM_CONDITION_OPERATORS,
+  PUBLIC_FORM_ACTION_TYPES,
   publicFormConditionSchema,
+  publicFormConditionGroupSchema,
+  publicFormValidationRulesSchema,
   publicFormFieldOptionSchema,
   publicFormFieldSchema,
+  publicFormVariableSchema,
+  publicFormEndingSchema,
+  publicFormActionSchema,
   publicFormThemeSchema,
   publicFormSettingsSchema,
   publicFormDefinitionSchema,
 } from './public-form/public-form-definition-schema';
+export type {
+  PublicFormValue,
+  PublicFormVariableValues,
+  PublicFormEngineError,
+  PublicFormEvaluation,
+  PublicFormEngine,
+} from './public-form/public-form-engine';
+export {
+  createPublicFormEngine,
+  PUBLIC_FORM_ENGINE,
+} from './public-form/public-form-engine';
 export type { PublicFormPageMessages } from './public-form/public-form-page-messages';
 export { PUBLIC_FORM_PAGE_MESSAGES } from './public-form/public-form-page-messages';
 export { PUBLIC_FORM_PAGE_SCRIPT } from './public-form/public-form-page-script';
-export { PUBLIC_FORM_VISIBILITY_SCRIPT } from './public-form/public-form-visibility-script';
 export type { PublicFormValidationError } from './public-form/validate-public-form-answers';
 export { validatePublicFormAnswers } from './public-form/validate-public-form-answers';
 export { removePropertiesFromRecord } from './removePropertiesFromRecord';

@@ -9,4 +9,7 @@ export class InboxMailboxDTO {
 
   @Field(() => String)
   handle: string;
+
+  @Field(() => UUIDScalarType)
+  connectedAccountId: string;
 }

@@ -4,6 +4,7 @@ import { t } from '@lingui/core/macro';
 import {
   PUBLIC_FORM_FIELD_TYPES,
   type PublicFormField,
+  type PublicFormVariable,
 } from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
 
@@ -65,6 +66,7 @@ const StyledPaletteButton = styled.button`
 
 type FormBuilderFieldsTabProps = {
   fields: PublicFormField[];
+  variables: PublicFormVariable[];
   mappableFields: FormBuilderMappableField[];
   selectedFieldId: string | null;
   onSelectField: (fieldId: string | null) => void;
@@ -73,6 +75,7 @@ type FormBuilderFieldsTabProps = {
 
 export const FormBuilderFieldsTab = ({
   fields,
+  variables,
   mappableFields,
   selectedFieldId,
   onSelectField,
@@ -102,7 +105,12 @@ export const FormBuilderFieldsTab = ({
       reorderedFields[fieldIndex],
     ];
 
-    onChange(removeInvalidFormConditions(reorderedFields));
+    onChange(
+      removeInvalidFormConditions(
+        reorderedFields,
+        variables.map((variable) => variable.id),
+      ),
+    );
   };
 
   const handleDuplicate = (fieldIndex: number) => {
@@ -126,6 +134,7 @@ export const FormBuilderFieldsTab = ({
     onChange(
       removeInvalidFormConditions(
         fields.filter((_, index) => index !== fieldIndex),
+        variables.map((variable) => variable.id),
       ),
     );
   };
@@ -140,6 +149,8 @@ export const FormBuilderFieldsTab = ({
           key={field.id}
           field={field}
           previousFields={fields.slice(0, index)}
+          allFields={fields}
+          variables={variables}
           mappableFields={mappableFields}
           isSelected={selectedFieldId === field.id}
           isFirst={index === 0}

@@ -15,6 +15,7 @@ import { FormBuilderNativeSelect } from '@/form-builder/components/FormBuilderNa
 import { useFormBuilderFocusHandlers } from '@/form-builder/hooks/useFormBuilderFocusHandlers';
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
 import { GET_INBOX_MAILBOXES } from '@/team-inbox/graphql/getInboxMailboxes';
+import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
 import { useTeamInboxThreads } from '@/team-inbox/hooks/useTeamInboxThreads';
 import { type TeamInboxDirection } from '@/team-inbox/types/TeamInboxFilter';
 
@@ -90,8 +91,6 @@ const StyledEmpty = styled.p`
   margin: ${themeCssVariables.spacing[8]} 0;
   text-align: center;
 `;
-
-type InboxMailbox = { id: string; handle: string };
 
 export const TeamInboxContent = () => {
   const apolloCoreClient = useApolloCoreClient();

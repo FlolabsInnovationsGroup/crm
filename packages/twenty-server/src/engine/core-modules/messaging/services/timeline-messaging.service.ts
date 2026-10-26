@@ -191,11 +191,15 @@ export class TimelineMessagingService {
   ): Promise<InboxMailboxDTO[]> {
     const messageChannels = await this.messageChannelRepository.find({
       where: { workspaceId },
-      select: { id: true, handle: true },
+      select: { id: true, handle: true, connectedAccountId: true },
       order: { handle: 'ASC' },
     });
 
-    return messageChannels.map(({ id, handle }) => ({ id, handle }));
+    return messageChannels.map(({ id, handle, connectedAccountId }) => ({
+      id,
+      handle,
+      connectedAccountId,
+    }));
   }
 
   public async getThreadParticipantsByThreadId(

@@ -1,17 +1,28 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
-import { isDefined, type PublicFormField } from 'twenty-shared/utils';
+import {
+  isDefined,
+  type PublicFormConditionGroup,
+  type PublicFormConditionMatch,
+  type PublicFormField,
+  type PublicFormVariable,
+} from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
 
-import { FormBuilderConditionsEditor } from '@/form-builder/components/FormBuilderConditionsEditor';
+import { FormBuilderConditionGroupsEditor } from '@/form-builder/components/FormBuilderConditionGroupsEditor';
 import { FormBuilderFieldRow } from '@/form-builder/components/FormBuilderFieldRow';
 import { FormBuilderNativeSelect } from '@/form-builder/components/FormBuilderNativeSelect';
 import { FormBuilderOptionsEditor } from '@/form-builder/components/FormBuilderOptionsEditor';
 import { FormBuilderSwitchRow } from '@/form-builder/components/FormBuilderSwitchRow';
 import { FormBuilderTextarea } from '@/form-builder/components/FormBuilderTextarea';
 import { FormBuilderTextInput } from '@/form-builder/components/FormBuilderTextInput';
+import { FormBuilderValidationRulesEditor } from '@/form-builder/components/FormBuilderValidationRulesEditor';
 import { type FormBuilderMappableField } from '@/form-builder/types/FormBuilderMappableField';
+import { getFieldVisibilityGroups } from '@/form-builder/utils/getFieldVisibilityGroups';
+import { getPipingToken } from '@/form-builder/utils/getPipingToken';
+import { getFormBuilderConditionSources } from '@/form-builder/utils/getFormBuilderConditionSources';
+import { hasFormValidationRules } from '@/form-builder/utils/hasFormValidationRules';
 
 const NO_MAPPING_VALUE = '';
 
@@ -92,6 +103,8 @@ const StyledFieldId = styled.code`
 type FormBuilderFieldSettingsProps = {
   field: PublicFormField;
   previousFields: PublicFormField[];
+  allFields: PublicFormField[];
+  variables: PublicFormVariable[];
   mappableFields: FormBuilderMappableField[];
   onChange: (field: PublicFormField) => void;
 };
@@ -99,11 +112,44 @@ type FormBuilderFieldSettingsProps = {
 export const FormBuilderFieldSettings = ({
   field,
   previousFields,
+  allFields,
+  variables,
   mappableFields,
   onChange,
 }: FormBuilderFieldSettingsProps) => {
   const update = (changes: Partial<PublicFormField>) =>
     onChange({ ...field, ...changes });
+
+  const visibility = getFieldVisibilityGroups(field);
+  const visibilitySources = getFormBuilderConditionSources(
+    previousFields,
+    variables,
+  );
+  const requiredSources = getFormBuilderConditionSources(
+    allFields.filter((otherField) => otherField.id !== field.id),
+    variables,
+  );
+
+  const handleVisibilityChange = (
+    groups: PublicFormConditionGroup[],
+    groupsMatch: PublicFormConditionMatch,
+  ) =>
+    update({
+      visibleWhen: undefined,
+      visibleWhenGroups: groups.length > 0 ? groups : undefined,
+      visibleWhenGroupsMatch: groupsMatch,
+    });
+
+  const visibilityEditor = (
+    <FormBuilderConditionGroupsEditor
+      groups={visibility.groups}
+      groupsMatch={visibility.groupsMatch}
+      sources={visibilitySources}
+      addLabel={t`Show only when…`}
+      emptyHint={t`Add a question above this one to show it only for some answers.`}
+      onChange={handleVisibilityChange}
+    />
+  );
 
   const compatibleMappableFields = mappableFields.filter((mappableField) =>
     mappableField.compatibleFieldTypes.includes(field.type),
@@ -147,13 +193,7 @@ export const FormBuilderFieldSettings = ({
         </FormBuilderFieldRow>
         <StyledSection>
           <StyledSectionTitle>{t`Show this block only when`}</StyledSectionTitle>
-          <FormBuilderConditionsEditor
-            conditions={field.visibleWhen ?? []}
-            match={field.visibleWhenMatch}
-            previousFields={previousFields}
-            onChange={(visibleWhen) => update({ visibleWhen })}
-            onMatchChange={(visibleWhenMatch) => update({ visibleWhenMatch })}
-          />
+          {visibilityEditor}
         </StyledSection>
       </StyledSettings>
     );
@@ -218,6 +258,35 @@ export const FormBuilderFieldSettings = ({
             }
           />
         </StyledTwoColumns>
+      )}
+
+      {!isDecorative && field.type !== 'hidden' && !field.required && (
+        <StyledSection>
+          <StyledSectionTitle>{t`Required only when`}</StyledSectionTitle>
+          <FormBuilderConditionGroupsEditor
+            groups={field.requiredWhenGroups ?? []}
+            groupsMatch={field.requiredWhenGroupsMatch}
+            sources={requiredSources}
+            addLabel={t`Make required when…`}
+            emptyHint={t`Add other questions to make this one required for some answers.`}
+            onChange={(groups, groupsMatch) =>
+              update({
+                requiredWhenGroups: groups.length > 0 ? groups : undefined,
+                requiredWhenGroupsMatch: groupsMatch,
+              })
+            }
+          />
+        </StyledSection>
+      )}
+
+      {hasFormValidationRules(field.type) && (
+        <StyledSection>
+          <StyledSectionTitle>{t`Validation`}</StyledSectionTitle>
+          <FormBuilderValidationRulesEditor
+            field={field}
+            onChange={(validation) => update({ validation })}
+          />
+        </StyledSection>
       )}
 
       {isChoice && (
@@ -364,21 +433,14 @@ export const FormBuilderFieldSettings = ({
               {t`A hidden section hides every question below it, until the next section title or page.`}
             </StyledHint>
           )}
-          <FormBuilderConditionsEditor
-            conditions={field.visibleWhen ?? []}
-            match={field.visibleWhenMatch}
-            previousFields={previousFields}
-            onChange={(visibleWhen) =>
-              update({
-                visibleWhen: visibleWhen.length > 0 ? visibleWhen : undefined,
-              })
-            }
-            onMatchChange={(visibleWhenMatch) => update({ visibleWhenMatch })}
-          />
+          {visibilityEditor}
         </StyledSection>
       )}
 
-      <StyledFieldId>{t`Field id: ${field.id}`}</StyledFieldId>
+      <StyledFieldId>
+        {t`Field id: ${field.id}. Insert this answer in any text with`}{' '}
+        {getPipingToken(field.id)}
+      </StyledFieldId>
     </StyledSettings>
   );
 };

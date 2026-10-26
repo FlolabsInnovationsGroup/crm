@@ -1,11 +1,12 @@
-import { PUBLIC_FORM_VISIBILITY_SCRIPT } from './public-form-visibility-script';
+import { createPublicFormEngine } from './public-form-engine';
 
-// Runs in the visitor's browser, so it is plain ES2017 kept as a string. The
-// server re-validates every submission with the shared code.
+// Runs in the visitor's browser, so it is plain ES2019 kept as a string. The
+// logic engine is the same function the server validates with.
 export const PUBLIC_FORM_PAGE_SCRIPT = `
-${PUBLIC_FORM_VISIBILITY_SCRIPT}
 (function () {
   'use strict';
+
+  var engine = (${createPublicFormEngine.toString()})();
 
   var definition = JSON.parse(document.getElementById('ff-definition').textContent);
   var config = JSON.parse(document.getElementById('ff-config').textContent);
@@ -23,10 +24,6 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
   var params = new URLSearchParams(window.location.search);
   var isEmbedded = window.parent !== window;
 
-  var EMAIL_PATTERN = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
-  var PHONE_PATTERN = /^\\+?[0-9 ()./-]{6,25}$/;
-  var URL_PATTERN = /^https?:\\/\\/\\S+\\.\\S+$/i;
-  var DATE_PATTERN = /^\\d{4}-\\d{2}-\\d{2}$/;
   var TEXT_TYPES = ['shortText', 'longText', 'email', 'phone', 'number', 'url', 'date', 'hidden'];
 
   function wrapperOf(field) {
@@ -87,21 +84,35 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
     return answers;
   }
 
-  function visibleFieldIds(answers) {
-    return flolabsVisibleFieldIds(definition, answers);
+  function evaluateAnswers(answers) {
+    return engine.evaluate(definition, answers);
+  }
+
+  function formatError(error) {
+    if (!error) return null;
+    if (error.message) return error.message;
+    var template = messages[error.code] || messages.genericError;
+    return template.replace('{n}', error.params && error.params.n ? error.params.n : '');
   }
 
   function applyVisibility() {
-    var visible = visibleFieldIds(readAnswers());
+    var evaluation = evaluateAnswers(readAnswers());
+    var visible = evaluation.visible;
     definition.fields.forEach(function (field) {
       var wrapper = wrapperOf(field);
       if (!wrapper || field.type === 'hidden') return;
+      var requiredMark = wrapper.querySelector('[data-required-when]');
+      if (requiredMark) requiredMark.hidden = !engine.isFieldRequired(field, evaluation);
       var isVisible = visible[field.id] === true;
       if (wrapper.hidden === !isVisible) return;
       wrapper.hidden = !isVisible;
       if (!isVisible) setFieldError(field, null);
     });
+    form.querySelectorAll('[data-template]').forEach(function (element) {
+      element.textContent = engine.interpolate(element.getAttribute('data-template'), definition, evaluation);
+    });
     renderSteps(visible);
+    return evaluation;
   }
 
   // A step is shown when its page break is visible and it has something to show.
@@ -118,7 +129,7 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
   }
 
   function renderSteps(visible) {
-    var visibleSteps = visibleStepIndexes(visible || visibleFieldIds(readAnswers()));
+    var visibleSteps = visibleStepIndexes(visible || evaluateAnswers(readAnswers()).visible);
     if (visibleSteps.length === 0) visibleSteps = [0];
     if (visibleSteps.indexOf(currentStep) === -1) {
       var previous = visibleSteps.filter(function (index) { return index < currentStep; });
@@ -153,11 +164,11 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
     if (target !== undefined) goToStep(target);
   }
 
-  function validateVisibleFields(visible, answers, isInScope) {
+  function validateVisibleFields(evaluation, answers, isInScope) {
     var hasErrors = false;
     definition.fields.forEach(function (field) {
-      if (!visible[field.id] || !isInScope(field)) return;
-      var message = validateField(field, answers[field.id]);
+      if (!evaluation.visible[field.id] || !isInScope(field)) return;
+      var message = validateField(field, answers[field.id], evaluation);
       setFieldError(field, message);
       if (message) hasErrors = true;
     });
@@ -169,21 +180,15 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
     return Boolean(wrapper) && steps[currentStep].contains(wrapper);
   }
 
-  function isEmpty(answer) {
-    return answer === undefined || answer === false ||
-      (typeof answer === 'string' && answer.trim() === '') ||
-      (Array.isArray(answer) && answer.length === 0);
-  }
-
   function extensionOf(fileName) {
     var dot = fileName.lastIndexOf('.');
     return dot === -1 ? '' : fileName.slice(dot + 1).toLowerCase();
   }
 
-  function validateFile(field) {
+  function validateFile(field, isRequired) {
     var input = wrapperOf(field).querySelector('input[type=file]');
     var file = input.files && input.files[0];
-    if (!file) return field.required ? messages.fileRequired : null;
+    if (!file) return isRequired ? messages.fileRequired : null;
     var maxMb = Math.min(field.maxFileSizeMb || config.maxFileSizeMb, config.maxFileSizeMb);
     if (file.size > maxMb * 1024 * 1024) return messages.fileTooLarge;
     var accepted = (field.acceptedFileExtensions || []).map(function (extension) {
@@ -195,19 +200,10 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
     return null;
   }
 
-  function validateField(field, answer) {
-    if (field.type === 'file') return validateFile(field);
-    if (['heading', 'paragraph', 'hidden'].indexOf(field.type) !== -1) return null;
-    if (isEmpty(answer)) return field.required ? messages.required : null;
-    var text = typeof answer === 'string' ? answer.trim() : '';
-    switch (field.type) {
-      case 'email': return EMAIL_PATTERN.test(text) ? null : messages.email;
-      case 'phone': return PHONE_PATTERN.test(text) ? null : messages.phone;
-      case 'url': return URL_PATTERN.test(text) ? null : messages.url;
-      case 'number': return isNaN(Number(text)) ? messages.number : null;
-      case 'date': return DATE_PATTERN.test(text) ? null : messages.date;
-      default: return null;
-    }
+  function validateField(field, answer, evaluation) {
+    var isRequired = engine.isFieldRequired(field, evaluation || evaluateAnswers(readAnswers()));
+    if (field.type === 'file') return validateFile(field, isRequired);
+    return formatError(engine.validateValue(field, answer, isRequired));
   }
 
   function setFieldError(field, message) {
@@ -258,9 +254,12 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
     return typeof url === 'string' && /^https?:\\/\\//i.test(url);
   }
 
-  function onSubmitted() {
+  function onSubmitted(evaluation) {
     postToParent('flolabs-form:submitted');
-    var redirectUrl = definition.settings.redirectUrl;
+    var ending = engine.findEnding(definition, evaluation);
+    var redirectUrl = ending ? ending.redirectUrl : definition.settings.redirectUrl;
+    var message = ending && ending.message ? ending.message : definition.settings.successMessage;
+    if (redirectUrl) redirectUrl = engine.interpolate(redirectUrl, definition, evaluation, encodeURIComponent);
     if (isSafeRedirect(redirectUrl) && !config.isPreview) {
       try {
         window.top.location.href = redirectUrl;
@@ -269,6 +268,7 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
       }
       return;
     }
+    document.getElementById('ff-success-message').textContent = engine.interpolate(message, definition, evaluation);
     form.hidden = true;
     success.hidden = false;
     success.focus();
@@ -317,11 +317,12 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
     showFormError(null);
 
     var answers = readAnswers();
-    var visible = visibleFieldIds(answers);
+    var evaluation = evaluateAnswers(answers);
+    var visible = evaluation.visible;
 
     // Enter in a field submits the form; before the last step it means "Next".
     if (!renderSteps(visible).isLast) {
-      if (validateVisibleFields(visible, answers, isInCurrentStep)) {
+      if (validateVisibleFields(evaluation, answers, isInCurrentStep)) {
         showFormError(messages.fixErrors);
         focusFirstError();
         return;
@@ -330,7 +331,7 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
       return;
     }
 
-    if (validateVisibleFields(visible, answers, function () { return true; })) {
+    if (validateVisibleFields(evaluation, answers, function () { return true; })) {
       showFormError(messages.fixErrors);
       focusFirstError();
       return;
@@ -351,7 +352,7 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
       if (input.files && input.files[0]) body.append('file:' + field.id, input.files[0]);
     });
 
-    if (config.isPreview) return onSubmitted();
+    if (config.isPreview) return onSubmitted(evaluation);
 
     setSending(true);
     fetch(config.submitUrl, { method: 'POST', body: body, credentials: 'omit' })
@@ -362,7 +363,7 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
       })
       .then(function (result) {
         setSending(false);
-        if (result.response.ok) return onSubmitted();
+        if (result.response.ok) return onSubmitted(evaluation);
         if (result.response.status === 429) return showFormError(messages.tooManyRequests);
         var errors = result.data && Array.isArray(result.data.errors) ? result.data.errors : [];
         var hasFieldErrors = false;
@@ -370,7 +371,7 @@ ${PUBLIC_FORM_VISIBILITY_SCRIPT}
           var field = definition.fields.find(function (candidate) { return candidate.id === error.fieldId; });
           if (field) {
             hasFieldErrors = true;
-            setFieldError(field, translateServerMessage(error.message));
+            setFieldError(field, error.code && messages[error.code] ? formatError(error) : translateServerMessage(error.message));
           }
         });
         showFormError(hasFieldErrors ? messages.fixErrors : (errors[0] ? translateServerMessage(errors[0].message) : messages.genericError));

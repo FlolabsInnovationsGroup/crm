@@ -12,6 +12,8 @@ const buildField = (
   required: false,
   width: 'full',
   visibleWhenMatch: 'all',
+  visibleWhenGroupsMatch: 'any',
+  requiredWhenGroupsMatch: 'any',
   visibleWhen,
 });
 
@@ -35,5 +37,36 @@ describe('removeInvalidFormConditions', () => {
     ];
 
     expect(removeInvalidFormConditions(fields)[0].visibleWhen).toBeUndefined();
+  });
+
+  it('keeps calculation conditions and lets requirements look ahead', () => {
+    const fields: PublicFormField[] = [
+      {
+        ...buildField('first'),
+        visibleWhenGroups: [
+          {
+            match: 'all',
+            conditions: [
+              { fieldId: 'score', operator: 'greaterThan', value: '5' },
+              { fieldId: 'second', operator: 'isEmpty' },
+            ],
+          },
+        ],
+        requiredWhenGroups: [
+          {
+            match: 'all',
+            conditions: [{ fieldId: 'second', operator: 'isNotEmpty' }],
+          },
+        ],
+      },
+      buildField('second'),
+    ];
+
+    const [first] = removeInvalidFormConditions(fields, ['score']);
+
+    expect(first.visibleWhenGroups?.[0].conditions).toEqual([
+      { fieldId: 'score', operator: 'greaterThan', value: '5' },
+    ]);
+    expect(first.requiredWhenGroups?.[0].conditions).toHaveLength(1);
   });
 });

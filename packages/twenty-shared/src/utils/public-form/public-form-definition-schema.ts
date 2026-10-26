@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { createPublicFormEngine } from './public-form-engine';
+
 export const PUBLIC_FORM_DEFINITION_VERSION = 1;
 
 export const PUBLIC_FORM_FIELD_TYPES = [
@@ -50,7 +52,21 @@ export const PUBLIC_FORM_CONDITION_OPERATORS = [
   'isNotEmpty',
   'greaterThan',
   'lessThan',
+  'greaterOrEqual',
+  'lessOrEqual',
+  'startsWith',
+  'endsWith',
+  'isAnyOf',
 ] as const;
+
+export const PUBLIC_FORM_ACTION_TYPES = [
+  'setPersonValues',
+  'createTask',
+  'notifyTeam',
+  'autoReply',
+] as const;
+
+const SLUG_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
 
 const hexColorSchema = z
   .string()
@@ -62,6 +78,22 @@ export const publicFormConditionSchema = z.object({
   value: z.string().optional(),
 });
 
+export const publicFormConditionGroupSchema = z.object({
+  match: z.enum(PUBLIC_FORM_CONDITION_MATCHES).default('all'),
+  conditions: z.array(publicFormConditionSchema),
+});
+
+export const publicFormValidationRulesSchema = z.object({
+  // Characters for text, picked options for multiple choice.
+  minLength: z.number().int().min(0).optional(),
+  maxLength: z.number().int().min(0).optional(),
+  // Numbers or YYYY-MM-DD dates.
+  minValue: z.string().optional(),
+  maxValue: z.string().optional(),
+  pattern: z.string().max(500).optional(),
+  patternMessage: z.string().max(300).optional(),
+});
+
 export const publicFormFieldOptionSchema = z.object({
   value: z.string().min(1),
   label: z.string().min(1),
@@ -70,9 +102,7 @@ export const publicFormFieldOptionSchema = z.object({
 // `mapTo` is a dotted path on the target record, e.g. `name.firstName`,
 // `emails.primaryEmail` or a custom field name such as `country`.
 export const publicFormFieldSchema = z.object({
-  id: z
-    .string()
-    .regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/, 'Field ids must be simple slugs'),
+  id: z.string().regex(SLUG_PATTERN, 'Field ids must be simple slugs'),
   type: z.enum(PUBLIC_FORM_FIELD_TYPES),
   label: z.string(),
   description: z.string().optional(),
@@ -82,6 +112,12 @@ export const publicFormFieldSchema = z.object({
   mapTo: z.string().optional(),
   visibleWhen: z.array(publicFormConditionSchema).optional(),
   visibleWhenMatch: z.enum(PUBLIC_FORM_CONDITION_MATCHES).default('all'),
+  // Supersedes visibleWhen when set; groups combine with visibleWhenGroupsMatch.
+  visibleWhenGroups: z.array(publicFormConditionGroupSchema).optional(),
+  visibleWhenGroupsMatch: z.enum(PUBLIC_FORM_CONDITION_MATCHES).default('any'),
+  requiredWhenGroups: z.array(publicFormConditionGroupSchema).optional(),
+  requiredWhenGroupsMatch: z.enum(PUBLIC_FORM_CONDITION_MATCHES).default('any'),
+  validation: publicFormValidationRulesSchema.optional(),
   maxFileSizeMb: z.number().positive().max(25).optional(),
   acceptedFileExtensions: z.array(z.string()).optional(),
   width: z.enum(PUBLIC_FORM_FIELD_WIDTHS).default('full'),
@@ -89,6 +125,63 @@ export const publicFormFieldSchema = z.object({
   // Lets an embedding site pass e.g. `?utm_source=linkedin` into a field.
   prefillQueryParam: z.string().optional(),
 });
+
+export const publicFormVariableSchema = z.object({
+  id: z.string().regex(SLUG_PATTERN, 'Variable ids must be simple slugs'),
+  label: z.string(),
+  formula: z.string().max(2000),
+});
+
+const whenSchema = {
+  when: z.array(publicFormConditionGroupSchema).optional(),
+  whenMatch: z.enum(PUBLIC_FORM_CONDITION_MATCHES).default('any'),
+};
+
+export const publicFormEndingSchema = z.object({
+  id: z.string().regex(SLUG_PATTERN),
+  label: z.string(),
+  ...whenSchema,
+  message: z.string().optional(),
+  redirectUrl: z.string().url().optional(),
+});
+
+const actionBaseSchema = {
+  id: z.string().regex(SLUG_PATTERN),
+  ...whenSchema,
+};
+
+// Texts accept `{{fieldId}}` and `{{variableId}}`.
+export const publicFormActionSchema = z.discriminatedUnion('type', [
+  z.object({
+    ...actionBaseSchema,
+    type: z.literal('setPersonValues'),
+    values: z.array(z.object({ mapTo: z.string(), value: z.string() })),
+  }),
+  z.object({
+    ...actionBaseSchema,
+    type: z.literal('createTask'),
+    title: z.string().min(1),
+    body: z.string().optional(),
+    assigneeId: z.string().uuid().optional(),
+    dueInDays: z.number().int().min(0).max(365).optional(),
+  }),
+  z.object({
+    ...actionBaseSchema,
+    type: z.literal('notifyTeam'),
+    to: z.string().min(3),
+    subject: z.string().min(1),
+    message: z.string().optional(),
+    connectedAccountId: z.string().uuid().optional(),
+  }),
+  z.object({
+    ...actionBaseSchema,
+    type: z.literal('autoReply'),
+    emailFieldId: z.string().optional(),
+    subject: z.string().min(1),
+    body: z.string().min(1),
+    connectedAccountId: z.string().uuid().optional(),
+  }),
+]);
 
 export const publicFormThemeSchema = z.object({
   primaryColor: hexColorSchema.default('#111111'),
@@ -127,9 +220,67 @@ export const publicFormDefinitionSchema = z
     settings: publicFormSettingsSchema.default(
       publicFormSettingsSchema.parse({}),
     ),
+    variables: z.array(publicFormVariableSchema).optional(),
+    endings: z.array(publicFormEndingSchema).optional(),
+    actions: z.array(publicFormActionSchema).optional(),
   })
   .superRefine((definition, context) => {
+    const engine = createPublicFormEngine();
+    const fieldIds = new Set(definition.fields.map((field) => field.id));
+    const variableIds = new Set<string>();
     const seenFieldIds = new Set<string>();
+
+    const checkGroups = (
+      groups: z.infer<typeof publicFormConditionGroupSchema>[] | undefined,
+      path: (string | number)[],
+      isKnownId: (id: string) => boolean,
+    ) => {
+      (groups ?? []).forEach((group, groupIndex) =>
+        group.conditions.forEach((condition, conditionIndex) => {
+          if (!isKnownId(condition.fieldId)) {
+            context.addIssue({
+              code: 'custom',
+              path: [...path, groupIndex, 'conditions', conditionIndex],
+              message: `Unknown or later field "${condition.fieldId}"`,
+            });
+          }
+        }),
+      );
+    };
+
+    (definition.variables ?? []).forEach((variable, variableIndex) => {
+      const path = ['variables', variableIndex];
+
+      if (fieldIds.has(variable.id) || variableIds.has(variable.id)) {
+        context.addIssue({
+          code: 'custom',
+          path: [...path, 'id'],
+          message: `Duplicate id "${variable.id}"`,
+        });
+      }
+
+      const formulaError = engine.parseFormula(variable.formula);
+
+      if (formulaError !== null) {
+        context.addIssue({
+          code: 'custom',
+          path: [...path, 'formula'],
+          message: formulaError,
+        });
+      }
+
+      engine.getFormulaReferences(variable.formula).forEach((reference) => {
+        if (!fieldIds.has(reference) && !variableIds.has(reference)) {
+          context.addIssue({
+            code: 'custom',
+            path: [...path, 'formula'],
+            message: `Unknown or later reference "{${reference}}"`,
+          });
+        }
+      });
+
+      variableIds.add(variable.id);
+    });
 
     definition.fields.forEach((field, fieldIndex) => {
       if (seenFieldIds.has(field.id)) {
@@ -140,24 +291,70 @@ export const publicFormDefinitionSchema = z
         });
       }
 
-      (field.visibleWhen ?? []).forEach((condition, conditionIndex) => {
-        if (!seenFieldIds.has(condition.fieldId)) {
+      // Conditions may only look back, so a page never depends on a later one.
+      const isEarlierOrVariable = (id: string) =>
+        seenFieldIds.has(id) || variableIds.has(id);
+
+      checkGroups(
+        field.visibleWhen === undefined
+          ? undefined
+          : [{ match: field.visibleWhenMatch, conditions: field.visibleWhen }],
+        ['fields', fieldIndex, 'visibleWhen'],
+        isEarlierOrVariable,
+      );
+      checkGroups(
+        field.visibleWhenGroups,
+        ['fields', fieldIndex, 'visibleWhenGroups'],
+        isEarlierOrVariable,
+      );
+      checkGroups(
+        field.requiredWhenGroups,
+        ['fields', fieldIndex, 'requiredWhenGroups'],
+        (id) => fieldIds.has(id) || variableIds.has(id),
+      );
+
+      if (field.validation?.pattern !== undefined) {
+        try {
+          new RegExp(field.validation.pattern);
+        } catch {
           context.addIssue({
             code: 'custom',
-            path: ['fields', fieldIndex, 'visibleWhen', conditionIndex],
-            message: 'A condition can only depend on an earlier field',
+            path: ['fields', fieldIndex, 'validation', 'pattern'],
+            message: 'Invalid regular expression',
           });
         }
-      });
+      }
 
       seenFieldIds.add(field.id);
     });
+
+    const isAnyKnownId = (id: string) =>
+      fieldIds.has(id) || variableIds.has(id);
+
+    (definition.endings ?? []).forEach((ending, endingIndex) =>
+      checkGroups(ending.when, ['endings', endingIndex, 'when'], isAnyKnownId),
+    );
+    (definition.actions ?? []).forEach((action, actionIndex) =>
+      checkGroups(action.when, ['actions', actionIndex, 'when'], isAnyKnownId),
+    );
   });
 
 export type PublicFormFieldType = (typeof PUBLIC_FORM_FIELD_TYPES)[number];
 export type PublicFormConditionOperator =
   (typeof PUBLIC_FORM_CONDITION_OPERATORS)[number];
 export type PublicFormCondition = z.infer<typeof publicFormConditionSchema>;
+export type PublicFormConditionGroup = z.infer<
+  typeof publicFormConditionGroupSchema
+>;
+export type PublicFormValidationRules = z.infer<
+  typeof publicFormValidationRulesSchema
+>;
+export type PublicFormVariable = z.infer<typeof publicFormVariableSchema>;
+export type PublicFormEnding = z.infer<typeof publicFormEndingSchema>;
+export type PublicFormAction = z.infer<typeof publicFormActionSchema>;
+export type PublicFormActionType = (typeof PUBLIC_FORM_ACTION_TYPES)[number];
+export type PublicFormConditionMatch =
+  (typeof PUBLIC_FORM_CONDITION_MATCHES)[number];
 export type PublicFormField = z.infer<typeof publicFormFieldSchema>;
 export type PublicFormTheme = z.infer<typeof publicFormThemeSchema>;
 export type PublicFormSettings = z.infer<typeof publicFormSettingsSchema>;

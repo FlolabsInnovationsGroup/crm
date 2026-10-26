@@ -11,8 +11,8 @@ import { STANDARD_OBJECTS } from 'twenty-shared/metadata';
 import { FieldActorSource } from 'twenty-shared/types';
 import {
   buildPublicFormRecordValues,
-  getPublicFormVisibleFieldIds,
   isDefined,
+  PUBLIC_FORM_ENGINE,
   PUBLIC_FORM_MAX_FILE_SIZE_MB,
   PUBLIC_FORM_OBJECT_NAME,
   PUBLIC_FORM_PUBLISHED_STATUS,
@@ -21,6 +21,7 @@ import {
   validatePublicFormAnswers,
   type PublicFormAnswers,
   type PublicFormDefinition,
+  type PublicFormEvaluation,
   type PublicFormField,
 } from 'twenty-shared/utils';
 import { Repository } from 'typeorm';
@@ -31,6 +32,8 @@ import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.ent
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { addPersonEmailFiltersToQueryBuilder } from 'src/modules/match-participant/utils/add-person-email-filters-to-query-builder';
+import { PublicFormActionsService } from 'src/modules/public-form/services/public-form-actions.service';
+import { type PublicFormCreatedBy as CreatedBy } from 'src/modules/public-form/types/public-form-created-by.type';
 
 export type PublicFormUploadedFile = {
   fieldName: string;
@@ -46,13 +49,6 @@ type PublishedForm = {
 };
 
 type PersonRecord = Record<string, unknown> & { id: string };
-
-type CreatedBy = {
-  source: FieldActorSource;
-  workspaceMemberId: null;
-  name: string;
-  context: Record<string, never>;
-};
 
 // Records written by a public form have no workspace member behind them.
 const buildCreatedBy = (formName: string): CreatedBy => ({
@@ -106,6 +102,7 @@ export class PublicFormService {
   constructor(
     private readonly workspaceOrmManager: WorkspaceOrmManager,
     private readonly filesFieldService: FilesFieldService,
+    private readonly publicFormActionsService: PublicFormActionsService,
     @InjectRepository(WorkspaceEntity)
     private readonly workspaceRepository: Repository<WorkspaceEntity>,
   ) {}
@@ -179,9 +176,10 @@ export class PublicFormService {
     const form = await this.getPublishedForm({ workspaceId, formId });
     const { definition } = form;
 
+    const evaluation = PUBLIC_FORM_ENGINE.evaluate(definition, answers);
     const validationErrors = validatePublicFormAnswers(definition, answers);
-    const fileFields = this.getVisibleFileFields(definition, answers);
-    const fileErrors = this.validateFiles(fileFields, files);
+    const fileFields = this.getVisibleFileFields(definition, evaluation);
+    const fileErrors = this.validateFiles(fileFields, files, evaluation);
     const allErrors = [...validationErrors, ...fileErrors];
 
     if (allErrors.length > 0) {
@@ -225,7 +223,8 @@ export class PublicFormService {
         name: `${form.name} · ${email}`,
         formId: form.id,
         personId: person?.id ?? null,
-        answers,
+        // Calculated values are kept next to the answers they came from.
+        answers: { ...evaluation.visibleAnswers, ...evaluation.variables },
         submittedAt: new Date().toISOString(),
         sourceUrl: sourceUrl?.slice(0, 2000) ?? null,
         createdBy,
@@ -243,6 +242,17 @@ export class PublicFormService {
           createdBy,
         });
       }
+
+      // Not awaited: emails and tasks must not slow down the visitor.
+      void this.publicFormActionsService.runActions({
+        workspaceId,
+        formName: form.name,
+        definition,
+        evaluation,
+        personId: person?.id ?? null,
+        submitterEmail: email,
+        createdBy,
+      });
 
       return { submissionId };
     }, buildSystemAuthContext(workspaceId));
@@ -368,18 +378,17 @@ export class PublicFormService {
 
   private getVisibleFileFields(
     definition: PublicFormDefinition,
-    answers: PublicFormAnswers,
+    evaluation: PublicFormEvaluation,
   ): PublicFormField[] {
-    const visibleFieldIds = getPublicFormVisibleFieldIds(definition, answers);
-
     return definition.fields.filter(
-      (field) => field.type === 'file' && visibleFieldIds.has(field.id),
+      (field) => field.type === 'file' && evaluation.visible[field.id] === true,
     );
   }
 
   private validateFiles(
     fileFields: PublicFormField[],
     files: PublicFormUploadedFile[],
+    evaluation: PublicFormEvaluation,
   ) {
     return fileFields.flatMap((field) => {
       const fieldFiles = files.filter(
@@ -387,8 +396,14 @@ export class PublicFormService {
       );
 
       if (fieldFiles.length === 0) {
-        return field.required
-          ? [{ fieldId: field.id, message: 'Please attach a file' }]
+        return PUBLIC_FORM_ENGINE.isFieldRequired(field, evaluation)
+          ? [
+              {
+                fieldId: field.id,
+                code: 'fileRequired',
+                message: 'Please attach a file',
+              },
+            ]
           : [];
       }
 

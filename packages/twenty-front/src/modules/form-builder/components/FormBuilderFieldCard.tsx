@@ -1,7 +1,10 @@
 import { styled } from '@linaria/react';
 import { i18n } from '@lingui/core';
 import { t } from '@lingui/core/macro';
-import { type PublicFormField } from 'twenty-shared/utils';
+import {
+  type PublicFormField,
+  type PublicFormVariable,
+} from 'twenty-shared/utils';
 import {
   IconArrowDown,
   IconArrowUp,
@@ -87,6 +90,8 @@ const StyledBody = styled.div`
 type FormBuilderFieldCardProps = {
   field: PublicFormField;
   previousFields: PublicFormField[];
+  allFields: PublicFormField[];
+  variables: PublicFormVariable[];
   mappableFields: FormBuilderMappableField[];
   isSelected: boolean;
   isFirst: boolean;
@@ -101,6 +106,8 @@ type FormBuilderFieldCardProps = {
 export const FormBuilderFieldCard = ({
   field,
   previousFields,
+  allFields,
+  variables,
   mappableFields,
   isSelected,
   isFirst,
@@ -136,7 +143,9 @@ export const FormBuilderFieldCard = ({
           <StyledMeta>
             <span>{i18n._(FORM_BUILDER_FIELD_TYPE_LABELS[field.type])}</span>
             {mappedField && <span>→ {mappedField.label}</span>}
-            {(field.visibleWhen ?? []).length > 0 && (
+            {((field.visibleWhen ?? []).length > 0 ||
+              (field.visibleWhenGroups ?? []).length > 0 ||
+              (field.requiredWhenGroups ?? []).length > 0) && (
               <IconFilter size={12} aria-label={t`Conditional`} />
             )}
           </StyledMeta>
@@ -193,6 +202,8 @@ export const FormBuilderFieldCard = ({
           <FormBuilderFieldSettings
             field={field}
             previousFields={previousFields}
+            allFields={allFields}
+            variables={variables}
             mappableFields={mappableFields}
             onChange={onChange}
           />

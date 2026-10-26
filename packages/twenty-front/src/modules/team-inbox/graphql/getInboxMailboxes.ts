@@ -5,6 +5,7 @@ export const GET_INBOX_MAILBOXES = gql`
     getInboxMailboxes {
       id
       handle
+      connectedAccountId
     }
   }
 `;

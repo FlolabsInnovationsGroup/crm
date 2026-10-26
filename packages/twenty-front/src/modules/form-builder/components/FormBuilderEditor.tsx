@@ -15,6 +15,7 @@ import { themeCssVariables } from 'twenty-ui/theme';
 import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
 import { FormBuilderDesignTab } from '@/form-builder/components/FormBuilderDesignTab';
 import { FormBuilderFieldsTab } from '@/form-builder/components/FormBuilderFieldsTab';
+import { FormBuilderLogicTab } from '@/form-builder/components/FormBuilderLogicTab';
 import { FormBuilderPreview } from '@/form-builder/components/FormBuilderPreview';
 import { FormBuilderSettingsTab } from '@/form-builder/components/FormBuilderSettingsTab';
 import { FormBuilderShareTab } from '@/form-builder/components/FormBuilderShareTab';
@@ -22,6 +23,7 @@ import { useFormBuilderFocusHandlers } from '@/form-builder/hooks/useFormBuilder
 import { type FormBuilderMappableField } from '@/form-builder/types/FormBuilderMappableField';
 import { type FormBuilderRecord } from '@/form-builder/types/FormBuilderRecord';
 import { type FormBuilderTab } from '@/form-builder/types/FormBuilderTab';
+import { removeDanglingLogicConditions } from '@/form-builder/utils/removeDanglingLogicConditions';
 import { buildFormShareLinks } from '@/form-builder/utils/buildFormShareLinks';
 import { parseStoredFormDefinition } from '@/form-builder/utils/parseStoredFormDefinition';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
@@ -149,8 +151,10 @@ export const FormBuilderEditor = ({
 
   const updateDraft = (
     nextName: string,
-    nextDefinition: PublicFormDefinition,
+    changedDefinition: PublicFormDefinition,
   ) => {
+    const nextDefinition = removeDanglingLogicConditions(changedDefinition);
+
     setName(nextName);
     setDefinition(nextDefinition);
     onDirtyChange(
@@ -222,6 +226,7 @@ export const FormBuilderEditor = ({
 
   const tabs: { id: FormBuilderTab; label: string }[] = [
     { id: 'fields', label: t`Fields` },
+    { id: 'logic', label: t`Logic` },
     { id: 'design', label: t`Design` },
     { id: 'settings', label: t`Settings` },
     { id: 'share', label: t`Share` },
@@ -285,12 +290,20 @@ export const FormBuilderEditor = ({
           {activeTab === 'fields' && (
             <FormBuilderFieldsTab
               fields={definition.fields}
+              variables={definition.variables ?? []}
               mappableFields={mappableFields}
               selectedFieldId={selectedFieldId}
               onSelectField={setSelectedFieldId}
               onChange={(fields) =>
                 updateDraft(name, { ...definition, fields })
               }
+            />
+          )}
+          {activeTab === 'logic' && (
+            <FormBuilderLogicTab
+              definition={definition}
+              mappableFields={mappableFields}
+              onChange={(nextDefinition) => updateDraft(name, nextDefinition)}
             />
           )}
           {activeTab === 'design' && (
