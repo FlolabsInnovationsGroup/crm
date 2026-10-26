@@ -13,6 +13,7 @@ import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
+import { FormBuilderCodeTab } from '@/form-builder/components/FormBuilderCodeTab';
 import { FormBuilderDesignTab } from '@/form-builder/components/FormBuilderDesignTab';
 import { FormBuilderFieldsTab } from '@/form-builder/components/FormBuilderFieldsTab';
 import { FormBuilderLogicTab } from '@/form-builder/components/FormBuilderLogicTab';
@@ -228,6 +229,7 @@ export const FormBuilderEditor = ({
     { id: 'fields', label: t`Fields` },
     { id: 'logic', label: t`Logic` },
     { id: 'design', label: t`Design` },
+    { id: 'code', label: t`Code` },
     { id: 'settings', label: t`Settings` },
     { id: 'share', label: t`Share` },
   ];
@@ -310,6 +312,12 @@ export const FormBuilderEditor = ({
             <FormBuilderDesignTab
               theme={definition.theme}
               onChange={(theme) => updateDraft(name, { ...definition, theme })}
+            />
+          )}
+          {activeTab === 'code' && (
+            <FormBuilderCodeTab
+              definition={definition}
+              onChange={(nextDefinition) => updateDraft(name, nextDefinition)}
             />
           )}
           {activeTab === 'settings' && (

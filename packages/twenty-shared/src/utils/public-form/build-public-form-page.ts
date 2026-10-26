@@ -25,6 +25,10 @@ const toScriptJson = (value: unknown) =>
 const sanitizeFontFamily = (fontFamily: string) =>
   fontFamily.replace(/[^a-zA-Z0-9 ,'"-]/g, '') || 'system-ui, sans-serif';
 
+// A literal "</script>" inside custom JS would end the element early.
+const sanitizeInlineScript = (js: string) =>
+  js.replace(/<\/script/gi, '<\\/script');
+
 // A stray "</style>" in custom CSS would otherwise end the style element.
 const sanitizeCustomCss = (css: string) => css.replace(/</g, '\\3c ');
 
@@ -289,15 +293,14 @@ const renderField = (
   }
 };
 
+const DECORATIVE_TYPES: PublicFormField['type'][] = ['heading', 'paragraph'];
+
+type Step = { pageBreakId: string; fields: PublicFormField[] };
+
 // Page breaks split the form into steps; the first step holds the fields
 // before the first page break.
-const renderSteps = (
-  fields: PublicFormField[],
-  messages: PublicFormPageMessages,
-) => {
-  const steps: { pageBreakId: string; fields: PublicFormField[] }[] = [
-    { pageBreakId: '', fields: [] },
-  ];
+const groupFieldsByPage = (fields: PublicFormField[]): Step[] => {
+  const steps: Step[] = [{ pageBreakId: '', fields: [] }];
 
   for (const field of fields) {
     if (field.type === 'pageBreak') {
@@ -306,6 +309,56 @@ const renderSteps = (
 
     steps[steps.length - 1]?.fields.push(field);
   }
+
+  return steps;
+};
+
+// One question per screen: titles and texts stay with the question after
+// them, and every step remembers its page so hiding a page still works.
+const groupFieldsByQuestion = (fields: PublicFormField[]): Step[] => {
+  const steps: Step[] = [];
+  let pageBreakId = '';
+  let pending: PublicFormField[] = [];
+
+  for (const field of fields) {
+    if (field.type === 'pageBreak') {
+      pageBreakId = field.id;
+    }
+
+    if (
+      field.type === 'pageBreak' ||
+      field.type === 'hidden' ||
+      DECORATIVE_TYPES.includes(field.type)
+    ) {
+      pending.push(field);
+      continue;
+    }
+
+    steps.push({ pageBreakId, fields: [...pending, field] });
+    pending = [];
+  }
+
+  if (pending.length > 0) {
+    const lastStep = steps[steps.length - 1];
+
+    if (lastStep === undefined) {
+      steps.push({ pageBreakId, fields: pending });
+    } else {
+      lastStep.fields.push(...pending);
+    }
+  }
+
+  return steps.length > 0 ? steps : [{ pageBreakId: '', fields: [] }];
+};
+
+const renderSteps = (
+  definition: PublicFormDefinition,
+  messages: PublicFormPageMessages,
+) => {
+  const steps =
+    definition.theme.layout === 'conversational'
+      ? groupFieldsByQuestion(definition.fields)
+      : groupFieldsByPage(definition.fields);
 
   return steps
     .map(
@@ -319,16 +372,56 @@ const renderSteps = (
     .join('\n');
 };
 
+// The generated markup, as a starting point for a hand-written form.
+export const buildPublicFormFieldsMarkup = (definition: PublicFormDefinition) =>
+  renderSteps(
+    definition,
+    PUBLIC_FORM_PAGE_MESSAGES[definition.settings.language],
+  );
+
+const JUSTIFY_BY_ALIGNMENT = {
+  start: 'flex-start',
+  center: 'center',
+  stretch: 'stretch',
+} as const;
+
+const buildPageBackground = (
+  theme: PublicFormDefinition['theme'],
+  isEmbedded: boolean,
+) => {
+  if (isEmbedded) {
+    return 'transparent';
+  }
+
+  const color = theme.pageBackgroundColor ?? theme.backgroundColor;
+
+  return isSafeImageUrl(theme.backgroundImageUrl)
+    ? `${color} url("${encodeURI(theme.backgroundImageUrl)}") center/cover fixed`
+    : color;
+};
+
 const buildStyle = (definition: PublicFormDefinition, isEmbedded: boolean) => {
   const { theme } = definition;
+  const isPlain = theme.layout === 'plain';
+  const cardPadding = isEmbedded || isPlain ? '24px' : '40px';
+  const buttonJustify = JUSTIFY_BY_ALIGNMENT[theme.buttonAlign];
 
-  return `:root{--ff-primary:${theme.primaryColor};--ff-background:${theme.backgroundColor};--ff-text:${theme.textColor};--ff-button-text:${theme.buttonTextColor};--ff-input-background:${theme.inputBackgroundColor};--ff-border:${theme.borderColor};--ff-radius:${theme.borderRadiusPx}px;--ff-font:${sanitizeFontFamily(theme.fontFamily)};--ff-danger:#c62828}
+  return `:root{--ff-primary:${theme.primaryColor};--ff-background:${theme.backgroundColor};--ff-text:${theme.textColor};--ff-button-text:${theme.buttonTextColor};--ff-input-background:${theme.inputBackgroundColor};--ff-border:${theme.borderColor};--ff-radius:${theme.borderRadiusPx}px;--ff-font:${sanitizeFontFamily(theme.fontFamily)};--ff-danger:#c62828;--ff-card-padding:${cardPadding}}
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:${isEmbedded ? 'transparent' : 'var(--ff-background)'};color:var(--ff-text);font-family:var(--ff-font);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.ff-page{max-width:680px;margin:0 auto;padding:${isEmbedded ? '8px 4px' : '48px 16px'}}
-.ff-card{background:var(--ff-background);${isEmbedded ? '' : 'border:1px solid color-mix(in srgb,var(--ff-text) 10%,transparent);box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04);'}border-radius:calc(var(--ff-radius) * 2);padding:${isEmbedded ? '24px' : '40px'}}
-.ff-logo{display:block;max-height:56px;max-width:200px;margin-bottom:24px}
+body{background:${buildPageBackground(theme, isEmbedded)};color:var(--ff-text);font-family:var(--ff-font);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.ff-page{max-width:${theme.maxWidthPx}px;margin:0 auto;padding:${isEmbedded ? '8px 4px' : '48px 16px'}}
+.ff-card{position:relative;overflow:hidden;background:${isPlain ? 'transparent' : 'var(--ff-background)'};${isEmbedded || isPlain ? '' : 'border:1px solid color-mix(in srgb,var(--ff-text) 10%,transparent);box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04);'}border-radius:calc(var(--ff-radius) * 2);padding:var(--ff-card-padding)}
+.ff-cover{display:block;width:calc(100% + var(--ff-card-padding) * 2);max-width:none;height:200px;object-fit:cover;margin:calc(var(--ff-card-padding) * -1) calc(var(--ff-card-padding) * -1) 28px}
+.ff-header{text-align:${theme.logoAlign === 'center' ? 'center' : 'start'}}
+.ff-logo{display:block;max-height:56px;max-width:200px;margin:0 ${theme.logoAlign === 'center' ? 'auto' : '0'} 24px}
+.ff-progress-bar{height:6px;border-radius:999px;background:color-mix(in srgb,var(--ff-primary) 14%,transparent);overflow:hidden;margin:0 0 12px}
+.ff-progress-bar[hidden]{display:none}
+.ff-progress-bar span{display:block;height:100%;width:0;background:var(--ff-primary);border-radius:inherit;transition:width .25s ease}
+.ff-layout-conversational .ff-page{min-height:100vh;display:flex;flex-direction:column;justify-content:center}
+.ff-layout-conversational .ff-step .ff-label,.ff-layout-conversational .ff-step .ff-heading{font-size:22px;line-height:1.3;margin-bottom:12px}
+.ff-layout-conversational .ff-step{animation:ff-in .25s ease}
+@keyframes ff-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .ff-title{font-size:28px;line-height:1.2;font-weight:700;margin:0 0 8px;letter-spacing:-.01em}
 .ff-intro{margin:0 0 28px;color:color-mix(in srgb,var(--ff-text) 70%,transparent);white-space:pre-line}
 .ff-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px}
@@ -361,8 +454,9 @@ body{background:${isEmbedded ? 'transparent' : 'var(--ff-background)'};color:var
 .ff-error{margin:6px 0 0;font-size:13px;color:var(--ff-danger);min-height:0}
 .ff-error:empty{display:none}
 .ff-invalid .ff-input,.ff-invalid .ff-choice{border-color:var(--ff-danger)}
-.ff-actions{margin-top:28px;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
-.ff-buttons{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.ff-actions{margin-top:28px;display:flex;flex-direction:column;align-items:stretch;gap:12px}
+.ff-buttons{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:${buttonJustify === 'stretch' ? 'flex-start' : buttonJustify}}
+${buttonJustify === 'stretch' ? '.ff-buttons .ff-submit,.ff-buttons .ff-back{flex:1 1 0}' : ''}
 .ff-back{min-height:48px;padding:12px 22px;font:inherit;font-weight:600;color:var(--ff-text);background:transparent;border:1px solid var(--ff-border);border-radius:var(--ff-radius);cursor:pointer}
 .ff-back:hover{border-color:var(--ff-text)}
 .ff-progress{margin:0 0 20px;font-size:13px;font-weight:600;letter-spacing:.02em;color:color-mix(in srgb,var(--ff-text) 60%,transparent)}
@@ -442,9 +536,13 @@ export const buildPublicFormPage = ({
     submitLabel: theme.submitButtonLabel,
     honeypotField: PUBLIC_FORM_HONEYPOT_FIELD,
     maxFileSizeMb: PUBLIC_FORM_MAX_FILE_SIZE_MB,
+    showProgressBar: theme.showProgressBar,
     messages,
     englishMessages: PUBLIC_FORM_PAGE_MESSAGES.en,
   };
+
+  const customHtml = definition.code?.html?.trim() ?? '';
+  const customJs = definition.code?.js?.trim() ?? '';
 
   return `<!doctype html>
 <html lang="${settings.language}" dir="${theme.direction}">
@@ -456,15 +554,19 @@ export const buildPublicFormPage = ({
 ${fontLinks}
 <style>${buildStyle(definition, isEmbedded)}</style>
 </head>
-<body>
+<body class="ff-layout-${theme.layout}">
 <main class="ff-page">
 <div class="ff-card">
+${isSafeImageUrl(theme.coverImageUrl) ? `<img class="ff-cover" src="${escapeHtml(theme.coverImageUrl)}" alt="" />` : ''}
+<div class="ff-header">
 ${isSafeImageUrl(theme.logoUrl) ? `<img class="ff-logo" src="${escapeHtml(theme.logoUrl)}" alt="" />` : ''}
-<h1 class="ff-title">${escapeHtml(definition.title)}</h1>
+${theme.showTitle ? `<h1 class="ff-title">${escapeHtml(definition.title)}</h1>` : ''}
 ${definition.description ? `<p class="ff-intro">${escapeHtml(definition.description)}</p>` : ''}
+</div>
 <form id="ff-form" novalidate>
+<div class="ff-progress-bar" id="ff-progress-bar" hidden><span></span></div>
 <p class="ff-progress" id="ff-progress" hidden></p>
-${renderSteps(definition.fields, messages)}
+${customHtml !== '' ? customHtml : renderSteps(definition, messages)}
 <div class="ff-honeypot" aria-hidden="true"><label>Leave this empty<input type="text" name="${PUBLIC_FORM_HONEYPOT_FIELD}" tabindex="-1" autocomplete="off" /></label></div>
 <div class="ff-actions">
 <div class="ff-buttons">
@@ -484,6 +586,7 @@ ${renderSteps(definition.fields, messages)}
 <script type="application/json" id="ff-definition">${toScriptJson(definition)}</script>
 <script type="application/json" id="ff-config">${toScriptJson(config)}</script>
 <script nonce="${nonce}">${PUBLIC_FORM_PAGE_SCRIPT}</script>
+${customJs !== '' ? `<script nonce="${nonce}">${sanitizeInlineScript(customJs)}</script>` : ''}
 </body>
 </html>`;
 };
@@ -499,4 +602,6 @@ export const buildPublicFormContentSecurityPolicy = (nonce: string) =>
     "form-action 'self'",
     "base-uri 'none'",
     'frame-ancestors *',
+    // An opaque origin keeps custom code away from the CRM's cookies and storage.
+    'sandbox allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation',
   ].join('; ');

@@ -49,6 +49,9 @@ export const PUBLIC_FORM_ADDRESS_PARTS = [
 export const PUBLIC_FORM_CONDITION_MATCHES = ['all', 'any'] as const;
 export const PUBLIC_FORM_FIELD_WIDTHS = ['full', 'half'] as const;
 export const PUBLIC_FORM_DIRECTIONS = ['ltr', 'rtl'] as const;
+// conversational shows one question per screen, like Typeform.
+export const PUBLIC_FORM_LAYOUTS = ['card', 'plain', 'conversational'] as const;
+export const PUBLIC_FORM_ALIGNMENTS = ['start', 'center', 'stretch'] as const;
 export const PUBLIC_FORM_LANGUAGES = ['en', 'ar'] as const;
 
 // Loaded from Google Fonts when picked; anything else must be a system font.
@@ -229,7 +232,23 @@ export const publicFormThemeSchema = z.object({
   logoUrl: z.string().url().optional(),
   submitButtonLabel: z.string().default('Submit'),
   direction: z.enum(PUBLIC_FORM_DIRECTIONS).default('ltr'),
-  customCss: z.string().max(20000).optional(),
+  customCss: z.string().max(50000).optional(),
+  layout: z.enum(PUBLIC_FORM_LAYOUTS).default('card'),
+  pageBackgroundColor: hexColorSchema.optional(),
+  backgroundImageUrl: z.string().url().optional(),
+  coverImageUrl: z.string().url().optional(),
+  logoAlign: z.enum(PUBLIC_FORM_ALIGNMENTS).default('start'),
+  buttonAlign: z.enum(PUBLIC_FORM_ALIGNMENTS).default('start'),
+  showTitle: z.boolean().default(true),
+  showProgressBar: z.boolean().default(true),
+  maxWidthPx: z.number().int().min(360).max(1400).default(680),
+});
+
+// Hand-written markup replaces the generated fields; inputs are matched to
+// fields by their name attribute.
+export const publicFormCodeSchema = z.object({
+  html: z.string().max(200000).optional(),
+  js: z.string().max(100000).optional(),
 });
 
 export const publicFormSettingsSchema = z.object({
@@ -257,6 +276,7 @@ export const publicFormDefinitionSchema = z
     variables: z.array(publicFormVariableSchema).optional(),
     endings: z.array(publicFormEndingSchema).optional(),
     actions: z.array(publicFormActionSchema).optional(),
+    code: publicFormCodeSchema.optional(),
   })
   .superRefine((definition, context) => {
     const engine = createPublicFormEngine();
@@ -391,6 +411,7 @@ export type PublicFormConditionMatch =
   (typeof PUBLIC_FORM_CONDITION_MATCHES)[number];
 export type PublicFormField = z.infer<typeof publicFormFieldSchema>;
 export type PublicFormTheme = z.infer<typeof publicFormThemeSchema>;
+export type PublicFormCode = z.infer<typeof publicFormCodeSchema>;
 export type PublicFormSettings = z.infer<typeof publicFormSettingsSchema>;
 export type PublicFormDefinition = z.infer<typeof publicFormDefinitionSchema>;
 export type PublicFormDefinitionInput = z.input<

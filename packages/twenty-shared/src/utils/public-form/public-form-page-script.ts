@@ -17,6 +17,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   var nextButton = document.getElementById('ff-next');
   var backButton = document.getElementById('ff-back');
   var progress = document.getElementById('ff-progress');
+  var progressBar = document.getElementById('ff-progress-bar');
   var steps = Array.prototype.slice.call(form.querySelectorAll('.ff-step'));
   var currentStep = 0;
   var formError = document.getElementById('ff-form-error');
@@ -34,68 +35,78 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     return form.querySelector('[data-field-id="' + CSS.escape(field.id) + '"]');
   }
 
+  // Hand-written markup may skip the wrappers, so inputs are found by name.
+  function controlsOf(field, suffix) {
+    var scope = wrapperOf(field) || form;
+    return Array.prototype.slice.call(
+      scope.querySelectorAll('[name="' + CSS.escape(field.id + (suffix || '')) + '"]')
+    );
+  }
+
+  function firstControl(field, suffix) {
+    return controlsOf(field, suffix)[0] || null;
+  }
+
+  function checkedValue(controls) {
+    var checked = controls.filter(function (control) { return control.checked; })[0];
+    return checked ? checked.value : '';
+  }
+
   function readAnswer(field) {
-    var wrapper = wrapperOf(field);
-    if (!wrapper) return undefined;
-    if (TEXT_TYPES.indexOf(field.type) !== -1) {
-      return wrapper.querySelector('input, textarea').value;
-    }
-    if (SINGLE_CHOICE_TYPES.indexOf(field.type) !== -1) {
-      var dropdown = wrapper.querySelector('select');
-      if (dropdown) return dropdown.value;
-      var checkedRadio = wrapper.querySelector('input[type=radio]:checked');
-      return checkedRadio ? checkedRadio.value : '';
-    }
-    if (field.type === 'multiSelect') {
-      return Array.prototype.map.call(
-        wrapper.querySelectorAll('input[type=checkbox]:checked'),
-        function (input) { return input.value; }
-      );
-    }
-    if (BOOLEAN_TYPES.indexOf(field.type) !== -1) {
-      return wrapper.querySelector('input[type=checkbox]').checked;
-    }
-    if (field.type === 'slider') {
-      var range = wrapper.querySelector('input[type=range]');
-      return range.getAttribute('data-touched') === 'true' ? range.value : '';
-    }
+    if (FILE_TYPES.indexOf(field.type) !== -1) return undefined;
     if (field.type === 'address') {
+      if (!firstControl(field, '__street')) return undefined;
       return ADDRESS_PARTS.map(function (part) {
-        return wrapper.querySelector('[name="' + CSS.escape(field.id + '__' + part) + '"]').value;
+        var control = firstControl(field, '__' + part);
+        return control ? control.value : '';
       });
     }
     if (field.type === 'matrix') {
       return (field.options || []).map(function (_row, rowIndex) {
-        var checked = wrapper.querySelector('input[name="' + CSS.escape(field.id + '__' + rowIndex) + '"]:checked');
-        return checked ? checked.value : '';
+        return checkedValue(controlsOf(field, '__' + rowIndex));
       });
     }
-    return undefined;
+    var controls = controlsOf(field);
+    var control = controls[0];
+    if (!control) return undefined;
+    if (field.type === 'slider') {
+      return control.getAttribute('data-touched') === 'true' ? control.value : '';
+    }
+    if (control.tagName === 'SELECT' && !control.multiple) return control.value;
+    if (control.tagName === 'SELECT') {
+      return Array.prototype.filter.call(control.options, function (option) { return option.selected; })
+        .map(function (option) { return option.value; });
+    }
+    if (control.type === 'radio') return checkedValue(controls);
+    if (control.type === 'checkbox') {
+      if (field.type === 'multiSelect') {
+        return controls.filter(function (input) { return input.checked; })
+          .map(function (input) { return input.value; });
+      }
+      return control.checked;
+    }
+    return control.value;
   }
 
   function writeAnswer(field, value) {
-    var wrapper = wrapperOf(field);
-    if (!wrapper) return;
-    if (TEXT_TYPES.indexOf(field.type) !== -1) {
-      wrapper.querySelector('input, textarea').value = value;
-    } else if (SINGLE_CHOICE_TYPES.indexOf(field.type) !== -1) {
-      var dropdown = wrapper.querySelector('select');
-      if (dropdown) dropdown.value = value;
-      wrapper.querySelectorAll('input[type=radio]').forEach(function (input) {
-        input.checked = input.value.toLowerCase() === value.toLowerCase();
-      });
-    } else if (field.type === 'multiSelect') {
-      var values = value.split(',').map(function (item) { return item.trim().toLowerCase(); });
-      wrapper.querySelectorAll('input[type=checkbox]').forEach(function (input) {
+    var controls = controlsOf(field);
+    var control = controls[0];
+    if (!control) return;
+    var values = field.type === 'multiSelect'
+      ? value.split(',').map(function (item) { return item.trim().toLowerCase(); })
+      : [value.toLowerCase()];
+    if (control.type === 'radio' || (control.type === 'checkbox' && field.type === 'multiSelect')) {
+      controls.forEach(function (input) {
         input.checked = values.indexOf(input.value.toLowerCase()) !== -1;
       });
-    } else if (BOOLEAN_TYPES.indexOf(field.type) !== -1) {
-      wrapper.querySelector('input[type=checkbox]').checked = value === 'true' || value === '1';
-    } else if (field.type === 'slider') {
-      var range = wrapper.querySelector('input[type=range]');
-      range.value = value;
-      range.setAttribute('data-touched', 'true');
-      updateSliderOutput(range);
+    } else if (control.type === 'checkbox') {
+      control.checked = value === 'true' || value === '1';
+    } else {
+      control.value = value;
+      if (field.type === 'slider') {
+        control.setAttribute('data-touched', 'true');
+        updateSliderOutput(control);
+      }
     }
   }
 
@@ -152,7 +163,24 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     }).filter(function (index) { return index !== -1; });
   }
 
+  function renderProgress(position, total) {
+    progress.hidden = total < 2;
+    progress.textContent = messages.stepOf
+      .replace('{current}', String(position + 1))
+      .replace('{total}', String(total));
+    if (!progressBar) return;
+    progressBar.hidden = !config.showProgressBar || total < 2;
+    progressBar.firstElementChild.style.width = Math.round(((position + 1) / total) * 100) + '%';
+  }
+
   function renderSteps(visible) {
+    if (steps.length === 0) {
+      if (nextButton) nextButton.hidden = true;
+      if (backButton) backButton.hidden = true;
+      if (submitButton) submitButton.hidden = false;
+      renderProgress(0, 1);
+      return { visibleSteps: [0], position: 0, isLast: true };
+    }
     var visibleSteps = visibleStepIndexes(visible || evaluateAnswers(readAnswers()).visible);
     if (visibleSteps.length === 0) visibleSteps = [0];
     if (visibleSteps.indexOf(currentStep) === -1) {
@@ -165,10 +193,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     nextButton.hidden = isLast;
     submitButton.hidden = !isLast;
     backButton.hidden = position === 0;
-    progress.hidden = visibleSteps.length < 2;
-    progress.textContent = messages.stepOf
-      .replace('{current}', String(position + 1))
-      .replace('{total}', String(visibleSteps.length));
+    renderProgress(position, visibleSteps.length);
     return { visibleSteps: visibleSteps, position: position, isLast: isLast };
   }
 
@@ -179,6 +204,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     var firstInput = steps[currentStep].querySelector('input:not([type=hidden]), textarea, select');
     window.scrollTo(0, 0);
     postToParent('flolabs-form:step');
+    announce('flolabs:step', { step: currentStep });
     if (firstInput) firstInput.focus({ preventScroll: true });
   }
 
@@ -200,8 +226,9 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   }
 
   function isInCurrentStep(field) {
-    var wrapper = wrapperOf(field);
-    return Boolean(wrapper) && steps[currentStep].contains(wrapper);
+    if (steps.length === 0) return true;
+    var element = wrapperOf(field) || firstControl(field) || firstControl(field, '__0') || firstControl(field, '__street');
+    return Boolean(element) && steps[currentStep].contains(element);
   }
 
   function extensionOf(fileName) {
@@ -236,9 +263,11 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
 
   function setFieldError(field, message) {
     var wrapper = wrapperOf(field);
-    if (!wrapper) return;
-    var errorElement = wrapper.querySelector('.ff-error');
-    wrapper.classList.toggle('ff-invalid', Boolean(message));
+    var errorElement = wrapper
+      ? wrapper.querySelector('.ff-error')
+      : form.querySelector('[data-error-for="' + CSS.escape(field.id) + '"]');
+    var target = wrapper || firstControl(field) || firstControl(field, '__0') || firstControl(field, '__street');
+    if (target) target.classList.toggle('ff-invalid', Boolean(message));
     if (errorElement) errorElement.textContent = message || '';
   }
 
@@ -267,7 +296,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
       currentStep = invalidStep;
       renderSteps();
     }
-    var firstInvalid = form.querySelector('.ff-invalid input, .ff-invalid textarea, .ff-invalid select');
+    var firstInvalid = form.querySelector('.ff-invalid input, .ff-invalid textarea, .ff-invalid select, input.ff-invalid, textarea.ff-invalid, select.ff-invalid');
     if (firstInvalid) firstInvalid.focus();
   }
 
@@ -282,8 +311,13 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     return typeof url === 'string' && /^https?:\\/\\//i.test(url);
   }
 
+  function announce(type, detail) {
+    window.dispatchEvent(new CustomEvent(type, { detail: detail }));
+  }
+
   function onSubmitted(evaluation) {
     postToParent('flolabs-form:submitted');
+    announce('flolabs:submitted', { answers: evaluation.visibleAnswers, variables: evaluation.variables });
     var ending = engine.findEnding(definition, evaluation);
     var redirectUrl = ending ? ending.redirectUrl : definition.settings.redirectUrl;
     var message = ending && ending.message ? ending.message : definition.settings.successMessage;
@@ -493,5 +527,12 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
       postToParent('flolabs-form:resize', { height: Math.ceil(document.documentElement.getBoundingClientRect().height) });
     }).observe(document.documentElement);
   }
+  // For custom code on the page.
+  window.flolabsForm = {
+    definition: definition,
+    getAnswers: readAnswers,
+    evaluate: function () { return evaluateAnswers(readAnswers()); },
+    refresh: applyVisibility,
+  };
 })();
 `;

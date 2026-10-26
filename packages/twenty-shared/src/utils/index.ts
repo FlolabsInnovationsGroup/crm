@@ -222,6 +222,7 @@ export { getSettingsPath } from './navigation/getSettingsPath';
 export { getPageLayoutWidgetHeightBehavior } from './pageLayout/getPageLayoutWidgetHeightBehavior';
 export { parseJson } from './parseJson';
 export {
+  buildPublicFormFieldsMarkup,
   buildPublicFormPage,
   buildPublicFormContentSecurityPolicy,
 } from './public-form/build-public-form-page';
@@ -254,6 +255,7 @@ export type {
   PublicFormConditionMatch,
   PublicFormField,
   PublicFormTheme,
+  PublicFormCode,
   PublicFormSettings,
   PublicFormDefinition,
   PublicFormDefinitionInput,
@@ -267,6 +269,8 @@ export {
   PUBLIC_FORM_CONDITION_MATCHES,
   PUBLIC_FORM_FIELD_WIDTHS,
   PUBLIC_FORM_DIRECTIONS,
+  PUBLIC_FORM_LAYOUTS,
+  PUBLIC_FORM_ALIGNMENTS,
   PUBLIC_FORM_LANGUAGES,
   PUBLIC_FORM_GOOGLE_FONTS,
   PUBLIC_FORM_CONDITION_OPERATORS,
@@ -280,6 +284,7 @@ export {
   publicFormEndingSchema,
   publicFormActionSchema,
   publicFormThemeSchema,
+  publicFormCodeSchema,
   publicFormSettingsSchema,
   publicFormDefinitionSchema,
 } from './public-form/public-form-definition-schema';
@@ -297,6 +302,8 @@ export {
 export type { PublicFormPageMessages } from './public-form/public-form-page-messages';
 export { PUBLIC_FORM_PAGE_MESSAGES } from './public-form/public-form-page-messages';
 export { PUBLIC_FORM_PAGE_SCRIPT } from './public-form/public-form-page-script';
+export type { PublicFormThemePreset } from './public-form/public-form-theme-presets';
+export { PUBLIC_FORM_THEME_PRESETS } from './public-form/public-form-theme-presets';
 export type { PublicFormValidationError } from './public-form/validate-public-form-answers';
 export { validatePublicFormAnswers } from './public-form/validate-public-form-answers';
 export { removePropertiesFromRecord } from './removePropertiesFromRecord';

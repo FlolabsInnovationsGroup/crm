@@ -1,7 +1,9 @@
 import { styled } from '@linaria/react';
-import { t } from '@lingui/core/macro';
+import { i18n } from '@lingui/core';
+import { msg, t } from '@lingui/core/macro';
 import {
   PUBLIC_FORM_GOOGLE_FONTS,
+  PUBLIC_FORM_THEME_PRESETS,
   type PublicFormTheme,
 } from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
@@ -9,8 +11,9 @@ import { themeCssVariables } from 'twenty-ui/theme';
 import { FormBuilderColorInput } from '@/form-builder/components/FormBuilderColorInput';
 import { FormBuilderFieldRow } from '@/form-builder/components/FormBuilderFieldRow';
 import { FormBuilderNativeSelect } from '@/form-builder/components/FormBuilderNativeSelect';
-import { FormBuilderTextarea } from '@/form-builder/components/FormBuilderTextarea';
+import { FormBuilderSwitchRow } from '@/form-builder/components/FormBuilderSwitchRow';
 import { FormBuilderTextInput } from '@/form-builder/components/FormBuilderTextInput';
+import { FORM_BUILDER_THEME_PRESET_LABELS } from '@/form-builder/constants/FormBuilderThemePresets';
 
 const SYSTEM_FONT_STACK = 'system-ui, -apple-system, Segoe UI, sans-serif';
 
@@ -31,6 +34,47 @@ const StyledSectionTitle = styled.h4`
   font-size: ${themeCssVariables.font.size.sm};
   font-weight: ${themeCssVariables.font.weight.semiBold};
   margin: 0;
+`;
+
+const StyledPresets = styled.div`
+  display: grid;
+  gap: ${themeCssVariables.spacing[2]};
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+`;
+
+const StyledPresetButton = styled.button`
+  align-items: center;
+  background: ${themeCssVariables.background.primary};
+  border: 1px solid ${themeCssVariables.border.color.medium};
+  border-radius: ${themeCssVariables.border.radius.sm};
+  color: ${themeCssVariables.font.color.primary};
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.sm};
+  gap: ${themeCssVariables.spacing[2]};
+  padding: ${themeCssVariables.spacing[2]};
+
+  &:hover {
+    border-color: ${themeCssVariables.color.blue};
+  }
+`;
+
+const StyledSwatch = styled.span`
+  align-items: center;
+  border: 1px solid;
+  border-radius: ${themeCssVariables.border.radius.sm};
+  display: flex;
+  flex: none;
+  height: 20px;
+  justify-content: center;
+  width: 28px;
+`;
+
+const StyledSwatchDot = styled.span`
+  border-radius: 50%;
+  height: 10px;
+  width: 10px;
 `;
 
 type ColorKey =
@@ -69,6 +113,29 @@ export const FormBuilderDesignTab = ({
 
   return (
     <StyledContainer>
+      <StyledSectionTitle>{t`Themes`}</StyledSectionTitle>
+      <StyledPresets>
+        {PUBLIC_FORM_THEME_PRESETS.map((preset) => (
+          <StyledPresetButton
+            key={preset.key}
+            type="button"
+            onClick={() => update(preset.colors)}
+          >
+            <StyledSwatch
+              style={{
+                background: preset.colors.pageBackgroundColor,
+                borderColor: preset.colors.borderColor,
+              }}
+            >
+              <StyledSwatchDot
+                style={{ background: preset.colors.primaryColor }}
+              />
+            </StyledSwatch>
+            {i18n._(FORM_BUILDER_THEME_PRESET_LABELS[preset.key] ?? msg`Theme`)}
+          </StyledPresetButton>
+        ))}
+      </StyledPresets>
+
       <StyledSectionTitle>{t`Colors`}</StyledSectionTitle>
       <StyledGrid>
         {colorRows.map(({ key, label }) => (
@@ -140,6 +207,77 @@ export const FormBuilderDesignTab = ({
         </FormBuilderFieldRow>
       </StyledGrid>
 
+      <StyledSectionTitle>{t`Layout`}</StyledSectionTitle>
+      <StyledGrid>
+        <FormBuilderFieldRow label={t`Style`}>
+          <FormBuilderNativeSelect
+            value={theme.layout}
+            options={[
+              { value: 'card', label: t`Card` },
+              { value: 'plain', label: t`Plain, no card` },
+              { value: 'conversational', label: t`One question per screen` },
+            ]}
+            onChange={(layout) =>
+              update({ layout: layout as PublicFormTheme['layout'] })
+            }
+          />
+        </FormBuilderFieldRow>
+        <FormBuilderFieldRow label={t`Width (px)`}>
+          <FormBuilderTextInput
+            type="number"
+            min={360}
+            max={1400}
+            dir="ltr"
+            value={String(theme.maxWidthPx)}
+            onChange={(value) => {
+              const width = Number(value);
+
+              if (Number.isFinite(width) && width >= 360 && width <= 1400) {
+                update({ maxWidthPx: Math.round(width) });
+              }
+            }}
+          />
+        </FormBuilderFieldRow>
+        <FormBuilderFieldRow label={t`Logo and title`}>
+          <FormBuilderNativeSelect
+            value={theme.logoAlign === 'center' ? 'center' : 'start'}
+            options={[
+              { value: 'start', label: t`Aligned to the start` },
+              { value: 'center', label: t`Centered` },
+            ]}
+            onChange={(logoAlign) =>
+              update({ logoAlign: logoAlign as PublicFormTheme['logoAlign'] })
+            }
+          />
+        </FormBuilderFieldRow>
+        <FormBuilderFieldRow label={t`Buttons`}>
+          <FormBuilderNativeSelect
+            value={theme.buttonAlign}
+            options={[
+              { value: 'start', label: t`Aligned to the start` },
+              { value: 'center', label: t`Centered` },
+              { value: 'stretch', label: t`Full width` },
+            ]}
+            onChange={(buttonAlign) =>
+              update({
+                buttonAlign: buttonAlign as PublicFormTheme['buttonAlign'],
+              })
+            }
+          />
+        </FormBuilderFieldRow>
+        <FormBuilderSwitchRow
+          label={t`Show the title`}
+          checked={theme.showTitle}
+          onChange={(showTitle) => update({ showTitle })}
+        />
+        <FormBuilderSwitchRow
+          label={t`Progress bar on multi-step forms`}
+          checked={theme.showProgressBar}
+          onChange={(showProgressBar) => update({ showProgressBar })}
+        />
+      </StyledGrid>
+
+      <StyledSectionTitle>{t`Images and background`}</StyledSectionTitle>
       <FormBuilderFieldRow
         label={t`Logo URL`}
         hint={t`An https:// image link. Leave empty for no logo.`}
@@ -152,21 +290,40 @@ export const FormBuilderDesignTab = ({
           onChange={(logoUrl) => update({ logoUrl: logoUrl || undefined })}
         />
       </FormBuilderFieldRow>
-
       <FormBuilderFieldRow
-        label={t`Custom CSS`}
-        hint={t`Advanced. Classes: .ff-card, .ff-title, .ff-input, .ff-choice, .ff-submit…`}
+        label={t`Cover image URL`}
+        hint={t`A wide banner across the top of the form.`}
       >
-        <FormBuilderTextarea
-          isMonospace
-          maxRows={12}
-          value={theme.customCss ?? ''}
-          placeholder=".ff-title { letter-spacing: 0; }"
-          onChange={(customCss) =>
-            update({ customCss: customCss || undefined })
+        <FormBuilderTextInput
+          type="url"
+          dir="ltr"
+          value={theme.coverImageUrl ?? ''}
+          placeholder="https://…"
+          onChange={(coverImageUrl) =>
+            update({ coverImageUrl: coverImageUrl || undefined })
           }
         />
       </FormBuilderFieldRow>
+      <StyledGrid>
+        <FormBuilderFieldRow label={t`Page background`}>
+          <FormBuilderColorInput
+            value={theme.pageBackgroundColor ?? theme.backgroundColor}
+            ariaLabel={t`Page background`}
+            onChange={(pageBackgroundColor) => update({ pageBackgroundColor })}
+          />
+        </FormBuilderFieldRow>
+        <FormBuilderFieldRow label={t`Background image URL`}>
+          <FormBuilderTextInput
+            type="url"
+            dir="ltr"
+            value={theme.backgroundImageUrl ?? ''}
+            placeholder="https://…"
+            onChange={(backgroundImageUrl) =>
+              update({ backgroundImageUrl: backgroundImageUrl || undefined })
+            }
+          />
+        </FormBuilderFieldRow>
+      </StyledGrid>
     </StyledContainer>
   );
 };
