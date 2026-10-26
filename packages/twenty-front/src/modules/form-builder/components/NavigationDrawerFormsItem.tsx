@@ -15,7 +15,7 @@ export const NavigationDrawerFormsItem = () => {
 
   return (
     <NavigationDrawerItem
-      label={t`Forms`}
+      label={t`Form builder`}
       Icon={IconForms}
       to={FORM_BUILDER_ROOT_PATH}
       active={location.pathname.startsWith(FORM_BUILDER_ROOT_PATH)}

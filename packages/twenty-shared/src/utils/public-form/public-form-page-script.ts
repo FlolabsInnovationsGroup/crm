@@ -252,6 +252,13 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     if (field) setFieldError(field, validateField(field, readAnswer(field)));
   });
 
+  form.addEventListener('change', function (event) {
+    if (!event.target.matches('.ff-file-input')) return;
+    var nameElement = event.target.parentNode.querySelector('.ff-file-name');
+    var file = event.target.files && event.target.files[0];
+    nameElement.textContent = file ? file.name : nameElement.getAttribute('data-empty');
+  });
+
   form.addEventListener('submit', function (event) {
     event.preventDefault();
     showFormError(null);

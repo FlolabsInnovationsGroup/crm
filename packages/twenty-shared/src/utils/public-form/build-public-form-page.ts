@@ -8,7 +8,10 @@ import {
   type PublicFormDefinition,
   type PublicFormField,
 } from './public-form-definition-schema';
-import { PUBLIC_FORM_PAGE_MESSAGES } from './public-form-page-messages';
+import {
+  PUBLIC_FORM_PAGE_MESSAGES,
+  type PublicFormPageMessages,
+} from './public-form-page-messages';
 import { PUBLIC_FORM_PAGE_SCRIPT } from './public-form-page-script';
 
 const RADIO_OPTION_LIMIT = 6;
@@ -70,7 +73,7 @@ const AUTOCOMPLETE_BY_MAP_TO: Record<string, string> = {
 const renderControl = (
   field: PublicFormField,
   inputId: string,
-  selectPlaceholder: string,
+  messages: PublicFormPageMessages,
 ): string => {
   const name = escapeHtml(field.id);
   const placeholder = field.placeholder
@@ -84,7 +87,7 @@ const renderControl = (
       return `<textarea class="ff-input ff-textarea" id="${inputId}" name="${name}" rows="4"${placeholder}${required}${describedBy(field)}></textarea>`;
     case 'select':
       if (options.length > RADIO_OPTION_LIMIT) {
-        return `<select class="ff-input ff-select" id="${inputId}" name="${name}"${required}${describedBy(field)}><option value="">${escapeHtml(field.placeholder ?? selectPlaceholder)}</option>${options
+        return `<select class="ff-input ff-select" id="${inputId}" name="${name}"${required}${describedBy(field)}><option value="">${escapeHtml(field.placeholder ?? messages.selectPlaceholder)}</option>${options
           .map(
             (option) =>
               `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`,
@@ -110,9 +113,11 @@ const renderControl = (
         .map((extension) => `.${extension.replace(/^\./, '')}`)
         .join(',');
 
-      return `<input class="ff-input ff-file" type="file" id="${inputId}" name="${name}"${
+      // A styled label replaces the native button so its text follows the
+      // form's language instead of the browser's.
+      return `<div class="ff-file-picker"><input class="ff-file-input" type="file" id="${inputId}" name="${name}"${
         accept ? ` accept="${escapeHtml(accept)}"` : ''
-      }${required}${describedBy(field)} />`;
+      }${required}${describedBy(field)} /><label class="ff-file-button" for="${inputId}">${escapeHtml(messages.chooseFile)}</label><span class="ff-file-name" data-empty="${escapeHtml(messages.noFileChosen)}">${escapeHtml(messages.noFileChosen)}</span></div>`;
     }
     default: {
       const inputType = INPUT_TYPE_BY_FIELD_TYPE[field.type] ?? 'text';
@@ -125,7 +130,10 @@ const renderControl = (
   }
 };
 
-const renderField = (field: PublicFormField, selectPlaceholder: string) => {
+const renderField = (
+  field: PublicFormField,
+  messages: PublicFormPageMessages,
+) => {
   const inputId = `ff-${escapeHtml(field.id)}`;
   const fieldAttributes = `data-field-id="${escapeHtml(field.id)}"`;
   const widthClass = field.width === 'half' ? 'ff-half' : 'ff-full';
@@ -150,7 +158,7 @@ const renderField = (field: PublicFormField, selectPlaceholder: string) => {
           : ''
       }</span></label>${renderDescription(field)}<p class="ff-error" id="${escapeHtml(field.id)}-error" aria-live="polite"></p></div>`;
     default:
-      return `<div class="ff-field ${widthClass}" ${fieldAttributes}>${renderLabel(field, inputId)}${renderDescription(field)}${renderControl(field, inputId, selectPlaceholder)}<p class="ff-error" id="${escapeHtml(field.id)}-error" aria-live="polite"></p></div>`;
+      return `<div class="ff-field ${widthClass}" ${fieldAttributes}>${renderLabel(field, inputId)}${renderDescription(field)}${renderControl(field, inputId, messages)}<p class="ff-error" id="${escapeHtml(field.id)}-error" aria-live="polite"></p></div>`;
   }
 };
 
@@ -162,7 +170,7 @@ const buildStyle = (definition: PublicFormDefinition, isEmbedded: boolean) => {
 html,body{margin:0}
 body{background:${isEmbedded ? 'transparent' : 'var(--ff-background)'};color:var(--ff-text);font-family:var(--ff-font);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
 .ff-page{max-width:680px;margin:0 auto;padding:${isEmbedded ? '8px 4px' : '48px 16px'}}
-.ff-card{background:var(--ff-background);${isEmbedded ? '' : 'border:1px solid color-mix(in srgb,var(--ff-text) 10%,transparent);box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04);'}border-radius:calc(var(--ff-radius) * 2);padding:${isEmbedded ? '8px' : '40px'}}
+.ff-card{background:var(--ff-background);${isEmbedded ? '' : 'border:1px solid color-mix(in srgb,var(--ff-text) 10%,transparent);box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04);'}border-radius:calc(var(--ff-radius) * 2);padding:${isEmbedded ? '24px' : '40px'}}
 .ff-logo{display:block;max-height:56px;max-width:200px;margin-bottom:24px}
 .ff-title{font-size:28px;line-height:1.2;font-weight:700;margin:0 0 8px;letter-spacing:-.01em}
 .ff-intro{margin:0 0 28px;color:color-mix(in srgb,var(--ff-text) 70%,transparent);white-space:pre-line}
@@ -177,7 +185,12 @@ body{background:${isEmbedded ? 'transparent' : 'var(--ff-background)'};color:var
 .ff-textarea{min-height:110px;resize:vertical}
 .ff-select{background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 20px) 50%,calc(100% - 15px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-inline-end:40px}
 [dir=rtl] .ff-select{background-position:20px 50%,15px 50%}
-.ff-file{padding:10px}
+.ff-file-picker{position:relative;display:flex;align-items:center;gap:12px;min-height:46px;padding:6px;background:var(--ff-input-background);border:1px dashed var(--ff-border);border-radius:var(--ff-radius)}
+.ff-file-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.ff-file-button{flex:none;padding:7px 14px;border-radius:calc(var(--ff-radius) * .75);background:color-mix(in srgb,var(--ff-primary) 10%,transparent);color:var(--ff-primary);font-weight:600;font-size:14px;pointer-events:none}
+.ff-file-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;color:color-mix(in srgb,var(--ff-text) 65%,transparent)}
+.ff-file-picker:focus-within{border-color:var(--ff-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--ff-primary) 22%,transparent)}
+.ff-invalid .ff-file-picker{border-color:var(--ff-danger)}
 .ff-input:focus,.ff-choice:focus-within{outline:none;border-color:var(--ff-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--ff-primary) 22%,transparent)}
 .ff-choices{display:grid;gap:8px}
 .ff-choice{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border:1px solid var(--ff-border);border-radius:var(--ff-radius);background:var(--ff-input-background);cursor:pointer;transition:border-color .15s,background .15s}
@@ -202,7 +215,7 @@ body{background:${isEmbedded ? 'transparent' : 'var(--ff-background)'};color:var
 .ff-success-icon{width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:grid;place-items:center;background:color-mix(in srgb,var(--ff-primary) 12%,transparent);color:var(--ff-primary)}
 .ff-success p{margin:0;font-size:18px;white-space:pre-line}
 .ff-honeypot{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
-@media (max-width:560px){.ff-grid{grid-template-columns:1fr}.ff-card{padding:${isEmbedded ? '4px' : '24px 18px'}}.ff-page{padding:${isEmbedded ? '4px 0' : '20px 12px'}}.ff-title{font-size:24px}.ff-submit{width:100%}}
+@media (max-width:560px){.ff-grid{grid-template-columns:1fr}.ff-card{padding:${isEmbedded ? '16px' : '24px 18px'}}.ff-page{padding:${isEmbedded ? '4px 0' : '20px 12px'}}.ff-title{font-size:24px}.ff-submit{width:100%}}
 ${theme.customCss ? sanitizeCustomCss(theme.customCss) : ''}`;
 };
 
@@ -258,7 +271,7 @@ ${isSafeImageUrl(theme.logoUrl) ? `<img class="ff-logo" src="${escapeHtml(theme.
 ${definition.description ? `<p class="ff-intro">${escapeHtml(definition.description)}</p>` : ''}
 <form id="ff-form" novalidate>
 <div class="ff-grid">
-${definition.fields.map((field) => renderField(field, messages.selectPlaceholder)).join('\n')}
+${definition.fields.map((field) => renderField(field, messages)).join('\n')}
 </div>
 <div class="ff-honeypot" aria-hidden="true"><label>Leave this empty<input type="text" name="${PUBLIC_FORM_HONEYPOT_FIELD}" tabindex="-1" autocomplete="off" /></label></div>
 <div class="ff-actions">

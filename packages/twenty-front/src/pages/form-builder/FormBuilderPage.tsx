@@ -32,7 +32,7 @@ export const FormBuilderPage = () => {
 
   return (
     <>
-      <PageTitle title={t`Forms`} />
+      <PageTitle title={t`Form builder`} />
       <PageCardLayout
         header={
           <PageCardHeader
@@ -42,7 +42,7 @@ export const FormBuilderPage = () => {
                 stroke={theme.icon.stroke.sm}
               />
             }
-            title={t`Forms`}
+            title={t`Form builder`}
           />
         }
       >

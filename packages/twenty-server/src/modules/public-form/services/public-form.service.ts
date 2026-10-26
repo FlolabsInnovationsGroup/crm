@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { isNonEmptyString } from '@sniptt/guards';
 import { STANDARD_OBJECTS } from 'twenty-shared/metadata';
+import { FieldActorSource } from 'twenty-shared/types';
 import {
   buildPublicFormRecordValues,
   getPublicFormVisibleFieldIds,
@@ -29,6 +30,7 @@ import { FilesFieldService } from 'src/engine/core-modules/file/files-field/serv
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
+import { addPersonEmailFiltersToQueryBuilder } from 'src/modules/match-participant/utils/add-person-email-filters-to-query-builder';
 
 export type PublicFormUploadedFile = {
   fieldName: string;
@@ -44,6 +46,21 @@ type PublishedForm = {
 };
 
 type PersonRecord = Record<string, unknown> & { id: string };
+
+type CreatedBy = {
+  source: FieldActorSource;
+  workspaceMemberId: null;
+  name: string;
+  context: Record<string, never>;
+};
+
+// Records written by a public form have no workspace member behind them.
+const buildCreatedBy = (formName: string): CreatedBy => ({
+  source: FieldActorSource.WEBHOOK,
+  workspaceMemberId: null,
+  name: `Form: ${formName}`.slice(0, 255),
+  context: {},
+});
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -189,11 +206,14 @@ export class PublicFormService {
       });
     }
 
+    const createdBy = buildCreatedBy(form.name);
+
     return this.workspaceOrmManager.executeInWorkspaceContext(async () => {
       const person = await this.upsertPersonKeepingTheLead(
         email,
         recordValues,
         formId,
+        createdBy,
       );
 
       const submissionRepository = this.workspaceOrmManager.getRepository(
@@ -208,6 +228,8 @@ export class PublicFormService {
         answers,
         submittedAt: new Date().toISOString(),
         sourceUrl: sourceUrl?.slice(0, 2000) ?? null,
+        createdBy,
+        updatedBy: createdBy,
       });
 
       const submissionId = insertResult.identifiers[0]?.id as string;
@@ -218,6 +240,7 @@ export class PublicFormService {
           personId: person.id,
           fileFields,
           files,
+          createdBy,
         });
       }
 
@@ -269,9 +292,10 @@ export class PublicFormService {
     email: string,
     recordValues: Record<string, unknown>,
     formId: string,
+    createdBy: CreatedBy,
   ): Promise<PersonRecord | null> {
     try {
-      return await this.upsertPerson(email, recordValues);
+      return await this.upsertPerson(email, recordValues, createdBy);
     } catch (error) {
       this.logger.warn(
         `Form ${formId}: saving mapped answers failed, retrying with email only`,
@@ -280,9 +304,11 @@ export class PublicFormService {
     }
 
     try {
-      return await this.upsertPerson(email, {
-        emails: recordValues.emails,
-      });
+      return await this.upsertPerson(
+        email,
+        { emails: recordValues.emails },
+        createdBy,
+      );
     } catch (error) {
       this.logger.error(`Form ${formId}: could not save the person`, error);
 
@@ -293,27 +319,44 @@ export class PublicFormService {
   private async upsertPerson(
     email: string,
     recordValues: Record<string, unknown>,
+    createdBy: CreatedBy,
   ): Promise<PersonRecord> {
     const personRepository = this.workspaceOrmManager.getRepository('person', {
       shouldBypassPermissionChecks: true,
     });
 
     const normalizedEmail = email.trim().toLowerCase();
-    const existing = (await personRepository.findOne({
-      where: { emails: { primaryEmail: normalizedEmail } },
-    })) as PersonRecord | null;
+    const matchingPeople = (await addPersonEmailFiltersToQueryBuilder({
+      queryBuilder: personRepository.createQueryBuilder('person'),
+      emails: [normalizedEmail],
+    })
+      .orderBy('person.createdAt', 'ASC')
+      .getMany()) as PersonRecord[];
+
+    // The unique email index includes deleted people, so a returning
+    // applicant brings their deleted record back instead of failing.
+    const existing =
+      matchingPeople.find((person) => !isDefined(person.deletedAt)) ??
+      matchingPeople[0];
 
     if (isDefined(existing)) {
-      await personRepository.update(
-        existing.id,
-        mergeWithExistingRecord(existing, recordValues),
+      // The stored email already matches; rewriting it could only change case.
+      const valuesWithoutEmails = Object.fromEntries(
+        Object.entries(recordValues).filter(([key]) => key !== 'emails'),
       );
+
+      await personRepository.update(existing.id, {
+        ...mergeWithExistingRecord(existing, valuesWithoutEmails),
+        ...(isDefined(existing.deletedAt) ? { deletedAt: null } : {}),
+      });
 
       return existing;
     }
 
     const insertResult = await personRepository.insert({
       ...recordValues,
+      createdBy,
+      updatedBy: createdBy,
       emails: {
         ...(recordValues.emails as object),
         primaryEmail: normalizedEmail,
@@ -387,11 +430,13 @@ export class PublicFormService {
     personId,
     fileFields,
     files,
+    createdBy,
   }: {
     workspaceId: string;
     personId: string;
     fileFields: PublicFormField[];
     files: PublicFormUploadedFile[];
+    createdBy: CreatedBy;
   }) {
     const attachmentRepository = this.workspaceOrmManager.getRepository(
       'attachment',
@@ -418,6 +463,8 @@ export class PublicFormService {
           name: `${field.label}: ${file.originalName}`,
           targetPersonId: personId,
           file: [{ fileId: uploadedFile.id, label: file.originalName }],
+          createdBy,
+          updatedBy: createdBy,
         });
       }
     }

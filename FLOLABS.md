@@ -13,6 +13,15 @@ FloLabs' own CRM, a fork of [Twenty](https://github.com/twentyhq/twenty).
 - **Reply all** in email threads (Twenty only replies to the sender).
 - **Insert a template** in the email composer, from the `emailTemplate` object, with `{{firstName}}` / `{{lastName}}` filled from the recipient.
 - **Branding**: the product name is `APP_NAME` in `packages/twenty-front/src/modules/app/constants/AppName.ts`.
+- **Form builder** (sidebar → Form builder): public forms with conditions, CRM field mapping, file uploads, hidden UTM fields, colors/fonts/RTL and custom CSS. See below.
+
+## Forms
+
+- One-time setup per workspace: `TWENTY_URL=https://crm.example.com TWENTY_TOKEN=<admin API key> node packages/twenty-utils/flolabs/setup-forms.mjs`. It creates the `crmForm` (Forms) and `formSubmission` (Form submissions) objects and is safe to run again.
+- Public page: `/forms/<workspaceId>/<formId>`. Embed: `<script src=".../forms/<workspaceId>/<formId>/embed.js" async></script>`. Only `PUBLISHED` forms are served.
+- A submission upserts the person by email (case-insensitive), stores every answer on a Form submission, and attaches uploaded files to the person. If the CRM rejects a mapped value, the person is saved with the email only and the raw answers are still kept.
+- Automations: a workflow triggered on "Form submission created" can send the confirmation email or notify the team.
+- Code: `packages/twenty-shared/src/utils/public-form` (schema, rules, page renderer), `packages/twenty-server/src/modules/public-form` (endpoints), `packages/twenty-front/src/modules/form-builder` (builder UI).
 
 ## Build
 

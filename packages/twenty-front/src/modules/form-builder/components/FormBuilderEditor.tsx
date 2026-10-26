@@ -159,6 +159,15 @@ export const FormBuilderEditor = ({
     );
   };
 
+  // The public title follows the name until it is edited on its own.
+  const handleNameChange = (nextName: string) =>
+    updateDraft(
+      nextName,
+      definition.title === name
+        ? { ...definition, title: nextName }
+        : definition,
+    );
+
   const save = async (status?: string) => {
     const parsed = publicFormDefinitionSchema.safeParse(definition);
 
@@ -229,7 +238,7 @@ export const FormBuilderEditor = ({
             value={name}
             aria-label={t`Form name`}
             dir="auto"
-            onChange={(event) => updateDraft(event.target.value, definition)}
+            onChange={(event) => handleNameChange(event.target.value)}
           />
           <StyledStatus isPublished={isPublished}>
             {isPublished ? t`Published` : t`Draft`}

@@ -19,6 +19,8 @@ export type PublicFormPageMessages = {
   tooManyRequests: string;
   fixErrors: string;
   selectPlaceholder: string;
+  chooseFile: string;
+  noFileChosen: string;
   notFoundTitle: string;
   notFoundMessage: string;
 };
@@ -46,6 +48,8 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     tooManyRequests: 'Too many attempts. Please wait a minute and try again.',
     fixErrors: 'Please check the highlighted fields.',
     selectPlaceholder: 'Select…',
+    chooseFile: 'Choose a file',
+    noFileChosen: 'No file chosen',
     notFoundTitle: 'Form not available',
     notFoundMessage:
       'This form does not exist or is no longer accepting answers.',
@@ -67,6 +71,8 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     tooManyRequests: 'محاولات كثيرة. انتظر دقيقة ثم حاول مرة أخرى.',
     fixErrors: 'يرجى مراجعة الحقول المظللة.',
     selectPlaceholder: 'اختر…',
+    chooseFile: 'اختر ملفًا',
+    noFileChosen: 'لم يتم اختيار ملف',
     notFoundTitle: 'النموذج غير متاح',
     notFoundMessage: 'هذا النموذج غير موجود أو لم يعد يستقبل ردودًا.',
   },
