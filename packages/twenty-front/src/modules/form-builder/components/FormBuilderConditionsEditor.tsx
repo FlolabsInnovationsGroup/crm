@@ -49,6 +49,10 @@ const StyledConditionRow = styled.div`
   padding: ${themeCssVariables.spacing[2]};
 `;
 
+const StyledMatchRow = styled.div`
+  max-width: 240px;
+`;
+
 const StyledHint = styled.p`
   color: ${themeCssVariables.font.color.light};
   font-size: ${themeCssVariables.font.size.xs};
@@ -57,14 +61,18 @@ const StyledHint = styled.p`
 
 type FormBuilderConditionsEditorProps = {
   conditions: PublicFormCondition[];
+  match: PublicFormField['visibleWhenMatch'];
   previousFields: PublicFormField[];
   onChange: (conditions: PublicFormCondition[]) => void;
+  onMatchChange: (match: PublicFormField['visibleWhenMatch']) => void;
 };
 
 export const FormBuilderConditionsEditor = ({
   conditions,
+  match,
   previousFields,
   onChange,
+  onMatchChange,
 }: FormBuilderConditionsEditorProps) => {
   const sourceFields = previousFields.filter((field) =>
     ANSWERABLE_FIELD_TYPES.includes(field.type),
@@ -172,7 +180,19 @@ export const FormBuilderConditionsEditor = ({
   return (
     <StyledList>
       {conditions.length > 1 && (
-        <StyledHint>{t`All of these must be true.`}</StyledHint>
+        <StyledMatchRow>
+          <FormBuilderNativeSelect
+            value={match}
+            ariaLabel={t`Match`}
+            options={[
+              { value: 'all', label: t`All of these are true` },
+              { value: 'any', label: t`Any of these is true` },
+            ]}
+            onChange={(value) =>
+              onMatchChange(value as PublicFormField['visibleWhenMatch'])
+            }
+          />
+        </StyledMatchRow>
       )}
       {conditions.map((condition, index) => (
         <StyledConditionRow key={index}>

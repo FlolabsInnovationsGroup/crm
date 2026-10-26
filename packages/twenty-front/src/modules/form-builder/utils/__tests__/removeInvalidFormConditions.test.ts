@@ -11,6 +11,7 @@ const buildField = (
   label: id,
   required: false,
   width: 'full',
+  visibleWhenMatch: 'all',
   visibleWhen,
 });
 

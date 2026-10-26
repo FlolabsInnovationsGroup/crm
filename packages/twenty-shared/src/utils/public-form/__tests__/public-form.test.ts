@@ -1,4 +1,5 @@
 import { buildPublicFormRecordValues } from '../build-public-form-record-values';
+import { getPublicFormVisibleFieldIds } from '../get-public-form-visible-field-ids';
 import { isPublicFormFieldVisible } from '../is-public-form-field-visible';
 import {
   publicFormDefinitionSchema,
@@ -224,5 +225,97 @@ describe('chained conditions', () => {
         laptopOs: 'OTHER',
       }),
     ).toEqual([{ fieldId: 'otherOs', message: 'This field is required' }]);
+  });
+});
+
+describe('logic options', () => {
+  const logicDefinition = publicFormDefinitionSchema.parse({
+    version: 1,
+    title: 'Logic',
+    fields: [
+      {
+        id: 'years',
+        type: 'number',
+        label: 'Years of experience',
+      },
+      {
+        id: 'track',
+        type: 'select',
+        label: 'Track',
+        options: [
+          { value: 'DESIGN', label: 'Design' },
+          { value: 'CODE', label: 'Code' },
+          { value: 'OTHER', label: 'Other' },
+        ],
+      },
+      {
+        id: 'portfolio',
+        type: 'url',
+        label: 'Portfolio',
+        required: true,
+        visibleWhenMatch: 'any',
+        visibleWhen: [
+          { fieldId: 'track', operator: 'equals', value: 'DESIGN' },
+          { fieldId: 'years', operator: 'greaterThan', value: '3' },
+        ],
+      },
+      {
+        id: 'seniorSection',
+        type: 'heading',
+        label: 'Senior questions',
+        visibleWhen: [
+          { fieldId: 'years', operator: 'greaterThan', value: '5' },
+        ],
+      },
+      {
+        id: 'leadership',
+        type: 'longText',
+        label: 'Leadership',
+        required: true,
+      },
+      {
+        id: 'codingPage',
+        type: 'pageBreak',
+        label: 'Coding',
+        visibleWhen: [{ fieldId: 'track', operator: 'equals', value: 'CODE' }],
+      },
+      { id: 'github', type: 'url', label: 'GitHub', required: true },
+      { id: 'lastPage', type: 'pageBreak', label: 'Last step' },
+      { id: 'notes', type: 'longText', label: 'Notes' },
+    ],
+  });
+
+  const visibleIds = (answers: Record<string, string>) => [
+    ...getPublicFormVisibleFieldIds(logicDefinition, answers),
+  ];
+
+  it('shows a field when any condition matches', () => {
+    expect(visibleIds({ years: '1', track: 'DESIGN' })).toContain('portfolio');
+    expect(visibleIds({ years: '4', track: 'OTHER' })).toContain('portfolio');
+    expect(visibleIds({ years: '1', track: 'OTHER' })).not.toContain(
+      'portfolio',
+    );
+  });
+
+  it('compares numbers instead of text', () => {
+    expect(visibleIds({ years: '10', track: 'OTHER' })).toContain('portfolio');
+  });
+
+  it('hides a whole section with its heading', () => {
+    expect(visibleIds({ years: '2' })).not.toContain('leadership');
+    expect(visibleIds({ years: '6' })).toContain('leadership');
+  });
+
+  it('skips a whole page and starts showing again at the next page', () => {
+    const designAnswers = { years: '1', track: 'DESIGN' };
+
+    expect(visibleIds(designAnswers)).not.toContain('github');
+    expect(visibleIds(designAnswers)).toContain('notes');
+    expect(
+      validatePublicFormAnswers(logicDefinition, {
+        ...designAnswers,
+        portfolio: 'https://example.com',
+      }),
+    ).toEqual([]);
   });
 });

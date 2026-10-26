@@ -17,8 +17,10 @@ export const PUBLIC_FORM_FIELD_TYPES = [
   'hidden',
   'heading',
   'paragraph',
+  'pageBreak',
 ] as const;
 
+export const PUBLIC_FORM_CONDITION_MATCHES = ['all', 'any'] as const;
 export const PUBLIC_FORM_FIELD_WIDTHS = ['full', 'half'] as const;
 export const PUBLIC_FORM_DIRECTIONS = ['ltr', 'rtl'] as const;
 export const PUBLIC_FORM_LANGUAGES = ['en', 'ar'] as const;
@@ -46,6 +48,8 @@ export const PUBLIC_FORM_CONDITION_OPERATORS = [
   'notContains',
   'isEmpty',
   'isNotEmpty',
+  'greaterThan',
+  'lessThan',
 ] as const;
 
 const hexColorSchema = z
@@ -77,6 +81,7 @@ export const publicFormFieldSchema = z.object({
   options: z.array(publicFormFieldOptionSchema).optional(),
   mapTo: z.string().optional(),
   visibleWhen: z.array(publicFormConditionSchema).optional(),
+  visibleWhenMatch: z.enum(PUBLIC_FORM_CONDITION_MATCHES).default('all'),
   maxFileSizeMb: z.number().positive().max(25).optional(),
   acceptedFileExtensions: z.array(z.string()).optional(),
   width: z.enum(PUBLIC_FORM_FIELD_WIDTHS).default('full'),

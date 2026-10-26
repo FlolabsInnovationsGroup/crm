@@ -254,6 +254,7 @@ export type {
 export {
   PUBLIC_FORM_DEFINITION_VERSION,
   PUBLIC_FORM_FIELD_TYPES,
+  PUBLIC_FORM_CONDITION_MATCHES,
   PUBLIC_FORM_FIELD_WIDTHS,
   PUBLIC_FORM_DIRECTIONS,
   PUBLIC_FORM_LANGUAGES,
@@ -269,6 +270,7 @@ export {
 export type { PublicFormPageMessages } from './public-form/public-form-page-messages';
 export { PUBLIC_FORM_PAGE_MESSAGES } from './public-form/public-form-page-messages';
 export { PUBLIC_FORM_PAGE_SCRIPT } from './public-form/public-form-page-script';
+export { PUBLIC_FORM_VISIBILITY_SCRIPT } from './public-form/public-form-visibility-script';
 export type { PublicFormValidationError } from './public-form/validate-public-form-answers';
 export { validatePublicFormAnswers } from './public-form/validate-public-form-answers';
 export { removePropertiesFromRecord } from './removePropertiesFromRecord';

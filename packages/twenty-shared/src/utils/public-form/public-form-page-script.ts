@@ -1,7 +1,9 @@
-// Runs in the visitor's browser, so it is plain ES2017 kept as a string.
-// The visibility rules mirror twenty-shared's getPublicFormVisibleFieldIds;
-// the server re-validates every submission with the shared code.
+import { PUBLIC_FORM_VISIBILITY_SCRIPT } from './public-form-visibility-script';
+
+// Runs in the visitor's browser, so it is plain ES2017 kept as a string. The
+// server re-validates every submission with the shared code.
 export const PUBLIC_FORM_PAGE_SCRIPT = `
+${PUBLIC_FORM_VISIBILITY_SCRIPT}
 (function () {
   'use strict';
 
@@ -11,6 +13,11 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   var englishMessages = config.englishMessages;
   var form = document.getElementById('ff-form');
   var submitButton = document.getElementById('ff-submit');
+  var nextButton = document.getElementById('ff-next');
+  var backButton = document.getElementById('ff-back');
+  var progress = document.getElementById('ff-progress');
+  var steps = Array.prototype.slice.call(form.querySelectorAll('.ff-step'));
+  var currentStep = 0;
   var formError = document.getElementById('ff-form-error');
   var success = document.getElementById('ff-success');
   var params = new URLSearchParams(window.location.search);
@@ -80,41 +87,8 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     return answers;
   }
 
-  function comparableValues(answer) {
-    if (Array.isArray(answer)) return answer;
-    if (typeof answer === 'boolean') return answer ? ['true'] : [];
-    if (typeof answer === 'string' && answer.trim() !== '') return [answer.trim()];
-    return [];
-  }
-
-  function isConditionMet(condition, answers) {
-    var values = comparableValues(answers[condition.fieldId]);
-    var expected = (condition.value || '').trim().toLowerCase();
-    var normalized = values.map(function (value) { return value.toLowerCase(); });
-    switch (condition.operator) {
-      case 'equals': return normalized.indexOf(expected) !== -1;
-      case 'notEquals': return normalized.indexOf(expected) === -1;
-      case 'contains': return normalized.some(function (value) { return value.indexOf(expected) !== -1; });
-      case 'notContains': return !normalized.some(function (value) { return value.indexOf(expected) !== -1; });
-      case 'isEmpty': return values.length === 0;
-      case 'isNotEmpty': return values.length > 0;
-      default: return true;
-    }
-  }
-
   function visibleFieldIds(answers) {
-    var visibleAnswers = {};
-    var visible = {};
-    definition.fields.forEach(function (field) {
-      var conditions = field.visibleWhen || [];
-      var isVisible = conditions.every(function (condition) {
-        return isConditionMet(condition, visibleAnswers);
-      });
-      if (!isVisible) return;
-      visible[field.id] = true;
-      if (answers[field.id] !== undefined) visibleAnswers[field.id] = answers[field.id];
-    });
-    return visible;
+    return flolabsVisibleFieldIds(definition, answers);
   }
 
   function applyVisibility() {
@@ -127,6 +101,72 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
       wrapper.hidden = !isVisible;
       if (!isVisible) setFieldError(field, null);
     });
+    renderSteps(visible);
+  }
+
+  // A step is shown when its page break is visible and it has something to show.
+  function visibleStepIndexes(visible) {
+    return steps.map(function (step, index) {
+      var pageBreakId = step.getAttribute('data-step-field-id');
+      if (pageBreakId && !visible[pageBreakId]) return -1;
+      var hasContent = Array.prototype.some.call(
+        step.querySelectorAll('[data-field-id]:not(.ff-step-header)'),
+        function (wrapper) { return !wrapper.hidden; }
+      );
+      return hasContent ? index : -1;
+    }).filter(function (index) { return index !== -1; });
+  }
+
+  function renderSteps(visible) {
+    var visibleSteps = visibleStepIndexes(visible || visibleFieldIds(readAnswers()));
+    if (visibleSteps.length === 0) visibleSteps = [0];
+    if (visibleSteps.indexOf(currentStep) === -1) {
+      var previous = visibleSteps.filter(function (index) { return index < currentStep; });
+      currentStep = previous.length > 0 ? previous[previous.length - 1] : visibleSteps[0];
+    }
+    var position = visibleSteps.indexOf(currentStep);
+    steps.forEach(function (step, index) { step.hidden = index !== currentStep; });
+    var isLast = position === visibleSteps.length - 1;
+    nextButton.hidden = isLast;
+    submitButton.hidden = !isLast;
+    backButton.hidden = position === 0;
+    progress.hidden = visibleSteps.length < 2;
+    progress.textContent = messages.stepOf
+      .replace('{current}', String(position + 1))
+      .replace('{total}', String(visibleSteps.length));
+    return { visibleSteps: visibleSteps, position: position, isLast: isLast };
+  }
+
+  function goToStep(index) {
+    currentStep = index;
+    renderSteps();
+    showFormError(null);
+    var firstInput = steps[currentStep].querySelector('input:not([type=hidden]), textarea, select');
+    window.scrollTo(0, 0);
+    postToParent('flolabs-form:step');
+    if (firstInput) firstInput.focus({ preventScroll: true });
+  }
+
+  function moveStep(direction) {
+    var state = renderSteps();
+    var target = state.visibleSteps[state.position + direction];
+    if (target !== undefined) goToStep(target);
+  }
+
+  function validateVisibleFields(visible, answers, isInScope) {
+    var hasErrors = false;
+    definition.fields.forEach(function (field) {
+      if (!visible[field.id] || !isInScope(field)) return;
+      var message = validateField(field, answers[field.id]);
+      setFieldError(field, message);
+      if (message) hasErrors = true;
+    });
+    return hasErrors;
+  }
+
+  function isInCurrentStep(field) {
+    var wrapper = wrapperOf(field);
+    return Boolean(wrapper) && steps[currentStep].contains(wrapper);
   }
 
   function isEmpty(answer) {
@@ -197,6 +237,12 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   }
 
   function focusFirstError() {
+    var firstWrapper = form.querySelector('.ff-invalid');
+    var invalidStep = firstWrapper ? steps.indexOf(firstWrapper.closest('.ff-step')) : -1;
+    if (invalidStep !== -1 && invalidStep !== currentStep) {
+      currentStep = invalidStep;
+      renderSteps();
+    }
     var firstInvalid = form.querySelector('.ff-invalid input, .ff-invalid textarea, .ff-invalid select');
     if (firstInvalid) firstInvalid.focus();
   }
@@ -259,28 +305,41 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     nameElement.textContent = file ? file.name : nameElement.getAttribute('data-empty');
   });
 
+  nextButton.addEventListener('click', function () {
+    form.requestSubmit();
+  });
+  backButton.addEventListener('click', function () {
+    moveStep(-1);
+  });
+
   form.addEventListener('submit', function (event) {
     event.preventDefault();
     showFormError(null);
 
     var answers = readAnswers();
     var visible = visibleFieldIds(answers);
-    var visibleAnswers = {};
-    var hasErrors = false;
 
-    definition.fields.forEach(function (field) {
-      if (!visible[field.id]) return;
-      if (answers[field.id] !== undefined) visibleAnswers[field.id] = answers[field.id];
-      var message = validateField(field, answers[field.id]);
-      setFieldError(field, message);
-      if (message) hasErrors = true;
-    });
+    // Enter in a field submits the form; before the last step it means "Next".
+    if (!renderSteps(visible).isLast) {
+      if (validateVisibleFields(visible, answers, isInCurrentStep)) {
+        showFormError(messages.fixErrors);
+        focusFirstError();
+        return;
+      }
+      moveStep(1);
+      return;
+    }
 
-    if (hasErrors) {
+    if (validateVisibleFields(visible, answers, function () { return true; })) {
       showFormError(messages.fixErrors);
       focusFirstError();
       return;
     }
+
+    var visibleAnswers = {};
+    definition.fields.forEach(function (field) {
+      if (visible[field.id] && answers[field.id] !== undefined) visibleAnswers[field.id] = answers[field.id];
+    });
 
     var body = new FormData();
     body.append('answers', JSON.stringify(visibleAnswers));

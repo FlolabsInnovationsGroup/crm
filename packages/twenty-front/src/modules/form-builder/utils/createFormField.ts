@@ -33,6 +33,8 @@ const getDefaultLabel = (fieldType: PublicFormField['type']) => {
       return t`Add some context for this part of the form.`;
     case 'hidden':
       return t`Source`;
+    case 'pageBreak':
+      return '';
     default:
       return t`New question`;
   }
@@ -48,6 +50,7 @@ export const createFormField = (
     label: getDefaultLabel(fieldType),
     required: false,
     width: 'full',
+    visibleWhenMatch: 'all',
   };
 
   if (fieldType === 'select' || fieldType === 'multiSelect') {

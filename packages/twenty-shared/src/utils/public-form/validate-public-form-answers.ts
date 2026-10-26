@@ -13,6 +13,7 @@ export type PublicFormValidationError = {
 const UNVALIDATED_FIELD_TYPES: PublicFormField['type'][] = [
   'heading',
   'paragraph',
+  'pageBreak',
   'hidden',
   'file',
 ];

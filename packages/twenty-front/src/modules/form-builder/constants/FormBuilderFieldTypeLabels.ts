@@ -20,4 +20,5 @@ export const FORM_BUILDER_FIELD_TYPE_LABELS: Record<
   hidden: msg`Hidden value`,
   heading: msg`Section title`,
   paragraph: msg`Text block`,
+  pageBreak: msg`New page`,
 };

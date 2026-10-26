@@ -12,4 +12,6 @@ export const FORM_BUILDER_CONDITION_OPERATOR_LABELS: Record<
   notContains: msg`does not contain`,
   isEmpty: msg`is empty`,
   isNotEmpty: msg`is not empty`,
+  greaterThan: msg`is greater than`,
+  lessThan: msg`is less than`,
 };

@@ -18,6 +18,7 @@ const NO_MAPPING_VALUE = '';
 const DECORATIVE_FIELD_TYPES: PublicFormField['type'][] = [
   'heading',
   'paragraph',
+  'pageBreak',
 ];
 
 const PLACEHOLDER_FIELD_TYPES: PublicFormField['type'][] = [
@@ -148,8 +149,10 @@ export const FormBuilderFieldSettings = ({
           <StyledSectionTitle>{t`Show this block only when`}</StyledSectionTitle>
           <FormBuilderConditionsEditor
             conditions={field.visibleWhen ?? []}
+            match={field.visibleWhenMatch}
             previousFields={previousFields}
             onChange={(visibleWhen) => update({ visibleWhen })}
+            onMatchChange={(visibleWhenMatch) => update({ visibleWhenMatch })}
           />
         </StyledSection>
       </StyledSettings>
@@ -159,7 +162,13 @@ export const FormBuilderFieldSettings = ({
   return (
     <StyledSettings>
       <FormBuilderFieldRow
-        label={field.type === 'heading' ? t`Title` : t`Question`}
+        label={
+          field.type === 'heading'
+            ? t`Section title`
+            : field.type === 'pageBreak'
+              ? t`Page title (optional)`
+              : t`Question`
+        }
       >
         <FormBuilderTextInput
           value={field.label}
@@ -168,9 +177,7 @@ export const FormBuilderFieldSettings = ({
       </FormBuilderFieldRow>
 
       {field.type !== 'hidden' && (
-        <FormBuilderFieldRow
-          label={field.type === 'heading' ? t`Subtitle` : t`Help text`}
-        >
+        <FormBuilderFieldRow label={isDecorative ? t`Subtitle` : t`Help text`}>
           <FormBuilderTextarea
             value={field.description ?? ''}
             maxRows={4}
@@ -340,15 +347,33 @@ export const FormBuilderFieldSettings = ({
 
       {field.type !== 'hidden' && (
         <StyledSection>
-          <StyledSectionTitle>{t`Show this field only when`}</StyledSectionTitle>
+          <StyledSectionTitle>
+            {field.type === 'pageBreak'
+              ? t`Show this page only when`
+              : field.type === 'heading'
+                ? t`Show this section only when`
+                : t`Show this field only when`}
+          </StyledSectionTitle>
+          {field.type === 'pageBreak' && (
+            <StyledHint>
+              {t`A hidden page is skipped, with all its questions.`}
+            </StyledHint>
+          )}
+          {field.type === 'heading' && (
+            <StyledHint>
+              {t`A hidden section hides every question below it, until the next section title or page.`}
+            </StyledHint>
+          )}
           <FormBuilderConditionsEditor
             conditions={field.visibleWhen ?? []}
+            match={field.visibleWhenMatch}
             previousFields={previousFields}
             onChange={(visibleWhen) =>
               update({
                 visibleWhen: visibleWhen.length > 0 ? visibleWhen : undefined,
               })
             }
+            onMatchChange={(visibleWhenMatch) => update({ visibleWhenMatch })}
           />
         </StyledSection>
       )}

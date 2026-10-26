@@ -116,7 +116,11 @@ export const FormBuilderFieldCard = ({
     (mappableField) => mappableField.value === field.mapTo,
   );
   const label =
-    field.type === 'paragraph' ? (field.description ?? '') : field.label;
+    field.type === 'paragraph'
+      ? (field.description ?? '')
+      : field.type === 'pageBreak' && field.label === ''
+        ? i18n._(FORM_BUILDER_FIELD_TYPE_LABELS.pageBreak)
+        : field.label;
 
   return (
     <StyledCard isSelected={isSelected}>

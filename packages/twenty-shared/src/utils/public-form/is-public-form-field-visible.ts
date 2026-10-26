@@ -43,14 +43,46 @@ const isConditionMet = (
       return values.length === 0;
     case 'isNotEmpty':
       return values.length > 0;
+    case 'greaterThan':
+      return values.some((value) => compareAnswers(value, expected) > 0);
+    case 'lessThan':
+      return values.some((value) => compareAnswers(value, expected) < 0);
   }
 };
 
-// All conditions must hold (AND). A field without conditions is visible.
+// Numbers compare numerically; anything else (e.g. YYYY-MM-DD dates)
+// compares as text, which orders ISO dates correctly.
+const compareAnswers = (value: string, expected: string): number => {
+  const numericValue = Number(value);
+  const numericExpected = Number(expected);
+
+  if (
+    value.trim() !== '' &&
+    expected !== '' &&
+    !Number.isNaN(numericValue) &&
+    !Number.isNaN(numericExpected)
+  ) {
+    return numericValue - numericExpected;
+  }
+
+  return value.toLowerCase().localeCompare(expected);
+};
+
+// A field without conditions is visible; `visibleWhenMatch` picks AND or OR.
 export const isPublicFormFieldVisible = (
   field: PublicFormField,
   answers: PublicFormAnswers,
-): boolean =>
-  (field.visibleWhen ?? []).every((condition) =>
-    isConditionMet(condition, answers),
-  );
+): boolean => {
+  const conditions = field.visibleWhen ?? [];
+
+  if (conditions.length === 0) {
+    return true;
+  }
+
+  const isMet = (condition: PublicFormCondition) =>
+    isConditionMet(condition, answers);
+
+  return field.visibleWhenMatch === 'any'
+    ? conditions.some(isMet)
+    : conditions.every(isMet);
+};

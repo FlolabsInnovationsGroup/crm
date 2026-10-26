@@ -24,7 +24,7 @@ export const buildPublicFormEmbedScript = ({
   window.addEventListener('message', function (event) {
     if (event.source !== iframe.contentWindow || !event.data || event.data.formId !== ${JSON.stringify(formId)}) return;
     if (event.data.type === 'flolabs-form:resize') iframe.style.height = event.data.height + 'px';
-    if (event.data.type === 'flolabs-form:submitted') iframe.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (event.data.type === 'flolabs-form:submitted' || event.data.type === 'flolabs-form:step') iframe.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 })();
 `;

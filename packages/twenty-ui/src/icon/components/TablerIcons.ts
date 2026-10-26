@@ -311,6 +311,7 @@ export {
   IconNumber9,
   IconNumbers,
   IconPaint,
+  IconPageBreak,
   IconPalette,
   IconPaperclip,
   IconPassword,

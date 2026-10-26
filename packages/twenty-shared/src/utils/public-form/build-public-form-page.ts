@@ -147,6 +147,16 @@ const renderField = (
           ? `<p class="ff-paragraph">${escapeHtml(field.description)}</p>`
           : ''
       }</div>`;
+    case 'pageBreak':
+      return `<div class="ff-field ff-full ff-step-header" ${fieldAttributes}>${
+        field.label
+          ? `<h2 class="ff-heading">${escapeHtml(field.label)}</h2>`
+          : ''
+      }${
+        field.description
+          ? `<p class="ff-paragraph">${escapeHtml(field.description)}</p>`
+          : ''
+      }</div>`;
     case 'paragraph':
       return `<div class="ff-field ff-full" ${fieldAttributes}><p class="ff-paragraph">${escapeHtml(field.description ?? field.label)}</p></div>`;
     case 'checkbox':
@@ -160,6 +170,36 @@ const renderField = (
     default:
       return `<div class="ff-field ${widthClass}" ${fieldAttributes}>${renderLabel(field, inputId)}${renderDescription(field)}${renderControl(field, inputId, messages)}<p class="ff-error" id="${escapeHtml(field.id)}-error" aria-live="polite"></p></div>`;
   }
+};
+
+// Page breaks split the form into steps; the first step holds the fields
+// before the first page break.
+const renderSteps = (
+  fields: PublicFormField[],
+  messages: PublicFormPageMessages,
+) => {
+  const steps: { pageBreakId: string; fields: PublicFormField[] }[] = [
+    { pageBreakId: '', fields: [] },
+  ];
+
+  for (const field of fields) {
+    if (field.type === 'pageBreak') {
+      steps.push({ pageBreakId: field.id, fields: [] });
+    }
+
+    steps[steps.length - 1]?.fields.push(field);
+  }
+
+  return steps
+    .map(
+      (step, index) =>
+        `<div class="ff-step" data-step-field-id="${escapeHtml(step.pageBreakId)}"${
+          index === 0 ? '' : ' hidden'
+        }><div class="ff-grid">${step.fields
+          .map((field) => renderField(field, messages))
+          .join('\n')}</div></div>`,
+    )
+    .join('\n');
 };
 
 const buildStyle = (definition: PublicFormDefinition, isEmbedded: boolean) => {
@@ -205,6 +245,11 @@ body{background:${isEmbedded ? 'transparent' : 'var(--ff-background)'};color:var
 .ff-error:empty{display:none}
 .ff-invalid .ff-input,.ff-invalid .ff-choice{border-color:var(--ff-danger)}
 .ff-actions{margin-top:28px;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.ff-buttons{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.ff-back{min-height:48px;padding:12px 22px;font:inherit;font-weight:600;color:var(--ff-text);background:transparent;border:1px solid var(--ff-border);border-radius:var(--ff-radius);cursor:pointer}
+.ff-back:hover{border-color:var(--ff-text)}
+.ff-progress{margin:0 0 20px;font-size:13px;font-weight:600;letter-spacing:.02em;color:color-mix(in srgb,var(--ff-text) 60%,transparent)}
+.ff-step[hidden],.ff-back[hidden],.ff-submit[hidden]{display:none}
 .ff-submit{min-width:180px;min-height:48px;padding:12px 28px;font:inherit;font-weight:600;color:var(--ff-button-text);background:var(--ff-primary);border:0;border-radius:var(--ff-radius);cursor:pointer;transition:opacity .15s,transform .05s}
 .ff-submit:hover{opacity:.92}
 .ff-submit:active{transform:translateY(1px)}
@@ -215,7 +260,7 @@ body{background:${isEmbedded ? 'transparent' : 'var(--ff-background)'};color:var
 .ff-success-icon{width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:grid;place-items:center;background:color-mix(in srgb,var(--ff-primary) 12%,transparent);color:var(--ff-primary)}
 .ff-success p{margin:0;font-size:18px;white-space:pre-line}
 .ff-honeypot{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
-@media (max-width:560px){.ff-grid{grid-template-columns:1fr}.ff-card{padding:${isEmbedded ? '16px' : '24px 18px'}}.ff-page{padding:${isEmbedded ? '4px 0' : '20px 12px'}}.ff-title{font-size:24px}.ff-submit{width:100%}}
+@media (max-width:560px){.ff-grid{grid-template-columns:1fr}.ff-card{padding:${isEmbedded ? '16px' : '24px 18px'}}.ff-page{padding:${isEmbedded ? '4px 0' : '20px 12px'}}.ff-title{font-size:24px}.ff-buttons{width:100%}.ff-back,.ff-submit{flex:1 1 auto}}
 ${theme.customCss ? sanitizeCustomCss(theme.customCss) : ''}`;
 };
 
@@ -270,12 +315,15 @@ ${isSafeImageUrl(theme.logoUrl) ? `<img class="ff-logo" src="${escapeHtml(theme.
 <h1 class="ff-title">${escapeHtml(definition.title)}</h1>
 ${definition.description ? `<p class="ff-intro">${escapeHtml(definition.description)}</p>` : ''}
 <form id="ff-form" novalidate>
-<div class="ff-grid">
-${definition.fields.map((field) => renderField(field, messages)).join('\n')}
-</div>
+<p class="ff-progress" id="ff-progress" hidden></p>
+${renderSteps(definition.fields, messages)}
 <div class="ff-honeypot" aria-hidden="true"><label>Leave this empty<input type="text" name="${PUBLIC_FORM_HONEYPOT_FIELD}" tabindex="-1" autocomplete="off" /></label></div>
 <div class="ff-actions">
+<div class="ff-buttons">
+<button class="ff-back" id="ff-back" type="button" hidden>${escapeHtml(messages.back)}</button>
+<button class="ff-submit" id="ff-next" type="button" hidden>${escapeHtml(messages.next)}</button>
 <button class="ff-submit" id="ff-submit" type="submit">${escapeHtml(theme.submitButtonLabel)}</button>
+</div>
 <p class="ff-form-error" id="ff-form-error" role="alert" hidden></p>
 </div>
 </form>

@@ -21,6 +21,9 @@ export type PublicFormPageMessages = {
   selectPlaceholder: string;
   chooseFile: string;
   noFileChosen: string;
+  next: string;
+  back: string;
+  stepOf: string;
   notFoundTitle: string;
   notFoundMessage: string;
 };
@@ -50,6 +53,9 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     selectPlaceholder: 'Select…',
     chooseFile: 'Choose a file',
     noFileChosen: 'No file chosen',
+    next: 'Next',
+    back: 'Back',
+    stepOf: 'Step {current} of {total}',
     notFoundTitle: 'Form not available',
     notFoundMessage:
       'This form does not exist or is no longer accepting answers.',
@@ -73,6 +79,9 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     selectPlaceholder: 'اختر…',
     chooseFile: 'اختر ملفًا',
     noFileChosen: 'لم يتم اختيار ملف',
+    next: 'التالي',
+    back: 'السابق',
+    stepOf: 'الخطوة {current} من {total}',
     notFoundTitle: 'النموذج غير متاح',
     notFoundMessage: 'هذا النموذج غير موجود أو لم يعد يستقبل ردودًا.',
   },
