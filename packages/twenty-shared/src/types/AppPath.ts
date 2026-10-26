@@ -29,6 +29,8 @@ export enum AppPath {
   AgentShowPage = '/agent/:agentId',
   // FloLabs: builder for the public forms served under /forms.
   FormBuilder = '/form-builder/:formId?',
+  // FloLabs: every mailbox's email threads in one list.
+  TeamInbox = '/team-inbox',
 
   Settings = `settings`,
   SettingsCatchAll = `/${Settings}/*`,

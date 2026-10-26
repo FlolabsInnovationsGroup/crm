@@ -5,6 +5,7 @@ import { isDefined } from 'twenty-shared/utils';
 import { TIMELINE_THREADS_DEFAULT_PAGE_SIZE } from 'src/engine/core-modules/messaging/constants/messaging.constants';
 import { type TimelineThreadsWithTotalDTO } from 'src/engine/core-modules/messaging/dtos/timeline-threads-with-total.dto';
 import { TimelineMessagingService } from 'src/engine/core-modules/messaging/services/timeline-messaging.service';
+import { type InboxThreadFilter } from 'src/engine/core-modules/messaging/types/inbox-thread-filter.type';
 import { formatThreads } from 'src/engine/core-modules/messaging/utils/format-threads.util';
 import { RelatedPersonIdsService } from 'src/engine/core-modules/related-person-ids/services/related-person-ids.service';
 import { type TargetFilter } from 'src/engine/core-modules/target/utils/get-target-field-name-for-object-record.util';
@@ -25,6 +26,7 @@ export class GetMessagesService {
     page = 1,
     pageSize: number = TIMELINE_THREADS_DEFAULT_PAGE_SIZE,
     targetFilter?: TargetFilter,
+    inboxFilter?: InboxThreadFilter,
   ): Promise<TimelineThreadsWithTotalDTO> {
     const offset = (page - 1) * pageSize;
 
@@ -35,6 +37,7 @@ export class GetMessagesService {
         offset,
         pageSize,
         targetFilter,
+        inboxFilter,
       );
 
     if (!messageThreads) {
@@ -71,6 +74,24 @@ export class GetMessagesService {
       ),
       relatedPersonIds: personIds,
     };
+  }
+
+  async getInboxThreads(
+    workspaceMemberId: string,
+    workspaceId: string,
+    page: number,
+    pageSize: number,
+    inboxFilter: InboxThreadFilter,
+  ): Promise<TimelineThreadsWithTotalDTO> {
+    return this.getMessagesFromPersonIds(
+      workspaceMemberId,
+      [],
+      workspaceId,
+      page,
+      pageSize,
+      undefined,
+      inboxFilter,
+    );
   }
 
   async getMessagesFromObjectRecord(

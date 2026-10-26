@@ -33,6 +33,12 @@ const FormBuilderPage = lazy(() =>
   })),
 );
 
+const TeamInboxPage = lazy(() =>
+  import('~/pages/team-inbox/TeamInboxPage').then((module) => ({
+    default: module.TeamInboxPage,
+  })),
+);
+
 const RecordIndexPage = lazy(() =>
   import('~/pages/object-record/RecordIndexPage').then((module) => ({
     default: module.RecordIndexPage,
@@ -115,6 +121,14 @@ export const createWorkspaceRouteObjects = ({
       element: (
         <LazyRoute>
           <AgentCoreShowPage />
+        </LazyRoute>
+      ),
+    },
+    {
+      path: AppPath.TeamInbox,
+      element: (
+        <LazyRoute>
+          <TeamInboxPage />
         </LazyRoute>
       ),
     },

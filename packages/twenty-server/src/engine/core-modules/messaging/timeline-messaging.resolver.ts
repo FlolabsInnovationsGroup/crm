@@ -1,16 +1,19 @@
 import { UseGuards, UseFilters } from '@nestjs/common';
 import { Args, ArgsType, Field, Int, Mutation, Query } from '@nestjs/graphql';
 
-import { Max } from 'class-validator';
+import { IsIn, IsOptional, Max, MaxLength } from 'class-validator';
 import { PermissionFlagType } from 'twenty-shared/constants';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 
 import { CoreResolver } from 'src/engine/api/graphql/graphql-config/decorators/core-resolver.decorator';
 import { UUIDScalarType } from 'src/engine/api/graphql/workspace-schema-builder/graphql-types/scalars';
 import { TIMELINE_THREADS_MAX_PAGE_SIZE } from 'src/engine/core-modules/messaging/constants/messaging.constants';
+import { InboxMailboxDTO } from 'src/engine/core-modules/messaging/dtos/inbox-mailbox.dto';
 import { DismissReconnectAccountBannerInput } from 'src/engine/core-modules/messaging/dtos/dismiss-reconnect-account-banner.input';
 import { TimelineThreadsWithTotalDTO } from 'src/engine/core-modules/messaging/dtos/timeline-threads-with-total.dto';
 import { GetMessagesService } from 'src/engine/core-modules/messaging/services/get-messages.service';
+import { TimelineMessagingService } from 'src/engine/core-modules/messaging/services/timeline-messaging.service';
+import { type InboxThreadDirection } from 'src/engine/core-modules/messaging/types/inbox-thread-filter.type';
 import { UserService } from 'src/engine/core-modules/user/services/user.service';
 import { type AuthContextUser } from 'src/engine/core-modules/auth/types/auth-context.type';
 import { AuthGraphqlApiExceptionFilter } from 'src/engine/core-modules/auth/filters/auth-graphql-api-exception.filter';
@@ -36,6 +39,30 @@ class GetTimelineThreadsFromObjectRecordArgs {
   @Field(() => Int)
   @Max(TIMELINE_THREADS_MAX_PAGE_SIZE)
   pageSize: number;
+}
+
+@ArgsType()
+class GetInboxThreadsArgs {
+  @Field(() => Int)
+  page: number;
+
+  @Field(() => Int)
+  @Max(TIMELINE_THREADS_MAX_PAGE_SIZE)
+  pageSize: number;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsIn(['INCOMING', 'OUTGOING'])
+  direction?: InboxThreadDirection;
+
+  @Field(() => UUIDScalarType, { nullable: true })
+  @IsOptional()
+  messageChannelId?: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @MaxLength(200)
+  searchTerm?: string;
 }
 
 @ArgsType()
@@ -96,6 +123,7 @@ class GetTimelineThreadsFromOpportunityIdArgs {
 export class TimelineMessagingResolver {
   constructor(
     private readonly getMessagesFromPersonIdsService: GetMessagesService,
+    private readonly timelineMessagingService: TimelineMessagingService,
     private readonly userService: UserService,
     private readonly accountsToReconnectService: AccountsToReconnectService,
   ) {}
@@ -129,6 +157,44 @@ export class TimelineMessagingResolver {
       page,
       pageSize,
     );
+  }
+
+  // FloLabs team inbox: every mailbox's threads, newest first. Thread
+  // visibility still follows each mailbox's sharing setting.
+  @Query(() => TimelineThreadsWithTotalDTO)
+  async getInboxThreads(
+    @AuthUser() user: AuthContextUser,
+    @AuthWorkspace() workspace: WorkspaceEntity,
+    @Args()
+    {
+      page,
+      pageSize,
+      direction,
+      messageChannelId,
+      searchTerm,
+    }: GetInboxThreadsArgs,
+  ) {
+    const workspaceMember = await this.userService.loadWorkspaceMember(
+      user,
+      workspace,
+    );
+
+    if (!workspaceMember) {
+      return;
+    }
+
+    return this.getMessagesFromPersonIdsService.getInboxThreads(
+      workspaceMember.id,
+      workspace.id,
+      page,
+      pageSize,
+      { direction, messageChannelId, searchTerm },
+    );
+  }
+
+  @Query(() => [InboxMailboxDTO])
+  async getInboxMailboxes(@AuthWorkspace() workspace: WorkspaceEntity) {
+    return this.timelineMessagingService.getInboxMailboxes(workspace.id);
   }
 
   @Query(() => TimelineThreadsWithTotalDTO, {

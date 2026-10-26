@@ -9,7 +9,9 @@ import { isDefined } from 'twenty-shared/utils';
 import { In, type Repository } from 'typeorm';
 
 import { FileUrlService } from 'src/engine/core-modules/file/file-url/file-url.service';
+import { type InboxMailboxDTO } from 'src/engine/core-modules/messaging/dtos/inbox-mailbox.dto';
 import { type TimelineThreadDTO } from 'src/engine/core-modules/messaging/dtos/timeline-thread.dto';
+import { type InboxThreadFilter } from 'src/engine/core-modules/messaging/types/inbox-thread-filter.type';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { type TargetFilter } from 'src/engine/core-modules/target/utils/get-target-field-name-for-object-record.util';
 import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
@@ -20,6 +22,45 @@ import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system
 import { type MessageParticipantWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-participant.workspace-entity';
 import { type MessageThreadWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-thread.workspace-entity';
 import { type WorkspaceMemberWorkspaceEntity } from 'src/modules/workspace-member/standard-objects/workspace-member.workspace-entity';
+
+const escapeLikePattern = (value: string) => value.replace(/[\\%_]/g, '\\$&');
+
+const applyInboxFilter = (
+  queryBuilder: WorkspaceSelectQueryBuilder,
+  { direction, messageChannelId, searchTerm }: InboxThreadFilter,
+): void => {
+  queryBuilder
+    .innerJoin(
+      'messages.messageChannelMessageAssociations',
+      'messageChannelMessageAssociations',
+    )
+    .where('1 = 1');
+
+  if (isDefined(direction)) {
+    queryBuilder.andWhere(
+      'messageChannelMessageAssociations.direction = :direction',
+      { direction },
+    );
+  }
+
+  if (isDefined(messageChannelId)) {
+    queryBuilder.andWhere(
+      'messageChannelMessageAssociations.messageChannelId = :messageChannelId',
+      { messageChannelId },
+    );
+  }
+
+  const trimmedSearchTerm = searchTerm?.trim();
+
+  if (isDefined(trimmedSearchTerm) && trimmedSearchTerm !== '') {
+    queryBuilder
+      .leftJoin('messages.messageParticipants', 'searchParticipants')
+      .andWhere(
+        '(messages.subject ILIKE :search OR searchParticipants.handle ILIKE :search OR searchParticipants.displayName ILIKE :search)',
+        { search: `%${escapeLikePattern(trimmedSearchTerm)}%` },
+      );
+  }
+};
 
 @Injectable()
 export class TimelineMessagingService {
@@ -40,6 +81,7 @@ export class TimelineMessagingService {
     offset: number,
     pageSize: number,
     targetFilter?: TargetFilter,
+    inboxFilter?: InboxThreadFilter,
   ): Promise<{
     messageThreads: Omit<
       TimelineThreadDTO,
@@ -77,6 +119,12 @@ export class TimelineMessagingService {
       const applyRecordFilter = (
         queryBuilder: WorkspaceSelectQueryBuilder,
       ): void => {
+        if (isDefined(inboxFilter)) {
+          applyInboxFilter(queryBuilder, inboxFilter);
+
+          return;
+        }
+
         if (isDefined(targetFilter)) {
           queryBuilder
             .innerJoin(
@@ -136,6 +184,18 @@ export class TimelineMessagingService {
         totalNumberOfThreads,
       };
     }, authContext);
+  }
+
+  public async getInboxMailboxes(
+    workspaceId: string,
+  ): Promise<InboxMailboxDTO[]> {
+    const messageChannels = await this.messageChannelRepository.find({
+      where: { workspaceId },
+      select: { id: true, handle: true },
+      order: { handle: 'ASC' },
+    });
+
+    return messageChannels.map(({ id, handle }) => ({ id, handle }));
   }
 
   public async getThreadParticipantsByThreadId(
