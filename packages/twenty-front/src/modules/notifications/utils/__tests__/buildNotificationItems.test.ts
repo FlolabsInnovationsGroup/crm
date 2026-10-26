@@ -38,6 +38,10 @@ describe('buildNotificationItems', () => {
       title: 'Ada',
       subtitle: 'Re: Internship',
     });
+    expect(items[2]).toMatchObject({
+      title: 'Call Ada',
+      subtitle: 'Task for you',
+    });
   });
 });
 
@@ -67,6 +71,16 @@ describe('isNotificationUnread', () => {
       isNotificationUnread(
         { ...item, happenedAt: '2026-10-20T08:00:00.000Z' },
         null,
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it('waits for future-dated items instead of keeping them unread', () => {
+    expect(
+      isNotificationUnread(
+        { ...item, happenedAt: '2026-10-26T12:00:00.000Z' },
+        '2026-10-26T09:00:00.000Z',
         now,
       ),
     ).toBe(false);

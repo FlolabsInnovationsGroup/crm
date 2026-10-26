@@ -1,3 +1,5 @@
+import { isDefined } from 'twenty-shared/utils';
+
 import { type NotificationItem } from '@/notifications/types/NotificationItem';
 
 const MAX_NOTIFICATIONS = 30;
@@ -38,8 +40,8 @@ export const buildNotificationItems = ({
         id: `form-${submission.id}`,
         kind: 'formSubmission',
         recordId: submission.id,
-        title: labels.formSubmission,
-        subtitle: submission.label,
+        title: submission.label,
+        subtitle: labels.formSubmission,
         happenedAt: submission.createdAt,
       }),
     ),
@@ -48,8 +50,8 @@ export const buildNotificationItems = ({
         id: `task-${task.id}`,
         kind: 'task',
         recordId: task.id,
-        title: labels.task,
-        subtitle: task.label,
+        title: task.label,
+        subtitle: labels.task,
         happenedAt: task.createdAt,
       }),
     ),
@@ -58,14 +60,17 @@ export const buildNotificationItems = ({
     .slice(0, MAX_NOTIFICATIONS);
 
 // Before the page was ever opened, only the last day counts as new so a
-// first visit does not show a wall of old items as unread.
+// first visit does not show a wall of old items as unread. Future-dated items
+// wait for their time, or they would stay unread after every visit.
 export const isNotificationUnread = (
   item: NotificationItem,
   seenAt: string | null,
   now: Date,
 ) => {
-  const threshold =
-    seenAt ?? new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const happenedAt = new Date(item.happenedAt).getTime();
+  const threshold = isDefined(seenAt)
+    ? new Date(seenAt).getTime()
+    : now.getTime() - 24 * 60 * 60 * 1000;
 
-  return new Date(item.happenedAt).getTime() > new Date(threshold).getTime();
+  return happenedAt > threshold && happenedAt <= now.getTime();
 };
