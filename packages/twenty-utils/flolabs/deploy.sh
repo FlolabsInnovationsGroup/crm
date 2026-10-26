@@ -8,7 +8,7 @@ set -euo pipefail
 SHA="${SSH_ORIGINAL_COMMAND:-${1:-}}"
 APP_DIR="${FLOLABS_APP_DIR:-/opt/flolabs-crm}"
 IMAGE_REPO=ghcr.io/flolabsinnovationsgroup/crm
-PUBLIC_URL=https://crm.flolabsinnovations.com
+PUBLIC_HOST=crm.flolabsinnovations.com
 
 if [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
   echo "Usage: deploy.sh <40-character commit sha>" >&2
@@ -47,8 +47,22 @@ for _ in $(seq 1 60); do
   sleep 5
 done
 
-if [ "$STATUS" != healthy ] || ! curl -fsS --max-time 15 "$PUBLIC_URL/healthz" > /dev/null; then
-  echo "!! The new version is not healthy ($STATUS), rolling back" >&2
+# Goes through Caddy on this host: the server's own DNS lookup of its public
+# name can time out, which once rolled back a healthy release.
+PUBLIC_OK=false
+if [ "$STATUS" = healthy ]; then
+  for _ in $(seq 1 6); do
+    if curl -fsS --max-time 15 --resolve "$PUBLIC_HOST:443:127.0.0.1" \
+      "https://$PUBLIC_HOST/healthz" > /dev/null; then
+      PUBLIC_OK=true
+      break
+    fi
+    sleep 5
+  done
+fi
+
+if [ "$PUBLIC_OK" != true ]; then
+  echo "!! The new version is not healthy (container: $STATUS, through Caddy: $PUBLIC_OK), rolling back" >&2
   cp docker-compose.override.yml.previous docker-compose.override.yml
   docker compose up -d server worker
   echo "!! Rolled back. Database backup: $APP_DIR/$BACKUP" >&2
