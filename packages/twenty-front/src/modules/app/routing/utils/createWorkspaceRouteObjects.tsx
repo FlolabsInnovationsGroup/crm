@@ -33,6 +33,12 @@ const FormBuilderPage = lazy(() =>
   })),
 );
 
+const NotificationsPage = lazy(() =>
+  import('~/pages/notifications/NotificationsPage').then((module) => ({
+    default: module.NotificationsPage,
+  })),
+);
+
 const TeamInboxPage = lazy(() =>
   import('~/pages/team-inbox/TeamInboxPage').then((module) => ({
     default: module.TeamInboxPage,
@@ -121,6 +127,14 @@ export const createWorkspaceRouteObjects = ({
       element: (
         <LazyRoute>
           <AgentCoreShowPage />
+        </LazyRoute>
+      ),
+    },
+    {
+      path: AppPath.Notifications,
+      element: (
+        <LazyRoute>
+          <NotificationsPage />
         </LazyRoute>
       ),
     },

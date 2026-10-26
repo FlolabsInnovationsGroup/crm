@@ -31,6 +31,7 @@ export enum AppPath {
   FormBuilder = '/form-builder/:formId?',
   // FloLabs: every mailbox's email threads in one list.
   TeamInbox = '/team-inbox',
+  Notifications = '/notifications',
 
   Settings = `settings`,
   SettingsCatchAll = `/${Settings}/*`,

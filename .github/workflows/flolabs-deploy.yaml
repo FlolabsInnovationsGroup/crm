@@ -36,8 +36,16 @@ jobs:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          # Keys copied on Windows can carry CR line endings.
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          if ! ssh-keygen -y -P '' -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub; then
+            echo "::error::DEPLOY_SSH_KEY is not a valid private key, or it has a passphrase"
+            exit 1
+          fi
+          echo "Deploy key (must match the server's authorized_keys line):"
+          ssh-keygen -lf ~/.ssh/deploy_key.pub
+          cat ~/.ssh/deploy_key.pub
           echo '128.140.4.151 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINnftxNdRM/egrZr03WUoUV9GYnEd5JG/a1nyOvEd+uC' > ~/.ssh/known_hosts
-          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
             root@128.140.4.151 "$SHA"
