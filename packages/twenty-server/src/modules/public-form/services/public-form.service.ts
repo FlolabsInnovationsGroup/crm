@@ -32,6 +32,9 @@ import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.ent
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { addPersonEmailFiltersToQueryBuilder } from 'src/modules/match-participant/utils/add-person-email-filters-to-query-builder';
+import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
+import { getObjectMetadataIdByName } from 'src/engine/metadata-modules/flat-object-metadata/utils/get-object-metadata-id-by-name.util';
+import { PUBLIC_FORM_TIMELINE_ACTIVITY_TYPE } from 'src/modules/public-form/constants/public-form-timeline-activity-type.constant';
 import { PublicFormActionsService } from 'src/modules/public-form/services/public-form-actions.service';
 import { type PublicFormCreatedBy as CreatedBy } from 'src/modules/public-form/types/public-form-created-by.type';
 
@@ -103,6 +106,7 @@ export class PublicFormService {
     private readonly workspaceOrmManager: WorkspaceOrmManager,
     private readonly filesFieldService: FilesFieldService,
     private readonly publicFormActionsService: PublicFormActionsService,
+    private readonly workspaceManyOrAllFlatEntityMapsCacheService: WorkspaceManyOrAllFlatEntityMapsCacheService,
     @InjectRepository(WorkspaceEntity)
     private readonly workspaceRepository: Repository<WorkspaceEntity>,
   ) {}
@@ -220,7 +224,7 @@ export class PublicFormService {
       );
 
       const insertResult = await submissionRepository.insert({
-        name: `${form.name} · ${email}`,
+        name: `${form.name} · ${email}`.slice(0, 255),
         formId: form.id,
         personId: person?.id ?? null,
         // Calculated values are kept next to the answers they came from.
@@ -232,6 +236,16 @@ export class PublicFormService {
       });
 
       const submissionId = insertResult.identifiers[0]?.id as string;
+      const submissionName = `${form.name} · ${email}`;
+
+      if (isDefined(person)) {
+        await this.addSubmissionToPersonTimeline({
+          workspaceId,
+          personId: person.id,
+          submissionId,
+          submissionName,
+        });
+      }
 
       if (isDefined(person)) {
         await this.attachFiles({
@@ -256,6 +270,50 @@ export class PublicFormService {
 
       return { submissionId };
     }, buildSystemAuthContext(workspaceId));
+  }
+
+  // A failure here must not lose the submission that was already saved.
+  private async addSubmissionToPersonTimeline({
+    workspaceId,
+    personId,
+    submissionId,
+    submissionName,
+  }: {
+    workspaceId: string;
+    personId: string;
+    submissionId: string;
+    submissionName: string;
+  }) {
+    try {
+      const { flatObjectMetadataMaps } =
+        await this.workspaceManyOrAllFlatEntityMapsCacheService.getOrRecomputeManyOrAllFlatEntityMaps(
+          { workspaceId, flatMapsKeys: ['flatObjectMetadataMaps'] },
+        );
+
+      await this.workspaceOrmManager
+        .getRepository('timelineActivity', {
+          shouldBypassPermissionChecks: true,
+        })
+        .insert({
+          happensAt: new Date().toISOString(),
+          timelineActivityTypeId: null,
+          timelineActivityTypeSnapshot: PUBLIC_FORM_TIMELINE_ACTIVITY_TYPE,
+          properties: {},
+          targetPersonId: personId,
+          linkedRecordId: submissionId,
+          linkedRecordCachedName: submissionName,
+          linkedObjectMetadataId:
+            getObjectMetadataIdByName({
+              flatObjectMetadataMaps,
+              objectName: PUBLIC_FORM_SUBMISSION_OBJECT_NAME,
+            }) ?? null,
+        });
+    } catch (error) {
+      this.logger.warn(
+        `Could not add submission ${submissionId} to the person's timeline`,
+        error,
+      );
+    }
   }
 
   // Repositories skip the API's input transformers, so phones are split into

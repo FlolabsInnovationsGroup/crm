@@ -161,7 +161,9 @@ export class PublicFormActionsService {
       shouldBypassPermissionChecks: true,
     });
     const markdown = [
-      isNonEmptyString(action.body) ? this.interpolate(action.body, context) : '',
+      isNonEmptyString(action.body)
+        ? this.interpolate(action.body, context)
+        : '',
       this.buildAnswerLines(context)
         .map(({ label, value }) => `- **${label}:** ${value}`)
         .join('\n'),
