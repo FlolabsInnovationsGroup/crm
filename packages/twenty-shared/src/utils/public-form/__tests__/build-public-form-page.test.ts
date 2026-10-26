@@ -1,6 +1,5 @@
-import { publicFormDefinitionSchema } from 'twenty-shared/utils';
-
-import { buildPublicFormPage } from 'src/modules/public-form/utils/build-public-form-page.util';
+import { buildPublicFormPage } from '../build-public-form-page';
+import { publicFormDefinitionSchema } from '../public-form-definition-schema';
 
 const buildPage = (overrides: Record<string, unknown> = {}) =>
   buildPublicFormPage({

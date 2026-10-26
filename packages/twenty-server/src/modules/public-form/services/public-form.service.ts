@@ -12,6 +12,10 @@ import {
   buildPublicFormRecordValues,
   getPublicFormVisibleFieldIds,
   isDefined,
+  PUBLIC_FORM_MAX_FILE_SIZE_MB,
+  PUBLIC_FORM_OBJECT_NAME,
+  PUBLIC_FORM_PUBLISHED_STATUS,
+  PUBLIC_FORM_SUBMISSION_OBJECT_NAME,
   publicFormDefinitionSchema,
   validatePublicFormAnswers,
   type PublicFormAnswers,
@@ -24,12 +28,6 @@ import { FilesFieldService } from 'src/engine/core-modules/file/files-field/serv
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
-import {
-  PUBLIC_FORM_MAX_FILE_SIZE_MB,
-  PUBLIC_FORM_OBJECT_NAME,
-  PUBLIC_FORM_PUBLISHED_STATUS,
-  PUBLIC_FORM_SUBMISSION_OBJECT_NAME,
-} from 'src/modules/public-form/constants/public-form.constants';
 
 export type PublicFormUploadedFile = {
   fieldName: string;

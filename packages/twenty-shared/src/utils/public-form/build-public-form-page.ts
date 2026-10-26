@@ -1,16 +1,15 @@
+import { escapePublicFormHtml as escapeHtml } from './escape-public-form-html';
+import {
+  PUBLIC_FORM_HONEYPOT_FIELD,
+  PUBLIC_FORM_MAX_FILE_SIZE_MB,
+} from './public-form-constants';
 import {
   PUBLIC_FORM_GOOGLE_FONTS,
   type PublicFormDefinition,
   type PublicFormField,
-} from 'twenty-shared/utils';
-
-import { escapeHtml } from 'src/engine/core-modules/emailing-domain/utils/escape-html.util';
-import {
-  PUBLIC_FORM_HONEYPOT_FIELD,
-  PUBLIC_FORM_MAX_FILE_SIZE_MB,
-} from 'src/modules/public-form/constants/public-form.constants';
-import { PUBLIC_FORM_PAGE_MESSAGES } from 'src/modules/public-form/utils/public-form-page-messages';
-import { PUBLIC_FORM_PAGE_SCRIPT } from 'src/modules/public-form/utils/public-form-page-script';
+} from './public-form-definition-schema';
+import { PUBLIC_FORM_PAGE_MESSAGES } from './public-form-page-messages';
+import { PUBLIC_FORM_PAGE_SCRIPT } from './public-form-page-script';
 
 const RADIO_OPTION_LIMIT = 6;
 
@@ -213,12 +212,15 @@ export const buildPublicFormPage = ({
   submitUrl,
   isEmbedded,
   nonce,
+  isPreview = false,
 }: {
   formId: string;
   definition: PublicFormDefinition;
   submitUrl: string;
   isEmbedded: boolean;
   nonce: string;
+  // Builder preview: validates and shows the success state without sending.
+  isPreview?: boolean;
 }): string => {
   const { theme, settings } = definition;
   const messages = PUBLIC_FORM_PAGE_MESSAGES[settings.language];
@@ -230,6 +232,7 @@ export const buildPublicFormPage = ({
   const config = {
     formId,
     submitUrl,
+    isPreview,
     submitLabel: theme.submitButtonLabel,
     honeypotField: PUBLIC_FORM_HONEYPOT_FIELD,
     maxFileSizeMb: PUBLIC_FORM_MAX_FILE_SIZE_MB,

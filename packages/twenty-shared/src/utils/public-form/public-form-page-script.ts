@@ -215,7 +215,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   function onSubmitted() {
     postToParent('flolabs-form:submitted');
     var redirectUrl = definition.settings.redirectUrl;
-    if (isSafeRedirect(redirectUrl)) {
+    if (isSafeRedirect(redirectUrl) && !config.isPreview) {
       try {
         window.top.location.href = redirectUrl;
       } catch (error) {
@@ -284,6 +284,8 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
       var input = wrapperOf(field).querySelector('input[type=file]');
       if (input.files && input.files[0]) body.append('file:' + field.id, input.files[0]);
     });
+
+    if (config.isPreview) return onSubmitted();
 
     setSending(true);
     fetch(config.submitUrl, { method: 'POST', body: body, credentials: 'omit' })

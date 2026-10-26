@@ -22,7 +22,16 @@ import { isNonEmptyString } from '@sniptt/guards';
 import { randomBytes } from 'crypto';
 import { type Request, type Response } from 'express';
 import { ApiPath } from 'twenty-shared/types';
-import { isPlainObject, type PublicFormAnswers } from 'twenty-shared/utils';
+import {
+  buildPublicFormContentSecurityPolicy,
+  buildPublicFormPage,
+  isPlainObject,
+  PUBLIC_FORM_HONEYPOT_FIELD,
+  PUBLIC_FORM_MAX_FILES,
+  PUBLIC_FORM_MAX_FILE_SIZE_MB,
+  PUBLIC_FORM_PAGE_MESSAGES,
+  type PublicFormAnswers,
+} from 'twenty-shared/utils';
 
 import { buildUnsubscribeResultPage } from 'src/engine/core-modules/emailing-domain/utils/build-unsubscribe-result-page.util';
 import { ThrottlerException } from 'src/engine/core-modules/throttler/throttler.exception';
@@ -31,19 +40,9 @@ import { throttlerToRestApiExceptionHandler } from 'src/engine/core-modules/thro
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { NoPermissionGuard } from 'src/engine/guards/no-permission.guard';
 import { PublicEndpointGuard } from 'src/engine/guards/public-endpoint.guard';
-import {
-  PUBLIC_FORM_HONEYPOT_FIELD,
-  PUBLIC_FORM_MAX_FILES,
-  PUBLIC_FORM_MAX_FILE_SIZE_MB,
-  PUBLIC_FORM_RATE_LIMIT,
-} from 'src/modules/public-form/constants/public-form.constants';
+import { PUBLIC_FORM_RATE_LIMIT } from 'src/modules/public-form/constants/public-form.constants';
 import { PublicFormService } from 'src/modules/public-form/services/public-form.service';
 import { buildPublicFormEmbedScript } from 'src/modules/public-form/utils/build-public-form-embed-script.util';
-import {
-  buildPublicFormContentSecurityPolicy,
-  buildPublicFormPage,
-} from 'src/modules/public-form/utils/build-public-form-page.util';
-import { PUBLIC_FORM_PAGE_MESSAGES } from 'src/modules/public-form/utils/public-form-page-messages';
 
 type MulterFile = {
   fieldname: string;

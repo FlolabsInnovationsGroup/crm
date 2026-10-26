@@ -1,4 +1,4 @@
-import { type PublicFormDefinition } from 'twenty-shared/utils';
+import { type PublicFormDefinition } from './public-form-definition-schema';
 
 type PublicFormLanguage = PublicFormDefinition['settings']['language'];
 
