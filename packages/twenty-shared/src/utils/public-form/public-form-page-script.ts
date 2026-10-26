@@ -205,6 +205,8 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     window.scrollTo(0, 0);
     postToParent('flolabs-form:step');
     announce('flolabs:step', { step: currentStep });
+    var stepState = renderSteps();
+    track('step', stepState.position);
     if (firstInput) firstInput.focus({ preventScroll: true });
   }
 
@@ -311,6 +313,18 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     return typeof url === 'string' && /^https?:\\/\\//i.test(url);
   }
 
+  // Analytics only: a lost beacon must never affect the visitor.
+  function track(type, step) {
+    if (config.isPreview || !config.eventsUrl) return;
+    var url = config.eventsUrl + '?type=' + type + (step === undefined ? '' : '&step=' + step);
+    try {
+      if (navigator.sendBeacon && navigator.sendBeacon(url)) return;
+      fetch(url, { method: 'POST', credentials: 'omit', keepalive: true }).catch(function () {});
+    } catch (error) {
+      return;
+    }
+  }
+
   function announce(type, detail) {
     window.dispatchEvent(new CustomEvent(type, { detail: detail }));
   }
@@ -402,6 +416,14 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     });
     resize();
   }
+
+  var hasStarted = false;
+  track('view');
+  form.addEventListener('input', function () {
+    if (hasStarted) return;
+    hasStarted = true;
+    track('start');
+  });
 
   form.querySelectorAll('.ff-signature-pad').forEach(setUpSignaturePad);
   form.querySelectorAll('input[type=range]').forEach(function (range) {

@@ -222,6 +222,20 @@ export const FormBuilderDesignTab = ({
             }
           />
         </FormBuilderFieldRow>
+        <FormBuilderFieldRow label={t`Dark mode`}>
+          <FormBuilderNativeSelect
+            value={theme.colorScheme}
+            options={[
+              { value: 'light', label: t`Always these colors` },
+              { value: 'auto', label: t`Follow the visitor's device` },
+            ]}
+            onChange={(colorScheme) =>
+              update({
+                colorScheme: colorScheme as PublicFormTheme['colorScheme'],
+              })
+            }
+          />
+        </FormBuilderFieldRow>
         <FormBuilderFieldRow label={t`Width (px)`}>
           <FormBuilderTextInput
             type="number"

@@ -4,4 +4,5 @@ export type FormBuilderTab =
   | 'design'
   | 'code'
   | 'settings'
-  | 'share';
+  | 'share'
+  | 'responses';

@@ -5,19 +5,17 @@ import { IconBell } from 'twenty-ui/icon';
 
 import { NotificationDesktopAlertEffect } from '@/notifications/components/NotificationDesktopAlertEffect';
 import { useNotificationFeed } from '@/notifications/hooks/useNotificationFeed';
-import { notificationsSeenState } from '@/notifications/states/notificationsSeenState';
+import { useNotificationsSeenState } from '@/notifications/hooks/useNotificationsSeenState';
 import { isNotificationUnread } from '@/notifications/utils/buildNotificationItems';
 import { NavigationDrawerItem } from '@/ui/navigation/navigation-drawer/components/NavigationDrawerItem';
-import { useAtomState } from '@/ui/utilities/state/jotai/hooks/useAtomState';
 import { useNavigateApp } from '~/hooks/useNavigateApp';
 
 export const NavigationDrawerNotificationsItem = () => {
   const location = useLocation();
   const navigate = useNavigateApp();
   const items = useNotificationFeed();
-  const [notificationsSeen, setNotificationsSeen] = useAtomState(
-    notificationsSeenState,
-  );
+  const { notificationsSeen, markNotificationsSeen } =
+    useNotificationsSeenState();
 
   const now = new Date();
   const unreadCount = items.filter((item) =>
@@ -25,10 +23,7 @@ export const NavigationDrawerNotificationsItem = () => {
   ).length;
 
   const handleClick = () => {
-    setNotificationsSeen({
-      seenAt: new Date().toISOString(),
-      previousSeenAt: notificationsSeen.seenAt,
-    });
+    markNotificationsSeen();
     navigate(AppPath.Notifications);
   };
 

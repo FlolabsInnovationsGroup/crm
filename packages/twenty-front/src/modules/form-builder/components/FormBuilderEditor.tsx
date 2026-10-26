@@ -17,6 +17,7 @@ import { FormBuilderCodeTab } from '@/form-builder/components/FormBuilderCodeTab
 import { FormBuilderDesignTab } from '@/form-builder/components/FormBuilderDesignTab';
 import { FormBuilderFieldsTab } from '@/form-builder/components/FormBuilderFieldsTab';
 import { FormBuilderLogicTab } from '@/form-builder/components/FormBuilderLogicTab';
+import { FormBuilderResponsesTab } from '@/form-builder/components/FormBuilderResponsesTab';
 import { FormBuilderPreview } from '@/form-builder/components/FormBuilderPreview';
 import { FormBuilderSettingsTab } from '@/form-builder/components/FormBuilderSettingsTab';
 import { FormBuilderShareTab } from '@/form-builder/components/FormBuilderShareTab';
@@ -232,6 +233,7 @@ export const FormBuilderEditor = ({
     { id: 'code', label: t`Code` },
     { id: 'settings', label: t`Settings` },
     { id: 'share', label: t`Share` },
+    { id: 'responses', label: t`Responses` },
   ];
 
   return (
@@ -325,6 +327,9 @@ export const FormBuilderEditor = ({
               definition={definition}
               onChange={(nextDefinition) => updateDraft(name, nextDefinition)}
             />
+          )}
+          {activeTab === 'responses' && (
+            <FormBuilderResponsesTab formId={form.id} definition={definition} />
           )}
           {activeTab === 'share' && (
             <FormBuilderShareTab

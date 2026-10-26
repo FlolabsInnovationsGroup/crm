@@ -12,14 +12,13 @@ import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { useNotificationFeed } from '@/notifications/hooks/useNotificationFeed';
-import { notificationsSeenState } from '@/notifications/states/notificationsSeenState';
+import { useNotificationsSeenState } from '@/notifications/hooks/useNotificationsSeenState';
 import {
   type NotificationItem,
   type NotificationKind,
 } from '@/notifications/types/NotificationItem';
 import { isNotificationUnread } from '@/notifications/utils/buildNotificationItems';
 import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
-import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { beautifyPastDateRelativeToNow } from '~/utils/date-utils';
 
 const KIND_ICONS: Record<NotificationKind, IconComponent> = {
@@ -126,7 +125,7 @@ const getDesktopPermission = () =>
 
 export const NotificationsList = () => {
   const items = useNotificationFeed();
-  const notificationsSeen = useAtomStateValue(notificationsSeenState);
+  const { notificationsSeen } = useNotificationsSeenState();
   const { openRecordInSidePanel } = useOpenRecordInSidePanel();
   const [desktopPermission, setDesktopPermission] =
     useState(getDesktopPermission);

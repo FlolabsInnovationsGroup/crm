@@ -40,7 +40,11 @@ import { throttlerToRestApiExceptionHandler } from 'src/engine/core-modules/thro
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { NoPermissionGuard } from 'src/engine/guards/no-permission.guard';
 import { PublicEndpointGuard } from 'src/engine/guards/public-endpoint.guard';
+import { PUBLIC_FORM_EVENT_TYPES } from 'src/modules/public-form/constants/public-form-event-types.constant';
+import { PUBLIC_FORM_EVENTS_RATE_LIMIT } from 'src/modules/public-form/constants/public-form-events-rate-limit.constant';
 import { PUBLIC_FORM_RATE_LIMIT } from 'src/modules/public-form/constants/public-form.constants';
+import { PublicFormStatsService } from 'src/modules/public-form/services/public-form-stats.service';
+import { type PublicFormEventType } from 'src/modules/public-form/types/public-form-event-type.type';
 import { PublicFormService } from 'src/modules/public-form/services/public-form.service';
 import { buildPublicFormEmbedScript } from 'src/modules/public-form/utils/build-public-form-embed-script.util';
 
@@ -90,6 +94,7 @@ export class PublicFormController {
 
   constructor(
     private readonly publicFormService: PublicFormService,
+    private readonly publicFormStatsService: PublicFormStatsService,
     private readonly throttlerService: ThrottlerService,
     private readonly twentyConfigService: TwentyConfigService,
   ) {}
@@ -184,6 +189,39 @@ export class PublicFormController {
         title: form.definition.title,
       }),
     );
+  }
+
+  // Analytics beacon: never fails the visitor, whatever happens.
+  @Post(':workspaceId/:formId/events')
+  @HttpCode(204)
+  async recordEvent(
+    @Param('workspaceId') workspaceId: string,
+    @Param('formId') formId: string,
+    @Query('type') type: string | undefined,
+    @Query('step') step: string | undefined,
+    @Req() request: Request,
+  ): Promise<void> {
+    if (!PUBLIC_FORM_EVENT_TYPES.includes(type as PublicFormEventType)) {
+      return;
+    }
+
+    try {
+      await this.throttlerService.tokenBucketThrottleOrThrow(
+        `public-form-events:${formId}:${request.ip ?? ''}`,
+        1,
+        PUBLIC_FORM_EVENTS_RATE_LIMIT.maxRequests,
+        PUBLIC_FORM_EVENTS_RATE_LIMIT.windowMs,
+      );
+      await this.publicFormService.getPublishedForm({ workspaceId, formId });
+      await this.publicFormStatsService.recordEvent({
+        workspaceId,
+        formId,
+        type: type as PublicFormEventType,
+        step: step === undefined ? undefined : Number(step),
+      });
+    } catch {
+      return;
+    }
   }
 
   @Post(':workspaceId/:formId')
