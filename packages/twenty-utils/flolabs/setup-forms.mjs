@@ -2,8 +2,15 @@
 // Safe to run again: existing objects and fields are left untouched.
 //
 //   TWENTY_URL=https://crm.example.com TWENTY_TOKEN=<api key> node setup-forms.mjs
+// or put the key in a file and pass TWENTY_TOKEN_FILE=<path> instead.
+import { readFileSync } from 'node:fs';
+
 const baseUrl = (process.env.TWENTY_URL ?? '').replace(/\/$/, '');
-const token = process.env.TWENTY_TOKEN ?? '';
+const token = (
+  process.env.TWENTY_TOKEN_FILE
+    ? readFileSync(process.env.TWENTY_TOKEN_FILE, 'utf8')
+    : (process.env.TWENTY_TOKEN ?? '')
+).trim();
 
 if (baseUrl === '' || token === '') {
   console.error(
@@ -12,20 +19,21 @@ if (baseUrl === '' || token === '') {
   process.exit(1);
 }
 
-const request = async (method, path, body) => {
-  const response = await fetch(`${baseUrl}/rest/metadata/${path}`, {
-    method,
+// The metadata GraphQL API is what the app itself uses, so its shape is stable.
+const graphql = async (query, variables = {}) => {
+  const response = await fetch(`${baseUrl}/metadata`, {
+    method: 'POST',
     headers: {
       authorization: `Bearer ${token}`,
       'content-type': 'application/json',
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: JSON.stringify({ query, variables }),
   });
   const json = await response.json().catch(() => ({}));
 
-  if (!response.ok) {
+  if (!response.ok || json.errors) {
     throw new Error(
-      `${method} ${path} failed (${response.status}): ${JSON.stringify(json)}`,
+      `Request failed (${response.status}): ${JSON.stringify(json.errors ?? json)}`,
     );
   }
 
@@ -33,9 +41,25 @@ const request = async (method, path, body) => {
 };
 
 const findObject = async (nameSingular) => {
-  const { objects } = await request('GET', 'objects');
+  const data = await graphql(`
+    query {
+      objects(paging: { first: 1000 }) {
+        edges {
+          node {
+            id
+            nameSingular
+            fieldsList {
+              name
+            }
+          }
+        }
+      }
+    }
+  `);
 
-  return objects.find((object) => object.nameSingular === nameSingular);
+  return data.objects.edges
+    .map((edge) => edge.node)
+    .find((object) => object.nameSingular === nameSingular);
 };
 
 const ensureObject = async (input) => {
@@ -47,26 +71,48 @@ const ensureObject = async (input) => {
     return existing;
   }
 
-  await request('POST', 'objects', input);
+  await graphql(
+    `
+      mutation ($input: CreateOneObjectInput!) {
+        createOneObject(input: $input) {
+          id
+        }
+      }
+    `,
+    { input: { object: input } },
+  );
   console.log(`+ object ${input.nameSingular}`);
 
   return findObject(input.nameSingular);
 };
 
 const ensureField = async (object, input) => {
-  const hasField = object.fields.some((field) => field.name === input.name);
-
-  if (hasField) {
+  if (object.fieldsList.some((field) => field.name === input.name)) {
     console.log(`= field ${object.nameSingular}.${input.name} already exists`);
 
     return;
   }
 
-  await request('POST', 'fields', { objectMetadataId: object.id, ...input });
+  await graphql(
+    `
+      mutation ($input: CreateOneFieldMetadataInput!) {
+        createOneField(input: $input) {
+          id
+        }
+      }
+    `,
+    { input: { field: { objectMetadataId: object.id, ...input } } },
+  );
   console.log(`+ field ${object.nameSingular}.${input.name}`);
 };
 
 const person = await findObject('person');
+
+if (!person) {
+  throw new Error(
+    'The person object was not found; is the token for the right workspace?',
+  );
+}
 
 let form = await ensureObject({
   nameSingular: 'crmForm',
