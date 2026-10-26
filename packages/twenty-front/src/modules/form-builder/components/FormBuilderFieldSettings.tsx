@@ -14,6 +14,7 @@ import { FormBuilderConditionGroupsEditor } from '@/form-builder/components/Form
 import { FormBuilderFieldRow } from '@/form-builder/components/FormBuilderFieldRow';
 import { FormBuilderNativeSelect } from '@/form-builder/components/FormBuilderNativeSelect';
 import { FormBuilderOptionsEditor } from '@/form-builder/components/FormBuilderOptionsEditor';
+import { FormBuilderScaleSettings } from '@/form-builder/components/FormBuilderScaleSettings';
 import { FormBuilderSwitchRow } from '@/form-builder/components/FormBuilderSwitchRow';
 import { FormBuilderTextarea } from '@/form-builder/components/FormBuilderTextarea';
 import { FormBuilderTextInput } from '@/form-builder/components/FormBuilderTextInput';
@@ -50,10 +51,21 @@ const PREFILLABLE_FIELD_TYPES: PublicFormField['type'][] = [
   'number',
   'url',
   'date',
+  'time',
   'select',
   'multiSelect',
+  'yesNo',
+  'rating',
+  'scale',
+  'slider',
   'checkbox',
   'hidden',
+];
+
+const SCALE_FIELD_TYPES: PublicFormField['type'][] = [
+  'rating',
+  'scale',
+  'slider',
 ];
 
 const StyledSettings = styled.div`
@@ -289,6 +301,81 @@ export const FormBuilderFieldSettings = ({
         </StyledSection>
       )}
 
+      {field.type === 'select' && (
+        <FormBuilderFieldRow label={t`Show options as`}>
+          <FormBuilderNativeSelect
+            value={field.choiceDisplay}
+            ariaLabel={t`Show options as`}
+            options={[
+              {
+                value: 'auto',
+                label: t`Buttons, or a dropdown for long lists`,
+              },
+              { value: 'buttons', label: t`Buttons` },
+              { value: 'dropdown', label: t`Dropdown` },
+            ]}
+            onChange={(choiceDisplay) =>
+              update({
+                choiceDisplay:
+                  choiceDisplay as PublicFormField['choiceDisplay'],
+              })
+            }
+          />
+        </FormBuilderFieldRow>
+      )}
+
+      {SCALE_FIELD_TYPES.includes(field.type) && (
+        <StyledSection>
+          <StyledSectionTitle>
+            {field.type === 'rating' ? t`Stars` : t`Range`}
+          </StyledSectionTitle>
+          <FormBuilderScaleSettings field={field} onChange={update} />
+        </StyledSection>
+      )}
+
+      {field.type === 'yesNo' && (
+        <StyledSection>
+          <StyledSectionTitle>{t`Button labels`}</StyledSectionTitle>
+          <FormBuilderOptionsEditor
+            options={(field.options ?? []).slice(0, 2)}
+            areValuesLocked
+            onChange={(options) => update({ options })}
+          />
+        </StyledSection>
+      )}
+
+      {field.type === 'matrix' && (
+        <StyledSection>
+          <StyledSectionTitle>{t`Rows`}</StyledSectionTitle>
+          <FormBuilderOptionsEditor
+            options={field.options ?? []}
+            areValuesLocked={false}
+            onChange={(options) => update({ options })}
+          />
+          <StyledSectionTitle>{t`Columns`}</StyledSectionTitle>
+          <FormBuilderOptionsEditor
+            options={field.columns ?? []}
+            areValuesLocked={false}
+            onChange={(columns) => update({ columns })}
+          />
+          <StyledHint>
+            {t`Visitors pick one column in every row. Required means every row must be answered.`}
+          </StyledHint>
+        </StyledSection>
+      )}
+
+      {field.type === 'consent' && (
+        <StyledHint>
+          {t`Link to your terms in the text with [text](https://your-link).`}
+        </StyledHint>
+      )}
+
+      {field.type === 'signature' && (
+        <StyledHint>
+          {t`Visitors draw their signature. It is saved as an image attached to the person.`}
+        </StyledHint>
+      )}
+
       {isChoice && (
         <StyledSection>
           <StyledSectionTitle>{t`Options`}</StyledSectionTitle>
@@ -305,7 +392,7 @@ export const FormBuilderFieldSettings = ({
         </StyledSection>
       )}
 
-      {!isDecorative && field.type !== 'file' && (
+      {!isDecorative && field.type !== 'file' && field.type !== 'signature' && (
         <StyledSection>
           <StyledSectionTitle>{t`Save the answer to`}</StyledSectionTitle>
           <FormBuilderNativeSelect

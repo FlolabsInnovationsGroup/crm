@@ -381,7 +381,9 @@ export class PublicFormService {
     evaluation: PublicFormEvaluation,
   ): PublicFormField[] {
     return definition.fields.filter(
-      (field) => field.type === 'file' && evaluation.visible[field.id] === true,
+      (field) =>
+        (field.type === 'file' || field.type === 'signature') &&
+        evaluation.visible[field.id] === true,
     );
   }
 
@@ -398,11 +400,17 @@ export class PublicFormService {
       if (fieldFiles.length === 0) {
         return PUBLIC_FORM_ENGINE.isFieldRequired(field, evaluation)
           ? [
-              {
-                fieldId: field.id,
-                code: 'fileRequired',
-                message: 'Please attach a file',
-              },
+              field.type === 'signature'
+                ? {
+                    fieldId: field.id,
+                    code: 'signatureRequired',
+                    message: 'Please sign',
+                  }
+                : {
+                    fieldId: field.id,
+                    code: 'fileRequired',
+                    message: 'Please attach a file',
+                  },
             ]
           : [];
       }
@@ -414,9 +422,12 @@ export class PublicFormService {
         ) *
         1024 *
         1024;
-      const acceptedExtensions = (field.acceptedFileExtensions ?? []).map(
-        (extension) => extension.replace(/^\./, '').toLowerCase(),
-      );
+      const acceptedExtensions =
+        field.type === 'signature'
+          ? ['png']
+          : (field.acceptedFileExtensions ?? []).map((extension) =>
+              extension.replace(/^\./, '').toLowerCase(),
+            );
 
       return fieldFiles.flatMap((file) => {
         if (file.size > maxBytes) {

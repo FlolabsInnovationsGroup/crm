@@ -12,14 +12,38 @@ export const PUBLIC_FORM_FIELD_TYPES = [
   'number',
   'url',
   'date',
+  'time',
   'select',
   'multiSelect',
+  'yesNo',
+  'rating',
+  'scale',
+  'slider',
+  'matrix',
   'checkbox',
+  'consent',
+  'address',
   'file',
+  'signature',
   'hidden',
   'heading',
   'paragraph',
   'pageBreak',
+] as const;
+
+export const PUBLIC_FORM_CHOICE_DISPLAYS = [
+  'auto',
+  'buttons',
+  'dropdown',
+] as const;
+
+// Address answers are a fixed-length list in this order.
+export const PUBLIC_FORM_ADDRESS_PARTS = [
+  'street',
+  'city',
+  'region',
+  'postcode',
+  'country',
 ] as const;
 
 export const PUBLIC_FORM_CONDITION_MATCHES = ['all', 'any'] as const;
@@ -108,7 +132,17 @@ export const publicFormFieldSchema = z.object({
   description: z.string().optional(),
   placeholder: z.string().optional(),
   required: z.boolean().default(false),
+  // Choices, or the rows of a matrix.
   options: z.array(publicFormFieldOptionSchema).optional(),
+  // The columns of a matrix.
+  columns: z.array(publicFormFieldOptionSchema).optional(),
+  choiceDisplay: z.enum(PUBLIC_FORM_CHOICE_DISPLAYS).default('auto'),
+  // Bounds of rating (max only), scale and slider fields.
+  scaleMin: z.number().int().min(-1000000).max(1000000).optional(),
+  scaleMax: z.number().int().min(-1000000).max(1000000).optional(),
+  scaleStep: z.number().positive().max(1000000).optional(),
+  minLabel: z.string().max(100).optional(),
+  maxLabel: z.string().max(100).optional(),
   mapTo: z.string().optional(),
   visibleWhen: z.array(publicFormConditionSchema).optional(),
   visibleWhenMatch: z.enum(PUBLIC_FORM_CONDITION_MATCHES).default('all'),

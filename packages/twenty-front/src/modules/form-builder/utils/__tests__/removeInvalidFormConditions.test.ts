@@ -14,6 +14,7 @@ const buildField = (
   visibleWhenMatch: 'all',
   visibleWhenGroupsMatch: 'any',
   requiredWhenGroupsMatch: 'any',
+  choiceDisplay: 'auto',
   visibleWhen,
 });
 

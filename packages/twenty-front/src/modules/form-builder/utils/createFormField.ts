@@ -25,6 +25,24 @@ const getDefaultLabel = (fieldType: PublicFormField['type']) => {
       return t`Choose an option`;
     case 'checkbox':
       return t`I agree to the terms`;
+    case 'consent':
+      return t`I accept the [privacy policy](https://example.com/privacy)`;
+    case 'yesNo':
+      return t`Are you available full time?`;
+    case 'rating':
+      return t`How would you rate us?`;
+    case 'scale':
+      return t`How likely are you to recommend us?`;
+    case 'slider':
+      return t`How many hours per week can you work?`;
+    case 'matrix':
+      return t`Rate your skills`;
+    case 'address':
+      return t`Address`;
+    case 'time':
+      return t`Preferred time`;
+    case 'signature':
+      return t`Signature`;
     case 'file':
       return t`Upload a file`;
     case 'heading':
@@ -53,6 +71,7 @@ export const createFormField = (
     visibleWhenMatch: 'all',
     visibleWhenGroupsMatch: 'any',
     requiredWhenGroupsMatch: 'any',
+    choiceDisplay: 'auto',
   };
 
   if (fieldType === 'select' || fieldType === 'multiSelect') {
@@ -63,6 +82,54 @@ export const createFormField = (
         { value: 'OPTION_2', label: t`Option 2` },
       ],
     };
+  }
+
+  if (fieldType === 'yesNo') {
+    return {
+      ...field,
+      width: 'half',
+      options: [
+        { value: 'true', label: t`Yes` },
+        { value: 'false', label: t`No` },
+      ],
+    };
+  }
+
+  if (fieldType === 'rating') {
+    return { ...field, scaleMax: 5 };
+  }
+
+  if (fieldType === 'scale') {
+    return {
+      ...field,
+      scaleMin: 1,
+      scaleMax: 5,
+      minLabel: t`Not likely`,
+      maxLabel: t`Very likely`,
+    };
+  }
+
+  if (fieldType === 'slider') {
+    return { ...field, scaleMin: 0, scaleMax: 40, scaleStep: 1 };
+  }
+
+  if (fieldType === 'matrix') {
+    return {
+      ...field,
+      options: [
+        { value: 'ROW_1', label: t`Communication` },
+        { value: 'ROW_2', label: t`Teamwork` },
+      ],
+      columns: [
+        { value: 'LOW', label: t`Beginner` },
+        { value: 'MEDIUM', label: t`Intermediate` },
+        { value: 'HIGH', label: t`Expert` },
+      ],
+    };
+  }
+
+  if (fieldType === 'consent') {
+    return { ...field, required: true };
   }
 
   if (fieldType === 'paragraph') {

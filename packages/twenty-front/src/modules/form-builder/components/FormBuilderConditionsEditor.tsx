@@ -93,7 +93,7 @@ export const FormBuilderConditionsEditor = ({
       (candidate) => candidate.id === condition.fieldId,
     );
 
-    if (source?.fieldType === 'checkbox') {
+    if (source?.fieldType === 'checkbox' || source?.fieldType === 'consent') {
       return (
         <FormBuilderNativeSelect
           value={condition.value ?? 'true'}

@@ -12,6 +12,8 @@ const TEXT_ANSWER_TYPES: PublicFormField['type'][] = [
   'phone',
   'url',
   'select',
+  'time',
+  'matrix',
   'hidden',
 ];
 
@@ -61,6 +63,11 @@ const getCompositeSubFields = (
     case FieldMetadataType.ADDRESS:
       return [
         {
+          value: name,
+          label: `${label} › ${t`Full address`}`,
+          compatibleFieldTypes: ['address'],
+        },
+        {
           value: `${name}.addressStreet1`,
           label: `${label} › ${t`Street`}`,
           compatibleFieldTypes: ['shortText', 'longText', 'hidden'],
@@ -94,16 +101,24 @@ const getSimpleField = (
     case FieldMetadataType.TEXT:
       return { value: name, label, compatibleFieldTypes: TEXT_ANSWER_TYPES };
     case FieldMetadataType.NUMBER:
-      return { value: name, label, compatibleFieldTypes: ['number'] };
+      return {
+        value: name,
+        label,
+        compatibleFieldTypes: ['number', 'rating', 'scale', 'slider'],
+      };
     case FieldMetadataType.BOOLEAN:
-      return { value: name, label, compatibleFieldTypes: ['checkbox'] };
+      return {
+        value: name,
+        label,
+        compatibleFieldTypes: ['checkbox', 'consent', 'yesNo'],
+      };
     case FieldMetadataType.DATE:
       return { value: name, label, compatibleFieldTypes: ['date'] };
     case FieldMetadataType.SELECT:
       return {
         value: name,
         label,
-        compatibleFieldTypes: ['select'],
+        compatibleFieldTypes: ['select', 'yesNo'],
         options,
       };
     case FieldMetadataType.MULTI_SELECT:

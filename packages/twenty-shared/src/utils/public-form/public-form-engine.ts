@@ -69,6 +69,11 @@ export type PublicFormEngine = {
     definition: PublicFormDefinition,
     evaluation: PublicFormEvaluation,
   ) => PublicFormEnding | null;
+  getScaleBounds: (field: PublicFormField) => {
+    min: number;
+    max: number;
+    step: number;
+  };
   parseFormula: (formula: string) => string | null;
   getFormulaReferences: (formula: string) => string[];
 };
@@ -83,7 +88,17 @@ export function createPublicFormEngine(): PublicFormEngine {
   var PHONE_PATTERN = /^\+?[0-9 ()./-]{6,25}$/;
   var URL_PATTERN = /^https?:\/\/\S+\.\S+$/i;
   var DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-  var NO_VALUE_TYPES = ['heading', 'paragraph', 'pageBreak', 'hidden', 'file'];
+  var NO_VALUE_TYPES = [
+    'heading',
+    'paragraph',
+    'pageBreak',
+    'hidden',
+    'file',
+    'signature',
+  ];
+  var TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+  // Street, city and country; region and postcode vary too much by country.
+  var REQUIRED_ADDRESS_PARTS = [0, 1, 4];
 
   function isEmptyValue(value: unknown): boolean {
     return (
@@ -91,7 +106,10 @@ export function createPublicFormEngine(): PublicFormEngine {
       value === null ||
       value === false ||
       (typeof value === 'string' && value.trim() === '') ||
-      (Array.isArray(value) && value.length === 0)
+      (Array.isArray(value) &&
+        value.every(function (item) {
+          return String(item).trim() === '';
+        }))
     );
   }
 
@@ -963,10 +981,98 @@ export function createPublicFormEngine(): PublicFormEngine {
           return { code: 'chooseMany' };
         }
         break;
+      case 'yesNo':
+        if (typeof answer !== 'string' || optionValues.indexOf(answer) === -1) {
+          return { code: 'choose' };
+        }
+        break;
+      case 'time':
+        if (!TIME_PATTERN.test(text)) return { code: 'time' };
+        break;
+      case 'consent':
+        if (answer !== true) return { code: 'required' };
+        break;
+      case 'rating':
+      case 'scale':
+      case 'slider': {
+        var bounds = getScaleBounds(field);
+        var numeric = Number(text);
+        if (typeof answer !== 'string' || text === '' || isNaN(numeric)) {
+          return { code: 'number' };
+        }
+        if (numeric < bounds.min) {
+          return { code: 'minValue', params: { n: String(bounds.min) } };
+        }
+        if (numeric > bounds.max) {
+          return { code: 'maxValue', params: { n: String(bounds.max) } };
+        }
+        var steps = (numeric - bounds.min) / bounds.step;
+        if (Math.abs(steps - Math.round(steps)) > 1e-9) {
+          return { code: 'number' };
+        }
+        return null;
+      }
+      case 'address': {
+        if (!Array.isArray(answer) || answer.length !== 5) {
+          return { code: 'address' };
+        }
+        var isMissingPart = REQUIRED_ADDRESS_PARTS.some(function (index) {
+          return String(answer[index] || '').trim() === '';
+        });
+        return isRequired && isMissingPart ? { code: 'address' } : null;
+      }
+      case 'matrix': {
+        var rowCount = (field.options || []).length;
+        var columnValues = (field.columns || []).map(function (column) {
+          return column.value;
+        });
+        if (
+          !Array.isArray(answer) ||
+          answer.length !== rowCount ||
+          !answer.every(function (value) {
+            return value === '' || columnValues.indexOf(value) !== -1;
+          })
+        ) {
+          return { code: 'matrix' };
+        }
+        var hasUnanswered = answer.some(function (value) {
+          return value === '';
+        });
+        return isRequired && hasUnanswered ? { code: 'matrix' } : null;
+      }
       default:
         break;
     }
     return validateRules(field, answer);
+  }
+
+  function getScaleBounds(field: PublicFormField): {
+    min: number;
+    max: number;
+    step: number;
+  } {
+    if (field.type === 'rating') {
+      return {
+        min: 1,
+        max: Math.min(Math.max(field.scaleMax || 5, 2), 10),
+        step: 1,
+      };
+    }
+    if (field.type === 'scale') {
+      var scaleMin = field.scaleMin === 0 ? 0 : 1;
+      return {
+        min: scaleMin,
+        max: Math.min(Math.max(field.scaleMax || 5, scaleMin + 1), 10),
+        step: 1,
+      };
+    }
+    var min = typeof field.scaleMin === 'number' ? field.scaleMin : 0;
+    var max = typeof field.scaleMax === 'number' ? field.scaleMax : 100;
+    return {
+      min: min,
+      max: max > min ? max : min + 1,
+      step: field.scaleStep && field.scaleStep > 0 ? field.scaleStep : 1,
+    };
   }
 
   function displayValue(
@@ -978,6 +1084,28 @@ export function createPublicFormEngine(): PublicFormEngine {
       return candidate.id === id;
     })[0];
     var options = field && field.options ? field.options : [];
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (field && field.type === 'address' && Array.isArray(value)) {
+      return value
+        .filter(function (part) {
+          return String(part).trim() !== '';
+        })
+        .join(', ');
+    }
+    if (field && field.type === 'matrix' && Array.isArray(value)) {
+      var columns = field.columns || [];
+      return options
+        .map(function (row, index) {
+          var column = columns.filter(function (candidate) {
+            return candidate.value === value[index];
+          })[0];
+          return column ? row.label + ': ' + column.label : '';
+        })
+        .filter(function (line) {
+          return line !== '';
+        })
+        .join('; ');
+    }
     if (options.length > 0 && value !== undefined) {
       var labelOf = (optionValue: string) => {
         var option = options.filter(function (candidate) {
@@ -1058,6 +1186,7 @@ export function createPublicFormEngine(): PublicFormEngine {
     validateValue: validateValue,
     interpolate: interpolate,
     findEnding: findEnding,
+    getScaleBounds: getScaleBounds,
     parseFormula: parseFormula,
     getFormulaReferences: getFormulaReferences,
   };

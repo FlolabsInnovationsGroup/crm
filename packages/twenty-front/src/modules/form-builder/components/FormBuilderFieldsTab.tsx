@@ -2,15 +2,14 @@ import { styled } from '@linaria/react';
 import { i18n } from '@lingui/core';
 import { t } from '@lingui/core/macro';
 import {
-  PUBLIC_FORM_FIELD_TYPES,
   type PublicFormField,
   type PublicFormVariable,
 } from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { FormBuilderFieldCard } from '@/form-builder/components/FormBuilderFieldCard';
-import { FORM_BUILDER_FIELD_TYPE_ICONS } from '@/form-builder/constants/FormBuilderFieldTypeIcons';
-import { FORM_BUILDER_FIELD_TYPE_LABELS } from '@/form-builder/constants/FormBuilderFieldTypeLabels';
+import { FORM_BUILDER_PALETTE } from '@/form-builder/constants/FormBuilderPalette';
+import { type FormBuilderPaletteEntry } from '@/form-builder/types/FormBuilderPaletteEntry';
 import { type FormBuilderMappableField } from '@/form-builder/types/FormBuilderMappableField';
 import { createFormField } from '@/form-builder/utils/createFormField';
 import { removeInvalidFormConditions } from '@/form-builder/utils/removeInvalidFormConditions';
@@ -83,8 +82,11 @@ export const FormBuilderFieldsTab = ({
 }: FormBuilderFieldsTabProps) => {
   const existingFieldIds = fields.map((field) => field.id);
 
-  const handleAddField = (fieldType: PublicFormField['type']) => {
-    const field = createFormField(fieldType, existingFieldIds);
+  const handleAddField = (entry: FormBuilderPaletteEntry) => {
+    const field: PublicFormField = {
+      ...createFormField(entry.fieldType, existingFieldIds),
+      ...entry.preset,
+    };
 
     onChange([...fields, field]);
     onSelectField(field.id);
@@ -166,20 +168,16 @@ export const FormBuilderFieldsTab = ({
       ))}
       <StyledPaletteTitle>{t`Add a field`}</StyledPaletteTitle>
       <StyledPalette>
-        {PUBLIC_FORM_FIELD_TYPES.map((fieldType) => {
-          const FieldTypeIcon = FORM_BUILDER_FIELD_TYPE_ICONS[fieldType];
-
-          return (
-            <StyledPaletteButton
-              key={fieldType}
-              type="button"
-              onClick={() => handleAddField(fieldType)}
-            >
-              <FieldTypeIcon size={16} />
-              {i18n._(FORM_BUILDER_FIELD_TYPE_LABELS[fieldType])}
-            </StyledPaletteButton>
-          );
-        })}
+        {FORM_BUILDER_PALETTE.map((entry) => (
+          <StyledPaletteButton
+            key={entry.key}
+            type="button"
+            onClick={() => handleAddField(entry)}
+          >
+            <entry.Icon size={16} />
+            {i18n._(entry.label)}
+          </StyledPaletteButton>
+        ))}
       </StyledPalette>
     </StyledContainer>
   );

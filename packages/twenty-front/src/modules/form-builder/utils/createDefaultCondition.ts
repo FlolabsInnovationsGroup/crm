@@ -5,7 +5,7 @@ import { type FormBuilderConditionSource } from '@/form-builder/types/FormBuilde
 export const getDefaultConditionValue = (
   source: FormBuilderConditionSource | undefined,
 ) =>
-  source?.fieldType === 'checkbox'
+  source?.fieldType === 'checkbox' || source?.fieldType === 'consent'
     ? 'true'
     : (source?.options?.[0]?.value ?? '');
 

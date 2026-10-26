@@ -18,6 +18,16 @@ export type PublicFormPageMessages = {
   minSelections: string;
   maxSelections: string;
   pattern: string;
+  time: string;
+  address: string;
+  matrix: string;
+  signatureRequired: string;
+  clear: string;
+  street: string;
+  city: string;
+  region: string;
+  postcode: string;
+  country: string;
   fileRequired: string;
   fileTooLarge: string;
   fileTypes: string;
@@ -55,6 +65,16 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     minSelections: 'Choose at least {n} options',
     maxSelections: 'Choose at most {n} options',
     pattern: 'Enter a value in the expected format',
+    time: 'Enter a valid time',
+    address: 'Enter the street, city and country',
+    matrix: 'Answer every row',
+    signatureRequired: 'Please sign',
+    clear: 'Clear',
+    street: 'Street address',
+    city: 'City',
+    region: 'State / region',
+    postcode: 'Postal code',
+    country: 'Country',
     fileRequired: 'Please attach a file',
     fileTooLarge: 'This file is too large',
     fileTypes: 'Allowed file types: ',
@@ -88,6 +108,16 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     minSelections: 'اختر {n} خيارات على الأقل',
     maxSelections: 'اختر {n} خيارات على الأكثر',
     pattern: 'أدخل قيمة بالصيغة المطلوبة',
+    time: 'أدخل وقتًا صحيحًا',
+    address: 'أدخل الشارع والمدينة والدولة',
+    matrix: 'أجب عن كل الصفوف',
+    signatureRequired: 'يرجى التوقيع',
+    clear: 'مسح',
+    street: 'عنوان الشارع',
+    city: 'المدينة',
+    region: 'المحافظة / الولاية',
+    postcode: 'الرمز البريدي',
+    country: 'الدولة',
     fileRequired: 'يرجى إرفاق ملف',
     fileTooLarge: 'حجم الملف كبير جدًا',
     fileTypes: 'أنواع الملفات المسموح بها: ',

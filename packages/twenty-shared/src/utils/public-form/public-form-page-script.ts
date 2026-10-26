@@ -24,7 +24,11 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   var params = new URLSearchParams(window.location.search);
   var isEmbedded = window.parent !== window;
 
-  var TEXT_TYPES = ['shortText', 'longText', 'email', 'phone', 'number', 'url', 'date', 'hidden'];
+  var TEXT_TYPES = ['shortText', 'longText', 'email', 'phone', 'number', 'url', 'date', 'time', 'hidden'];
+  var SINGLE_CHOICE_TYPES = ['select', 'yesNo', 'rating', 'scale'];
+  var BOOLEAN_TYPES = ['checkbox', 'consent'];
+  var FILE_TYPES = ['file', 'signature'];
+  var ADDRESS_PARTS = ['street', 'city', 'region', 'postcode', 'country'];
 
   function wrapperOf(field) {
     return form.querySelector('[data-field-id="' + CSS.escape(field.id) + '"]');
@@ -36,7 +40,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     if (TEXT_TYPES.indexOf(field.type) !== -1) {
       return wrapper.querySelector('input, textarea').value;
     }
-    if (field.type === 'select') {
+    if (SINGLE_CHOICE_TYPES.indexOf(field.type) !== -1) {
       var dropdown = wrapper.querySelector('select');
       if (dropdown) return dropdown.value;
       var checkedRadio = wrapper.querySelector('input[type=radio]:checked');
@@ -48,8 +52,23 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
         function (input) { return input.value; }
       );
     }
-    if (field.type === 'checkbox') {
+    if (BOOLEAN_TYPES.indexOf(field.type) !== -1) {
       return wrapper.querySelector('input[type=checkbox]').checked;
+    }
+    if (field.type === 'slider') {
+      var range = wrapper.querySelector('input[type=range]');
+      return range.getAttribute('data-touched') === 'true' ? range.value : '';
+    }
+    if (field.type === 'address') {
+      return ADDRESS_PARTS.map(function (part) {
+        return wrapper.querySelector('[name="' + CSS.escape(field.id + '__' + part) + '"]').value;
+      });
+    }
+    if (field.type === 'matrix') {
+      return (field.options || []).map(function (_row, rowIndex) {
+        var checked = wrapper.querySelector('input[name="' + CSS.escape(field.id + '__' + rowIndex) + '"]:checked');
+        return checked ? checked.value : '';
+      });
     }
     return undefined;
   }
@@ -59,7 +78,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     if (!wrapper) return;
     if (TEXT_TYPES.indexOf(field.type) !== -1) {
       wrapper.querySelector('input, textarea').value = value;
-    } else if (field.type === 'select') {
+    } else if (SINGLE_CHOICE_TYPES.indexOf(field.type) !== -1) {
       var dropdown = wrapper.querySelector('select');
       if (dropdown) dropdown.value = value;
       wrapper.querySelectorAll('input[type=radio]').forEach(function (input) {
@@ -70,8 +89,13 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
       wrapper.querySelectorAll('input[type=checkbox]').forEach(function (input) {
         input.checked = values.indexOf(input.value.toLowerCase()) !== -1;
       });
-    } else if (field.type === 'checkbox') {
+    } else if (BOOLEAN_TYPES.indexOf(field.type) !== -1) {
       wrapper.querySelector('input[type=checkbox]').checked = value === 'true' || value === '1';
+    } else if (field.type === 'slider') {
+      var range = wrapper.querySelector('input[type=range]');
+      range.value = value;
+      range.setAttribute('data-touched', 'true');
+      updateSliderOutput(range);
     }
   }
 
@@ -203,6 +227,10 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   function validateField(field, answer, evaluation) {
     var isRequired = engine.isFieldRequired(field, evaluation || evaluateAnswers(readAnswers()));
     if (field.type === 'file') return validateFile(field, isRequired);
+    if (field.type === 'signature') {
+      var pad = wrapperOf(field).querySelector('canvas');
+      return isRequired && pad.getAttribute('data-signed') !== 'true' ? messages.signatureRequired : null;
+    }
     return formatError(engine.validateValue(field, answer, isRequired));
   }
 
@@ -279,6 +307,76 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     submitButton.textContent = isSending ? messages.sending : config.submitLabel;
   }
 
+  function updateSliderOutput(range) {
+    var output = range.parentNode.querySelector('output');
+    if (output) output.textContent = range.getAttribute('data-touched') === 'true' ? range.value : '–';
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    var binary = atob(dataUrl.split(',')[1]);
+    var bytes = new Uint8Array(binary.length);
+    for (var index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+    return new Blob([bytes], { type: 'image/png' });
+  }
+
+  // Drawing uses pointer events so mouse, pen and touch all work.
+  function setUpSignaturePad(canvas) {
+    var context = canvas.getContext('2d');
+    if (!context) return;
+    var isDrawing = false;
+    function resize() {
+      var ratio = window.devicePixelRatio || 1;
+      canvas.width = canvas.clientWidth * ratio;
+      canvas.height = canvas.clientHeight * ratio;
+      context.scale(ratio, ratio);
+      context.lineWidth = 2.2;
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.strokeStyle = getComputedStyle(canvas).color || '#111';
+      canvas.removeAttribute('data-signed');
+    }
+    function point(event) {
+      var box = canvas.getBoundingClientRect();
+      return { x: event.clientX - box.left, y: event.clientY - box.top };
+    }
+    canvas.addEventListener('pointerdown', function (event) {
+      // A pad on a hidden page had no size when the form loaded.
+      if (canvas.getAttribute('data-signed') !== 'true' && canvas.width !== Math.round(canvas.clientWidth * (window.devicePixelRatio || 1))) resize();
+      isDrawing = true;
+      canvas.setPointerCapture(event.pointerId);
+      var start = point(event);
+      context.beginPath();
+      context.moveTo(start.x, start.y);
+    });
+    canvas.addEventListener('pointermove', function (event) {
+      if (!isDrawing) return;
+      var next = point(event);
+      context.lineTo(next.x, next.y);
+      context.stroke();
+      canvas.setAttribute('data-signed', 'true');
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (type) {
+      canvas.addEventListener(type, function () {
+        if (!isDrawing) return;
+        isDrawing = false;
+        form.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    });
+    canvas.parentNode.querySelector('.ff-signature-clear').addEventListener('click', function () {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.removeAttribute('data-signed');
+    });
+    resize();
+  }
+
+  form.querySelectorAll('.ff-signature-pad').forEach(setUpSignaturePad);
+  form.querySelectorAll('input[type=range]').forEach(function (range) {
+    range.addEventListener('input', function () {
+      range.setAttribute('data-touched', 'true');
+      updateSliderOutput(range);
+    });
+  });
+
   definition.fields.forEach(function (field) {
     var fromQuery = field.prefillQueryParam ? params.get(field.prefillQueryParam) : null;
     var value = fromQuery !== null ? fromQuery : field.defaultValue;
@@ -347,7 +445,14 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     body.append('sourceUrl', params.get('sourceUrl') || document.referrer || window.location.href);
     body.append(config.honeypotField, form.querySelector('[name="' + config.honeypotField + '"]').value);
     definition.fields.forEach(function (field) {
-      if (field.type !== 'file' || !visible[field.id]) return;
+      if (FILE_TYPES.indexOf(field.type) === -1 || !visible[field.id]) return;
+      if (field.type === 'signature') {
+        var pad = wrapperOf(field).querySelector('canvas');
+        if (pad.getAttribute('data-signed') === 'true') {
+          body.append('file:' + field.id, dataUrlToBlob(pad.toDataURL('image/png')), 'signature.png');
+        }
+        return;
+      }
       var input = wrapperOf(field).querySelector('input[type=file]');
       if (input.files && input.files[0]) body.append('file:' + field.id, input.files[0]);
     });

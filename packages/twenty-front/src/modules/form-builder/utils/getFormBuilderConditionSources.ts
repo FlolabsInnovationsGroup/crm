@@ -14,9 +14,17 @@ const ANSWERABLE_FIELD_TYPES: PublicFormField['type'][] = [
   'number',
   'url',
   'date',
+  'time',
   'select',
   'multiSelect',
+  'yesNo',
+  'rating',
+  'scale',
+  'slider',
+  'matrix',
   'checkbox',
+  'consent',
+  'address',
   'hidden',
 ];
 
@@ -30,7 +38,8 @@ export const getFormBuilderConditionSources = (
       id: field.id,
       label: field.label || field.id,
       fieldType: field.type,
-      options: field.options,
+      // Matrix rows are not answers; their columns are.
+      options: field.type === 'matrix' ? field.columns : field.options,
     })),
   ...variables.map((variable) => ({
     id: variable.id,

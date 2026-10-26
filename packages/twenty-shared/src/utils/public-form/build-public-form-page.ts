@@ -4,10 +4,12 @@ import {
   PUBLIC_FORM_MAX_FILE_SIZE_MB,
 } from './public-form-constants';
 import {
+  PUBLIC_FORM_ADDRESS_PARTS,
   PUBLIC_FORM_GOOGLE_FONTS,
   type PublicFormDefinition,
   type PublicFormField,
 } from './public-form-definition-schema';
+import { PUBLIC_FORM_ENGINE } from './public-form-engine';
 import {
   PUBLIC_FORM_PAGE_MESSAGES,
   type PublicFormPageMessages,
@@ -70,10 +72,32 @@ const describedBy = (field: PublicFormField) =>
     ? ` aria-describedby="${field.id}-description ${field.id}-error"`
     : ` aria-describedby="${field.id}-error"`;
 
+const ADDRESS_AUTOCOMPLETE: Record<
+  (typeof PUBLIC_FORM_ADDRESS_PARTS)[number],
+  string
+> = {
+  street: 'street-address',
+  city: 'address-level2',
+  region: 'address-level1',
+  postcode: 'postal-code',
+  country: 'country-name',
+};
+
+const LINK_PATTERN = /\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g;
+
+// Consent texts may link to terms with [text](https://…).
+const renderTextWithLinks = (text: string) =>
+  escapeHtml(text).replace(
+    LINK_PATTERN,
+    (_match, label: string, url: string) =>
+      `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`,
+  );
+
 const INPUT_TYPE_BY_FIELD_TYPE: Partial<
   Record<PublicFormField['type'], string>
 > = {
   shortText: 'text',
+  time: 'time',
   email: 'email',
   phone: 'tel',
   url: 'url',
@@ -103,8 +127,13 @@ const renderControl = (
   switch (field.type) {
     case 'longText':
       return `<textarea class="ff-input ff-textarea" id="${inputId}" name="${name}" rows="4"${placeholder}${required}${describedBy(field)}></textarea>`;
-    case 'select':
-      if (options.length > RADIO_OPTION_LIMIT) {
+    case 'select': {
+      const isDropdown =
+        field.choiceDisplay === 'dropdown' ||
+        (field.choiceDisplay !== 'buttons' &&
+          options.length > RADIO_OPTION_LIMIT);
+
+      if (isDropdown) {
         return `<select class="ff-input ff-select" id="${inputId}" name="${name}"${required}${describedBy(field)}><option value="">${escapeHtml(field.placeholder ?? messages.selectPlaceholder)}</option>${options
           .map(
             (option) =>
@@ -119,6 +148,78 @@ const renderControl = (
             `<label class="ff-choice"><input type="radio" name="${name}" value="${escapeHtml(option.value)}" id="${inputId}-${index}" /><span>${escapeHtml(option.label)}</span></label>`,
         )
         .join('')}</div>`;
+    }
+    case 'yesNo':
+      return `<div class="ff-choices ff-yesno" role="radiogroup" id="${inputId}"${describedBy(field)}>${options
+        .slice(0, 2)
+        .map(
+          (option, index) =>
+            `<label class="ff-choice"><input type="radio" name="${name}" value="${escapeHtml(option.value)}" id="${inputId}-${index}" /><span>${escapeHtml(option.label)}</span></label>`,
+        )
+        .join('')}</div>`;
+    case 'rating': {
+      const { max } = PUBLIC_FORM_ENGINE.getScaleBounds(field);
+      const stars = Array.from({ length: max }, (_, index) => max - index);
+
+      // Reversed so "~" can light up every lower star from the checked one.
+      return `<div class="ff-rating" role="radiogroup" id="${inputId}"${describedBy(field)}>${stars
+        .map(
+          (value) =>
+            `<label class="ff-star"><input type="radio" name="${name}" value="${value}" /><span aria-hidden="true">★</span><span class="ff-visually-hidden">${value}</span></label>`,
+        )
+        .join('')}</div>`;
+    }
+    case 'scale': {
+      const { min, max } = PUBLIC_FORM_ENGINE.getScaleBounds(field);
+      const values = Array.from(
+        { length: max - min + 1 },
+        (_, index) => min + index,
+      );
+
+      return `<div class="ff-scale" role="radiogroup" id="${inputId}"${describedBy(field)}><div class="ff-scale-options" style="grid-template-columns:repeat(${values.length},minmax(0,1fr))">${values
+        .map(
+          (value) =>
+            `<label class="ff-scale-option"><input type="radio" name="${name}" value="${value}" /><span>${value}</span></label>`,
+        )
+        .join('')}</div>${
+        field.minLabel || field.maxLabel
+          ? `<div class="ff-scale-labels"><span>${escapeHtml(field.minLabel ?? '')}</span><span>${escapeHtml(field.maxLabel ?? '')}</span></div>`
+          : ''
+      }</div>`;
+    }
+    case 'slider': {
+      const { min, max, step } = PUBLIC_FORM_ENGINE.getScaleBounds(field);
+
+      return `<div class="ff-slider"><input class="ff-range" type="range" id="${inputId}" name="${name}" min="${min}" max="${max}" step="${step}" value="${min}"${describedBy(field)} /><output class="ff-slider-value" for="${inputId}">–</output></div>${
+        field.minLabel || field.maxLabel
+          ? `<div class="ff-scale-labels"><span>${escapeHtml(field.minLabel ?? String(min))}</span><span>${escapeHtml(field.maxLabel ?? String(max))}</span></div>`
+          : ''
+      }`;
+    }
+    case 'matrix': {
+      const columns = field.columns ?? [];
+
+      return `<div class="ff-matrix-wrap"><table class="ff-matrix" id="${inputId}"${describedBy(field)}><thead><tr><td></td>${columns
+        .map((column) => `<th scope="col">${escapeHtml(column.label)}</th>`)
+        .join('')}</tr></thead><tbody>${options
+        .map(
+          (row, rowIndex) =>
+            `<tr><th scope="row">${escapeHtml(row.label)}</th>${columns
+              .map(
+                (column) =>
+                  `<td><input type="radio" name="${name}__${rowIndex}" value="${escapeHtml(column.value)}" aria-label="${escapeHtml(`${row.label}: ${column.label}`)}" /></td>`,
+              )
+              .join('')}</tr>`,
+        )
+        .join('')}</tbody></table></div>`;
+    }
+    case 'address':
+      return `<div class="ff-address" id="${inputId}"${describedBy(field)}>${PUBLIC_FORM_ADDRESS_PARTS.map(
+        (part) =>
+          `<input class="ff-input ff-address-${part}" type="text" name="${name}__${part}" placeholder="${escapeHtml(messages[part])}" aria-label="${escapeHtml(messages[part])}" autocomplete="${ADDRESS_AUTOCOMPLETE[part]}" />`,
+      ).join('')}</div>`;
+    case 'signature':
+      return `<div class="ff-signature"><canvas class="ff-signature-pad" id="${inputId}" aria-label="${escapeHtml(field.label)}"></canvas><button type="button" class="ff-signature-clear">${escapeHtml(messages.clear)}</button></div>`;
     case 'multiSelect':
       return `<div class="ff-choices" role="group" id="${inputId}"${describedBy(field)}>${options
         .map(
@@ -177,6 +278,8 @@ const renderField = (
       }</div>`;
     case 'paragraph':
       return `<div class="ff-field ff-full" ${fieldAttributes}><p class="ff-paragraph">${renderText(field.description ?? field.label)}</p></div>`;
+    case 'consent':
+      return `<div class="ff-field ${widthClass}" ${fieldAttributes}><div class="ff-choice ff-consent"><input type="checkbox" id="${inputId}" name="${escapeHtml(field.id)}" value="true"${describedBy(field)} /><label for="${inputId}">${renderTextWithLinks(field.label)}${renderRequiredMark(field)}</label></div>${renderDescription(field)}<p class="ff-error" id="${escapeHtml(field.id)}-error" aria-live="polite"></p></div>`;
     case 'checkbox':
       return `<div class="ff-field ${widthClass}" ${fieldAttributes}><label class="ff-choice ff-consent"><input type="checkbox" id="${inputId}" name="${escapeHtml(field.id)}" value="true"${
         field.required ? ' aria-required="true"' : ''
@@ -273,8 +376,39 @@ body{background:${isEmbedded ? 'transparent' : 'var(--ff-background)'};color:var
 .ff-success{text-align:center;padding:32px 8px;outline:none}
 .ff-success-icon{width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:grid;place-items:center;background:color-mix(in srgb,var(--ff-primary) 12%,transparent);color:var(--ff-primary)}
 .ff-success p{margin:0;font-size:18px;white-space:pre-line}
+.ff-visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ff-yesno{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ff-yesno .ff-choice{justify-content:center;font-weight:600}
+.ff-rating{display:flex;flex-direction:row-reverse;justify-content:flex-end;gap:4px}
+.ff-star{cursor:pointer;font-size:34px;line-height:1;color:color-mix(in srgb,var(--ff-text) 20%,transparent);transition:color .1s,transform .1s}
+.ff-star input{position:absolute;opacity:0;width:1px;height:1px}
+.ff-star:hover,.ff-star:hover~.ff-star,.ff-star:has(input:checked),.ff-star:has(input:checked)~.ff-star{color:var(--ff-primary)}
+.ff-star:focus-within{transform:scale(1.12)}
+.ff-scale-options{display:grid;gap:6px}
+.ff-scale-option{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px;border:1px solid var(--ff-border);border-radius:var(--ff-radius);background:var(--ff-input-background);cursor:pointer;font-weight:600}
+.ff-scale-option input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.ff-scale-option:has(input:checked){background:var(--ff-primary);border-color:var(--ff-primary);color:var(--ff-button-text)}
+.ff-scale-option:focus-within{box-shadow:0 0 0 3px color-mix(in srgb,var(--ff-primary) 22%,transparent)}
+.ff-scale-labels{display:flex;justify-content:space-between;gap:12px;margin-top:6px;font-size:13px;color:color-mix(in srgb,var(--ff-text) 60%,transparent)}
+.ff-slider{display:flex;align-items:center;gap:14px}
+.ff-range{flex:1;accent-color:var(--ff-primary);height:28px}
+.ff-slider-value{min-width:48px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.ff-matrix-wrap{overflow-x:auto;border:1px solid var(--ff-border);border-radius:var(--ff-radius)}
+.ff-matrix{width:100%;border-collapse:collapse;font-size:14px}
+.ff-matrix th,.ff-matrix td{padding:10px 12px;text-align:center;border-bottom:1px solid color-mix(in srgb,var(--ff-border) 60%,transparent)}
+.ff-matrix tbody tr:last-child th,.ff-matrix tbody tr:last-child td{border-bottom:0}
+.ff-matrix th[scope=row]{text-align:start;font-weight:500}
+.ff-matrix thead th{font-weight:600;font-size:13px}
+.ff-matrix input{accent-color:var(--ff-primary);width:18px;height:18px}
+.ff-address{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ff-address-street{grid-column:1/-1}
+.ff-signature{position:relative}
+.ff-signature-pad{display:block;width:100%;height:160px;background:var(--ff-input-background);border:1px dashed var(--ff-border);border-radius:var(--ff-radius);touch-action:none;cursor:crosshair}
+.ff-invalid .ff-signature-pad{border-color:var(--ff-danger)}
+.ff-signature-clear{position:absolute;top:8px;inset-inline-end:8px;padding:4px 10px;font:inherit;font-size:13px;color:var(--ff-text);background:var(--ff-background);border:1px solid var(--ff-border);border-radius:calc(var(--ff-radius) * .75);cursor:pointer}
+.ff-consent a{color:var(--ff-primary)}
 .ff-honeypot{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
-@media (max-width:560px){.ff-grid{grid-template-columns:1fr}.ff-card{padding:${isEmbedded ? '16px' : '24px 18px'}}.ff-page{padding:${isEmbedded ? '4px 0' : '20px 12px'}}.ff-title{font-size:24px}.ff-buttons{width:100%}.ff-back,.ff-submit{flex:1 1 auto}}
+@media (max-width:560px){.ff-grid{grid-template-columns:minmax(0,1fr)}.ff-matrix th,.ff-matrix td{padding:8px 6px}.ff-matrix thead th{font-size:12px}.ff-scale-options{gap:4px}.ff-scale-option{min-height:40px;font-size:14px}.ff-address{grid-template-columns:1fr}.ff-star{font-size:30px}.ff-card{padding:${isEmbedded ? '16px' : '24px 18px'}}.ff-page{padding:${isEmbedded ? '4px 0' : '20px 12px'}}.ff-title{font-size:24px}.ff-buttons{width:100%}.ff-back,.ff-submit{flex:1 1 auto}}
 ${theme.customCss ? sanitizeCustomCss(theme.customCss) : ''}`;
 };
 
