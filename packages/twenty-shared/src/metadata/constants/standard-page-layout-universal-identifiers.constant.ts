@@ -119,6 +119,12 @@ export const STANDARD_PAGE_LAYOUT_UNIVERSAL_IDENTIFIERS = {
           listMemberships: 'Lists',
         },
       },
+      forms: {
+        title: 'Forms',
+        widgets: {
+          forms: 'Forms',
+        },
+      },
       timeline: {
         title: 'Timeline',
         widgets: {

@@ -9,6 +9,7 @@ export const GET_INBOX_THREADS = gql`
     $direction: String
     $messageChannelId: UUID
     $searchTerm: String
+    $unreadOnly: Boolean
   ) {
     getInboxThreads(
       page: $page
@@ -16,6 +17,7 @@ export const GET_INBOX_THREADS = gql`
       direction: $direction
       messageChannelId: $messageChannelId
       searchTerm: $searchTerm
+      unreadOnly: $unreadOnly
     ) {
       ...TimelineThreadsWithTotalFragment
     }

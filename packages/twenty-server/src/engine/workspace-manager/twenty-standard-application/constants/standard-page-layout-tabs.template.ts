@@ -128,6 +128,12 @@ export const TAB_PROPS = {
     icon: 'IconMessage',
     layoutMode: PageLayoutTabLayoutMode.VERTICAL_LIST,
   },
+  forms: {
+    title: i18nLabel(msg({ message: `Forms`, context: 'pageLayoutTab.title' })),
+    position: 15,
+    icon: 'IconForms',
+    layoutMode: PageLayoutTabLayoutMode.VERTICAL_LIST,
+  },
   calendar: {
     title: i18nLabel(
       msg({ message: `Calendar`, context: 'pageLayoutTab.title' }),
@@ -226,6 +232,13 @@ export const WIDGET_PROPS = {
       msg({ message: `Calendar`, context: 'pageLayoutWidget.title' }),
     ),
     type: WidgetType.CALENDAR,
+    position: VERTICAL_LIST_LAYOUT_POSITIONS.FIRST,
+  },
+  forms: {
+    title: i18nLabel(
+      msg({ message: `Forms`, context: 'pageLayoutWidget.title' }),
+    ),
+    type: WidgetType.FORM_SUBMISSIONS,
     position: VERTICAL_LIST_LAYOUT_POSITIONS.FIRST,
   },
   noteRichText: {

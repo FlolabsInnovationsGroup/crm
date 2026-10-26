@@ -17,6 +17,7 @@ import { FormBuilderOptionsEditor } from '@/form-builder/components/FormBuilderO
 import { FormBuilderScaleSettings } from '@/form-builder/components/FormBuilderScaleSettings';
 import { FormBuilderSwitchRow } from '@/form-builder/components/FormBuilderSwitchRow';
 import { FormBuilderTextarea } from '@/form-builder/components/FormBuilderTextarea';
+import { FormBuilderImageUrlInput } from '@/form-builder/components/FormBuilderImageUrlInput';
 import { FormBuilderTextInput } from '@/form-builder/components/FormBuilderTextInput';
 import { FormBuilderValidationRulesEditor } from '@/form-builder/components/FormBuilderValidationRulesEditor';
 import { type FormBuilderMappableField } from '@/form-builder/types/FormBuilderMappableField';
@@ -30,6 +31,7 @@ const NO_MAPPING_VALUE = '';
 const DECORATIVE_FIELD_TYPES: PublicFormField['type'][] = [
   'heading',
   'paragraph',
+  'image',
   'pageBreak',
 ];
 
@@ -194,10 +196,43 @@ export const FormBuilderFieldSettings = ({
   const isDecorative = DECORATIVE_FIELD_TYPES.includes(field.type);
   const isChoice = field.type === 'select' || field.type === 'multiSelect';
 
+  if (field.type === 'image') {
+    return (
+      <StyledSettings>
+        <FormBuilderFieldRow
+          label={t`Image link`}
+          hint={t`An https:// link to a PNG, JPG, GIF or SVG.`}
+        >
+          <FormBuilderImageUrlInput
+            key={field.id}
+            value={field.imageUrl}
+            onChange={(imageUrl) => update({ imageUrl })}
+          />
+        </FormBuilderFieldRow>
+        <FormBuilderFieldRow
+          label={t`Description for screen readers`}
+          hint={t`Also shown in the builder.`}
+        >
+          <FormBuilderTextInput
+            value={field.label}
+            onChange={(label) => update({ label })}
+          />
+        </FormBuilderFieldRow>
+        <StyledSection>
+          <StyledSectionTitle>{t`Show this block only when`}</StyledSectionTitle>
+          {visibilityEditor}
+        </StyledSection>
+      </StyledSettings>
+    );
+  }
+
   if (field.type === 'paragraph') {
     return (
       <StyledSettings>
-        <FormBuilderFieldRow label={t`Text`}>
+        <FormBuilderFieldRow
+          label={t`Text`}
+          hint={t`Links: paste https://… or write [text](https://…). Bold: **text**.`}
+        >
           <FormBuilderTextarea
             value={field.description ?? ''}
             onChange={(description) => update({ description })}

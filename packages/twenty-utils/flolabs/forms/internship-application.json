@@ -1,0 +1,547 @@
+{
+  "version": 1,
+  "title": "FloLabs Internship Application",
+  "description": "Apply to the FloLabs internship program. It takes about 3 minutes.",
+  "fields": [
+    {
+      "id": "about_you",
+      "type": "heading",
+      "label": "About you",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "first_name",
+      "type": "shortText",
+      "label": "First Name",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "name.firstName",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "half"
+    },
+    {
+      "id": "last_name",
+      "type": "shortText",
+      "label": "Last Name",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "name.lastName",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "half"
+    },
+    {
+      "id": "email",
+      "type": "email",
+      "label": "Email",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "emails.primaryEmail",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "phone",
+      "type": "phone",
+      "label": "Phone Number",
+      "description": "By entering your number, you agree to receive transactional messages from Flo Labs R&D at the phone number provided. Message frequency varies. Message and data rates may apply. Carriers are not liable for any delays or undelivered messages. Reply STOP to opt-out. View our [Privacy Policy](https://flomad.international/privacypolicy/).",
+      "placeholder": "+1 555 123 4567",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "phones.primaryPhoneNumber",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "location_education",
+      "type": "pageBreak",
+      "label": "Location & education",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "country",
+      "type": "shortText",
+      "label": "Country/Region",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "country",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "state",
+      "type": "shortText",
+      "label": "State/Region",
+      "required": false,
+      "choiceDisplay": "auto",
+      "mapTo": "state",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "half"
+    },
+    {
+      "id": "city",
+      "type": "shortText",
+      "label": "City",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "city",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "half"
+    },
+    {
+      "id": "linkedin",
+      "type": "url",
+      "label": "LinkedIn URL",
+      "placeholder": "https://www.linkedin.com/in/…",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "linkedinLink.primaryLinkUrl",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "education",
+      "type": "shortText",
+      "label": "Education",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "education",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "position",
+      "type": "pageBreak",
+      "label": "Position",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "positions",
+      "type": "multiSelect",
+      "label": "Position Applied For",
+      "required": true,
+      "options": [
+        {
+          "value": "AI_AGI_INTERN",
+          "label": "AI/AGI Intern"
+        },
+        {
+          "value": "ANIMAL_SCIENCE_AND_VETERINARY_RESEARCH_INTERN",
+          "label": "Animal Science and Veterinary Research Intern"
+        },
+        {
+          "value": "BIOMEDICAL_ENGINEERING_INTERN",
+          "label": "Biomedical Engineering Intern"
+        },
+        {
+          "value": "BUSINESS_DEVELOPMENT_AND_SALES_INTERN_AI_AND_ROBOTICS",
+          "label": "Business Development and Sales Intern (AI and Robotics)"
+        },
+        {
+          "value": "COMPUTER_VISION_ENGINEERING_INTERN",
+          "label": "Computer Vision Engineering Intern"
+        },
+        {
+          "value": "CONTENT_MARKETING_INTERN",
+          "label": "Content Marketing Intern"
+        },
+        {
+          "value": "CONTROL_SYSTEMS_ENGINEERING_INTERN",
+          "label": "Control Systems Engineering Intern"
+        },
+        {
+          "value": "DIGITAL_MARKETING_INTERN",
+          "label": "Digital Marketing Intern"
+        },
+        {
+          "value": "EDTECH_AND_INNOVATION_INTERN",
+          "label": "EdTech and Innovation Intern"
+        },
+        {
+          "value": "EMBEDDED_SYSTEMS_INTERN",
+          "label": "Embedded Systems Intern"
+        },
+        {
+          "value": "ETHICAL_AND_LEGAL_RESEARCH_INTERN",
+          "label": "Ethical and Legal Research Intern"
+        },
+        {
+          "value": "FINANCE_INTERN",
+          "label": "Finance Intern"
+        },
+        {
+          "value": "FRONT_END_DEVELOPER_INTERN",
+          "label": "Front-end Developer Intern"
+        },
+        {
+          "value": "GTM_ENGINEER_GO_TO_MARKET_ENGINEER_INTERN",
+          "label": "GTM Engineer (Go-To-Market Engineer) Intern"
+        },
+        {
+          "value": "GTM_INFLUENCER_INTERN",
+          "label": "GTM Influencer Intern"
+        },
+        {
+          "value": "HOSPITALITY_AND_TOURISM_INTERN",
+          "label": "Hospitality and Tourism Intern"
+        },
+        {
+          "value": "HUMAN_ROBOT_INTERACTION_INTERN",
+          "label": "Human-Robot Interaction Intern"
+        },
+        {
+          "value": "JOURNALISM_AND_PR_INTERN",
+          "label": "Journalism & PR Intern"
+        },
+        {
+          "value": "MACHINE_LEARNING_ENGINEERING_INTERN",
+          "label": "Machine Learning Engineering Intern"
+        },
+        {
+          "value": "MARKETING_INTERN",
+          "label": "Marketing Intern"
+        },
+        {
+          "value": "MECHATRONICS_ENGINEERING_INTERN",
+          "label": "Mechatronics Engineering Intern"
+        },
+        {
+          "value": "NEUROSCIENCE_INTERN",
+          "label": "Neuroscience Intern"
+        },
+        {
+          "value": "OPERATIONS_INTERN",
+          "label": "Operations Intern"
+        },
+        {
+          "value": "PODCAST_PRODUCTION_INTERN_POSITION",
+          "label": "Podcast Production Intern Position"
+        },
+        {
+          "value": "PRODUCT_DEVELOPMENT_INTERN_AI_AND_ROBOTICS",
+          "label": "Product Development Intern (AI & Robotics)"
+        },
+        {
+          "value": "PROJECT_MANAGEMENT_INTERN",
+          "label": "Project Management Intern"
+        },
+        {
+          "value": "PROMPT_ENGINEER_INTERN",
+          "label": "Prompt Engineer Intern"
+        },
+        {
+          "value": "QUALITY_ASSURANCE_INTERN",
+          "label": "Quality Assurance Intern"
+        },
+        {
+          "value": "QUANTUM_ENGINEER_INTERN",
+          "label": "Quantum Engineer Intern"
+        },
+        {
+          "value": "RESEARCH_ASSOCIATE_INTERN_OPEN_SOURCE_PROJECTS",
+          "label": "Research Associate Intern (Open-Source Projects)"
+        },
+        {
+          "value": "ROBOTICS_ENGINEERING_INTERN",
+          "label": "Robotics Engineering Intern"
+        },
+        {
+          "value": "SENSOR_INTEGRATION_INTERN",
+          "label": "Sensor Integration Intern"
+        },
+        {
+          "value": "SEO_SPECIALIST_INTERN",
+          "label": "SEO Specialist Intern"
+        },
+        {
+          "value": "SOCIAL_MEDIA_INTERN",
+          "label": "Social Media Intern"
+        },
+        {
+          "value": "SOFTWARE_DEVELOPMENT_INTERN",
+          "label": "Software Development Intern"
+        },
+        {
+          "value": "SPACE_SCIENCE_INTERN",
+          "label": "Space Science Intern"
+        },
+        {
+          "value": "SPORT_SCIENCE_INTERN",
+          "label": "Sport Science Intern"
+        },
+        {
+          "value": "TECHNICAL_WRITING_INTERN",
+          "label": "Technical Writing Intern"
+        },
+        {
+          "value": "UI_UX_DESIGN_INTERN",
+          "label": "UI/UX Design Intern"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "mapTo": "positionsAppliedFor",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "cv_source",
+      "type": "pageBreak",
+      "label": "CV & source",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "cv",
+      "type": "file",
+      "label": "CV",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "maxFileSizeMb": 10,
+      "acceptedFileExtensions": [
+        "pdf",
+        "doc",
+        "docx"
+      ],
+      "width": "full"
+    },
+    {
+      "id": "source",
+      "type": "select",
+      "label": "Source",
+      "placeholder": "Please Select",
+      "required": true,
+      "options": [
+        {
+          "value": "INDEED_COM",
+          "label": "Indeed.com"
+        },
+        {
+          "value": "GLASSDOOR_COM",
+          "label": "Glassdoor.com"
+        },
+        {
+          "value": "GOOGLE_COM",
+          "label": "Google.com"
+        },
+        {
+          "value": "FACEBOOK_COM",
+          "label": "Facebook.com"
+        },
+        {
+          "value": "INSTAGRAM_COM",
+          "label": "Instagram.com"
+        },
+        {
+          "value": "LINKEDIN_COM",
+          "label": "LinkedIn.com"
+        },
+        {
+          "value": "SIMPLYHIRED_COM",
+          "label": "SimplyHired.com"
+        },
+        {
+          "value": "NORTHEASTERN_UNIVERSITYS_INTERNAL_JOB_PORTAL",
+          "label": "Northeastern University's internal job portal"
+        },
+        {
+          "value": "AUSTIN_COMMUNITY_COLLEGE",
+          "label": "Austin Community College"
+        },
+        {
+          "value": "TEXAS_A_AND_M_UNIVERSITY_CORPUS_CHRISTI",
+          "label": "Texas A&M University-Corpus Christi"
+        },
+        {
+          "value": "TEXAS_A_AND_M_UNIVERSITY_KINGSVILLE",
+          "label": "Texas A&M University-Kingsville"
+        },
+        {
+          "value": "JACKSON_COLLEGE",
+          "label": "Jackson College"
+        },
+        {
+          "value": "PURDUE_NORTHWEST",
+          "label": "Purdue Northwest"
+        },
+        {
+          "value": "CENTRAL_GEORGIA_TECHNICAL_COLLEGE",
+          "label": "Central Georgia Technical College"
+        },
+        {
+          "value": "HANDSHAKE",
+          "label": "Handshake"
+        },
+        {
+          "value": "ALABAMA_STATE_UNIVERSITY",
+          "label": "Alabama State University"
+        },
+        {
+          "value": "WORK_UA",
+          "label": "Work.ua"
+        },
+        {
+          "value": "OTHER",
+          "label": "Other"
+        }
+      ],
+      "choiceDisplay": "dropdown",
+      "mapTo": "applicantSource",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "other_source",
+      "type": "shortText",
+      "label": "If you selected Other, please specify the source",
+      "required": false,
+      "choiceDisplay": "auto",
+      "mapTo": "otherSourceDetails",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "source",
+              "operator": "equals",
+              "value": "OTHER"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "source",
+              "operator": "equals",
+              "value": "OTHER"
+            }
+          ]
+        }
+      ],
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "referred_by",
+      "type": "shortText",
+      "label": "If someone referred you, please write their name below. Otherwise, leave this blank.",
+      "required": false,
+      "choiceDisplay": "auto",
+      "mapTo": "referredBy",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "whitelist_note",
+      "type": "paragraph",
+      "label": "",
+      "description": "We'll email next steps from hr@flolabsinnovations.com. Please whitelist us now so you don't miss interview scheduling.",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "safe_senders",
+      "type": "checkbox",
+      "label": "I added hr@flolabsinnovations.com to my contacts / safe senders",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "safeSendersConfirmed",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "consent_note",
+      "type": "paragraph",
+      "label": "",
+      "description": "By clicking 'Submit,' you consent to and agree to receive further communications from FloLabs, including emails, calls, and text messages, regarding updates, opportunities, reminders and other relevant information.",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    }
+  ],
+  "theme": {
+    "primaryColor": "#3b82f6",
+    "backgroundColor": "#ffffff",
+    "textColor": "#374151",
+    "buttonTextColor": "#ffffff",
+    "inputBackgroundColor": "#ffffff",
+    "borderColor": "#d1d5db",
+    "fontFamily": "Inter, system-ui, sans-serif",
+    "borderRadiusPx": 10,
+    "logoUrl": "https://images.fillout.com/orgid-312101/flowpublicid-besSHDQpaHus/widgetid-dUkt/rERbXCmyocCsemDazW3ey3/flomadlabs.jpg?a=nXRyQxJJFe4ugVLyp5Hf5H",
+    "submitButtonLabel": "Submit",
+    "direction": "ltr",
+    "layout": "card",
+    "colorScheme": "light",
+    "pageBackgroundColor": "#f3f4f6",
+    "logoAlign": "center",
+    "buttonAlign": "start",
+    "showTitle": true,
+    "showProgressBar": true,
+    "maxWidthPx": 720
+  },
+  "settings": {
+    "successMessage": "Thank you for applying to FloLabs!\nWe'll email next steps from hr@flolabsinnovations.com.",
+    "language": "en",
+    "showReviewStep": false,
+    "startButtonLabel": "Next"
+  }
+}

@@ -49,6 +49,8 @@ const getDefaultLabel = (fieldType: PublicFormField['type']) => {
       return t`New section`;
     case 'paragraph':
       return t`Add some context for this part of the form.`;
+    case 'image':
+      return t`Image`;
     case 'hidden':
       return t`Source`;
     case 'pageBreak':

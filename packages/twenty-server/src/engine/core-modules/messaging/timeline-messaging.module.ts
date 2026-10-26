@@ -3,10 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { FileUrlModule } from 'src/engine/core-modules/file/file-url/file-url.module';
 import { GetMessagesService } from 'src/engine/core-modules/messaging/services/get-messages.service';
+import { TeamInboxReadStateService } from 'src/engine/core-modules/messaging/services/team-inbox-read-state.service';
 import { TimelineMessagingService } from 'src/engine/core-modules/messaging/services/timeline-messaging.service';
 import { TimelineMessagingResolver } from 'src/engine/core-modules/messaging/timeline-messaging.resolver';
 import { RelatedPersonIdsModule } from 'src/engine/core-modules/related-person-ids/related-person-ids.module';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
+import { UserVarsModule } from 'src/engine/core-modules/user/user-vars/user-vars.module';
 import { UserModule } from 'src/engine/core-modules/user/user.module';
 import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
 import { MessageChannelEntity } from 'src/engine/metadata-modules/message-channel/entities/message-channel.entity';
@@ -18,6 +20,7 @@ import { TargetModule } from 'src/engine/core-modules/target/target.module';
   imports: [
     FileUrlModule,
     UserModule,
+    UserVarsModule,
     ConnectedAccountModule,
     PermissionsModule,
     RelatedPersonIdsModule,
@@ -33,6 +36,7 @@ import { TargetModule } from 'src/engine/core-modules/target/target.module';
     TimelineMessagingResolver,
     TimelineMessagingService,
     GetMessagesService,
+    TeamInboxReadStateService,
   ],
 })
 export class TimelineMessagingModule {}

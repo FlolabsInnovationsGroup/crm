@@ -7,4 +7,5 @@ export const WIDGET_TYPES_REQUIRING_RELATION_FIELD: WidgetType[] = [
   WidgetType.FILES,
   WidgetType.TIMELINE,
   WidgetType.CHAT_THREADS,
+  WidgetType.FORM_SUBMISSIONS,
 ];

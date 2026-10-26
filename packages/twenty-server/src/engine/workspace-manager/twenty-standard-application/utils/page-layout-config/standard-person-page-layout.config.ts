@@ -60,6 +60,20 @@ const PERSON_PAGE_TABS = {
       },
     },
   },
+  forms: {
+    universalIdentifier:
+      STANDARD_PAGE_LAYOUT_UNIVERSAL_IDENTIFIERS.personRecordPage.tabs.forms
+        .universalIdentifier,
+    ...TAB_PROPS.forms,
+    widgets: {
+      forms: {
+        universalIdentifier:
+          STANDARD_PAGE_LAYOUT_UNIVERSAL_IDENTIFIERS.personRecordPage.tabs.forms
+            .widgets.forms.universalIdentifier,
+        ...WIDGET_PROPS.forms,
+      },
+    },
+  },
   timeline: {
     universalIdentifier:
       STANDARD_PAGE_LAYOUT_UNIVERSAL_IDENTIFIERS.personRecordPage.tabs.timeline

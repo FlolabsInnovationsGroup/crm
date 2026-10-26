@@ -3,6 +3,7 @@ import { type PublicFormDefinition } from 'twenty-shared/utils';
 const NON_ANSWER_TYPES = [
   'heading',
   'paragraph',
+  'image',
   'pageBreak',
   'file',
   'signature',

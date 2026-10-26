@@ -28,7 +28,13 @@ type ActionContext = {
 };
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const NO_ANSWER_TYPES = ['heading', 'paragraph', 'pageBreak', 'file'];
+const NO_ANSWER_TYPES = [
+  'heading',
+  'paragraph',
+  'image',
+  'pageBreak',
+  'file',
+];
 
 const toHtml = (text: string) =>
   escapePublicFormHtml(text).replace(/\r?\n/g, '<br />');

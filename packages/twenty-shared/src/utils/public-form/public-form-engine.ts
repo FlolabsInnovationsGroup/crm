@@ -91,6 +91,7 @@ export function createPublicFormEngine(): PublicFormEngine {
   var NO_VALUE_TYPES = [
     'heading',
     'paragraph',
+    'image',
     'pageBreak',
     'hidden',
     'file',

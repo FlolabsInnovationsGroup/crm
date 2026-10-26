@@ -17,6 +17,8 @@ export const WIDGET_CONFIGURATION_TYPENAME_BY_CONFIGURATION_TYPE = {
   [WidgetConfigurationType.EMAIL_THREAD]: 'EmailThreadConfiguration',
   [WidgetConfigurationType.FIELD]: 'FieldConfiguration',
   [WidgetConfigurationType.FIELDS]: 'FieldsConfiguration',
+  [WidgetConfigurationType.FORM_SUBMISSIONS]:
+    'FormSubmissionsConfiguration',
   [WidgetConfigurationType.FIELD_RICH_TEXT]: 'FieldRichTextConfiguration',
   [WidgetConfigurationType.FILES]: 'FilesConfiguration',
   [WidgetConfigurationType.FORM_FIELD]: 'FormFieldConfiguration',

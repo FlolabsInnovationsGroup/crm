@@ -2,7 +2,7 @@ import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { useQuery } from '@apollo/client/react';
 import { useState } from 'react';
-import { Input } from 'twenty-ui/primitives/input';
+import { Button, Input } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
 import { useDebounce } from 'use-debounce';
 
@@ -16,8 +16,11 @@ import { useFormBuilderFocusHandlers } from '@/form-builder/hooks/useFormBuilder
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
 import { GET_INBOX_MAILBOXES } from '@/team-inbox/graphql/getInboxMailboxes';
 import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
+import { useTeamInboxReadState } from '@/team-inbox/hooks/useTeamInboxReadState';
 import { useTeamInboxThreads } from '@/team-inbox/hooks/useTeamInboxThreads';
 import { type TeamInboxDirection } from '@/team-inbox/types/TeamInboxFilter';
+
+type TeamInboxTab = TeamInboxDirection | 'UNREAD';
 
 const SEARCH_DEBOUNCE_MS = 350;
 const ALL_MAILBOXES = '';
@@ -95,7 +98,9 @@ const StyledEmpty = styled.p`
 export const TeamInboxContent = () => {
   const apolloCoreClient = useApolloCoreClient();
   const focusHandlers = useFormBuilderFocusHandlers();
-  const [direction, setDirection] = useState<TeamInboxDirection>('ALL');
+  const [activeTab, setActiveTab] = useState<TeamInboxTab>('ALL');
+  const { unreadCount, markThreadRead, markThreadUnread, markAllRead } =
+    useTeamInboxReadState();
   const [messageChannelId, setMessageChannelId] = useState(ALL_MAILBOXES);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm] = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
@@ -112,14 +117,19 @@ export const TeamInboxContent = () => {
     error,
     fetchMoreThreads,
   } = useTeamInboxThreads({
-    direction,
+    direction: activeTab === 'UNREAD' ? 'ALL' : activeTab,
+    unreadOnly: activeTab === 'UNREAD',
     messageChannelId:
       messageChannelId === ALL_MAILBOXES ? null : messageChannelId,
     searchTerm,
   });
 
-  const tabs: { id: TeamInboxDirection; label: string }[] = [
+  const tabs: { id: TeamInboxTab; label: string }[] = [
     { id: 'ALL', label: t`All` },
+    {
+      id: 'UNREAD',
+      label: unreadCount > 0 ? t`Unread (${unreadCount})` : t`Unread`,
+    },
     { id: 'INCOMING', label: t`Received` },
     { id: 'OUTGOING', label: t`Sent` },
   ];
@@ -139,9 +149,9 @@ export const TeamInboxContent = () => {
               key={tab.id}
               type="button"
               role="tab"
-              aria-selected={direction === tab.id}
-              isActive={direction === tab.id}
-              onClick={() => setDirection(tab.id)}
+              aria-selected={activeTab === tab.id}
+              isActive={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
             >
               {tab.label}
             </StyledTab>
@@ -174,6 +184,14 @@ export const TeamInboxContent = () => {
         {!isFirstLoad && (
           <StyledCount>{t`${totalNumberOfThreads} conversations`}</StyledCount>
         )}
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={unreadCount === 0}
+          onClick={markAllRead}
+        >
+          {t`Mark all as read`}
+        </Button>
       </StyledToolbar>
       <StyledList>
         {isFirstLoad ? (
@@ -183,7 +201,21 @@ export const TeamInboxContent = () => {
         ) : (
           <ActivityList>
             {threads.map((thread) => (
-              <EmailThreadPreview key={thread.id} thread={thread} divider />
+              <EmailThreadPreview
+                key={thread.id}
+                thread={thread}
+                divider
+                onOpen={() => {
+                  if (!thread.read) {
+                    markThreadRead(thread.id);
+                  }
+                }}
+                onToggleRead={() =>
+                  thread.read
+                    ? markThreadUnread(thread.id)
+                    : markThreadRead(thread.id)
+                }
+              />
             ))}
             <CustomResolverFetchMoreLoader
               loading={isFetchingMore}

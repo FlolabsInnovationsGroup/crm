@@ -28,6 +28,7 @@ export const PUBLIC_FORM_FIELD_TYPES = [
   'hidden',
   'heading',
   'paragraph',
+  'image',
   'pageBreak',
 ] as const;
 
@@ -148,6 +149,12 @@ export const publicFormFieldSchema = z.object({
   minLabel: z.string().max(100).optional(),
   maxLabel: z.string().max(100).optional(),
   mapTo: z.string().optional(),
+  // Image blocks only; https so the page's CSP can load it.
+  imageUrl: z
+    .string()
+    .max(2000)
+    .regex(/^https:\/\//i, 'Images must use an https:// link')
+    .optional(),
   visibleWhen: z.array(publicFormConditionSchema).optional(),
   visibleWhenMatch: z.enum(PUBLIC_FORM_CONDITION_MATCHES).default('all'),
   // Supersedes visibleWhen when set; groups combine with visibleWhenGroupsMatch.
@@ -264,6 +271,10 @@ export const publicFormSettingsSchema = z.object({
     .string()
     .regex(/^[A-Z]{2}$/)
     .optional(),
+  // Lists every answer for a last check before sending.
+  showReviewStep: z.boolean().default(false),
+  // Label of the first page's button, e.g. "Get Started".
+  startButtonLabel: z.string().max(60).optional(),
 });
 
 export const publicFormDefinitionSchema = z

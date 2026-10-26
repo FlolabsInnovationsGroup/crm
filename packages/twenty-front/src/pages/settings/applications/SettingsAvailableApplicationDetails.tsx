@@ -212,7 +212,7 @@ export const SettingsAvailableApplicationDetails = () => {
             <InlineBanner
               status="warning"
               icon={<IconAlertTriangle aria-hidden="true" />}
-            >{t`This application is not vetted by Twenty. Use at your own risk.`}</InlineBanner>
+            >{t`This application is not vetted by FloLabs CRM. Use at your own risk.`}</InlineBanner>
           )}
           {renderContent()}
         </SettingsPageContainer>

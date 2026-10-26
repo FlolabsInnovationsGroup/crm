@@ -352,6 +352,13 @@ export type GenerateSignedDpaResult = {
   downloadUrl: Scalars['String']['output'];
 };
 
+export type InboxMailbox = {
+  __typename?: 'InboxMailbox';
+  connectedAccountId: Scalars['UUID']['output'];
+  handle: Scalars['String']['output'];
+  id: Scalars['UUID']['output'];
+};
+
 export type LinkMetadata = {
   __typename?: 'LinkMetadata';
   label: Scalars['String']['output'];
@@ -390,6 +397,10 @@ export type Mutation = {
   duplicateCoreWorkflow: CoreWorkflowDto;
   duplicateCoreWorkflowVersionStep: WorkflowVersionStepChanges;
   generateSignedDpa: GenerateSignedDpaResult;
+  markAllInboxThreadsRead: Scalars['Boolean']['output'];
+  markInboxThreadUnread: Scalars['Boolean']['output'];
+  markInboxThreadsRead: Scalars['Boolean']['output'];
+  markNotificationsSeen: NotificationsSeenState;
   retryWorkflowRun: WorkflowRun;
   runCoreWorkflowVersion: RunWorkflowVersion;
   stopWorkflowRun: WorkflowRun;
@@ -484,6 +495,16 @@ export type MutationGenerateSignedDpaArgs = {
 };
 
 
+export type MutationMarkInboxThreadUnreadArgs = {
+  messageThreadId: Scalars['UUID']['input'];
+};
+
+
+export type MutationMarkInboxThreadsReadArgs = {
+  messageThreadIds: Array<Scalars['UUID']['input']>;
+};
+
+
 export type MutationRetryWorkflowRunArgs = {
   workflowRunId: Scalars['UUID']['input'];
 };
@@ -538,6 +559,12 @@ export type MutationUpdateWorkflowRunStepArgs = {
   input: UpdateWorkflowRunStepInput;
 };
 
+export type NotificationsSeenState = {
+  __typename?: 'NotificationsSeenState';
+  previousSeenAt?: Maybe<Scalars['String']['output']>;
+  seenAt?: Maybe<Scalars['String']['output']>;
+};
+
 export type ObjectRecordFilterInput = {
   and?: InputMaybe<Array<ObjectRecordFilterInput>>;
   createdAt?: InputMaybe<DateTimeFilter>;
@@ -546,6 +573,13 @@ export type ObjectRecordFilterInput = {
   not?: InputMaybe<ObjectRecordFilterInput>;
   or?: InputMaybe<Array<ObjectRecordFilterInput>>;
   updatedAt?: InputMaybe<DateTimeFilter>;
+};
+
+export type PublicFormStats = {
+  __typename?: 'PublicFormStats';
+  starts: Scalars['Int']['output'];
+  stepReaches: Array<Scalars['Int']['output']>;
+  views: Scalars['Int']['output'];
 };
 
 export type Query = {
@@ -560,6 +594,11 @@ export type Query = {
   coreWorkflowsWithCurrentVersions: Array<CoreWorkflowWithCurrentVersionDto>;
   dpaAgreements: Array<DpaAgreement>;
   dpaPreview: DpaDocument;
+  getInboxMailboxes: Array<InboxMailbox>;
+  getInboxThreads: TimelineThreadsWithTotal;
+  getInboxUnreadCount: Scalars['Int']['output'];
+  getNotificationsSeenState: NotificationsSeenState;
+  getPublicFormStats: PublicFormStats;
   /** @deprecated Use getTimelineCalendarEventsFromObjectRecord instead */
   getTimelineCalendarEventsFromCompanyId: TimelineCalendarEventsWithTotal;
   getTimelineCalendarEventsFromObjectRecord: TimelineCalendarEventsWithTotal;
@@ -622,6 +661,21 @@ export type QueryCoreWorkflowsArgs = {
 
 export type QueryCoreWorkflowsWithCurrentVersionsArgs = {
   input: CoreWorkflowsWithCurrentVersionsInput;
+};
+
+
+export type QueryGetInboxThreadsArgs = {
+  direction?: InputMaybe<Scalars['String']['input']>;
+  messageChannelId?: InputMaybe<Scalars['UUID']['input']>;
+  page: Scalars['Int']['input'];
+  pageSize: Scalars['Int']['input'];
+  searchTerm?: InputMaybe<Scalars['String']['input']>;
+  unreadOnly?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+
+export type QueryGetPublicFormStatsArgs = {
+  formId: Scalars['UUID']['input'];
 };
 
 

@@ -107,6 +107,9 @@ export class FlatPageLayoutWidgetTypeValidatorService {
       CHAT: validateSimpleRecordPageWidgetForCreation(
         WidgetConfigurationType.CHAT,
       ),
+      FORM_SUBMISSIONS: validateSimpleRecordPageWidgetForCreation(
+        WidgetConfigurationType.FORM_SUBMISSIONS,
+      ),
       MESSAGE_CAMPAIGN_BODY: validateSimpleRecordPageWidgetForCreation(
         WidgetConfigurationType.MESSAGE_CAMPAIGN_BODY,
       ),
@@ -181,6 +184,9 @@ export class FlatPageLayoutWidgetTypeValidatorService {
       ),
       CHAT: validateSimpleRecordPageWidgetForUpdate(
         WidgetConfigurationType.CHAT,
+      ),
+      FORM_SUBMISSIONS: validateSimpleRecordPageWidgetForUpdate(
+        WidgetConfigurationType.FORM_SUBMISSIONS,
       ),
       MESSAGE_CAMPAIGN_BODY: validateSimpleRecordPageWidgetForUpdate(
         WidgetConfigurationType.MESSAGE_CAMPAIGN_BODY,

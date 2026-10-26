@@ -6,6 +6,7 @@ import { CallRecordingSummaryConfigurationDTO } from 'src/engine/metadata-module
 import { CallRecordingTranscriptConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/call-recording-transcript-configuration.dto';
 import { ChatConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/chat-configuration.dto';
 import { ChatThreadsConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/chat-threads-configuration.dto';
+import { FormSubmissionsConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/form-submissions-configuration.dto';
 import { EmailThreadConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/email-thread-configuration.dto';
 import { FormFieldConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/form-field-configuration.dto';
 import { FieldConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/field-configuration.dto';
@@ -156,6 +157,12 @@ export const validateWidgetConfigurationInput = ({
     case WidgetConfigurationType.CHAT:
       errors = validateWidgetConfigurationByDto(
         ChatConfigurationDTO,
+        configuration,
+      );
+      break;
+    case WidgetConfigurationType.FORM_SUBMISSIONS:
+      errors = validateWidgetConfigurationByDto(
+        FormSubmissionsConfigurationDTO,
         configuration,
       );
       break;

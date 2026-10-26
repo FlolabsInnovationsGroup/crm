@@ -171,6 +171,9 @@ export const PAGE_LAYOUT_WIDGET_FRAGMENT = gql`
       ... on ChatConfiguration {
         configurationType
       }
+      ... on FormSubmissionsConfiguration {
+        configurationType
+      }
       ... on MessageCampaignBodyConfiguration {
         configurationType
       }

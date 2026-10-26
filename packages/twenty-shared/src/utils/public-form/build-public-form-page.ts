@@ -43,6 +43,16 @@ const isSafeImageUrl = (url: string | undefined): url is string =>
 
 const PIPED_TOKEN_PATTERN = /\{\{\s*[a-zA-Z][a-zA-Z0-9_-]*\s*\}\}/g;
 
+// Text blocks link [text](https://…) and bare https links, and bold **text**.
+const renderRichText = (text: string) =>
+  escapeHtml(text)
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(
+      /\[([^\]]+)\]\((https:\/\/[^\s)]+)\)|(https:\/\/[^\s<]+[^\s<.,;:!?)])/g,
+      (_match, label: string | undefined, url: string | undefined, bareUrl: string | undefined) =>
+        `<a href="${url ?? bareUrl}" target="_blank" rel="noopener noreferrer">${label ?? bareUrl}</a>`,
+    );
+
 // Texts with `{{fieldId}}` are re-rendered by the page script as answers change.
 const renderText = (text: string) =>
   text.includes('{{')
@@ -68,7 +78,7 @@ const renderLabel = (field: PublicFormField, inputId: string) =>
 
 const renderDescription = (field: PublicFormField) =>
   field.description
-    ? `<p class="ff-description" id="${field.id}-description">${renderText(field.description)}</p>`
+    ? `<p class="ff-description" id="${field.id}-description">${field.description.includes('{{') ? renderText(field.description) : renderRichText(field.description)}</p>`
     : '';
 
 const describedBy = (field: PublicFormField) =>
@@ -280,8 +290,15 @@ const renderField = (
           ? `<p class="ff-paragraph">${renderText(field.description)}</p>`
           : ''
       }</div>`;
-    case 'paragraph':
-      return `<div class="ff-field ff-full" ${fieldAttributes}><p class="ff-paragraph">${renderText(field.description ?? field.label)}</p></div>`;
+    case 'paragraph': {
+      const text = field.description ?? field.label;
+
+      return `<div class="ff-field ff-full" ${fieldAttributes}><p class="ff-paragraph">${text.includes('{{') ? renderText(text) : renderRichText(text)}</p></div>`;
+    }
+    case 'image':
+      return isSafeImageUrl(field.imageUrl)
+        ? `<div class="ff-field ff-full" ${fieldAttributes}><img class="ff-image" src="${escapeHtml(field.imageUrl)}" alt="${escapeHtml(field.label)}" loading="lazy" /></div>`
+        : `<div class="ff-field ff-full" ${fieldAttributes} hidden></div>`;
     case 'consent':
       return `<div class="ff-field ${widthClass}" ${fieldAttributes}><div class="ff-choice ff-consent"><input type="checkbox" id="${inputId}" name="${escapeHtml(field.id)}" value="true"${describedBy(field)} /><label for="${inputId}">${renderTextWithLinks(field.label)}${renderRequiredMark(field)}</label></div>${renderDescription(field)}<p class="ff-error" id="${escapeHtml(field.id)}-error" aria-live="polite"></p></div>`;
     case 'checkbox':
@@ -293,7 +310,11 @@ const renderField = (
   }
 };
 
-const DECORATIVE_TYPES: PublicFormField['type'][] = ['heading', 'paragraph'];
+const DECORATIVE_TYPES: PublicFormField['type'][] = [
+  'heading',
+  'paragraph',
+  'image',
+];
 
 type Step = { pageBreakId: string; fields: PublicFormField[] };
 
@@ -489,7 +510,15 @@ ${buttonJustify === 'stretch' ? '.ff-buttons .ff-submit,.ff-buttons .ff-back{fle
 .ff-back{min-height:48px;padding:12px 22px;font:inherit;font-weight:600;color:var(--ff-text);background:transparent;border:1px solid var(--ff-border);border-radius:var(--ff-radius);cursor:pointer}
 .ff-back:hover{border-color:var(--ff-text)}
 .ff-progress{margin:0 0 20px;font-size:13px;font-weight:600;letter-spacing:.02em;color:color-mix(in srgb,var(--ff-text) 60%,transparent)}
-.ff-step[hidden],.ff-back[hidden],.ff-submit[hidden]{display:none}
+.ff-step[hidden],.ff-back[hidden],.ff-submit[hidden],.ff-review[hidden]{display:none}
+.ff-image{display:block;max-width:100%;max-height:260px;margin:0 auto;border-radius:var(--ff-radius);object-fit:contain}
+.ff-paragraph a,.ff-description a{color:var(--ff-primary)}
+.ff-review-list{margin:16px 0 0;display:flex;flex-direction:column;gap:14px}
+.ff-review-item{border-bottom:1px solid var(--ff-border);padding-bottom:12px}
+.ff-review-item dt{font-weight:600;margin-bottom:4px}
+.ff-review-item dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;color:color-mix(in srgb,var(--ff-text) 80%,transparent)}
+.ff-review-edit{margin-top:6px;padding:0;font:inherit;font-size:13px;color:var(--ff-primary);background:none;border:0;cursor:pointer;text-decoration:underline}
+#ff-success-message{white-space:pre-line}
 .ff-submit{min-width:180px;min-height:48px;padding:12px 28px;font:inherit;font-weight:600;color:var(--ff-button-text);background:var(--ff-primary);border:0;border-radius:var(--ff-radius);cursor:pointer;transition:opacity .15s,transform .05s}
 .ff-submit:hover{opacity:.92}
 .ff-submit:active{transform:translateY(1px)}
@@ -598,6 +627,7 @@ ${definition.description ? `<p class="ff-intro">${escapeHtml(definition.descript
 <div class="ff-progress-bar" id="ff-progress-bar" hidden><span></span></div>
 <p class="ff-progress" id="ff-progress" hidden></p>
 ${customHtml !== '' ? customHtml : renderSteps(definition, messages)}
+${settings.showReviewStep ? `<div class="ff-review" id="ff-review" hidden><h2 class="ff-heading">${escapeHtml(messages.reviewTitle)}</h2><p class="ff-paragraph">${escapeHtml(messages.reviewHint)}</p><dl class="ff-review-list" id="ff-review-list"></dl></div>` : ''}
 <div class="ff-honeypot" aria-hidden="true"><label>Leave this empty<input type="text" name="${PUBLIC_FORM_HONEYPOT_FIELD}" tabindex="-1" autocomplete="off" /></label></div>
 <div class="ff-actions">
 <div class="ff-buttons">

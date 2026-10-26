@@ -1,7 +1,14 @@
 import { UseGuards, UseFilters } from '@nestjs/common';
 import { Args, ArgsType, Field, Int, Mutation, Query } from '@nestjs/graphql';
 
-import { IsIn, IsOptional, Max, MaxLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  Max,
+  MaxLength,
+} from 'class-validator';
 import { PermissionFlagType } from 'twenty-shared/constants';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 
@@ -12,7 +19,9 @@ import { InboxMailboxDTO } from 'src/engine/core-modules/messaging/dtos/inbox-ma
 import { DismissReconnectAccountBannerInput } from 'src/engine/core-modules/messaging/dtos/dismiss-reconnect-account-banner.input';
 import { TimelineThreadsWithTotalDTO } from 'src/engine/core-modules/messaging/dtos/timeline-threads-with-total.dto';
 import { GetMessagesService } from 'src/engine/core-modules/messaging/services/get-messages.service';
+import { TeamInboxReadStateService } from 'src/engine/core-modules/messaging/services/team-inbox-read-state.service';
 import { TimelineMessagingService } from 'src/engine/core-modules/messaging/services/timeline-messaging.service';
+import { isTeamInboxThreadRead } from 'src/engine/core-modules/messaging/utils/team-inbox-read-state.util';
 import { type InboxThreadDirection } from 'src/engine/core-modules/messaging/types/inbox-thread-filter.type';
 import { UserService } from 'src/engine/core-modules/user/services/user.service';
 import { type AuthContextUser } from 'src/engine/core-modules/auth/types/auth-context.type';
@@ -63,6 +72,24 @@ class GetInboxThreadsArgs {
   @IsOptional()
   @MaxLength(200)
   searchTerm?: string;
+
+  @Field(() => Boolean, { nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  unreadOnly?: boolean;
+}
+
+@ArgsType()
+class MarkInboxThreadsReadArgs {
+  @Field(() => [UUIDScalarType])
+  @ArrayMaxSize(200)
+  messageThreadIds: string[];
+}
+
+@ArgsType()
+class MarkInboxThreadUnreadArgs {
+  @Field(() => UUIDScalarType)
+  messageThreadId: string;
 }
 
 @ArgsType()
@@ -126,6 +153,7 @@ export class TimelineMessagingResolver {
     private readonly timelineMessagingService: TimelineMessagingService,
     private readonly userService: UserService,
     private readonly accountsToReconnectService: AccountsToReconnectService,
+    private readonly teamInboxReadStateService: TeamInboxReadStateService,
   ) {}
 
   @Query(() => TimelineThreadsWithTotalDTO)
@@ -172,6 +200,7 @@ export class TimelineMessagingResolver {
       direction,
       messageChannelId,
       searchTerm,
+      unreadOnly,
     }: GetInboxThreadsArgs,
   ) {
     const workspaceMember = await this.userService.loadWorkspaceMember(
@@ -183,13 +212,113 @@ export class TimelineMessagingResolver {
       return;
     }
 
-    return this.getMessagesFromPersonIdsService.getInboxThreads(
+    const readState = await this.teamInboxReadStateService.getState({
+      userId: user.id,
+      workspaceId: workspace.id,
+    });
+
+    const result = await this.getMessagesFromPersonIdsService.getInboxThreads(
       workspaceMember.id,
       workspace.id,
       page,
       pageSize,
-      { direction, messageChannelId, searchTerm },
+      {
+        direction,
+        messageChannelId,
+        searchTerm,
+        unreadFor: unreadOnly === true ? readState : undefined,
+      },
     );
+
+    const lastIncomingAtByThreadId =
+      await this.timelineMessagingService.getLastIncomingAtByThreadId(
+        result.timelineThreads.map((thread) => thread.id),
+        workspace.id,
+      );
+
+    return {
+      ...result,
+      timelineThreads: result.timelineThreads.map((thread) => ({
+        ...thread,
+        read: isTeamInboxThreadRead(
+          readState,
+          thread.id,
+          lastIncomingAtByThreadId[thread.id] ?? null,
+        ),
+      })),
+    };
+  }
+
+  @Query(() => Int)
+  async getInboxUnreadCount(
+    @AuthUser() user: AuthContextUser,
+    @AuthWorkspace() workspace: WorkspaceEntity,
+  ) {
+    const workspaceMember = await this.userService.loadWorkspaceMember(
+      user,
+      workspace,
+    );
+
+    if (!workspaceMember) {
+      return 0;
+    }
+
+    const readState = await this.teamInboxReadStateService.getState({
+      userId: user.id,
+      workspaceId: workspace.id,
+    });
+
+    const { totalNumberOfThreads } =
+      await this.getMessagesFromPersonIdsService.getInboxThreads(
+        workspaceMember.id,
+        workspace.id,
+        1,
+        1,
+        { unreadFor: readState },
+      );
+
+    return totalNumberOfThreads;
+  }
+
+  @Mutation(() => Boolean)
+  async markInboxThreadsRead(
+    @AuthUser() user: AuthContextUser,
+    @AuthWorkspace() workspace: WorkspaceEntity,
+    @Args() { messageThreadIds }: MarkInboxThreadsReadArgs,
+  ) {
+    await this.teamInboxReadStateService.markRead(
+      { userId: user.id, workspaceId: workspace.id },
+      messageThreadIds,
+    );
+
+    return true;
+  }
+
+  @Mutation(() => Boolean)
+  async markInboxThreadUnread(
+    @AuthUser() user: AuthContextUser,
+    @AuthWorkspace() workspace: WorkspaceEntity,
+    @Args() { messageThreadId }: MarkInboxThreadUnreadArgs,
+  ) {
+    await this.teamInboxReadStateService.markUnread(
+      { userId: user.id, workspaceId: workspace.id },
+      messageThreadId,
+    );
+
+    return true;
+  }
+
+  @Mutation(() => Boolean)
+  async markAllInboxThreadsRead(
+    @AuthUser() user: AuthContextUser,
+    @AuthWorkspace() workspace: WorkspaceEntity,
+  ) {
+    await this.teamInboxReadStateService.markAllRead({
+      userId: user.id,
+      workspaceId: workspace.id,
+    });
+
+    return true;
   }
 
   @Query(() => [InboxMailboxDTO])

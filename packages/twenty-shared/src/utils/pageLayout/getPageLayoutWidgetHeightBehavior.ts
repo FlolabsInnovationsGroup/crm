@@ -24,6 +24,7 @@ export const getPageLayoutWidgetHeightBehavior = ({
     case WidgetType.EMAILS:
     case WidgetType.EMAIL_THREAD:
     case WidgetType.FILES:
+    case WidgetType.FORM_SUBMISSIONS:
     case WidgetType.MESSAGE_CAMPAIGN_BODY:
     case WidgetType.NOTES:
     case WidgetType.TASKS:

@@ -206,6 +206,10 @@ export type ChatConfiguration = {
   configurationType: 'CHAT';
 };
 
+export type FormSubmissionsConfiguration = {
+  configurationType: 'FORM_SUBMISSIONS';
+};
+
 export type PageLayoutWidgetConfiguration =
   | AggregateChartConfiguration
   | PieChartConfiguration
@@ -235,4 +239,5 @@ export type PageLayoutWidgetConfiguration =
   | CallRecordingSummaryConfiguration
   | CallRecordingTranscriptConfiguration
   | ChatThreadsConfiguration
-  | ChatConfiguration;
+  | ChatConfiguration
+  | FormSubmissionsConfiguration;

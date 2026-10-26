@@ -27,7 +27,7 @@ const escapeLikePattern = (value: string) => value.replace(/[\\%_]/g, '\\$&');
 
 const applyInboxFilter = (
   queryBuilder: WorkspaceSelectQueryBuilder,
-  { direction, messageChannelId, searchTerm }: InboxThreadFilter,
+  { direction, messageChannelId, searchTerm, unreadFor }: InboxThreadFilter,
 ): void => {
   queryBuilder
     .innerJoin(
@@ -59,6 +59,19 @@ const applyInboxFilter = (
         '(messages.subject ILIKE :search OR searchParticipants.handle ILIKE :search OR searchParticipants.displayName ILIKE :search)',
         { search: `%${escapeLikePattern(trimmedSearchTerm)}%` },
       );
+  }
+
+  // Mirrors isTeamInboxThreadRead: an incoming message newer than the read
+  // time, or a thread the user marked unread.
+  if (isDefined(unreadFor)) {
+    queryBuilder.andWhere(
+      `((messageChannelMessageAssociations.direction = 'INCOMING' AND LEAST(messages.receivedAt, messages.createdAt) > COALESCE(CAST(CAST(:readAtByThreadId AS jsonb) ->> CAST(messageThread.id AS text) AS timestamptz), CAST(:readBefore AS timestamptz))) OR messageThread.id = ANY(CAST(:unreadThreadIds AS uuid[])))`,
+      {
+        readAtByThreadId: JSON.stringify(unreadFor.readAtByThreadId),
+        readBefore: unreadFor.readBefore,
+        unreadThreadIds: unreadFor.unreadThreadIds,
+      },
+    );
   }
 };
 
@@ -200,6 +213,54 @@ export class TimelineMessagingService {
       handle,
       connectedAccountId,
     }));
+  }
+
+  public async getLastIncomingAtByThreadId(
+    messageThreadIds: string[],
+    workspaceId: string,
+  ): Promise<Record<string, Date>> {
+    if (messageThreadIds.length === 0) {
+      return {};
+    }
+
+    const authContext = buildSystemAuthContext(workspaceId);
+
+    return this.workspaceOrmManager.executeInWorkspaceContext(async () => {
+      const messageThreadRepository =
+        this.workspaceOrmManager.getRepository<MessageThreadWorkspaceEntity>(
+          'messageThread',
+          { shouldBypassPermissionChecks: true },
+        );
+
+      const rows: { id: string; lastIncomingAt: string | Date | null }[] =
+        await messageThreadRepository
+          .createQueryBuilder('messageThread')
+          .select('messageThread.id', 'id')
+          // A wrong future Date header must not keep a thread unread forever.
+          .addSelect(
+            'MAX(LEAST(messages.receivedAt, messages.createdAt))',
+            'lastIncomingAt',
+          )
+          .innerJoin('messageThread.messages', 'messages')
+          .innerJoin(
+            'messages.messageChannelMessageAssociations',
+            'messageChannelMessageAssociations',
+          )
+          .where('messageThread.id = ANY(:messageThreadIds)', {
+            messageThreadIds,
+          })
+          .andWhere('messageChannelMessageAssociations.direction = :direction', {
+            direction: 'INCOMING',
+          })
+          .groupBy('messageThread.id')
+          .getRawMany();
+
+      return Object.fromEntries(
+        rows
+          .filter((row) => isDefined(row.lastIncomingAt))
+          .map((row) => [row.id, new Date(row.lastIncomingAt as string)]),
+      );
+    }, authContext);
   }
 
   public async getThreadParticipantsByThreadId(

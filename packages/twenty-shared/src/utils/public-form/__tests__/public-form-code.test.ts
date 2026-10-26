@@ -122,6 +122,50 @@ describe('form layouts and custom code', () => {
     ).toContain('name="email"');
   });
 
+  it('shows images, links and a review page before sending', () => {
+    loadPage({
+      fields: [
+        { id: 'cover', type: 'image', label: 'FloLabs', imageUrl: 'https://x.test/a.png' },
+        {
+          id: 'intro',
+          type: 'paragraph',
+          label: '',
+          description: 'Watch [the video](https://x.test/v) or https://x.test/w.',
+        },
+        { id: 'p2', type: 'pageBreak', label: '' },
+        { id: 'name', type: 'shortText', label: 'Name', required: true },
+      ],
+      settings: { showReviewStep: true, startButtonLabel: 'Get Started' },
+    });
+
+    expect(document.querySelector('.ff-image')?.getAttribute('src')).toBe(
+      'https://x.test/a.png',
+    );
+    expect(
+      [...document.querySelectorAll('.ff-paragraph a')].map((link) =>
+        link.getAttribute('href'),
+      ),
+    ).toEqual(['https://x.test/v', 'https://x.test/w']);
+    expect(document.getElementById('ff-next')?.textContent).toBe('Get Started');
+
+    submit();
+    (document.querySelector('[name=name]') as HTMLInputElement).value = 'Ada';
+    submit();
+
+    const review = document.getElementById('ff-review') as HTMLElement;
+
+    expect(review.hidden).toBe(false);
+    expect(review.textContent).toContain('Ada');
+    expect((document.getElementById('ff-success') as HTMLElement).hidden).toBe(
+      true,
+    );
+
+    submit();
+    expect((document.getElementById('ff-success') as HTMLElement).hidden).toBe(
+      false,
+    );
+  });
+
   it('follows the device dark mode when asked, keeping buttons visible', () => {
     const pageFor = (colorScheme: 'light' | 'auto') =>
       buildPublicFormPage({

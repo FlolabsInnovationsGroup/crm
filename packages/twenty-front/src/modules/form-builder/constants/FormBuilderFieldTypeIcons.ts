@@ -17,6 +17,7 @@ import {
   IconNumber,
   IconPageBreak,
   IconPhone,
+  IconPhoto,
   IconPilcrow,
   IconShieldCheck,
   IconSignature,
@@ -54,5 +55,6 @@ export const FORM_BUILDER_FIELD_TYPE_ICONS: Record<
   hidden: IconEyeOff,
   heading: IconHeading,
   paragraph: IconPilcrow,
+  image: IconPhoto,
   pageBreak: IconPageBreak,
 };

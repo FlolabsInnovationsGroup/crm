@@ -40,6 +40,10 @@ export type PublicFormPageMessages = {
   noFileChosen: string;
   next: string;
   back: string;
+  reviewTitle: string;
+  reviewHint: string;
+  edit: string;
+  noAnswer: string;
   stepOf: string;
   notFoundTitle: string;
   notFoundMessage: string;
@@ -87,6 +91,10 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     noFileChosen: 'No file chosen',
     next: 'Next',
     back: 'Back',
+    reviewTitle: 'Please review your submission.',
+    reviewHint: 'Update any relevant information as needed.',
+    edit: 'Edit',
+    noAnswer: 'No answer',
     stepOf: 'Step {current} of {total}',
     notFoundTitle: 'Form not available',
     notFoundMessage:
@@ -130,6 +138,10 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     noFileChosen: 'لم يتم اختيار ملف',
     next: 'التالي',
     back: 'السابق',
+    reviewTitle: 'راجع إجاباتك قبل الإرسال.',
+    reviewHint: 'عدّل أي معلومة تحتاج إلى تعديل.',
+    edit: 'تعديل',
+    noAnswer: 'لا توجد إجابة',
     stepOf: 'الخطوة {current} من {total}',
     notFoundTitle: 'النموذج غير متاح',
     notFoundMessage: 'هذا النموذج غير موجود أو لم يعد يستقبل ردودًا.',

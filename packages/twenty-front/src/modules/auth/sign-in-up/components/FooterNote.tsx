@@ -73,7 +73,7 @@ export const FooterNote = ({
   if (!isOnAWorkspace) {
     return (
       <StyledCopyContainer>
-        <Trans>By using Twenty, you agree to the</Trans>{' '}
+        <Trans>By using FloLabs CRM, you agree to the</Trans>{' '}
         <a
           href={getTwentyWebsiteUrl(i18n.locale, 'terms')}
           target="_blank"

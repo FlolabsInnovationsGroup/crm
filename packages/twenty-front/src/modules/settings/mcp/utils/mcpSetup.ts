@@ -70,7 +70,7 @@ export const buildGooseInstallLink = (mcpServerUrl: string) => {
     timeout: '300',
     id: MCP_SETUP.server.name,
     name: MCP_SETUP.server.displayName,
-    description: t`Access your Twenty workspace through MCP`,
+    description: t`Access your FloLabs CRM workspace through MCP`,
   });
 
   params.append(

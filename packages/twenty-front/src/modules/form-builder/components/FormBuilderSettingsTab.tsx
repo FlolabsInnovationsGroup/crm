@@ -116,6 +116,35 @@ export const FormBuilderSettingsTab = ({
             }}
           />
         </FormBuilderFieldRow>
+        <FormBuilderFieldRow
+          label={t`Before sending`}
+          hint={t`A review page lists every answer with an Edit link.`}
+        >
+          <FormBuilderNativeSelect
+            value={settings.showReviewStep ? 'review' : 'send'}
+            options={[
+              { value: 'send', label: t`Send right away` },
+              { value: 'review', label: t`Show a review page` },
+            ]}
+            onChange={(value) =>
+              updateSettings({ showReviewStep: value === 'review' })
+            }
+          />
+        </FormBuilderFieldRow>
+        <FormBuilderFieldRow
+          label={t`First page button`}
+          hint={t`Optional, e.g. "Get Started". Other pages say Next.`}
+        >
+          <FormBuilderTextInput
+            value={settings.startButtonLabel ?? ''}
+            placeholder={t`Next`}
+            onChange={(startButtonLabel) =>
+              updateSettings({
+                startButtonLabel: startButtonLabel.slice(0, 60) || undefined,
+              })
+            }
+          />
+        </FormBuilderFieldRow>
       </StyledGrid>
     </StyledContainer>
   );

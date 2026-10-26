@@ -1,0 +1,1043 @@
+{
+  "version": 1,
+  "title": "SKILLS & EXPERIENCE",
+  "fields": [
+    {
+      "id": "your_details",
+      "type": "heading",
+      "label": "Your details",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "first_name",
+      "type": "shortText",
+      "label": "First name",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "name.firstName",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "half",
+      "prefillQueryParam": "first_name"
+    },
+    {
+      "id": "last_name",
+      "type": "shortText",
+      "label": "Last name",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "name.lastName",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "half",
+      "prefillQueryParam": "last_name"
+    },
+    {
+      "id": "email",
+      "type": "email",
+      "label": "Email",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "emails.primaryEmail",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full",
+      "prefillQueryParam": "email"
+    },
+    {
+      "id": "track_page",
+      "type": "pageBreak",
+      "label": "",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reviewed_previous_form",
+      "type": "select",
+      "label": "Have you reviewed the previous form?",
+      "required": false,
+      "options": [
+        {
+          "value": "YES",
+          "label": "YES"
+        },
+        {
+          "value": "NO",
+          "label": "NO"
+        }
+      ],
+      "choiceDisplay": "dropdown",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "track",
+      "type": "select",
+      "label": "Select the track you are applying for",
+      "required": true,
+      "options": [
+        {
+          "value": "ARTIFICIAL_INTELLIGENCE_AND_SOFTWARE_ENGINEERING",
+          "label": "Artificial Intelligence & Software Engineering"
+        },
+        {
+          "value": "ROBOTICS_AND_INTELLIGENT_SYSTEMS",
+          "label": "Robotics & Intelligent Systems"
+        },
+        {
+          "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP",
+          "label": "Business Management, Growth & Entrepreneurship"
+        },
+        {
+          "value": "DESIGN_AND_TECHNICAL_COMMUNICATION",
+          "label": "Design & Technical Communication"
+        },
+        {
+          "value": "EMERGING_SCIENCES_AND_TECHNOLOGY",
+          "label": "Emerging Sciences & Technology"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_dev",
+      "type": "pageBreak",
+      "label": "AI & Dev",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ARTIFICIAL_INTELLIGENCE_AND_SOFTWARE_ENGINEERING"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_dev_contribute",
+      "type": "longText",
+      "label": "Based on what you have understood about our projects relevant to your track, where do you think your current skills could contribute most?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_dev_improve",
+      "type": "longText",
+      "label": "What is one area in which you would need to improve in order to contribute effectively?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "robotics",
+      "type": "pageBreak",
+      "label": "Robotics",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ROBOTICS_AND_INTELLIGENT_SYSTEMS"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "robotics_interest",
+      "type": "longText",
+      "label": "Which FloLabs technical problem or project interests you most, and why?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "robotics_strengthen",
+      "type": "longText",
+      "label": "What technical area would you most need to strengthen before contributing effectively?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "biz_growth",
+      "type": "pageBreak",
+      "label": "Biz & Growth",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "business_program",
+      "type": "select",
+      "label": "Which program did you apply for in this track?",
+      "description": "Choose the option and click NEXT",
+      "required": true,
+      "options": [
+        {
+          "value": "OPERATIONS",
+          "label": "Operations"
+        },
+        {
+          "value": "PROJECT_MANAGEMENT",
+          "label": "Project Management"
+        },
+        {
+          "value": "SOCIAL_MEDIA",
+          "label": "Social Media"
+        },
+        {
+          "value": "SEO",
+          "label": "SEO"
+        },
+        {
+          "value": "GTM_INFLUENCER",
+          "label": "GTM Influencer"
+        },
+        {
+          "value": "CONTENT_MARKETING",
+          "label": "Content Marketing"
+        },
+        {
+          "value": "MARKETING",
+          "label": "Marketing"
+        },
+        {
+          "value": "BUSINESS_DEVELOPMENT",
+          "label": "Business Development"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "operations",
+      "type": "pageBreak",
+      "label": "Operations",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "OPERATIONS"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "operations_process",
+      "type": "longText",
+      "label": "What recurring process from the FloLabs work you reviewed so far could potentially be made more efficient?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "pm",
+      "type": "pageBreak",
+      "label": "PM",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "PROJECT_MANAGEMENT"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "pm_risks",
+      "type": "longText",
+      "label": "What dependencies, owners, milestones, or risks did you notice in the FloLabs' work you've seen so far?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "social_media",
+      "type": "pageBreak",
+      "label": "Social Media",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "SOCIAL_MEDIA"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "social_media_platform",
+      "type": "longText",
+      "label": "Which social platform would you prioritize for the FloLabs project or initiative you've reviewed so far and what type of content would you test?",
+      "description": "List as much as you possible, if more than one",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "seo",
+      "type": "pageBreak",
+      "label": "SEO",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "SEO"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "seo_intent",
+      "type": "longText",
+      "label": "What search intent or audience could realistically lead people to the FloLabs product or initiative you reviewed during the course of your application?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "gtm",
+      "type": "pageBreak",
+      "label": "GTM",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "GTM_INFLUENCER"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "gtm_approach",
+      "type": "longText",
+      "label": "If you had to introduce any FloLabs product or initiative to a new audience, what would your first content or distribution approach be?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "content_marketing",
+      "type": "pageBreak",
+      "label": "Content Marketing",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "CONTENT_MARKETING"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "content_marketing_story",
+      "type": "longText",
+      "label": "What story or educational angle could you develop from the FloLabs project(s) you've reviewed during the course of your application?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "marketing",
+      "type": "pageBreak",
+      "label": "Marketing",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "MARKETING"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "marketing_audience",
+      "type": "longText",
+      "label": "Which audience would you prioritize for the FloLabs initiative you reviewed in the course of your application, and why?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "biz_dev",
+      "type": "pageBreak",
+      "label": "Biz Dev",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "BUSINESS_DEVELOPMENT"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "biz_dev_opportunity",
+      "type": "longText",
+      "label": "Which FloLabs product or initiative do you believe has the clearest commercial opportunity, and who would you approach as the customer?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "design",
+      "type": "pageBreak",
+      "label": "Design",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "DESIGN_AND_TECHNICAL_COMMUNICATION"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "design_program",
+      "type": "select",
+      "label": "Which program did you apply for in this track?",
+      "description": "Choose the option and click NEXT",
+      "required": true,
+      "options": [
+        {
+          "value": "UI_UX",
+          "label": "UI/UX"
+        },
+        {
+          "value": "TECHNICAL_WRITING",
+          "label": "Technical Writing"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "tech_writing",
+      "type": "pageBreak",
+      "label": "Tech Writing",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "DESIGN_AND_TECHNICAL_COMMUNICATION"
+            },
+            {
+              "fieldId": "design_program",
+              "operator": "equals",
+              "value": "TECHNICAL_WRITING"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "tech_writing_hardest",
+      "type": "longText",
+      "label": "Which part of our products or initiative you reviewed so far would be hardest for a new user or team member to understand?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "tech_writing_clearer",
+      "type": "longText",
+      "label": "How would you make that information clearer?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ui_ux",
+      "type": "pageBreak",
+      "label": "UI/UX",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "DESIGN_AND_TECHNICAL_COMMUNICATION"
+            },
+            {
+              "fieldId": "design_program",
+              "operator": "equals",
+              "value": "UI_UX"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ui_ux_works_well",
+      "type": "longText",
+      "label": "What is one aspect of our product experience that you think works well?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ui_ux_problem",
+      "type": "longText",
+      "label": "What is one usability problem or design question you would investigate further?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ui_ux_users",
+      "type": "longText",
+      "label": "What would you want to learn about the users before recommending a solution?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "emerging_sciences",
+      "type": "pageBreak",
+      "label": "Legal & Sciences",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "EMERGING_SCIENCES_AND_TECHNOLOGY"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "science_program",
+      "type": "select",
+      "label": "Which program did you apply for in this track?",
+      "description": "Choose the option and click NEXT",
+      "required": true,
+      "options": [
+        {
+          "value": "SPACE_SCIENCE",
+          "label": "Space Science"
+        },
+        {
+          "value": "SPORTS_SCIENCE",
+          "label": "Sports Science"
+        },
+        {
+          "value": "ETHICS_AND_LEGAL_RESEARCH",
+          "label": "Ethics and Legal Research"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "sports_science",
+      "type": "pageBreak",
+      "label": "Sports Sc.",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "EMERGING_SCIENCES_AND_TECHNOLOGY"
+            },
+            {
+              "fieldId": "science_program",
+              "operator": "equals",
+              "value": "SPORTS_SCIENCE"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "sports_problem",
+      "type": "longText",
+      "label": "Which human-performance problem presented here at FloLabs interests you most?",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "sports_evidence",
+      "type": "longText",
+      "label": "What data or evidence would you want before drawing conclusions about that problem?",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "sports_background",
+      "type": "longText",
+      "label": "How could your current background contribute?",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "legal",
+      "type": "pageBreak",
+      "label": "Legal",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "EMERGING_SCIENCES_AND_TECHNOLOGY"
+            },
+            {
+              "fieldId": "science_program",
+              "operator": "equals",
+              "value": "ETHICS_AND_LEGAL_RESEARCH"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "legal_issue",
+      "type": "longText",
+      "label": "What legal or ethical issue did you identify from everything you've reviewed about us during the course of your application?",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "legal_importance",
+      "type": "longText",
+      "label": "Why do you consider it important?",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "legal_sources",
+      "type": "longText",
+      "label": "What information or sources would you investigate before forming a recommendation?",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "space_science",
+      "type": "pageBreak",
+      "label": "Space Sc.",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "EMERGING_SCIENCES_AND_TECHNOLOGY"
+            },
+            {
+              "fieldId": "science_program",
+              "operator": "equals",
+              "value": "SPACE_SCIENCE"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "space_interest",
+      "type": "longText",
+      "label": "Which problem, research direction, or opportunity here at FloLabs interests you most?",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "space_question",
+      "type": "longText",
+      "label": "What question would you want to investigate further?",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "space_skill",
+      "type": "longText",
+      "label": "What existing skill could you bring to that investigation?",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "final",
+      "type": "pageBreak",
+      "label": "FINAL",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "still_interested",
+      "type": "select",
+      "label": "After seeing the work relevant to your program, are you still interested in moving forward?",
+      "required": false,
+      "options": [
+        {
+          "value": "YES_DEFINITELY",
+          "label": "Yes, definitely"
+        },
+        {
+          "value": "I_AM_NOT_SURE",
+          "label": "I am not sure"
+        },
+        {
+          "value": "NO",
+          "label": "No"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    }
+  ],
+  "theme": {
+    "primaryColor": "#3b82f6",
+    "backgroundColor": "#ffffff",
+    "textColor": "#374151",
+    "buttonTextColor": "#ffffff",
+    "inputBackgroundColor": "#ffffff",
+    "borderColor": "#d1d5db",
+    "fontFamily": "Inter, system-ui, sans-serif",
+    "borderRadiusPx": 10,
+    "logoUrl": "https://images.fillout.com/orgid-312101/flowpublicid-besSHDQpaHus/widgetid-dUkt/rERbXCmyocCsemDazW3ey3/flomadlabs.jpg?a=nXRyQxJJFe4ugVLyp5Hf5H",
+    "submitButtonLabel": "Submit",
+    "direction": "ltr",
+    "layout": "card",
+    "colorScheme": "light",
+    "pageBackgroundColor": "#f3f4f6",
+    "logoAlign": "center",
+    "buttonAlign": "start",
+    "showTitle": true,
+    "showProgressBar": true,
+    "maxWidthPx": 720
+  },
+  "settings": {
+    "successMessage": "Thank you",
+    "language": "en",
+    "showReviewStep": false
+  }
+}

@@ -9,7 +9,9 @@ import { t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
+import { IconMail, IconMailOpened } from 'twenty-ui/icon';
 import { Avatar, Tag } from 'twenty-ui/primitives/data-display';
+import { LightIconButton } from 'twenty-ui/components/input';
 import { useTheme, themeCssVariables } from 'twenty-ui/theme';
 import {
   MessageChannelVisibility,
@@ -19,10 +21,29 @@ import { beautifyExactDateTime } from '~/utils/date-utils';
 import { getAbsoluteImageUrl } from '~/utils/image/getAbsoluteImageUrl';
 
 const StyledHeading = styled.div<{ unread: boolean }>`
+  align-items: center;
   display: flex;
+  font-weight: ${({ unread }) =>
+    unread
+      ? themeCssVariables.font.weight.semiBold
+      : themeCssVariables.font.weight.regular};
   max-width: 20%;
   overflow: hidden;
   width: fit-content;
+`;
+
+const StyledUnreadDot = styled.span<{ unread: boolean }>`
+  background: ${({ unread }) =>
+    unread ? themeCssVariables.color.blue : 'transparent'};
+  border-radius: 50%;
+  flex-shrink: 0;
+  height: 8px;
+  margin-right: ${themeCssVariables.spacing[1]};
+  width: 8px;
+`;
+
+const StyledReadToggle = styled.div`
+  flex-shrink: 0;
 `;
 
 const StyledParticipantsContainer = styled.div`
@@ -54,8 +75,12 @@ const StyledSubjectAndBody = styled.div`
   overflow: hidden;
 `;
 
-const StyledSubject = styled.span`
+const StyledSubject = styled.span<{ unread?: boolean }>`
   color: ${themeCssVariables.font.color.primary};
+  font-weight: ${({ unread }) =>
+    unread
+      ? themeCssVariables.font.weight.semiBold
+      : themeCssVariables.font.weight.regular};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -79,6 +104,9 @@ const StyledReceivedAt = styled.div`
 type EmailThreadPreviewProps = {
   thread: TimelineThread;
   divider?: boolean;
+  // Only the team inbox tracks read state; elsewhere threads always read.
+  onOpen?: () => void;
+  onToggleRead?: () => void;
 };
 
 type LastAvatar = {
@@ -91,6 +119,8 @@ type LastAvatar = {
 export const EmailThreadPreview = ({
   thread,
   divider = false,
+  onOpen,
+  onToggleRead,
 }: EmailThreadPreviewProps) => {
   const theme = useTheme();
   const { openRecordInSidePanel } = useOpenRecordInSidePanel();
@@ -135,6 +165,7 @@ export const EmailThreadPreview = ({
       thread.visibility === MessageChannelVisibility.SHARE_EVERYTHING;
 
     if (canOpen) {
+      onOpen?.();
       openRecordInSidePanel({
         recordId: thread.id,
         objectNameSingular: CoreObjectNameSingular.MessageThread,
@@ -162,6 +193,7 @@ export const EmailThreadPreview = ({
       label={label}
     >
       <StyledHeading unread={!thread.read}>
+        {isDefined(onToggleRead) && <StyledUnreadDot unread={!thread.read} />}
         <StyledParticipantsContainer>
           <Avatar
             src={getAbsoluteImageUrl(thread?.firstParticipant?.avatarUrl)}
@@ -215,14 +247,14 @@ export const EmailThreadPreview = ({
         {visibility === MessageChannelVisibility.SUBJECT && (
           <>
             {draftTag}
-            <StyledSubject>{thread.subject}</StyledSubject>
+            <StyledSubject unread={!thread.read}>{thread.subject}</StyledSubject>
             <EmailThreadNotShared visibility={visibility} />
           </>
         )}
         {visibility === MessageChannelVisibility.SHARE_EVERYTHING && (
           <>
             {draftTag}
-            <StyledSubject>{thread.subject}</StyledSubject>
+            <StyledSubject unread={!thread.read}>{thread.subject}</StyledSubject>
             <StyledBody>{thread.lastMessageBody}</StyledBody>
           </>
         )}
@@ -230,6 +262,19 @@ export const EmailThreadPreview = ({
       <StyledReceivedAt>
         {beautifyExactDateTime(thread.lastMessageReceivedAt)}
       </StyledReceivedAt>
+      {isDefined(onToggleRead) && (
+        <StyledReadToggle>
+          <LightIconButton
+            size="sm"
+            emphasis="subtle"
+            title={thread.read ? t`Mark as unread` : t`Mark as read`}
+            aria-label={thread.read ? t`Mark as unread` : t`Mark as read`}
+            onClick={onToggleRead}
+          >
+            {thread.read ? <IconMail size={16} /> : <IconMailOpened size={16} />}
+          </LightIconButton>
+        </StyledReadToggle>
+      )}
     </ActivityRow>
   );
 };

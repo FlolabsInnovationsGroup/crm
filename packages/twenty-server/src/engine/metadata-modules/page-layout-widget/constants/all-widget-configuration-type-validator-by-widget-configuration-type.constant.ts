@@ -3,6 +3,7 @@ import { CallRecordingSummaryConfigurationDTO } from 'src/engine/metadata-module
 import { CallRecordingTranscriptConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/call-recording-transcript-configuration.dto';
 import { ChatConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/chat-configuration.dto';
 import { ChatThreadsConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/chat-threads-configuration.dto';
+import { FormSubmissionsConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/form-submissions-configuration.dto';
 import { EmailThreadConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/email-thread-configuration.dto';
 import { MessageCampaignBodyConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/message-campaign-body-configuration.dto';
 import { MessageCampaignDetailsConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/message-campaign-details-configuration.dto';
@@ -46,6 +47,7 @@ export const ALL_WIDGET_CONFIGURATION_TYPE_VALIDATOR_BY_WIDGET_CONFIGURATION_TYP
     CALL_RECORDING_TRANSCRIPT: CallRecordingTranscriptConfigurationDTO,
     CHAT_THREADS: ChatThreadsConfigurationDTO,
     CHAT: ChatConfigurationDTO,
+    FORM_SUBMISSIONS: FormSubmissionsConfigurationDTO,
     MESSAGE_CAMPAIGN_BODY: MessageCampaignBodyConfigurationDTO,
     MESSAGE_CAMPAIGN_DETAILS: MessageCampaignDetailsConfigurationDTO,
     FIELD: FieldConfigurationDTO,

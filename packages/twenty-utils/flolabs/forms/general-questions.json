@@ -1,0 +1,1831 @@
+{
+  "version": 1,
+  "title": "GENERAL QUESTIONS",
+  "fields": [
+    {
+      "id": "general",
+      "type": "heading",
+      "label": "GENERAL",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "full_name",
+      "type": "shortText",
+      "label": "Full Name",
+      "placeholder": "Enter your full name",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "email",
+      "type": "email",
+      "label": "Email",
+      "placeholder": "Enter a valid email address",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "emails.primaryEmail",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full",
+      "prefillQueryParam": "email"
+    },
+    {
+      "id": "program_applied_for",
+      "type": "select",
+      "label": "Program applied for",
+      "required": true,
+      "options": [
+        {
+          "value": "ETHICAL_AND_LEGAL_RESEARCH",
+          "label": "Ethical & Legal Research"
+        },
+        {
+          "value": "SPORT_SCIENCE",
+          "label": "Sport Science"
+        },
+        {
+          "value": "SPACE_SCIENCE",
+          "label": "Space Science"
+        },
+        {
+          "value": "TECHNICAL_WRITING",
+          "label": "Technical Writing"
+        },
+        {
+          "value": "UI_UX_DESIGN",
+          "label": "UI/UX Design"
+        },
+        {
+          "value": "OPERATIONS",
+          "label": "Operations"
+        },
+        {
+          "value": "PROJECT_MANAGEMENT",
+          "label": "Project Management"
+        },
+        {
+          "value": "SOCIAL_MEDIA",
+          "label": "Social Media"
+        },
+        {
+          "value": "SEO_SPECIALIST",
+          "label": "SEO Specialist"
+        },
+        {
+          "value": "GTM_INFLUENCER",
+          "label": "GTM Influencer"
+        },
+        {
+          "value": "CONTENT_MARKETING",
+          "label": "Content Marketing"
+        },
+        {
+          "value": "DIGITAL_MARKETING",
+          "label": "Digital Marketing"
+        },
+        {
+          "value": "MARKETING",
+          "label": "Marketing"
+        },
+        {
+          "value": "BUSINESS_DEVELOPMENT_AND_SALES_AI_ROBOTICS",
+          "label": "Business Development & Sales (AI/Robotics)"
+        },
+        {
+          "value": "NEUROSCIENCE_AI_ROBOTICS",
+          "label": "Neuroscience (AI/Robotics)"
+        },
+        {
+          "value": "PRODUCT_DEVELOPMENT_AI_ROBOTICS",
+          "label": "Product Development (AI/Robotics)"
+        },
+        {
+          "value": "EMBEDDED_SYSTEMS",
+          "label": "Embedded Systems"
+        },
+        {
+          "value": "CONTROL_SYSTEMS",
+          "label": "Control Systems"
+        },
+        {
+          "value": "SOFTWARE_DEVELOPMENT",
+          "label": "Software Development"
+        },
+        {
+          "value": "BACK_END_DEVELOPMENT",
+          "label": "Back-End Development"
+        },
+        {
+          "value": "FRONT_END_DEVELOPMENT",
+          "label": "Front-End Development"
+        },
+        {
+          "value": "AI_AGI",
+          "label": "AI/AGI"
+        }
+      ],
+      "choiceDisplay": "dropdown",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "why_this_program",
+      "type": "longText",
+      "label": "Why are you interested in this specific program?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "hope_to_learn",
+      "type": "longText",
+      "label": "What do you hope to learn or become capable of doing through this program?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "education_background",
+      "type": "longText",
+      "label": "Relevant education/background",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "relevant_experience",
+      "type": "longText",
+      "label": "Relevant experience, projects, portfolio, research, or coursework",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "weekly_hours",
+      "type": "select",
+      "label": "How many hours per week can you realistically commit?",
+      "required": false,
+      "options": [
+        {
+          "value": "10_15_HOURS",
+          "label": "10 - 15 hours"
+        },
+        {
+          "value": "16_20_HOURS",
+          "label": "16 - 20 hours"
+        },
+        {
+          "value": "21_25_HOURS",
+          "label": "21 - 25 hours"
+        },
+        {
+          "value": "26_30_HOURS",
+          "label": "26 - 30 hours"
+        },
+        {
+          "value": "31_35_HOURS",
+          "label": "31 - 35 hours"
+        },
+        {
+          "value": "36_40_HOURS",
+          "label": "36 - 40 hours"
+        },
+        {
+          "value": "MORE_THAN_40_HOURS",
+          "label": "More than 40 hours"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "portfolio_link",
+      "type": "url",
+      "label": "Portfolio / GitHub / LinkedIn / Website",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "remote_teamwork",
+      "type": "select",
+      "label": "Are you comfortable working remotely and collaborating with a team?",
+      "required": true,
+      "options": [
+        {
+          "value": "YES",
+          "label": "YES"
+        },
+        {
+          "value": "NO",
+          "label": "NO"
+        }
+      ],
+      "choiceDisplay": "dropdown",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "attend_meetings",
+      "type": "select",
+      "label": "Are you able to attend the required meetings associated with your program?",
+      "required": true,
+      "options": [
+        {
+          "value": "YES",
+          "label": "YES"
+        },
+        {
+          "value": "NO",
+          "label": "NO"
+        }
+      ],
+      "choiceDisplay": "dropdown",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "anything_else",
+      "type": "longText",
+      "label": "Anything else relevant to your application?",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "track_selection",
+      "type": "pageBreak",
+      "label": "TRACK SELECTION",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "track",
+      "type": "select",
+      "label": "Which program track are you applying for?",
+      "required": true,
+      "options": [
+        {
+          "value": "ARTIFICIAL_INTELLIGENCE_AND_SOFTWARE_ENGINEERING",
+          "label": "Artificial Intelligence & Software Engineering"
+        },
+        {
+          "value": "ROBOTICS_AND_INTELLIGENT_SYSTEMS",
+          "label": "Robotics & Intelligent Systems"
+        },
+        {
+          "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP",
+          "label": "Business Management, Growth & Entrepreneurship"
+        },
+        {
+          "value": "DESIGN_AND_TECHNICAL_COMMUNICATION",
+          "label": "Design & Technical Communication"
+        },
+        {
+          "value": "EMERGING_SCIENCES_AND_TECHNOLOGY",
+          "label": "Emerging Sciences & Technology"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_software",
+      "type": "pageBreak",
+      "label": "AI & Software Dev",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ARTIFICIAL_INTELLIGENCE_AND_SOFTWARE_ENGINEERING"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_hardest_project",
+      "type": "longText",
+      "label": "Tell us about the most technically challenging software, AI, or computational project you have worked on. What was your own contribution?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_tools",
+      "type": "longText",
+      "label": "What programming languages, frameworks, platforms, or development tools are you currently comfortable using?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_unknown_problem",
+      "type": "longText",
+      "label": "When you encounter a technical problem you do not know how to solve, how do you normally approach it?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_program",
+      "type": "select",
+      "label": "Which program are you applying for within this track?",
+      "required": true,
+      "options": [
+        {
+          "value": "AI_AGI",
+          "label": "AI/AGI"
+        },
+        {
+          "value": "MACHINE_LEARNING_ENGINEERING",
+          "label": "Machine Learning Engineering"
+        },
+        {
+          "value": "COMPUTER_VISION",
+          "label": "Computer Vision"
+        },
+        {
+          "value": "FRONT_END_DEVELOPMENT",
+          "label": "Front-End Development"
+        },
+        {
+          "value": "BACK_END_DEVELOPMENT",
+          "label": "Back-End Development"
+        },
+        {
+          "value": "SOFTWARE_DEVELOPMENT",
+          "label": "Software Development"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ml",
+      "type": "pageBreak",
+      "label": "ML",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ARTIFICIAL_INTELLIGENCE_AND_SOFTWARE_ENGINEERING"
+            },
+            {
+              "fieldId": "ai_program",
+              "operator": "equals",
+              "value": "MACHINE_LEARNING_ENGINEERING"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ml_experience",
+      "type": "longText",
+      "label": "Describe any experience you have working with datasets, training models, evaluating models, or implementing machine learning systems.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "computer_vision",
+      "type": "pageBreak",
+      "label": "Computer Vision",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ARTIFICIAL_INTELLIGENCE_AND_SOFTWARE_ENGINEERING"
+            },
+            {
+              "fieldId": "ai_program",
+              "operator": "equals",
+              "value": "COMPUTER_VISION"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "cv_experience",
+      "type": "longText",
+      "label": "Have you previously worked with images, video, object detection, classification, segmentation, tracking, or related computer-vision problems? Briefly explain.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "front_end",
+      "type": "pageBreak",
+      "label": "Front-End",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ARTIFICIAL_INTELLIGENCE_AND_SOFTWARE_ENGINEERING"
+            },
+            {
+              "fieldId": "ai_program",
+              "operator": "equals",
+              "value": "FRONT_END_DEVELOPMENT"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "front_end_interface",
+      "type": "longText",
+      "label": "Share one interface you have built. What decisions did you make around usability, responsiveness, accessibility, or performance?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "back_end",
+      "type": "pageBreak",
+      "label": "Back-End",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ARTIFICIAL_INTELLIGENCE_AND_SOFTWARE_ENGINEERING"
+            },
+            {
+              "fieldId": "ai_program",
+              "operator": "equals",
+              "value": "BACK_END_DEVELOPMENT"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "back_end_experience",
+      "type": "longText",
+      "label": "Describe your experience with APIs, databases, authentication, server-side applications, or cloud infrastructure.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "software_dev",
+      "type": "pageBreak",
+      "label": "Software Dev",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ARTIFICIAL_INTELLIGENCE_AND_SOFTWARE_ENGINEERING"
+            },
+            {
+              "fieldId": "ai_program",
+              "operator": "equals",
+              "value": "SOFTWARE_DEVELOPMENT"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "software_project",
+      "type": "longText",
+      "label": "Describe a software project you have taken from an idea or requirement to a working implementation",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_agi",
+      "type": "pageBreak",
+      "label": "AI/AGI",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ARTIFICIAL_INTELLIGENCE_AND_SOFTWARE_ENGINEERING"
+            },
+            {
+              "fieldId": "ai_program",
+              "operator": "equals",
+              "value": "AI_AGI"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_interest",
+      "type": "longText",
+      "label": "What area of artificial intelligence currently interests you most, and what would you like to build or investigate in that area?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "robotics",
+      "type": "pageBreak",
+      "label": "ROBOTICS",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ROBOTICS_AND_INTELLIGENT_SYSTEMS"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "robotics_interest",
+      "type": "longText",
+      "label": "What interests you about intelligent physical systems, robotics, or human-machine interaction?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "robotics_project",
+      "type": "longText",
+      "label": "Describe one hardware, robotics, electronics, simulation, engineering, neuroscience, or technical project you have worked on.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "robotics_tools",
+      "type": "select",
+      "label": "Which tools or technologies have you used?",
+      "required": true,
+      "options": [
+        {
+          "value": "SIGNAL_PROCESSING",
+          "label": "Signal processing"
+        },
+        {
+          "value": "EEG",
+          "label": "EEG"
+        },
+        {
+          "value": "CAD",
+          "label": "CAD"
+        },
+        {
+          "value": "PCB_TOOLS",
+          "label": "PCB tools"
+        },
+        {
+          "value": "SENSORS",
+          "label": "Sensors"
+        },
+        {
+          "value": "PYTHON",
+          "label": "Python"
+        },
+        {
+          "value": "C",
+          "label": "C++"
+        },
+        {
+          "value": "ROS",
+          "label": "ROS"
+        },
+        {
+          "value": "SIMULINK",
+          "label": "Simulink"
+        },
+        {
+          "value": "MATLAB",
+          "label": "MATLAB"
+        },
+        {
+          "value": "RASPBERRY_PI",
+          "label": "Raspberry Pi"
+        },
+        {
+          "value": "ESP32",
+          "label": "ESP32"
+        },
+        {
+          "value": "ARDUINO",
+          "label": "Arduino"
+        },
+        {
+          "value": "OTHER",
+          "label": "Other"
+        }
+      ],
+      "choiceDisplay": "dropdown",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "robotics_program",
+      "type": "select",
+      "label": "Which program are you applying for within this track?",
+      "required": true,
+      "options": [
+        {
+          "value": "NEUROSCIENCE",
+          "label": "Neuroscience"
+        },
+        {
+          "value": "AI_AND_ROBOTICS_PRODUCT_DEVELOPMENT",
+          "label": "AI & Robotics Product Development"
+        },
+        {
+          "value": "EMBEDDED_SYSTEMS",
+          "label": "Embedded Systems"
+        },
+        {
+          "value": "CONTROL_SYSTEMS",
+          "label": "Control Systems"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "embedded_systems",
+      "type": "pageBreak",
+      "label": "Embed Sys",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ROBOTICS_AND_INTELLIGENT_SYSTEMS"
+            },
+            {
+              "fieldId": "robotics_program",
+              "operator": "equals",
+              "value": "EMBEDDED_SYSTEMS"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "embedded_experience",
+      "type": "longText",
+      "label": "What experience do you have working with microcontrollers, sensors, communication protocols, electronics, or firmware?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_robotics_product",
+      "type": "pageBreak",
+      "label": "AI & Rob",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ROBOTICS_AND_INTELLIGENT_SYSTEMS"
+            },
+            {
+              "fieldId": "robotics_program",
+              "operator": "equals",
+              "value": "AI_AND_ROBOTICS_PRODUCT_DEVELOPMENT"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ai_product_factors",
+      "type": "longText",
+      "label": "If you were helping develop an AI-enabled physical product, what factors would you consider before deciding what to build",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "neuroscience",
+      "type": "pageBreak",
+      "label": "Neuro",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ROBOTICS_AND_INTELLIGENT_SYSTEMS"
+            },
+            {
+              "fieldId": "robotics_program",
+              "operator": "equals",
+              "value": "NEUROSCIENCE"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "neuro_interest",
+      "type": "longText",
+      "label": "Which area interests you most: neural signals, neurotechnology, cognition, human performance, brain-computer interfaces, or human-robot interaction? Why?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "control_systems",
+      "type": "pageBreak",
+      "label": "Control Sys",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "ROBOTICS_AND_INTELLIGENT_SYSTEMS"
+            },
+            {
+              "fieldId": "robotics_program",
+              "operator": "equals",
+              "value": "CONTROL_SYSTEMS"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "control_experience",
+      "type": "longText",
+      "label": "Describe your understanding or experience with feedback, control, modelling, simulation, or autonomous systems.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "biz_growth",
+      "type": "pageBreak",
+      "label": "BIZ & GROWTH",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "biz_measurable_outcome",
+      "type": "longText",
+      "label": "Tell us about a project, organization, campaign, business, or initiative where you helped produce a measurable outcome.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "biz_success",
+      "type": "longText",
+      "label": "What does success look like in the type of work you are applying to do?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "business_program",
+      "type": "select",
+      "label": "Which program are you applying for within this track?",
+      "required": true,
+      "options": [
+        {
+          "value": "BUSINESS_DEVELOPMENT_AND_SALES",
+          "label": "Business Development & Sales"
+        },
+        {
+          "value": "MARKETING",
+          "label": "Marketing"
+        },
+        {
+          "value": "DIGITAL_MARKETING",
+          "label": "Digital Marketing"
+        },
+        {
+          "value": "CONTENT_MARKETING",
+          "label": "Content Marketing"
+        },
+        {
+          "value": "GTM_INFLUENCER",
+          "label": "GTM Influencer"
+        },
+        {
+          "value": "SEO",
+          "label": "SEO"
+        },
+        {
+          "value": "SOCIAL_MEDIA",
+          "label": "Social Media"
+        },
+        {
+          "value": "PROJECT_MANAGEMENT",
+          "label": "Project Management"
+        },
+        {
+          "value": "OPERATIONS",
+          "label": "Operations"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "marketing",
+      "type": "pageBreak",
+      "label": "Marketing",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "MARKETING"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "marketing_positioning",
+      "type": "longText",
+      "label": "Choose a product you understand well. Who is its target audience and how would you position it?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "digital_marketing",
+      "type": "pageBreak",
+      "label": "Digi Market",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "DIGITAL_MARKETING"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "digital_channels",
+      "type": "longText",
+      "label": "Which digital channels would you prioritize for a new technology product and why?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "content_marketing",
+      "type": "pageBreak",
+      "label": "Content Marketing",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "CONTENT_MARKETING"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "content_example",
+      "type": "longText",
+      "label": "Show us one piece of content you are proud of, or describe how you would turn a complex product idea into useful content.",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "gtm",
+      "type": "pageBreak",
+      "label": "GTM",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "GTM_INFLUENCER"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "gtm_interest",
+      "type": "longText",
+      "label": "Imagine you are introducing a new AI or robotics product to a community unfamiliar with it. How would you generate initial interest and trust?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "seo",
+      "type": "pageBreak",
+      "label": "SEO",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "SEO"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "seo_investigate",
+      "type": "longText",
+      "label": "If a technically strong website receives little organic search traffic, what would you investigate first?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "social_media",
+      "type": "pageBreak",
+      "label": "Social Media",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "SOCIAL_MEDIA"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "social_adapt",
+      "type": "longText",
+      "label": "Choose one platform and explain how you would adapt content to its audience and format.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "pm",
+      "type": "pageBreak",
+      "label": "PM",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "PROJECT_MANAGEMENT"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "pm_visibility",
+      "type": "longText",
+      "label": "Describe a project involving multiple people. How would you keep responsibilities, dependencies, timelines, and blockers visible?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "operations",
+      "type": "pageBreak",
+      "label": "Operations",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "OPERATIONS"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "operations_process",
+      "type": "longText",
+      "label": "Describe a recurring process you would improve. What would you measure before and after making changes?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "biz_dev",
+      "type": "pageBreak",
+      "label": "Biz Dev",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "BUSINESS_MANAGEMENT_GROWTH_AND_ENTREPRENEURSHIP"
+            },
+            {
+              "fieldId": "business_program",
+              "operator": "equals",
+              "value": "BUSINESS_DEVELOPMENT_AND_SALES"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "biz_dev_pitch",
+      "type": "longText",
+      "label": "Pick one AI or robotics product. Who would you sell it to, what problem would it solve, and how would you approach the customer?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "design_tech",
+      "type": "pageBreak",
+      "label": "DESIGN & TECH",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "DESIGN_AND_TECHNICAL_COMMUNICATION"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "design_program",
+      "type": "select",
+      "label": "Which program are you applying for within this track?",
+      "required": true,
+      "options": [
+        {
+          "value": "UI_UX_DESIGN",
+          "label": "UI/UX Design"
+        },
+        {
+          "value": "TECHNICAL_WRITING",
+          "label": "Technical Writing"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ui_ux",
+      "type": "pageBreak",
+      "label": "UI/UX",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "DESIGN_AND_TECHNICAL_COMMUNICATION"
+            },
+            {
+              "fieldId": "design_program",
+              "operator": "equals",
+              "value": "UI_UX_DESIGN"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "design_portfolio",
+      "type": "url",
+      "label": "Link your portfolio or provide examples of previous design work",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "ux_problem",
+      "type": "longText",
+      "label": "Pick one digital product you use regularly. What is one user-experience problem you would improve and why?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "design_process",
+      "type": "longText",
+      "label": "Briefly describe how you normally move from understanding a problem to creating a design.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "tech_writing",
+      "type": "pageBreak",
+      "label": "Tech Writing",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "DESIGN_AND_TECHNICAL_COMMUNICATION"
+            },
+            {
+              "fieldId": "design_program",
+              "operator": "equals",
+              "value": "TECHNICAL_WRITING"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "tech_writing_explain",
+      "type": "longText",
+      "label": "Imagine you need to explain a technically complex feature to a non-technical user. How would you approach it?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "legal_sciences",
+      "type": "pageBreak",
+      "label": "LEGAL & SCIENCES",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "EMERGING_SCIENCES_AND_TECHNOLOGY"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "science_program",
+      "type": "select",
+      "label": "Which program are you applying for within this track?",
+      "required": true,
+      "options": [
+        {
+          "value": "ETHICAL_AND_LEGAL_RESEARCH",
+          "label": "Ethical & Legal Research"
+        },
+        {
+          "value": "SPORT_SCIENCE",
+          "label": "Sport Science"
+        },
+        {
+          "value": "SPACE_SCIENCE",
+          "label": "Space Science"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "legal",
+      "type": "pageBreak",
+      "label": "Legal",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "EMERGING_SCIENCES_AND_TECHNOLOGY"
+            },
+            {
+              "fieldId": "science_program",
+              "operator": "equals",
+              "value": "ETHICAL_AND_LEGAL_RESEARCH"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "legal_challenge",
+      "type": "longText",
+      "label": "Identify one legal or ethical challenge created by AI or another emerging technology that you believe deserves deeper research.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "legal_approach",
+      "type": "longText",
+      "label": "How would you approach researching an issue where law, technology, and ethics may point toward different conclusions?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "legal_experience",
+      "type": "longText",
+      "label": "Describe any previous research, academic writing, legal analysis, policy work, or ethics-related experience.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "sports_science",
+      "type": "pageBreak",
+      "label": "Sports Sc.",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "EMERGING_SCIENCES_AND_TECHNOLOGY"
+            },
+            {
+              "fieldId": "science_program",
+              "operator": "equals",
+              "value": "SPORT_SCIENCE"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "sports_area",
+      "type": "longText",
+      "label": "Which area of sport science or human performance interests you most?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "sports_question",
+      "type": "longText",
+      "label": "Describe a question related to athlete performance, recovery, biomechanics, physiology, monitoring, or training that you would like to investigate.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "sports_experience",
+      "type": "longText",
+      "label": "What experience do you have with research, data, athletics, health technology, or human-performance analysis?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "space_science",
+      "type": "pageBreak",
+      "label": "Space Sc.",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroups": [
+        {
+          "match": "all",
+          "conditions": [
+            {
+              "fieldId": "track",
+              "operator": "equals",
+              "value": "EMERGING_SCIENCES_AND_TECHNOLOGY"
+            },
+            {
+              "fieldId": "science_program",
+              "operator": "equals",
+              "value": "SPACE_SCIENCE"
+            }
+          ]
+        }
+      ],
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "space_area",
+      "type": "longText",
+      "label": "Which area of space science or technology interests you most, and why?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "space_question",
+      "type": "longText",
+      "label": "Describe a research question, technical problem, mission, or development in space science that you find important.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "space_skills",
+      "type": "longText",
+      "label": "What research, analytical, computational, engineering, or scientific skills could you contribute?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "final",
+      "type": "pageBreak",
+      "label": "FINAL",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "final_reflection",
+      "type": "longText",
+      "label": "After reviewing the information specific to your program, what part of the program interests you most, and is there anything you discovered that makes you uncertain about whether this opportunity is right for you?",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    }
+  ],
+  "theme": {
+    "primaryColor": "#3b82f6",
+    "backgroundColor": "#ffffff",
+    "textColor": "#374151",
+    "buttonTextColor": "#ffffff",
+    "inputBackgroundColor": "#ffffff",
+    "borderColor": "#d1d5db",
+    "fontFamily": "Inter, system-ui, sans-serif",
+    "borderRadiusPx": 10,
+    "logoUrl": "https://images.fillout.com/orgid-312101/flowpublicid-besSHDQpaHus/widgetid-dUkt/rERbXCmyocCsemDazW3ey3/flomadlabs.jpg?a=nXRyQxJJFe4ugVLyp5Hf5H",
+    "submitButtonLabel": "Submit",
+    "direction": "ltr",
+    "layout": "card",
+    "colorScheme": "light",
+    "pageBackgroundColor": "#f3f4f6",
+    "logoAlign": "center",
+    "buttonAlign": "start",
+    "showTitle": true,
+    "showProgressBar": true,
+    "maxWidthPx": 720
+  },
+  "settings": {
+    "successMessage": "Thank you",
+    "language": "en",
+    "showReviewStep": false
+  }
+}

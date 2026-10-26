@@ -20,6 +20,9 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   var progressBar = document.getElementById('ff-progress-bar');
   var steps = Array.prototype.slice.call(form.querySelectorAll('.ff-step'));
   var currentStep = 0;
+  var review = document.getElementById('ff-review');
+  var reviewList = document.getElementById('ff-review-list');
+  var isReviewing = false;
   var formError = document.getElementById('ff-form-error');
   var success = document.getElementById('ff-success');
   var params = new URLSearchParams(window.location.search);
@@ -30,6 +33,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   var BOOLEAN_TYPES = ['checkbox', 'consent'];
   var FILE_TYPES = ['file', 'signature'];
   var ADDRESS_PARTS = ['street', 'city', 'region', 'postcode', 'country'];
+  var NO_REVIEW_TYPES = ['heading', 'paragraph', 'image', 'pageBreak', 'hidden'];
 
   function wrapperOf(field) {
     return form.querySelector('[data-field-id="' + CSS.escape(field.id) + '"]');
@@ -188,16 +192,20 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
       currentStep = previous.length > 0 ? previous[previous.length - 1] : visibleSteps[0];
     }
     var position = visibleSteps.indexOf(currentStep);
-    steps.forEach(function (step, index) { step.hidden = index !== currentStep; });
+    steps.forEach(function (step, index) { step.hidden = isReviewing || index !== currentStep; });
     var isLast = position === visibleSteps.length - 1;
+    var startLabel = definition.settings.startButtonLabel;
+    nextButton.textContent = position === 0 && startLabel ? startLabel : messages.next;
     nextButton.hidden = isLast;
     submitButton.hidden = !isLast;
-    backButton.hidden = position === 0;
-    renderProgress(position, visibleSteps.length);
+    backButton.hidden = position === 0 && !isReviewing;
+    renderProgress(isReviewing ? visibleSteps.length : position, visibleSteps.length + (review ? 1 : 0));
     return { visibleSteps: visibleSteps, position: position, isLast: isLast };
   }
 
   function goToStep(index) {
+    isReviewing = false;
+    if (review) review.hidden = true;
     currentStep = index;
     renderSteps();
     showFormError(null);
@@ -208,6 +216,56 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     var stepState = renderSteps();
     track('step', stepState.position);
     if (firstInput) firstInput.focus({ preventScroll: true });
+  }
+
+  function stepOfField(field) {
+    var element = wrapperOf(field) || firstControl(field);
+    for (var index = 0; index < steps.length; index++) {
+      if (element && steps[index].contains(element)) return index;
+    }
+    return currentStep;
+  }
+
+  function reviewValue(field, answers, evaluation) {
+    if (field.type === 'signature') {
+      var pad = wrapperOf(field) && wrapperOf(field).querySelector('canvas');
+      return pad && pad.getAttribute('data-signed') === 'true' ? '✓' : '';
+    }
+    if (field.type === 'file') {
+      var input = wrapperOf(field) && wrapperOf(field).querySelector('input[type=file]');
+      return input && input.files && input.files[0] ? input.files[0].name : '';
+    }
+    if (answers[field.id] === undefined) return '';
+    return engine.interpolate('{{' + field.id + '}}', definition, evaluation);
+  }
+
+  // A last page listing the answers; "Edit" jumps back to the question.
+  function showReview(evaluation, answers) {
+    isReviewing = true;
+    reviewList.textContent = '';
+    definition.fields.forEach(function (field) {
+      if (!evaluation.visible[field.id] || NO_REVIEW_TYPES.indexOf(field.type) !== -1) return;
+      var item = document.createElement('div');
+      item.className = 'ff-review-item';
+      var term = document.createElement('dt');
+      term.textContent = field.label;
+      var value = document.createElement('dd');
+      value.textContent = reviewValue(field, answers, evaluation) || messages.noAnswer;
+      var edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'ff-review-edit';
+      edit.textContent = messages.edit;
+      edit.addEventListener('click', function () { goToStep(stepOfField(field)); });
+      item.appendChild(term);
+      item.appendChild(value);
+      item.appendChild(edit);
+      reviewList.appendChild(item);
+    });
+    review.hidden = false;
+    renderSteps();
+    window.scrollTo(0, 0);
+    postToParent('flolabs-form:step');
+    track('step', steps.length);
   }
 
   function moveStep(direction) {
@@ -294,6 +352,11 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   function focusFirstError() {
     var firstWrapper = form.querySelector('.ff-invalid');
     var invalidStep = firstWrapper ? steps.indexOf(firstWrapper.closest('.ff-step')) : -1;
+    if (firstWrapper && isReviewing) {
+      isReviewing = false;
+      review.hidden = true;
+      renderSteps();
+    }
     if (invalidStep !== -1 && invalidStep !== currentStep) {
       currentStep = invalidStep;
       renderSteps();
@@ -463,6 +526,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     form.requestSubmit();
   });
   backButton.addEventListener('click', function () {
+    if (isReviewing) return goToStep(currentStep);
     moveStep(-1);
   });
 
@@ -490,6 +554,8 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
       focusFirstError();
       return;
     }
+
+    if (review && !isReviewing) return showReview(evaluation, answers);
 
     var visibleAnswers = {};
     definition.fields.forEach(function (field) {

@@ -7,6 +7,7 @@ import {
   type CallRecordingTranscriptConfiguration,
   type ChatConfiguration,
   type ChatThreadsConfiguration,
+  type FormSubmissionsConfiguration,
   type EmailThreadConfiguration,
   type EmailsConfiguration,
   type FieldRichTextConfiguration,
@@ -77,6 +78,12 @@ type WidgetConfigurationTypenameMap = {
   };
   ChatConfiguration: Omit<ChatConfiguration, 'configurationType'> & {
     configurationType: WidgetConfigurationType.CHAT;
+  };
+  FormSubmissionsConfiguration: Omit<
+    FormSubmissionsConfiguration,
+    'configurationType'
+  > & {
+    configurationType: WidgetConfigurationType.FORM_SUBMISSIONS;
   };
   MessageCampaignBodyConfiguration: Omit<
     MessageCampaignBodyConfiguration,

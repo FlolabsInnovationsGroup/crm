@@ -1,0 +1,390 @@
+{
+  "version": 1,
+  "title": "Meeting Recordings",
+  "fields": [
+    {
+      "id": "overview_image",
+      "type": "image",
+      "label": "FloLabs",
+      "required": false,
+      "choiceDisplay": "auto",
+      "imageUrl": "https://images.fillout.com/orgid-312101/flowpublicid-besSHDQpaHus/widgetid-dUkt/rERbXCmyocCsemDazW3ey3/flomadlabs.jpg?a=nXRyQxJJFe4ugVLyp5Hf5H",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "overview_text",
+      "type": "paragraph",
+      "label": "",
+      "description": "Thank you for your interest in FloLabs!\n\nWe're pleased to share some important resources to ensure you're up-to-date on our current projects. The recorded meetings will provide a better idea of our team and where we are with the various projects we are working on.",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "contact_info",
+      "type": "pageBreak",
+      "label": "Contact Info",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "first_name",
+      "type": "shortText",
+      "label": "First name",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "name.firstName",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "half",
+      "prefillQueryParam": "first_name"
+    },
+    {
+      "id": "last_name",
+      "type": "shortText",
+      "label": "Last name",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "name.lastName",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "half",
+      "prefillQueryParam": "last_name"
+    },
+    {
+      "id": "email",
+      "type": "email",
+      "label": "Email",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "emails.primaryEmail",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full",
+      "prefillQueryParam": "email"
+    },
+    {
+      "id": "agreement_sign",
+      "type": "pageBreak",
+      "label": "Agreement Sign",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "agree_review_materials",
+      "type": "checkbox",
+      "label": "I will read, watch, and review all materials provided to me, ensuring I have the necessary knowledge to fully participate and move forward.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "agree_thorough_answers",
+      "type": "checkbox",
+      "label": "I confirm that I will provide thorough, detailed responses that reflect my genuine understanding and commitment to this opportunity.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "agree_own_work",
+      "type": "checkbox",
+      "label": "I confirm that the information I provide is my own work and that I will not use AI tools to generate any responses on my behalf.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "agree_authentic",
+      "type": "checkbox",
+      "label": "I agree to share my authentic opinions and experiences, offering genuine feedback without embellishment or misrepresentation.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "agree_commitment",
+      "type": "checkbox",
+      "label": "I understand that this indicates my commitment to these statements, and I acknowledge that failing to adhere may jeopardize my participation in this opportunity.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "agree_ceo_review",
+      "type": "checkbox",
+      "label": "Please note: John Hazlewood, Founder and CEO of FloLabs, will personally review your response prior to his presentation, which you will be invited to attend. Please ensure your answers reflect your genuine reply.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "instructions",
+      "type": "pageBreak",
+      "label": "Instructions",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "instructions_confirmed",
+      "type": "checkbox",
+      "label": "Once you've reviewed the meeting recordings, please document your thoughts on each one and respond to the associated questions. As you'll notice, the interns in the recordings are enthusiastic and eager to learn. We are looking to recruit individuals who share these qualities and want to ensure a strong fit before moving forward. Please be comprehensive with your reply so we can understand that you watched the recordings and we can gauge that you are really interested in this opportunity.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "roboshow",
+      "type": "pageBreak",
+      "label": "Roboshow",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "roboshow_image",
+      "type": "image",
+      "label": "Roboshow",
+      "required": false,
+      "choiceDisplay": "auto",
+      "imageUrl": "https://images.fillout.com/orgid-312101/flowpublicid-wqyLXfXzWGus/widgetid-eSkq/827rH1xK5bMRMixbJksdf7/123flomadroboshows.png?a=nmvi3zxGW97RGUZct1EcPh",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "roboshow_link",
+      "type": "paragraph",
+      "label": "",
+      "description": "👉 [Click here to access the recording of the Projects Overview and Roboshows](https://drive.google.com/file/d/1tjhwlIurzTcoR7rfQIYHHzNGG9nI5F09/view?usp=sharing)\n\nWatch and answer below 👇",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "roboshow_control_modes",
+      "type": "longText",
+      "label": "What are the three modes of controlling robots for the Roboshow that the team discussed?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "roboshow_feedback",
+      "type": "longText",
+      "label": "What did you like about this meeting and what do you think can be improved?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "all_team_meeting",
+      "type": "pageBreak",
+      "label": "All team meeting",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "all_team_meeting_image",
+      "type": "image",
+      "label": "All team meeting",
+      "required": false,
+      "choiceDisplay": "auto",
+      "imageUrl": "https://images.fillout.com/orgid-312101/flowpublicid-wqyLXfXzWGus/widgetid-v9u8/2fABsJ7qhQAaVnGAQ6zy4C/Screenshot-(1595).png?a=2BL2gKWZCemvGzaDrLC3Z4",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "all_team_meeting_link",
+      "type": "paragraph",
+      "label": "",
+      "description": "👉 [Click here to access the recording of all-teams meeting](https://www.youtube.com/watch?v=acL-fKUzUQw&t=6s)\n\nWatch and answer below 👇",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "all_team_highlights",
+      "type": "longText",
+      "label": "What key projects or updates presented during the All Team Meeting stood out to you the most, and why?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "all_team_interest",
+      "type": "longText",
+      "label": "Based on the meeting, which team or area would you be most interested in joining, and how do you think you can contribute to it?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "nasa",
+      "type": "pageBreak",
+      "label": "NASA",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "nasa_image",
+      "type": "image",
+      "label": "NASA",
+      "required": false,
+      "choiceDisplay": "auto",
+      "imageUrl": "https://images.fillout.com/orgid-312101/flowpublicid-wqyLXfXzWGus/widgetid-rWTB/r6JE9J6aZM1GwQHpFqyRTq/Screenshot-(1591).png?a=ccE6itwztTexsX35Uu896c",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "nasa_link",
+      "type": "paragraph",
+      "label": "",
+      "description": "👉 [Click here to access the recording of our meeting with NASA](https://us06web.zoom.us/rec/share/sy9FCX8sgXBo4LCfHoyRTAKCRyOHmGmszUsar1dnX5JvvgENm0zdRRUzYyJ-iNeh.eTvEQTxd0krlB2w-)\n\nWatch and answer below 👇",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "nasa_teamwork",
+      "type": "longText",
+      "label": "What role did teamwork and collaboration play in the projects discussed during the meeting? Provide specific examples.",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "nasa_application",
+      "type": "longText",
+      "label": "How do you think the ideas presented in the NASA meeting can be applied to future projects at FloLabs?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    }
+  ],
+  "theme": {
+    "primaryColor": "#3b82f6",
+    "backgroundColor": "#ffffff",
+    "textColor": "#374151",
+    "buttonTextColor": "#ffffff",
+    "inputBackgroundColor": "#ffffff",
+    "borderColor": "#d1d5db",
+    "fontFamily": "Inter, system-ui, sans-serif",
+    "borderRadiusPx": 10,
+    "logoUrl": "https://images.fillout.com/orgid-312101/flowpublicid-besSHDQpaHus/widgetid-dUkt/rERbXCmyocCsemDazW3ey3/flomadlabs.jpg?a=nXRyQxJJFe4ugVLyp5Hf5H",
+    "submitButtonLabel": "Submit",
+    "direction": "ltr",
+    "layout": "card",
+    "colorScheme": "light",
+    "pageBackgroundColor": "#f3f4f6",
+    "logoAlign": "center",
+    "buttonAlign": "start",
+    "showTitle": false,
+    "showProgressBar": true,
+    "maxWidthPx": 720
+  },
+  "settings": {
+    "successMessage": "Thank you for submitting your answers!\nWe will reach out via email once we review your analysis.",
+    "language": "en",
+    "showReviewStep": true,
+    "startButtonLabel": "Get Started"
+  },
+  "actions": [
+    {
+      "id": "mark_interested",
+      "whenMatch": "any",
+      "type": "setPersonValues",
+      "values": [
+        {
+          "mapTo": "stage",
+          "value": "INTERESTED"
+        }
+      ]
+    }
+  ]
+}

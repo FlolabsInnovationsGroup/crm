@@ -1,0 +1,362 @@
+{
+  "version": 1,
+  "title": "SELF-ASSESSMENT",
+  "fields": [
+    {
+      "id": "your_details",
+      "type": "heading",
+      "label": "Your details",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "first_name",
+      "type": "shortText",
+      "label": "First name",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "name.firstName",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "half",
+      "prefillQueryParam": "first_name"
+    },
+    {
+      "id": "last_name",
+      "type": "shortText",
+      "label": "Last name",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "name.lastName",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "half",
+      "prefillQueryParam": "last_name"
+    },
+    {
+      "id": "email",
+      "type": "email",
+      "label": "Email",
+      "required": true,
+      "choiceDisplay": "auto",
+      "mapTo": "emails.primaryEmail",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full",
+      "prefillQueryParam": "email"
+    },
+    {
+      "id": "capability",
+      "type": "pageBreak",
+      "label": "Capability",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "capability_have_and_need",
+      "type": "longText",
+      "label": "What is one capability you already have that could help your team, and one capability you know you still need to develop?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "confirmation",
+      "type": "pageBreak",
+      "label": "Confirmation",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "continue_to_final_interview",
+      "type": "select",
+      "label": "After completing the application process, and orientation would you like to continue to the final interview stage?",
+      "required": true,
+      "options": [
+        {
+          "value": "YES",
+          "label": "YES"
+        },
+        {
+          "value": "NO",
+          "label": "NO"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "can_meet_commitment",
+      "type": "select",
+      "label": "Based on everything you now understand about the program, can you realistically meet the required commitment for your selected program?",
+      "required": true,
+      "options": [
+        {
+          "value": "YES",
+          "label": "YES"
+        },
+        {
+          "value": "NO",
+          "label": "NO"
+        },
+        {
+          "value": "I_NEED_TO_DISCUSS_MY_AVAILABILITY",
+          "label": "I need to discuss my availability"
+        }
+      ],
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "clarify_in_interview",
+      "type": "longText",
+      "label": "What would you like clarified during your final interview?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_1",
+      "type": "pageBreak",
+      "label": "Reference 1",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "references_intro",
+      "type": "paragraph",
+      "label": "",
+      "description": "Please provide professional or academic references who can speak to your reliability, work ethic, academic performance, research ability, technical skills, or professional conduct.\nReferences may include professors, academic supervisors, research supervisors, previous managers, team leads, internship supervisors, or other professionals who have directly worked with or supervised you.\n• Please do not list family members or personal friends.",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_1_name",
+      "type": "shortText",
+      "label": "Full Name",
+      "placeholder": "enter your full name",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_1_title",
+      "type": "shortText",
+      "label": "Position / Title",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_1_organization",
+      "type": "shortText",
+      "label": "Organization / Institution",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_1_relationship",
+      "type": "shortText",
+      "label": "Relationship to You",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_1_email",
+      "type": "email",
+      "label": "Email Address",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_1_phone",
+      "type": "phone",
+      "label": "Phone number",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_1_known_for",
+      "type": "shortText",
+      "label": "How long have they known or worked with you?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_2",
+      "type": "pageBreak",
+      "label": "Reference 2",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_2_name",
+      "type": "shortText",
+      "label": "Full Name",
+      "placeholder": "enter your full name",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_2_title",
+      "type": "shortText",
+      "label": "Position / Title",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_2_organization",
+      "type": "shortText",
+      "label": "Organization / Institution",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_2_relationship",
+      "type": "shortText",
+      "label": "Relationship to You",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_2_email",
+      "type": "email",
+      "label": "Email Address",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_2_phone",
+      "type": "phone",
+      "label": "Phone number",
+      "required": false,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    },
+    {
+      "id": "reference_2_known_for",
+      "type": "shortText",
+      "label": "How long have they known or worked with you?",
+      "required": true,
+      "choiceDisplay": "auto",
+      "visibleWhenMatch": "all",
+      "visibleWhenGroupsMatch": "any",
+      "requiredWhenGroupsMatch": "any",
+      "width": "full"
+    }
+  ],
+  "theme": {
+    "primaryColor": "#3b82f6",
+    "backgroundColor": "#ffffff",
+    "textColor": "#374151",
+    "buttonTextColor": "#ffffff",
+    "inputBackgroundColor": "#ffffff",
+    "borderColor": "#d1d5db",
+    "fontFamily": "Inter, system-ui, sans-serif",
+    "borderRadiusPx": 10,
+    "logoUrl": "https://images.fillout.com/orgid-312101/flowpublicid-besSHDQpaHus/widgetid-dUkt/rERbXCmyocCsemDazW3ey3/flomadlabs.jpg?a=nXRyQxJJFe4ugVLyp5Hf5H",
+    "submitButtonLabel": "Submit",
+    "direction": "ltr",
+    "layout": "card",
+    "colorScheme": "light",
+    "pageBackgroundColor": "#f3f4f6",
+    "logoAlign": "center",
+    "buttonAlign": "start",
+    "showTitle": true,
+    "showProgressBar": true,
+    "maxWidthPx": 720
+  },
+  "settings": {
+    "successMessage": "Thank you",
+    "language": "en",
+    "showReviewStep": false
+  }
+}
