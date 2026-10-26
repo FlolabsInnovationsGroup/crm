@@ -46,4 +46,25 @@ describe('resolveReceivedAt', () => {
 
     jest.useRealTimers();
   });
+
+  it('ignores a Date header later than the arrival time', () => {
+    const result = resolveReceivedAt({
+      headerDate: '2026-09-02T10:00:00.000Z',
+      internalDate: INTERNAL_DATE,
+    });
+
+    expect(result).toEqual(INTERNAL_DATE);
+  });
+
+  it('ignores a future Date header when there is no arrival time', () => {
+    jest.useFakeTimers().setSystemTime(IMPORT_TIME);
+
+    const result = resolveReceivedAt({
+      headerDate: '2026-09-02T10:00:00.000Z',
+    });
+
+    expect(result).toEqual(IMPORT_TIME);
+
+    jest.useRealTimers();
+  });
 });

@@ -15,7 +15,7 @@ import {
   MessageChannelVisibility,
   type TimelineThread,
 } from '~/generated/graphql';
-import { formatToHumanReadableDate } from '~/utils/date-utils';
+import { beautifyExactDateTime } from '~/utils/date-utils';
 import { getAbsoluteImageUrl } from '~/utils/image/getAbsoluteImageUrl';
 
 const StyledHeading = styled.div<{ unread: boolean }>`
@@ -73,6 +73,7 @@ const StyledReceivedAt = styled.div`
   font-size: ${themeCssVariables.font.size.sm};
   font-weight: ${themeCssVariables.font.weight.regular};
   padding: ${themeCssVariables.spacing[0]} ${themeCssVariables.spacing[1]};
+  white-space: nowrap;
 `;
 
 type EmailThreadPreviewProps = {
@@ -227,7 +228,7 @@ export const EmailThreadPreview = ({
         )}
       </StyledSubjectAndBody>
       <StyledReceivedAt>
-        {formatToHumanReadableDate(thread.lastMessageReceivedAt)}
+        {beautifyExactDateTime(thread.lastMessageReceivedAt)}
       </StyledReceivedAt>
     </ActivityRow>
   );
