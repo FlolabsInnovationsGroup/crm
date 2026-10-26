@@ -206,6 +206,7 @@ export {
   getEdgeTypename,
   getGroupByConnectionTypename,
 } from './graphql/graphql-get-typename.util';
+export { getGravatarUrl } from './gravatar/get-gravatar-url';
 export { getImageAbsoluteURI } from './image/getImageAbsoluteURI';
 export { getLinkFaviconUrl } from './image/getLinkFaviconUrl';
 export {

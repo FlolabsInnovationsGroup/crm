@@ -3,6 +3,11 @@ name: Build FloLabs CRM image
 on:
   push:
     branches: [main]
+    # Changes that do not affect the image skip the 15-minute build.
+    paths-ignore:
+      - 'FLOLABS.md'
+      - 'packages/twenty-utils/flolabs/**'
+      - '.github/workflows/flolabs-deploy.yaml'
   workflow_dispatch:
 
 permissions:
