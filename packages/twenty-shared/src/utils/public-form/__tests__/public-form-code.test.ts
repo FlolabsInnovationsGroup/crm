@@ -121,4 +121,26 @@ describe('form layouts and custom code', () => {
       ),
     ).toContain('name="email"');
   });
+
+  it('follows the device dark mode when asked, keeping buttons visible', () => {
+    const pageFor = (colorScheme: 'light' | 'auto') =>
+      buildPublicFormPage({
+        formId: 'f',
+        definition: publicFormDefinitionSchema.parse({
+          version: 1,
+          title: 'x',
+          fields,
+          theme: { colorScheme, primaryColor: '#111111' },
+        }),
+        submitUrl: '/forms/w/f',
+        isEmbedded: false,
+        nonce: 'n',
+      });
+
+    expect(pageFor('light')).not.toContain('prefers-color-scheme:dark');
+    expect(pageFor('auto')).toContain(
+      '@media (prefers-color-scheme:dark){:root{color-scheme:dark;--ff-primary:#ececf4',
+    );
+    expect(pageFor('auto')).toContain('"eventsUrl":"/forms/w/f/events"');
+  });
 });

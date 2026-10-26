@@ -52,6 +52,7 @@ export const PUBLIC_FORM_DIRECTIONS = ['ltr', 'rtl'] as const;
 // conversational shows one question per screen, like Typeform.
 export const PUBLIC_FORM_LAYOUTS = ['card', 'plain', 'conversational'] as const;
 export const PUBLIC_FORM_ALIGNMENTS = ['start', 'center', 'stretch'] as const;
+export const PUBLIC_FORM_COLOR_SCHEMES = ['light', 'auto'] as const;
 export const PUBLIC_FORM_LANGUAGES = ['en', 'ar'] as const;
 
 // Loaded from Google Fonts when picked; anything else must be a system font.
@@ -234,6 +235,8 @@ export const publicFormThemeSchema = z.object({
   direction: z.enum(PUBLIC_FORM_DIRECTIONS).default('ltr'),
   customCss: z.string().max(50000).optional(),
   layout: z.enum(PUBLIC_FORM_LAYOUTS).default('card'),
+  // auto follows the visitor's device setting.
+  colorScheme: z.enum(PUBLIC_FORM_COLOR_SCHEMES).default('light'),
   pageBackgroundColor: hexColorSchema.optional(),
   backgroundImageUrl: z.string().url().optional(),
   coverImageUrl: z.string().url().optional(),

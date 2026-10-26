@@ -400,6 +400,35 @@ const buildPageBackground = (
     : color;
 };
 
+const getLuminance = (hexColor: string) => {
+  const [red, green, blue] = [1, 3, 5].map(
+    (start) => parseInt(hexColor.slice(start, start + 2), 16) / 255,
+  );
+
+  return 0.2126 * (red ?? 0) + 0.7152 * (green ?? 0) + 0.0722 * (blue ?? 0);
+};
+
+// A dark brand color would vanish on a dark background, so it flips to light.
+const buildDarkModeStyle = (
+  theme: PublicFormDefinition['theme'],
+  isEmbedded: boolean,
+) => {
+  if (theme.colorScheme !== 'auto') {
+    return '';
+  }
+
+  const isDarkPrimary = getLuminance(theme.primaryColor) < 0.25;
+  const primary = isDarkPrimary ? '#ececf4' : theme.primaryColor;
+  const buttonText = isDarkPrimary ? '#111118' : theme.buttonTextColor;
+  const pageBackground = isEmbedded
+    ? 'transparent'
+    : isSafeImageUrl(theme.backgroundImageUrl)
+      ? `#0b0b14 url("${encodeURI(theme.backgroundImageUrl)}") center/cover fixed`
+      : '#0b0b14';
+
+  return `@media (prefers-color-scheme:dark){:root{color-scheme:dark;--ff-primary:${primary};--ff-button-text:${buttonText};--ff-background:#16161f;--ff-text:#ececf4;--ff-input-background:#1e1e2a;--ff-border:#34344a;--ff-danger:#ff8a80}body{background:${pageBackground}}}`;
+};
+
 const buildStyle = (definition: PublicFormDefinition, isEmbedded: boolean) => {
   const { theme } = definition;
   const isPlain = theme.layout === 'plain';
@@ -503,6 +532,7 @@ ${buttonJustify === 'stretch' ? '.ff-buttons .ff-submit,.ff-buttons .ff-back{fle
 .ff-consent a{color:var(--ff-primary)}
 .ff-honeypot{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
 @media (max-width:560px){.ff-grid{grid-template-columns:minmax(0,1fr)}.ff-matrix th,.ff-matrix td{padding:8px 6px}.ff-matrix thead th{font-size:12px}.ff-scale-options{gap:4px}.ff-scale-option{min-height:40px;font-size:14px}.ff-address{grid-template-columns:1fr}.ff-star{font-size:30px}.ff-card{padding:${isEmbedded ? '16px' : '24px 18px'}}.ff-page{padding:${isEmbedded ? '4px 0' : '20px 12px'}}.ff-title{font-size:24px}.ff-buttons{width:100%}.ff-back,.ff-submit{flex:1 1 auto}}
+${buildDarkModeStyle(theme, isEmbedded)}
 ${theme.customCss ? sanitizeCustomCss(theme.customCss) : ''}`;
 };
 
@@ -537,6 +567,7 @@ export const buildPublicFormPage = ({
     honeypotField: PUBLIC_FORM_HONEYPOT_FIELD,
     maxFileSizeMb: PUBLIC_FORM_MAX_FILE_SIZE_MB,
     showProgressBar: theme.showProgressBar,
+    eventsUrl: `${submitUrl}/events`,
     messages,
     englishMessages: PUBLIC_FORM_PAGE_MESSAGES.en,
   };
