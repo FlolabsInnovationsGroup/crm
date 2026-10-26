@@ -29,6 +29,10 @@ FloLabs' own CRM, a fork of [Twenty](https://github.com/twentyhq/twenty).
 
 The upstream CI workflows are parked in `.github/upstream-workflows-disabled/` because they rely on Twenty's own infrastructure.
 
+## Deploying
+
+Every successful image build on `main` starts **Deploy FloLabs CRM**, which waits for approval in the `production` environment (GitHub → Actions → the run → Review deployments → Approve). It then runs `/opt/flolabs-crm/deploy.sh <sha>` on the server through an SSH key that can only run that script: database backup, image switch, health check, automatic rollback if unhealthy. To deploy a specific commit, run the workflow manually with its SHA.
+
 ## Updating from upstream
 
 1. Fetch the new upstream tag.

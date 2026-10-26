@@ -1,0 +1,43 @@
+name: Deploy FloLabs CRM
+
+# Runs after every successful image build on main, and waits for approval in
+# the "production" environment before touching the server. The SSH key in
+# DEPLOY_SSH_KEY can only run /opt/flolabs-crm/deploy.sh (forced command).
+on:
+  workflow_run:
+    workflows: ['Build FloLabs CRM image']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full commit SHA to deploy (its image must exist)
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://crm.flolabsinnovations.com
+    steps:
+      - name: Deploy over SSH
+        env:
+          SHA: ${{ inputs.sha || github.event.workflow_run.head_sha }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo '128.140.4.151 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINnftxNdRM/egrZr03WUoUV9GYnEd5JG/a1nyOvEd+uC' > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            root@128.140.4.151 "$SHA"
