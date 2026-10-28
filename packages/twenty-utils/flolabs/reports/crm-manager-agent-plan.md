@@ -1,6 +1,8 @@
 # CRM Manager: upgrading the chatbot into an agent that runs the pipeline
 
-Research and plan, no code changed. 28 Oct 2026. Builds on `ai-tools-and-n8n-plan.md` (APIs, tools, restrictions) and `n8n-and-workflows.md` (integrations).
+Research and plan, no code changed. 28 Oct 2026. Interactive version: https://claude.ai/artifact/KSwAzKpiLJvN7MiA1jxEX3
+
+Builds on `ai-tools-and-n8n-plan.md` (APIs, tools, restrictions) and `n8n-and-workflows.md` (integrations).
 
 ## Short version
 

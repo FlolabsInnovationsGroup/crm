@@ -1,6 +1,6 @@
 # n8n and workflows: how CRMs integrate it, and what we should do
 
-How HubSpot and other CRMs connect to n8n in both directions, how n8n workflows get created, and the architecture we recommend for FloLabs CRM. Research only, no code changed. 28 Oct 2026.
+How HubSpot and other CRMs connect to n8n in both directions, how n8n workflows get created, and the architecture we recommend for FloLabs CRM. Research only, no code changed. 28 Oct 2026. Interactive version: https://claude.ai/artifact/BxJAZ13TFhKJzw4rmaeDte
 
 The HubSpot n8n node itself (credentials, resources, trigger) is covered in `ai-tools-and-n8n-plan.md`.
 
