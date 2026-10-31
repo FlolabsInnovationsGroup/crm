@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Manager Buddy: implementation plan v2</title>
+<style>
+:root {
+  --ink: #16211c;
+  --ink-2: #44514b;
+  --muted: #76817c;
+  --line: #dde3e0;
+  --soft: #f4f6f5;
+  --green: #14674f;
+  --green-2: #1f8a69;
+  --green-bg: #e4f1eb;
+  --amber: #9a5b00;
+  --amber-bg: #fbefdb;
+  --red: #a8251d;
+  --red-bg: #f8e2df;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --good: #0ca30c;
+}
+@page { size: A4; margin: 0; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: Inter, sans-serif;
+  color: var(--ink);
+  font-size: 9.4pt;
+  line-height: 1.45;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  background: #fff;
+}
+.page {
+  width: 210mm;
+  height: 297mm;
+  box-sizing: border-box;
+  padding: 14mm 15mm 17mm;
+  position: relative;
+  overflow: hidden;
+  break-after: page;
+}
+.page:last-child { break-after: auto; }
+.foot {
+  position: absolute;
+  left: 15mm;
+  right: 15mm;
+  bottom: 8mm;
+  display: flex;
+  justify-content: space-between;
+  font: 7.2pt 'JetBrains Mono', monospace;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 2.2mm;
+}
+.eyebrow {
+  font: 600 7.4pt 'JetBrains Mono', monospace;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 1mm;
+}
+h1, h2, h3 { font-family: 'Inter Display', Inter, sans-serif; margin: 0; }
+h2 { font-size: 19pt; font-weight: 700; letter-spacing: -.01em; line-height: 1.15; margin: 0 0 2.5mm; }
+h3 { font-size: 10.6pt; font-weight: 650; margin: 4.2mm 0 1.6mm; }
+p { margin: 0 0 2.2mm; }
+.lead { font-size: 10.2pt; color: var(--ink-2); line-height: 1.45; }
+.small { font-size: 8.2pt; color: var(--ink-2); }
+.muted { color: var(--muted); }
+b, strong { font-weight: 650; }
+code { font-family: 'JetBrains Mono', monospace; font-size: 7.6pt; background: var(--soft); padding: 0 1mm; border-radius: 2px; }
+table { width: 100%; border-collapse: collapse; font-size: 8.3pt; margin: 1mm 0 2.5mm; line-height: 1.38; }
+th { text-align: left; font-weight: 600; color: var(--ink-2); background: var(--soft); padding: 1.4mm 2mm; border-bottom: 1px solid var(--line); }
+td { padding: 1.35mm 2mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.total td { font-weight: 650; border-bottom: 0; border-top: 1.5px solid var(--ink); }
+ul { margin: 0 0 2mm; padding-left: 4.5mm; }
+li { margin: 0 0 .9mm; }
+.safe {
+  display: flex;
+  gap: 2.6mm;
+  align-items: baseline;
+  background: var(--green-bg);
+  border-left: 3px solid var(--green);
+  padding: 2mm 3mm;
+  border-radius: 0 5px 5px 0;
+  font-size: 8.5pt;
+  margin: 2.5mm 0;
+}
+.tag {
+  font: 700 6.6pt 'JetBrains Mono', monospace;
+  letter-spacing: .08em;
+  color: #fff;
+  background: var(--green);
+  padding: .6mm 1.6mm;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.tag.amber { background: var(--amber); }
+.tag.red { background: var(--red); }
+.tag.blue { background: var(--series-1); }
+.tag.gray { background: #6b7570; }
+.card { border: 1px solid var(--line); border-radius: 6px; padding: 2.8mm 3.2mm; background: #fff; }
+.card h4 { margin: 0 0 1mm; font-size: 9.4pt; font-weight: 650; }
+.card p { margin: 0; font-size: 8.4pt; color: var(--ink-2); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.6mm; }
+.num-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 5.2mm; height: 5.2mm; border-radius: 50%;
+  background: var(--green); color: #fff; font-size: 7.6pt; font-weight: 700; margin-right: 1.6mm;
+}
+.flow { display: flex; align-items: stretch; gap: 0; margin: 2mm 0 3mm; }
+.flow .step {
+  flex: 1; background: var(--soft); border: 1px solid var(--line); border-radius: 6px;
+  padding: 2.2mm 2.4mm; font-size: 8pt; line-height: 1.3;
+}
+.flow .step b { display: block; font-size: 8.6pt; margin-bottom: .6mm; color: var(--ink); }
+.flow .step.hl { background: var(--green); border-color: var(--green); color: #e9f5f0; }
+.flow .step.hl b { color: #fff; }
+.flow .arr { width: 5mm; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11pt; }
+.quote {
+  border-left: 3px solid var(--green-2);
+  padding: .4mm 0 .4mm 3mm;
+  margin: 0 0 1.6mm;
+  font-size: 9pt;
+  color: var(--ink);
+}
+.quote span { display: block; font: 6.8pt 'JetBrains Mono', monospace; color: var(--muted); letter-spacing: .04em; margin-top: .3mm; }
+.rule {
+  display: grid; grid-template-columns: 10mm 1fr; gap: 2mm; align-items: start;
+  background: #fff; border: 1.5px solid var(--green); border-radius: 7px; padding: 3mm 3.5mm; margin-bottom: 2.6mm;
+}
+.rule .n { font: 700 18pt 'Inter Display', Inter, sans-serif; color: var(--green); line-height: 1; }
+.rule h4 { margin: 0 0 .8mm; font-size: 10.6pt; }
+.rule p { margin: 0; font-size: 8.8pt; color: var(--ink-2); }
+.verdict { font: 650 7.2pt Inter, sans-serif; padding: .4mm 1.6mm; border-radius: 3px; white-space: nowrap; }
+.v-go { background: var(--green-bg); color: var(--green); }
+.v-later { background: #e6eef9; color: #1d58a0; }
+.v-no { background: var(--red-bg); color: var(--red); }
+.v-opt { background: var(--amber-bg); color: var(--amber); }
+.kpi { border: 1px solid var(--line); border-radius: 6px; padding: 2.6mm 3mm; background: #fff; }
+.kpi .label { font-size: 7.6pt; color: var(--ink-2); }
+.kpi .value { font: 700 17pt 'Inter Display', Inter, sans-serif; letter-spacing: -.01em; line-height: 1.1; margin-top: .6mm; }
+.kpi .sub { font-size: 7.4pt; color: var(--muted); margin-top: .4mm; }
+.legend { display: flex; gap: 5mm; flex-wrap: wrap; font-size: 7.8pt; color: var(--ink-2); margin: 1mm 0 1.5mm; }
+.legend i { display: inline-block; width: 3mm; height: 3mm; border-radius: 1px; margin-right: 1.4mm; vertical-align: -0.4mm; }
+.layer { display: grid; grid-template-columns: 30mm 1fr 34mm; gap: 2.5mm; align-items: center; padding: 1.3mm 2.5mm; border-radius: 5px; margin-bottom: 1.3mm; font-size: 8.2pt; }
+.layer b { font-size: 8.8pt; }
+.layer .where { font: 7.2pt 'JetBrains Mono', monospace; color: var(--ink-2); text-align: right; }
+.chipline { display: flex; flex-wrap: wrap; gap: 1.6mm; align-items: center; margin: 1.5mm 0 2.5mm; }
+.chipline .c { background: var(--soft); border: 1px solid var(--line); border-radius: 20px; padding: .9mm 2.6mm; font-size: 8pt; }
+.chipline .c.hl { background: var(--green); color: #fff; border-color: var(--green); }
+.chipline .a { color: var(--muted); font-size: 9pt; }
+.two-col { display: grid; grid-template-columns: 1.05fr .95fr; gap: 5mm; }
+.box { background: var(--soft); border-radius: 6px; padding: 2.8mm 3.2mm; }
+.box h4 { margin: 0 0 1.2mm; font-size: 9.2pt; }
+
+/* cover */
+.cover { padding: 0; }
+.cover .band { background: var(--green); color: #fff; padding: 22mm 18mm 15mm; }
+.cover .band .eyebrow { color: #bfe3d5; }
+.cover h1 { font-size: 46pt; font-weight: 800; letter-spacing: -.02em; line-height: 1; margin: 3mm 0 2mm; }
+.cover h1 span { color: #a9e2cc; }
+.cover .subtitle { font-size: 12.5pt; color: #dff2ea; max-width: 160mm; line-height: 1.45; }
+.cover .inner { padding: 10mm 18mm 0; }
+.cover .rules-title { font: 600 7.6pt 'JetBrains Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--green); margin-bottom: 2.4mm; }
+.cover .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin-top: 6mm; }
+.toc { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8mm; font-size: 9.2pt; }
+.toc div { padding: 1.3mm 0; border-bottom: 1px solid var(--line); }
+.toc b { font: 700 8pt 'JetBrains Mono', monospace; color: var(--green); margin-right: 2.4mm; }
+.cover .note { margin-top: 7mm; font-size: 8.4pt; color: var(--muted); }
+.cover .foot { left: 18mm; right: 18mm; }
+.dash { border: 1px solid var(--line); border-radius: 8px; padding: 3mm; background: #fbfcfb; }
+.dash-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2.4mm; }
+.dash-head b { font-size: 9.6pt; }
+.status { display: inline-flex; align-items: center; gap: 1.2mm; font-size: 7.8pt; font-weight: 600; color: #0a6d0a; }
+.status svg { width: 3.2mm; height: 3.2mm; }
+</style>
+</head>
+<body>
+
+<!-- 1. COVER -->
+<section class="page cover">
+  <div class="band">
+    <div class="eyebrow">Implementation plan v2 · FloLabs recruiting team · 31 Oct 2026</div>
+    <h1>Manager <span>Buddy</span></h1>
+    <div class="subtitle">An AI teammate added next to our CRM. You talk to it by chat or voice. It acts with your permissions, remembers everything, works on its own, finds and follows up leads, warns us when something breaks, and shows what it costs, live.</div>
+  </div>
+  <div class="inner">
+    <div class="rules-title">Two rules for every step of this plan</div>
+    <div class="rule">
+      <div class="n">1</div>
+      <div>
+        <h4>Nothing in the existing CRM is removed or changed</h4>
+        <p>Buddy is added next to the CRM, not inside it. It uses the CRM's existing features through the APIs the chatbot already uses. Existing code, screens, workflows and data model stay exactly as they are.</p>
+      </div>
+    </div>
+    <div class="rule">
+      <div class="n">2</div>
+      <div>
+        <h4>Company data is protected, and every change is tested before and after</h4>
+        <p>Buddy never touches the CRM's database directly. It reads and writes only through the CRM, with the permissions of the person it acts for. Every release is tested on a copy of production data first, and the full CRM is re-tested afterwards.</p>
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="label">Changes to existing CRM code</div><div class="value">0</div><div class="sub">in every phase of this plan</div></div>
+      <div class="kpi"><div class="label">Time to full scope</div><div class="value">12 weeks</div><div class="sub">useful from week 3</div></div>
+      <div class="kpi"><div class="label">Expected run cost</div><div class="value">~$280</div><div class="sub">a month with the optimizer</div></div>
+      <div class="kpi"><div class="label">Cost visibility</div><div class="value">Live</div><div class="sub">token meter from phase 1</div></div>
+    </div>
+    <div class="rules-title" style="margin-top:8mm">Inside this plan</div>
+    <div class="toc">
+      <div><b>01</b> What we are building</div><div><b>08</b> Cost estimate</div>
+      <div><b>02</b> Architecture</div><div><b>09</b> Live usage</div>
+      <div><b>03</b> Access: Buddy acts as you</div><div><b>10</b> Cost optimizer and estimator</div>
+      <div><b>04</b> Memory</div><div><b>11</b> Roadmap, 12 weeks</div>
+      <div><b>05</b> Tasks, autonomy, monitoring</div><div><b>12</b> Testing and risks</div>
+      <div><b>06</b> Voice</div><div><b>13</b> Decisions, open source, sources</div>
+      <div><b>07</b> Lead generation and workflows</div>
+    </div>
+    <div class="note">Replaces the "Manager Buddy" proposal of 28 Oct and the implementation plan of 30 Oct. Facts about our CRM were checked in the code on the automations_branch. Prices for Claude were checked on Anthropic's pricing page on 31 Oct 2026; other vendor prices come from third-party sources and are marked as estimates.</div>
+  </div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 2. BRIEF -->
+<section class="page">
+  <div class="eyebrow">01 · What we are building</div>
+  <h2>Your brief, and six things Buddy will do</h2>
+  <div class="two-col">
+    <div>
+      <h3 style="margin-top:1mm">In your words</h3>
+      <div class="quote">"It shouldn't interfere with the CRM's existing functionality at all."<span>ON THE CRM</span></div>
+      <div class="quote">"We can't change the base CRM. We have company data there."<span>ON THE CRM</span></div>
+      <div class="quote">"What the agent can do will depend on the access the user has."<span>ON ACCESS</span></div>
+      <div class="quote">"It needs to remember everything."<span>ON MEMORY</span></div>
+      <div class="quote">"Assign it tasks and schedule them. It should work autonomously: replying to email, sending us alerts, telling us if a workflow has failed."<span>ON AUTONOMY</span></div>
+      <div class="quote">"It would be chat, but more of a voice agent."<span>ON VOICE</span></div>
+      <div class="quote">"Keep us on new leads, keep in contact with old ones, and if someone is interested, inform us. Daily reports on everything."<span>ON LEADS</span></div>
+      <div class="quote">"We should see our token usage live."<span>ON COST</span></div>
+    </div>
+    <div>
+      <h3 style="margin-top:1mm">Six capabilities</h3>
+      <div class="grid2">
+        <div class="card"><h4>Chat and voice</h4><p>Talk to Buddy in the browser, on your phone or by email. Same brain behind each.</p></div>
+        <div class="card"><h4>Acts as you</h4><p>It can only do what your CRM role allows. A read-only user gets a read-only Buddy.</p></div>
+        <div class="card"><h4>Remembers everything</h4><p>Conversations, emails, people, leads and decisions, searchable by meaning and over time.</p></div>
+        <div class="card"><h4>Works on its own</h4><p>Tasks, schedules, email replies, alerts, monitoring and daily reports.</p></div>
+        <div class="card"><h4>Finds and follows leads</h4><p>Apify search, outreach, nurture, alerts when someone is interested. Drafts workflows.</p></div>
+        <div class="card"><h4>Cost under control</h4><p>Estimator, optimizer, budgets and a live token meter.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>How we keep the two rules, in practice</h3>
+  <table>
+    <tr><th style="width:36%">Safeguard</th><th>What it means</th></tr>
+    <tr><td><b>Separate service</b></td><td>Buddy runs on its own server with its own database, queue and logs. If Buddy stops, the CRM does not notice.</td></tr>
+    <tr><td><b>Existing APIs only</b></td><td>MCP (the chatbot's tools), REST and GraphQL, OAuth and webhooks. No direct database or Redis access, ever.</td></tr>
+    <tr><td><b>The CRM decides permissions</b></td><td>Buddy acts with the user's own role. Buddy's app role adds a ceiling on top. Both must allow an action.</td></tr>
+    <tr><td><b>Everything is traceable</b></td><td>Every record Buddy creates or edits is logged with who asked and why, so it can be listed and reverted.</td></tr>
+    <tr><td><b>Test before and after</b></td><td>Every release: CRM regression suite on a staging copy of production, Buddy on, suite again, then production right after a backup.</td></tr>
+    <tr><td><b>CRM touchpoints register</b></td><td>If the CRM ever needs a change, it is new files only, switched off by default, tested on staging and listed here. Today the register is <b>empty</b>.</td></tr>
+  </table>
+  <div class="safe"><span class="tag">CRM-SAFE</span><span>This green note appears in every section. It says exactly how that part of Buddy stays outside the CRM.</span></div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 3. ARCHITECTURE -->
+<section class="page">
+  <div class="eyebrow">02 · Architecture</div>
+  <h2>Next to the CRM, connected only through its APIs</h2>
+  <p class="lead">One service with clear parts. The only part that knows it is talking to our CRM is the tools adapter, so a CRM upgrade can only break Buddy in one place, and never the other way around.</p>
+  <svg viewBox="0 0 760 432" width="100%" style="margin:1mm 0 2mm" font-family="Inter, sans-serif">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#44514b"/></marker>
+    </defs>
+    <rect x="8" y="40" width="140" height="250" rx="10" fill="#f4f6f5" stroke="#dde3e0"/>
+    <text x="78" y="64" text-anchor="middle" font-size="13" font-weight="700" fill="#16211c">Your team</text>
+    <g font-size="12" fill="#16211c" text-anchor="middle">
+      <rect x="23" y="80" width="110" height="34" rx="17" fill="#fff" stroke="#c9d3ce"/><text x="78" y="101">Chat</text>
+      <rect x="23" y="126" width="110" height="34" rx="17" fill="#fff" stroke="#c9d3ce"/><text x="78" y="147">Voice</text>
+      <rect x="23" y="172" width="110" height="34" rx="17" fill="#fff" stroke="#c9d3ce"/><text x="78" y="193">Email</text>
+      <rect x="23" y="218" width="110" height="34" rx="17" fill="#fff" stroke="#c9d3ce"/><text x="78" y="239">CRM tasks</text>
+    </g>
+    <line x1="150" y1="165" x2="184" y2="165" stroke="#44514b" stroke-width="1.6" marker-end="url(#ah)"/>
+
+    <rect x="186" y="10" width="330" height="320" rx="12" fill="#e4f1eb" stroke="#14674f" stroke-width="1.5"/>
+    <text x="200" y="34" font-size="14" font-weight="700" fill="#14674f">Manager Buddy</text>
+    <text x="200" y="50" font-size="10.5" fill="#44514b">own server · own database · own queue</text>
+    <rect x="200" y="62" width="302" height="34" rx="7" fill="#fff" stroke="#b9d6cb"/>
+    <text x="351" y="83" text-anchor="middle" font-size="11.5" fill="#16211c">Login as you (CRM OAuth) · team allowlist</text>
+    <rect x="200" y="104" width="302" height="40" rx="7" fill="#14674f"/>
+    <text x="351" y="129" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">Brain: Claude agent loop + model router</text>
+    <g font-size="11.5" fill="#16211c">
+      <rect x="200" y="152" width="147" height="48" rx="7" fill="#fff" stroke="#b9d6cb"/>
+      <text x="210" y="172" font-weight="650">Tools adapter</text><text x="210" y="189" font-size="10" fill="#44514b">CRM, Apify, n8n, email</text>
+      <rect x="355" y="152" width="147" height="48" rx="7" fill="#fff" stroke="#b9d6cb"/>
+      <text x="365" y="172" font-weight="650">Memory</text><text x="365" y="189" font-size="10" fill="#44514b">Postgres, pgvector, graph</text>
+      <rect x="200" y="208" width="147" height="48" rx="7" fill="#fff" stroke="#b9d6cb"/>
+      <text x="210" y="228" font-weight="650">Scheduler</text><text x="210" y="245" font-size="10" fill="#44514b">tasks, cron, retries</text>
+      <rect x="355" y="208" width="147" height="48" rx="7" fill="#fff" stroke="#b9d6cb"/>
+      <text x="365" y="228" font-weight="650">Monitors and alerts</text><text x="365" y="245" font-size="10" fill="#44514b">failures, health, leads</text>
+      <rect x="200" y="264" width="147" height="52" rx="7" fill="#fff" stroke="#b9d6cb"/>
+      <text x="210" y="285" font-weight="650">Cost meter</text><text x="210" y="302" font-size="10" fill="#44514b">ledger, budgets, kill switch</text>
+      <rect x="355" y="264" width="147" height="52" rx="7" fill="#fff" stroke="#b9d6cb"/>
+      <text x="365" y="285" font-weight="650">Voice worker</text><text x="365" y="302" font-size="10" fill="#44514b">speech in, speech out</text>
+    </g>
+
+    <line x1="518" y1="140" x2="578" y2="140" stroke="#44514b" stroke-width="1.6" marker-end="url(#ah)"/>
+    <text x="548" y="124" text-anchor="middle" font-size="9.5" fill="#44514b">APIs,</text>
+    <text x="548" y="134" text-anchor="middle" font-size="9.5" fill="#44514b">as you</text>
+    <line x1="578" y1="200" x2="518" y2="200" stroke="#44514b" stroke-width="1.6" marker-end="url(#ah)"/>
+    <text x="548" y="216" text-anchor="middle" font-size="9.5" fill="#44514b">webhooks</text>
+
+    <rect x="580" y="10" width="172" height="320" rx="12" fill="#fff" stroke="#16211c" stroke-width="1.5"/>
+    <text x="594" y="34" font-size="14" font-weight="700" fill="#16211c">FloLabs CRM</text>
+    <rect x="594" y="42" width="80" height="18" rx="9" fill="#e4f1eb"/>
+    <text x="634" y="55" text-anchor="middle" font-size="9.5" font-weight="700" fill="#14674f">unchanged</text>
+    <g font-size="10.5" fill="#16211c">
+      <rect x="594" y="70" width="144" height="30" rx="6" fill="#f4f6f5"/><text x="602" y="89">MCP tools (chatbot's)</text>
+      <rect x="594" y="106" width="144" height="30" rx="6" fill="#f4f6f5"/><text x="602" y="125">REST and GraphQL</text>
+      <rect x="594" y="142" width="144" height="30" rx="6" fill="#f4f6f5"/><text x="602" y="161">OAuth and roles</text>
+      <rect x="594" y="178" width="144" height="30" rx="6" fill="#f4f6f5"/><text x="602" y="197">Webhooks</text>
+      <rect x="594" y="214" width="144" height="30" rx="6" fill="#f4f6f5"/><text x="602" y="233">Tasks, workflows, email</text>
+      <rect x="594" y="250" width="144" height="30" rx="6" fill="#f4f6f5"/><text x="602" y="269">Company data</text>
+    </g>
+    <text x="666" y="312" text-anchor="middle" font-size="10.5" font-weight="700" fill="#14674f">0 lines of CRM code changed</text>
+
+    <line x1="351" y1="330" x2="351" y2="341" stroke="#44514b" stroke-width="1.4"/>
+    <line x1="78" y1="341" x2="686" y2="341" stroke="#44514b" stroke-width="1.4"/>
+    <g stroke="#44514b" stroke-width="1.4">
+      <line x1="78" y1="341" x2="78" y2="352" marker-end="url(#ah)"/>
+      <line x1="230" y1="341" x2="230" y2="352" marker-end="url(#ah)"/>
+      <line x1="382" y1="341" x2="382" y2="352" marker-end="url(#ah)"/>
+      <line x1="534" y1="341" x2="534" y2="352" marker-end="url(#ah)"/>
+      <line x1="686" y1="341" x2="686" y2="352" marker-end="url(#ah)"/>
+    </g>
+    <g font-size="11" fill="#16211c" text-anchor="middle">
+      <rect x="8" y="356" width="140" height="58" rx="8" fill="#fff" stroke="#c9d3ce"/>
+      <text x="78" y="378" font-weight="650">Anthropic</text><text x="78" y="396" font-size="9.5" fill="#44514b">Claude Opus, Sonnet,</text><text x="78" y="408" font-size="9.5" fill="#44514b">Haiku 5.5</text>
+      <rect x="160" y="356" width="140" height="58" rx="8" fill="#fff" stroke="#c9d3ce"/>
+      <text x="230" y="378" font-weight="650">Speech</text><text x="230" y="396" font-size="9.5" fill="#44514b">Deepgram, Cartesia</text><text x="230" y="408" font-size="9.5" fill="#44514b">or local models</text>
+      <rect x="312" y="356" width="140" height="58" rx="8" fill="#fff" stroke="#c9d3ce"/>
+      <text x="382" y="378" font-weight="650">Apify</text><text x="382" y="396" font-size="9.5" fill="#44514b">lead search</text><text x="382" y="408" font-size="9.5" fill="#44514b">(our API key)</text>
+      <rect x="464" y="356" width="140" height="58" rx="8" fill="#fff" stroke="#c9d3ce"/>
+      <text x="534" y="378" font-weight="650">n8n</text><text x="534" y="396" font-size="9.5" fill="#44514b">integrations outside</text><text x="534" y="408" font-size="9.5" fill="#44514b">the CRM</text>
+      <rect x="616" y="356" width="136" height="58" rx="8" fill="#fff" stroke="#c9d3ce"/>
+      <text x="684" y="378" font-weight="650">Telnyx</text><text x="684" y="396" font-size="9.5" fill="#44514b">phone calls</text><text x="684" y="408" font-size="9.5" fill="#44514b">(later)</text>
+    </g>
+  </svg>
+
+  <h3>What we reuse from the CRM, as it is</h3>
+  <table>
+    <tr><th style="width:27%">CRM feature (exists today)</th><th>How Buddy uses it</th><th style="width:30%">Checked in our code</th></tr>
+    <tr><td>MCP endpoint</td><td>The same tools the chatbot uses: find, search, group by, create notes and tasks, email, workflows. Buddy shows Claude only the ones we pick.</td><td><code>engine/api/mcp</code></td></tr>
+    <tr><td>OAuth server</td><td>Each person connects Buddy once. Buddy then acts as them, with refresh tokens.</td><td><code>application-oauth</code>, self-registration</td></tr>
+    <tr><td>Roles and permissions</td><td>Checked by the CRM on every call Buddy makes.</td><td><code>resolveCallerRoles</code></td></tr>
+    <tr><td>Webhooks</td><td>New email, form submitted, record changed, workflow run finished.</td><td>webhook jobs</td></tr>
+    <tr><td>Tasks and workflows</td><td>Assign a task to the Buddy user. List failed runs, draft new workflows.</td><td><code>list_workflow_runs</code> and 14 more tools</td></tr>
+    <tr><td>AI usage records</td><td>The chatbot's token use, shown on the same cost dashboard.</td><td><code>agentTurn</code> (tokens, credits)</td></tr>
+    <tr><td>Apps with front components</td><td>Optional voice button and cost widget inside the CRM, with a "Use your microphone" permission.</td><td>front-component renderer</td></tr>
+  </table>
+  <div class="safe"><span class="tag">CRM-SAFE</span><span>Everything above is used through its public interface, the way the chatbot or an outside app would use it. No CRM file is edited.</span></div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 4. ACCESS -->
+<section class="page">
+  <div class="eyebrow">03 · Access</div>
+  <h2>Buddy can do what you can do, and nothing more</h2>
+  <p class="lead">You said role-based access is already in the CRM, and you are right. We checked how it treats an outside app that acts for a person: the CRM allows an action only if <b>both</b> the person's role and the app's own role allow it. So Buddy inherits the access model without a line of new permission code.</p>
+  <div class="flow">
+    <div class="step"><b>You ask</b>"Move these 12 people to Contacted."</div>
+    <div class="arr">→</div>
+    <div class="step"><b>Buddy calls the CRM</b>with your login token, through the chatbot's tools.</div>
+    <div class="arr">→</div>
+    <div class="step hl"><b>The CRM checks</b>your role, and Buddy's app role. Both must allow it.</div>
+    <div class="arr">→</div>
+    <div class="step"><b>Allowed: done and logged</b>Not allowed: refused, and Buddy tells you why.</div>
+  </div>
+  <p class="small">Checked in code: <code>resolveCallerRoles</code> in <code>mcp-protocol.service.ts</code> and <code>build-user-role-ids-by-source.util.ts</code> ("An application acting for a user is bounded by both the user's role and its own"). The CRM's OAuth server accepts self-registered apps with authorization-code and refresh-token grants (<code>oauth-registration.controller.ts</code>). End-to-end login is tested on staging in phase 0.</p>
+
+  <h3>Who Buddy acts as</h3>
+  <table>
+    <tr><th style="width:30%">Situation</th><th style="width:20%">Buddy acts as</th><th>Result</th></tr>
+    <tr><td>You chat or talk to Buddy</td><td>You</td><td>A read-only user gets answers but no edits. Someone with write or delete access can have Buddy write or delete, after a confirmation.</td></tr>
+    <tr><td>A task you assigned or scheduled</td><td>You (saved login)</td><td>If your access changes or you leave, the task stops and tells the team. It never runs with more than you have today.</td></tr>
+    <tr><td>Team jobs: leads, monitoring, daily reports</td><td>The Buddy user</td><td>A normal CRM user with its own role, set by an admin.</td></tr>
+    <tr><td>Always, on top</td><td>Buddy's app role</td><td>A ceiling for everyone, admins included. We suggest it excludes settings, roles and data-model changes.</td></tr>
+  </table>
+
+  <h3>Two ways to reach the chatbot's functions</h3>
+  <table>
+    <tr><th style="width:22%"></th><th style="width:39%">A. Existing APIs <span class="verdict v-go">Recommended</span></th><th>B. Special interface inside the CRM</th></tr>
+    <tr><td>CRM code changed</td><td><b>None</b></td><td>New module (added files) plus one registration line</td></tr>
+    <tr><td>Acts as the user</td><td>Yes, through the CRM's OAuth</td><td>Yes, in the CRM's own process</td></tr>
+    <tr><td>Which functions</td><td>Same tools as the chatbot via <code>/mcp</code>. Buddy exposes only the ones we choose.</td><td>Same tool registry, custom subset</td></tr>
+    <tr><td>If Buddy fails</td><td>CRM unaffected, different server</td><td>Runs inside the CRM, so a bug can reach it</td></tr>
+    <tr><td>CRM upgrades</td><td>Contract tests catch API changes</td><td>Must be re-tested with every upgrade</td></tr>
+    <tr><td>When</td><td>From day one</td><td>Only for a gap the APIs cannot cover</td></tr>
+  </table>
+  <div class="safe"><span class="tag">CRM-SAFE</span><span>We start with A. If we ever need B, it is built as new files behind a switch that is off by default, tested on a copy of production, and recorded in the CRM touchpoints register. API load is capped by the CRM's own rate limits for apps, and Buddy paces itself below them.</span></div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 5. MEMORY -->
+<section class="page">
+  <div class="eyebrow">04 · Memory</div>
+  <h2>How Buddy remembers everything</h2>
+  <p class="lead">Remembering everything is mostly a storage and search problem, not an AI problem. We keep a complete record in Buddy's own database, in layers, and memory is never allowed to become a way around permissions.</p>
+
+  <div class="layer" style="background:#eef5f2"><b>1. Facts</b><span>Stages, counts, who replied, who signed. Never copied as truth. Always read live from the CRM, with your permissions.</span><span class="where">CRM, live</span></div>
+  <div class="layer" style="background:#f4f6f5"><b>2. Event log</b><span>Every conversation, voice transcript, email handled, action, alert and run. Append-only, searchable by person and date.</span><span class="where">Buddy Postgres</span></div>
+  <div class="layer" style="background:#eef5f2"><b>3. Search by meaning</b><span>Emails, notes, form answers, transcripts and lead research, as vectors, plus keyword search for names and emails.</span><span class="where">pgvector + full-text</span></div>
+  <div class="layer" style="background:#f4f6f5"><b>4. Knowledge graph</b><span>People, companies, leads, team members and campaigns, joined by dated links: replied to, interested in, met, referred by, works at.</span><span class="where">Postgres graph tables</span></div>
+  <div class="layer" style="background:#eef5f2"><b>5. Team rules</b><span>"Never email applicants on Fridays." Small, edited by the team, loaded every time. Plus Buddy's own notes through Claude's memory tool.</span><span class="where">Buddy Postgres</span></div>
+  <div class="layer" style="background:#f4f6f5"><b>6. Working memory</b><span>The conversation in hand. Long threads are summarised automatically (compaction) and repeated context is cached.</span><span class="where">Claude context</span></div>
+
+  <h3>Options we looked at</h3>
+  <table>
+    <tr><th style="width:24%">Option</th><th>What it is</th><th style="width:17%">License</th><th style="width:13%">Verdict</th></tr>
+    <tr><td>Postgres + pgvector + full-text</td><td>Vectors and keywords in one database we already know how to run and back up</td><td>PostgreSQL</td><td><span class="verdict v-go">Start here</span></td></tr>
+    <tr><td>Apache AGE</td><td>Graph queries (openCypher) inside Postgres. Current releases target Postgres 17 and 18</td><td>Apache-2.0</td><td><span class="verdict v-later">If needed</span></td></tr>
+    <tr><td>Graphiti (with Neo4j)</td><td>Temporal knowledge graph: old facts expire instead of being overwritten. Pre-1.0, AI cost on every write</td><td>Apache-2.0 (Neo4j CE: GPLv3)</td><td><span class="verdict v-later">Trial later</span></td></tr>
+    <tr><td>Mem0</td><td>Memory layer for preferences and facts, vector and graph</td><td>Apache-2.0</td><td><span class="verdict v-opt">Alternative</span></td></tr>
+    <tr><td>Letta, Cognee</td><td>Full agent runtime with memory tiers (Letta); graph and vector knowledge engine (Cognee)</td><td>Apache-2.0</td><td><span class="verdict v-opt">Alternative</span></td></tr>
+    <tr><td>Kùzu</td><td>Embedded graph database</td><td>MIT, archived Oct 2025</td><td><span class="verdict v-no">Avoid</span></td></tr>
+    <tr><td>FalkorDB</td><td>Graph database used by some memory tools</td><td>SSPLv1, source-available</td><td><span class="verdict v-no">Avoid</span></td></tr>
+    <tr><td>Anthropic memory stores</td><td>Memory hosted by Anthropic (Managed Agents, beta)</td><td>Service</td><td><span class="verdict v-no">Not now</span></td></tr>
+  </table>
+
+  <div class="grid3">
+    <div class="box"><h4>How much storage</h4><p class="small">43k people and about 100k emails is roughly 150M tokens of text. As vectors plus text and indexes that is about 2 to 4 GB, growing 1 to 2 GB a year. Transcripts only, no audio, unless we decide otherwise.</p></div>
+    <div class="box"><h4>Permissions stay intact</h4><p class="small">Each memory points to its source record. Before Buddy shows a memory to you, it re-checks that record with your login. If you can't open it in the CRM, you don't see it through Buddy.</p></div>
+    <div class="box"><h4>Forgetting on request</h4><p class="small">When a person is deleted in the CRM, a webhook tells Buddy to delete their memories too (GDPR). Embeddings come from a local model by default, so text does not leave our servers.</p></div>
+  </div>
+  <div class="safe"><span class="tag">CRM-SAFE</span><span>Memory lives in Buddy's own Postgres on Buddy's server. It is filled from webhooks and from slow, throttled reads at night. It never connects to the CRM's database and never writes back to it.</span></div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 6. TASKS, AUTONOMY, MONITORING -->
+<section class="page">
+  <div class="eyebrow">05 · Tasks, autonomy and monitoring</div>
+  <h2>Give it work, let it run, hear about what matters</h2>
+  <div class="grid4" style="margin:1mm 0 2mm">
+    <div class="card"><h4>Say it</h4><p>Chat or voice: "Every Monday send me the funnel." "Remind me about Lina in 3 months."</p></div>
+    <div class="card"><h4>Email it</h4><p>From a team address. Orders from anyone else are ignored.</p></div>
+    <div class="card"><h4>Assign it</h4><p>Create a CRM task and assign it to the Buddy user, using the Tasks we already have.</p></div>
+    <div class="card"><h4>Schedule it</h4><p>Recurring jobs: briefing at 08:00, lead run at night, checks every 5 minutes.</p></div>
+  </div>
+  <p class="small">The scheduler is a durable job queue in Buddy's own Postgres (pg-boss): retries, waits of months, no job runs twice, nothing is lost on restart. It never uses the CRM's Redis or worker.</p>
+
+  <h3>How much freedom, per kind of action</h3>
+  <table>
+    <tr><th style="width:17%">Level</th><th style="width:33%">Buddy...</th><th>Examples</th></tr>
+    <tr><td><span class="tag">DO</span></td><td>acts and logs it</td><td>Read and search, answer questions, reports, notes, its own tasks, alerts to the team</td></tr>
+    <tr><td><span class="tag blue">DO AND TELL</span></td><td>acts, then tells the owner</td><td>Routine email replies once trusted, follow-up reminders, nurture emails to old contacts</td></tr>
+    <tr><td><span class="tag amber">ASK FIRST</span></td><td>drafts it and waits for a yes</td><td>A new kind of email reply, stage changes, bulk edits, merges, deletes, new workflows</td></tr>
+    <tr><td><span class="tag red">NEVER</span></td><td>blocked in code</td><td>Change roles or settings, act beyond the user's role, decide an applicant's outcome, go over budget</td></tr>
+  </table>
+  <p class="small">Every kind of email reply starts as Ask first. It moves to Do and tell after two weeks with 90% or more of its drafts sent unchanged. You can see this score per kind of email at any time. This is how Buddy gets to replying on its own without surprising anyone.</p>
+
+  <h3>What Buddy watches</h3>
+  <table>
+    <tr><th style="width:26%">What</th><th>How Buddy checks</th><th style="width:30%">Alert</th></tr>
+    <tr><td>A CRM workflow failed</td><td>Workflow runs with status FAILED, through the workflow tools and webhooks</td><td>Email to the owner within 5 minutes</td></tr>
+    <tr><td>A mailbox stopped syncing</td><td>Mailbox sync status through the API</td><td>Email, and in the daily report</td></tr>
+    <tr><td>CRM down or slow</td><td>Health endpoint and response times</td><td>Email immediately</td></tr>
+    <tr><td>Someone is interested</td><td>Every reply is sorted by intent (lead or applicant)</td><td>Email plus a CRM task for the owner</td></tr>
+    <tr><td>Buddy's own jobs</td><td>Run log, missed or doubled jobs</td><td>Email to the admin</td></tr>
+    <tr><td>Spending</td><td>Cost meter at 50, 80 and 100% of budget</td><td>Email; at 100% Buddy pauses</td></tr>
+    <tr><td>n8n and Apify runs</td><td>Their APIs</td><td>Email to the admin</td></tr>
+  </table>
+  <div class="box"><h4>Daily report, 08:00, per person</h4><p class="small">New applicants and leads, replies waiting, people stuck in a stage, interested leads, tasks done and stuck, anything that failed, yesterday's cost and month to date. Each person's report only contains what their role can see. Weekly report on Fridays: funnel by stage and source, time in stage, form drop-off, what Buddy did.</p></div>
+  <div class="safe"><span class="tag">CRM-SAFE</span><span>Buddy only reads the CRM and adds notes, tasks and emails through it, as the person it acts for. It does not turn on, edit or delete existing CRM workflows. CRM workflows are still off in production, as FLOLABS.md says.</span></div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 7. VOICE -->
+<section class="page">
+  <div class="eyebrow">06 · Voice</div>
+  <h2>Talk to Buddy like a colleague</h2>
+  <div class="flow">
+    <div class="step"><b>Microphone</b>browser, phone app or a phone call</div>
+    <div class="arr">→</div>
+    <div class="step"><b>Turn detection</b>knows when you stopped</div>
+    <div class="arr">→</div>
+    <div class="step"><b>Speech to text</b>streaming</div>
+    <div class="arr">→</div>
+    <div class="step hl"><b>Buddy's brain</b>same tools, memory and permissions as chat</div>
+    <div class="arr">→</div>
+    <div class="step"><b>Text to speech</b>streaming, stops when you interrupt</div>
+  </div>
+  <p class="small"><b>Why this shape.</b> Anthropic does not offer a public real-time voice API (Claude's voice mode is only in its own apps), so Claude sits in the middle as text. That is good for us: voice is just a different way in and out of the same Buddy, with the same permissions and memory as chat.</p>
+
+  <h3>Where to get each piece</h3>
+  <table>
+    <tr><th style="width:17%">Piece</th><th style="width:38%">Hosted (fastest to start)</th><th>Open source (self-hosted)</th></tr>
+    <tr><td>Framework</td><td>LiveKit Cloud</td><td><b>Pipecat</b> (BSD-2, recommended) or LiveKit Agents (Apache-2.0; its turn model has its own license)</td></tr>
+    <tr><td>Speech to text</td><td><b>Deepgram Nova-3</b>, about $0.005 to $0.008 a minute</td><td>faster-whisper or Whisper large-v3 (needs a GPU for real time); Kyutai STT (check license)</td></tr>
+    <tr><td>Text to speech</td><td>Cartesia Sonic or ElevenLabs Flash, about 3 cents per minute of speech</td><td><b>Kokoro</b> (Apache-2.0, 82M, runs on CPU), Chatterbox (MIT), Orpheus (Apache-2.0)</td></tr>
+    <tr><td>Turn detection</td><td>Included in the hosted options</td><td>Silero VAD plus Pipecat's smart-turn model</td></tr>
+    <tr><td>Phone calls</td><td>Telnyx SIP, about $0.007 a minute plus about $1 a month per number</td><td>Works with both Pipecat and LiveKit (Telnyx has guides for each)</td></tr>
+    <tr><td>All in one</td><td></td><td>Kyutai Unmute: wraps any text model with open STT and TTS (check license before use)</td></tr>
+  </table>
+
+  <div class="grid3">
+    <div class="box"><h4>1. Buddy app</h4><p class="small">A web app you can install on desktop and phone, with a push-to-talk button. No CRM change. First to ship.</p></div>
+    <div class="box"><h4>2. Inside the CRM</h4><p class="small">A voice button as a CRM app. Our CRM already supports apps with a "Use your microphone" permission. Installed through the app system, not by editing the CRM. To confirm on our version in staging.</p></div>
+    <div class="box"><h4>3. Phone</h4><p class="small">Call a number and talk to Buddy, through Telnyx. Later, once voice in the app works well.</p></div>
+  </div>
+
+  <h3>Making it feel quick</h3>
+  <ul class="small">
+    <li>Target: first words back in about a second on office internet. Measured in phase 4, not promised up front.</li>
+    <li>Streaming everywhere, a cached system prompt, and a "start speaking immediately" instruction to cut Claude's time to first word.</li>
+    <li>Quick lookups go to Claude Haiku 5.5. Anything needing several tools goes to Sonnet 5.5, with a short "checking..." while it works.</li>
+    <li>Language: Kokoro covers English and some other languages. If we need Arabic voice (Ahmed's forms), a hosted voice is the safer choice. To test.</li>
+    <li>Today, without any work: the CRM's chatbot already has dictation (speech to text in the browser).</li>
+  </ul>
+  <div class="safe"><span class="tag">CRM-SAFE</span><span>The voice worker runs on Buddy's server and only talks to Buddy. Option 2 uses the CRM's own app system, and nothing is installed in production until it passes the staging tests.</span></div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 8. LEADS AND WORKFLOWS -->
+<section class="page">
+  <div class="eyebrow">07 · Lead generation and workflows</div>
+  <h2>New leads, old contacts, and a tap on the shoulder when someone bites</h2>
+  <div class="chipline">
+    <span class="c">Target profile</span><span class="a">→</span>
+    <span class="c">Find (Apify)</span><span class="a">→</span>
+    <span class="c">Clean and dedupe</span><span class="a">→</span>
+    <span class="c">Enrich</span><span class="a">→</span>
+    <span class="c">Score</span><span class="a">→</span>
+    <span class="c">Add to CRM</span><span class="a">→</span>
+    <span class="c">Reach out</span><span class="a">→</span>
+    <span class="c">Nurture old contacts</span><span class="a">→</span>
+    <span class="c hl">Interest detected</span><span class="a">→</span>
+    <span class="c hl">Alert + task</span>
+  </div>
+  <table>
+    <tr><th style="width:17%">Step</th><th>How</th><th style="width:22%">Model and cost lever</th></tr>
+    <tr><td>Find</td><td>Apify actors (Google Maps places, website contact pages, company sites, job posts) through Apify's official MCP server, with our API key. Runs are asynchronous; results come back by webhook.</td><td>No AI</td></tr>
+    <tr><td>Clean and dedupe</td><td>Match against the CRM by email and domain, validate addresses, drop anyone already in the CRM or on the opt-out list.</td><td>Plain code</td></tr>
+    <tr><td>Enrich and score</td><td>Short website summary, size, location, fit. Rules first, then Claude on the shortlist.</td><td>Haiku 5.5, Batch API</td></tr>
+    <tr><td>Add to CRM</td><td>Only qualified leads, as new Company and Person records with a note "Source: Buddy lead search".</td><td>No AI</td></tr>
+    <tr><td>Reach out and nurture</td><td>Personal first email, two or three follow-ups, periodic check-ins with old contacts. Stops the moment someone replies.</td><td>Sonnet 5.5 (first), Haiku 5.5 (follow-ups), batched</td></tr>
+    <tr><td>Interest detected</td><td>Every reply sorted by intent. "Interested" means an email to the owner within 5 minutes and a CRM task.</td><td>Haiku 5.5</td></tr>
+    <tr><td>Daily lead report</td><td>Found, added, contacted, replied, interested, unsubscribed, bounced, cost.</td><td>Sonnet 5.5, batched</td></tr>
+  </table>
+
+  <div class="grid2">
+    <div class="box">
+      <h4>Guardrails for outreach</h4>
+      <ul class="small" style="margin:0">
+        <li>A separate outreach domain and mailboxes, so cold email can never hurt hr@'s delivery to applicants.</li>
+        <li>Warm-up, then a small daily cap per mailbox (start around 20), raised slowly.</li>
+        <li>Unsubscribe link in every email, a shared opt-out list, quiet hours.</li>
+        <li>All testing with internal +crmtest addresses first.</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h4>Legal, to check before the first send</h4>
+      <ul class="small" style="margin:0">
+        <li>GDPR: a legitimate-interest check, and telling people where we got their details within a month (Art. 14).</li>
+        <li>Cold email rules differ by country. Germany, for example, requires consent even for B2B.</li>
+        <li>Site terms: no LinkedIn scraping, its terms forbid it.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Workflows</h3>
+  <p class="small">Buddy drafts CRM workflows with the CRM's own workflow tools (list, create steps, connect, activate). <b>Rule:</b> anything Buddy builds is created switched off and named "[Buddy] ...". A person reviews it and switches it on. For integrations outside the CRM (Calendly, Zoom, Slack), Buddy builds n8n workflows through n8n's API, on the n8n server we already run.</p>
+  <p class="small"><b>Apify cost:</b> Starter plan about $29 a month, plus about $1 to $7 per 1,000 places, depending on the actor. Third-party figures, to confirm on apify.com.</p>
+  <div class="safe"><span class="tag">CRM-SAFE</span><span>Leads are added as new records only. No existing record is changed without a person's yes. Raw scraped data stays in Buddy's database, and only qualified leads go into the CRM. New workflows are created switched off and existing ones are never edited.</span></div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 9. COST ESTIMATE -->
+<section class="page">
+  <div class="eyebrow">08 · Cost estimate</div>
+  <h2>About $280 a month with the optimizer, about $860 without</h2>
+  <p class="lead">An estimate for the usage below. The estimator in Buddy recalculates it from real usage after two weeks, so treat these as a starting point, not a quote.</p>
+
+  <div class="two-col" style="grid-template-columns: .9fr 1.1fr">
+    <div>
+      <h3 style="margin-top:0">Assumptions</h3>
+      <table>
+        <tr><td>People using Buddy</td><td class="num">8, 22 working days</td></tr>
+        <tr><td>Chat and voice requests</td><td class="num">15 / person / day</td></tr>
+        <tr><td>Model calls per request</td><td class="num">about 4</td></tr>
+        <tr><td>Voice</td><td class="num">10 min / person / day</td></tr>
+        <tr><td>Emails handled</td><td class="num">150 a day, half replied</td></tr>
+        <tr><td>Leads found / first emails</td><td class="num">3,000 / 600 a month</td></tr>
+        <tr><td>Old contacts nurtured</td><td class="num">2,000 a month</td></tr>
+        <tr><td>Planning jobs on Opus 5.5</td><td class="num">50 a month</td></tr>
+      </table>
+      <h3>Claude prices used</h3>
+      <table>
+        <tr><th>Per million tokens</th><th class="num">Input</th><th class="num">Cache read</th><th class="num">Output</th></tr>
+        <tr><td>Opus 5.5</td><td class="num">$4</td><td class="num">$0.20</td><td class="num">$20</td></tr>
+        <tr><td>Sonnet 5.5</td><td class="num">$2</td><td class="num">$0.10</td><td class="num">$10</td></tr>
+        <tr><td>Haiku 5.5 (prompt &le; 100K)</td><td class="num">$0.10</td><td class="num">$0.01</td><td class="num">$0.50</td></tr>
+      </table>
+      <p class="small">From Anthropic's pricing page, 31 Oct 2026. Cache writes cost 1.25x input. Batch API is 50% off everything. Haiku 5.5 costs 5x more above 100K-token prompts.</p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">Monthly cost by part (USD)</h3>
+      <div class="legend"><span><i style="background:var(--series-1)"></i>Without optimizer</span><span><i style="background:var(--series-2)"></i>With optimizer</span></div>
+      <svg viewBox="0 0 400 318" width="100%" font-family="Inter, sans-serif">
+        <g font-size="9.5" fill="#44514b">
+          <line x1="132" y1="4" x2="132" y2="300" stroke="#c3c2b7" stroke-width="1"/>
+        </g>
+        <g font-size="9" fill="#76817c">
+          <text x="132" y="314" text-anchor="middle">0</text>
+          <text x="191" y="314" text-anchor="middle">100</text>
+          <text x="250" y="314" text-anchor="middle">200</text>
+          <text x="309" y="314" text-anchor="middle">300</text>
+          <text x="368" y="314" text-anchor="middle">400</text>
+        </g>
+        <g stroke="#e1e0d9" stroke-width="1">
+          <line x1="191" y1="4" x2="191" y2="300"/>
+          <line x1="250" y1="4" x2="250" y2="300"/>
+          <line x1="309" y1="4" x2="309" y2="300"/>
+          <line x1="368" y1="4" x2="368" y2="300"/>
+        </g>
+        <g font-size="9.5" fill="#16211c" text-anchor="end">
+          <text x="126" y="17">Chat and voice (AI)</text>
+          <text x="126" y="47">Email handling (AI)</text>
+          <text x="126" y="77">Memory upkeep (AI)</text>
+          <text x="126" y="107">Lead generation (AI)</text>
+          <text x="126" y="137">Planning, workflows (AI)</text>
+          <text x="126" y="167">Reports, monitoring (AI)</text>
+          <text x="126" y="197">Speech in and out</text>
+          <text x="126" y="227">Apify</text>
+          <text x="126" y="257">Outreach mailboxes</text>
+          <text x="126" y="287">Buddy server</text>
+        </g>
+        <g>
+          <rect x="133" y="7" width="252.5" height="9" rx="2" fill="#2a78d6"/><rect x="133" y="18" width="48.4" height="9" rx="2" fill="#eb6834"/>
+          <rect x="133" y="37" width="51.9" height="9" rx="2" fill="#2a78d6"/><rect x="133" y="48" width="18.9" height="9" rx="2" fill="#eb6834"/>
+          <rect x="133" y="67" width="37.2" height="9" rx="2" fill="#2a78d6"/><rect x="133" y="78" width="1.6" height="9" rx="0.8" fill="#eb6834"/>
+          <rect x="133" y="97" width="36" height="9" rx="2" fill="#2a78d6"/><rect x="133" y="108" width="3.5" height="9" rx="1.5" fill="#eb6834"/>
+          <rect x="133" y="127" width="22.4" height="9" rx="2" fill="#2a78d6"/><rect x="133" y="138" width="13" height="9" rx="2" fill="#eb6834"/>
+          <rect x="133" y="157" width="4.7" height="9" rx="2" fill="#2a78d6"/><rect x="133" y="168" width="2.4" height="9" rx="1.2" fill="#eb6834"/>
+          <rect x="133" y="187" width="21.2" height="9" rx="2" fill="#2a78d6"/><rect x="133" y="198" width="8.3" height="9" rx="2" fill="#eb6834"/>
+          <rect x="133" y="217" width="35.4" height="9" rx="2" fill="#2a78d6"/><rect x="133" y="228" width="23.6" height="9" rx="2" fill="#eb6834"/>
+          <rect x="133" y="247" width="14.8" height="9" rx="2" fill="#2a78d6"/><rect x="133" y="258" width="14.8" height="9" rx="2" fill="#eb6834"/>
+          <rect x="133" y="277" width="30.1" height="9" rx="2" fill="#2a78d6"/><rect x="133" y="288" width="30.1" height="9" rx="2" fill="#eb6834"/>
+        </g>
+        <g font-size="9" fill="#16211c">
+          <text x="381" y="15" text-anchor="end" fill="#ffffff" font-weight="600">428</text><text x="185" y="26">82</text>
+          <text x="156" y="56">32</text>
+          <text x="138" y="86">2</text>
+          <text x="140" y="116">6</text>
+          <text x="150" y="146">22</text>
+          <text x="139" y="176">4</text>
+          <text x="145" y="206">14</text>
+          <text x="160" y="236">40</text>
+          <text x="151" y="266">25</text>
+          <text x="167" y="296">51</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Part</th><th class="num">Without</th><th class="num">With optimizer</th><th>What changes</th></tr>
+    <tr><td>Chat and voice (AI)</td><td class="num">$428</td><td class="num">$82</td><td>Caching ($155), then half of the simple questions on Haiku 5.5</td></tr>
+    <tr><td>Email handling (AI)</td><td class="num">$88</td><td class="num">$32</td><td>Sorting on Haiku 5.5, cached template prompt for drafts</td></tr>
+    <tr><td>Memory upkeep (AI)</td><td class="num">$63</td><td class="num">$2</td><td>Haiku 5.5 through the Batch API at night</td></tr>
+    <tr><td>Lead generation (AI)</td><td class="num">$61</td><td class="num">$6</td><td>Batch API; Haiku for scoring and follow-ups</td></tr>
+    <tr><td>Planning, workflows (AI)</td><td class="num">$38</td><td class="num">$22</td><td>Caching; Opus 5.5 kept for hard jobs only</td></tr>
+    <tr><td>Reports, monitoring (AI)</td><td class="num">$8</td><td class="num">$4</td><td>Prepared through the Batch API before 08:00</td></tr>
+    <tr><td>Speech in and out</td><td class="num">$36</td><td class="num">$14</td><td>Local Kokoro voice instead of a hosted one</td></tr>
+    <tr><td>Apify</td><td class="num">$60</td><td class="num">$40</td><td>Capped results per run, cheaper actors, reuse</td></tr>
+    <tr><td>Outreach mailboxes</td><td class="num">$25</td><td class="num">$25</td><td>Domain plus two mailboxes</td></tr>
+    <tr><td>Buddy server</td><td class="num">$51</td><td class="num">$51</td><td>Same size as the CRM's (CPX32 with backups)</td></tr>
+    <tr class="total"><td>Total per month</td><td class="num">$858</td><td class="num">$278</td><td>Embeddings: $0 with a local model (or about $3 to $9 once with Voyage)</td></tr>
+  </table>
+  <p class="small">Not included: the CRM chatbot's own AI use (already metered in the CRM, and shown on Buddy's dashboard), phone calls (later), and one-off setup time. Speech, Apify and server prices are third-party or from FLOLABS.md, to confirm before buying.</p>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 10. OPTIMIZER + LIVE USAGE -->
+<section class="page">
+  <div class="eyebrow">09 · Live usage</div>
+  <h2>See every token as it is spent</h2>
+  <p class="lead">Cost is built in phase 1, before Buddy does any real work. Every call to Claude is metered the moment it happens, so we never find out about spending from the invoice.</p>
+  <div class="dash">
+    <div class="dash-head"><b>Buddy · Cost and usage</b><span class="small muted">Live · updated every few seconds · mock-up with example numbers</span></div>
+    <div class="grid4">
+      <div class="kpi"><div class="label">Spend today</div><div class="value">$9.84</div><div class="sub">of a $15 daily cap</div></div>
+      <div class="kpi"><div class="label">Month to date</div><div class="value">$212</div><div class="sub">forecast $286 by 30 Nov</div></div>
+      <div class="kpi"><div class="label">Cache hit rate</div><div class="value">87%</div><div class="sub">share of input read from cache</div></div>
+      <div class="kpi"><div class="label">Tokens today</div><div class="value">4.1M</div><div class="sub">3.6M of them from cache</div></div>
+    </div>
+    <div class="grid2" style="margin-top:2.6mm; grid-template-columns: 1.15fr .85fr">
+      <div class="kpi">
+        <div class="label">Spend per hour today (USD)</div>
+        <svg viewBox="0 0 300 150" width="100%" font-family="Inter, sans-serif" style="margin-top:1mm">
+          <g stroke="#e1e0d9" stroke-width="1"><line x1="22" y1="28" x2="296" y2="28"/><line x1="22" y1="78" x2="296" y2="78"/></g>
+          <line x1="22" y1="128" x2="296" y2="128" stroke="#c3c2b7" stroke-width="1"/>
+          <g font-size="8" fill="#76817c" text-anchor="end"><text x="18" y="31">2.0</text><text x="18" y="81">1.0</text><text x="18" y="131">0</text></g>
+          <polyline fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" points="30,118 56,83 82,58 108,73 134,88 160,63 186,48 212,68 238,93 264,108 290,118"/>
+          <circle cx="186" cy="48" r="4" fill="#2a78d6" stroke="#fbfcfb" stroke-width="2"/>
+          <text x="186" y="38" font-size="8.5" fill="#16211c" text-anchor="middle">$1.60 at 14:00</text>
+          <g font-size="8" fill="#76817c" text-anchor="middle"><text x="30" y="143">08</text><text x="82" y="143">10</text><text x="134" y="143">12</text><text x="186" y="143">14</text><text x="238" y="143">16</text><text x="290" y="143">18</text></g>
+        </svg>
+      </div>
+      <div class="kpi">
+        <div class="label">Monthly budget</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:1.2mm"><span style="font:700 13pt 'Inter Display',Inter,sans-serif">$212 of $350</span><span class="status"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="#0ca30c"/><path d="M3.3 6.2 L5.2 8 L8.8 4.3" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>On track</span></div>
+        <svg viewBox="0 0 200 12" width="100%" style="margin:1.6mm 0 1mm"><rect x="0" y="2" width="200" height="8" rx="4" fill="#e9ecea"/><rect x="0" y="2" width="122" height="8" rx="4" fill="#0ca30c"/></svg>
+        <div class="sub">61% used, 61% of the month gone. Alerts at 50, 80 and 100%; Buddy pauses at 100%.</div>
+        <table style="margin-top:1.6mm;font-size:7.8pt">
+          <tr><td>Chat and voice</td><td class="num">$5.10</td></tr>
+          <tr><td>Email</td><td class="num">$2.20</td></tr>
+          <tr><td>Planning</td><td class="num">$1.40</td></tr>
+          <tr><td>Leads, reports, memory</td><td class="num">$1.14</td></tr>
+          <tr><td class="muted">CRM chatbot (from the CRM)</td><td class="num muted">$3.10</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <h3>Where the numbers come from</h3>
+  <table>
+    <tr><th style="width:30%">Source</th><th>What it gives</th><th style="width:15%">How often</th></tr>
+    <tr><td>Buddy's usage ledger</td><td>Every Claude call: model, input, cache write, cache read, output and its price, plus who asked, which feature and which task</td><td>Live</td></tr>
+    <tr><td>The CRM chatbot</td><td>Its token use and credits per turn, read from <code>agentTurn</code> through the API, read-only</td><td>Every minute</td></tr>
+    <tr><td>Anthropic usage and cost reports</td><td>Checks that our numbers match the bill. Buddy gets its own Anthropic workspace and key, so its spend is separate.</td><td>Daily</td></tr>
+    <tr><td>Speech, Apify, Telnyx</td><td>Their usage APIs, so the total covers more than AI tokens</td><td>Daily</td></tr>
+  </table>
+
+  <h3>What you can do from it</h3>
+  <div class="grid3">
+    <div class="box"><h4>Drill down</h4><p class="small">By person, feature, model, task or day. See the most expensive tasks and what each one cost, down to a single call.</p></div>
+    <div class="box"><h4>Set limits</h4><p class="small">Monthly budget, daily cap per person, cap per feature. Alerts by email at 50, 80 and 100%.</p></div>
+    <div class="box"><h4>Stop it</h4><p class="small">Pause one feature (say, lead outreach) or all of Buddy with one switch. The CRM carries on as normal.</p></div>
+  </div>
+  <div class="safe"><span class="tag">CRM-SAFE</span><span>The dashboard lives in the Buddy app. A widget inside a CRM dashboard is optional, as a CRM app. The chatbot's usage is only read, never changed.</span></div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 10b. OPTIMIZER AND ESTIMATOR -->
+<section class="page">
+  <div class="eyebrow">10 · Cost optimizer and estimator</div>
+  <h2>Spend fewer tokens without losing quality</h2>
+  <p class="lead">The optimizer is a set of rules Buddy follows on every call, plus a weekly report that shows whether they are working. The estimator tells us what a change in usage will cost before we make it.</p>
+  <h3>The optimizer: rules Buddy follows, and a weekly report on them</h3>
+  <table>
+    <tr><th style="width:24%">Lever</th><th>What it does</th><th style="width:24%">Effect in our estimate</th></tr>
+    <tr><td>Prompt caching</td><td>Tools and rules come first and stay identical, so after the first call they are re-read at 5% of the input price (Opus and Sonnet 5.5)</td><td>Chat $428 to $155</td></tr>
+    <tr><td>Model router</td><td>Haiku 5.5 for sorting, extracting and quick lookups (20x cheaper than Sonnet 5.5). Sonnet for conversation and drafts. Opus only for planning.</td><td>Chat $155 to $82; email $88 to $32</td></tr>
+    <tr><td>Batch API</td><td>50% off anything nobody waits for: lead scoring, memory upkeep, report preparation</td><td>Leads $61 to $6; memory $63 to $2</td></tr>
+    <tr><td>Plain queries first</td><td>Counts, filters and dedupe without AI. Claude only sees the shortlist, never 43k people.</td><td>Keeps cost flat as data grows</td></tr>
+    <tr><td>Budgets and kill switch</td><td>Daily cap per person, monthly cap per feature, hard stop for everything</td><td>Worst case is capped</td></tr>
+    <tr><td>Don't redo work</td><td>Reuse lead scores and summaries for 30 days. Keep Haiku prompts under 100K tokens.</td><td>Avoids repeats and the 5x tier</td></tr>
+    <tr><td>Weekly review</td><td>Top 10 costly tasks, cache hit rate, model mix. A change ships only if quality holds on a test set.</td><td>Keeps savings honest</td></tr>
+  </table>
+  <h3>The estimator</h3>
+  <div class="two-col" style="grid-template-columns: 1fr 1fr">
+    <div class="box">
+      <h4>You enter</h4>
+      <table style="margin:0">
+        <tr><td>People using Buddy</td><td class="num">8</td></tr>
+        <tr><td>Requests per person per day</td><td class="num">15</td></tr>
+        <tr><td>Voice minutes per person per day</td><td class="num">10</td></tr>
+        <tr><td>Emails handled per day</td><td class="num">150</td></tr>
+        <tr><td>Leads found per month</td><td class="num">3,000</td></tr>
+        <tr><td>Optimizer rules</td><td class="num">on</td></tr>
+      </table>
+    </div>
+    <div class="box">
+      <h4>It shows</h4>
+      <table style="margin:0">
+        <tr><td>Monthly estimate</td><td class="num"><b>$278</b></td></tr>
+        <tr><td>AI tokens / speech / Apify</td><td class="num">$148 / $14 / $40</td></tr>
+        <tr><td>Mailboxes and server</td><td class="num">$76</td></tr>
+        <tr><td>Per person per month</td><td class="num">about $35</td></tr>
+        <tr><td>Caching switched off</td><td class="num">+$143</td></tr>
+        <tr><td>No model router (all Sonnet)</td><td class="num">+$73</td></tr>
+      </table>
+    </div>
+  </div>
+  <p class="small" style="margin-top:2mm">It uses the same price table as the live meter. For the first two weeks it works from the assumptions; after that it uses measured cost per completed task and forecasts the month. Prices are versioned, so a price change from Anthropic or a vendor shows up as a dated change, not a silent jump.</p>
+  <div class="safe"><span class="tag">CRM-SAFE</span><span>Optimizer and estimator run entirely inside Buddy. They change how Buddy calls Claude, never how the CRM works.</span></div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 11. ROADMAP -->
+<section class="page">
+  <div class="eyebrow">11 · Roadmap</div>
+  <h2>Seven phases, each useful on its own</h2>
+  <svg viewBox="0 0 680 236" width="100%" font-family="Inter, sans-serif" style="margin:1mm 0 2mm">
+    <g font-size="9" fill="#76817c" text-anchor="middle">
+      <text x="200" y="12">W1</text><text x="240" y="12">W2</text><text x="280" y="12">W3</text><text x="320" y="12">W4</text><text x="360" y="12">W5</text><text x="400" y="12">W6</text><text x="440" y="12">W7</text><text x="480" y="12">W8</text><text x="520" y="12">W9</text><text x="560" y="12">W10</text><text x="600" y="12">W11</text><text x="640" y="12">W12</text>
+    </g>
+    <g stroke="#e1e0d9" stroke-width="1">
+      <line x1="180" y1="20" x2="180" y2="230"/><line x1="220" y1="20" x2="220" y2="230"/><line x1="260" y1="20" x2="260" y2="230"/><line x1="300" y1="20" x2="300" y2="230"/><line x1="340" y1="20" x2="340" y2="230"/><line x1="380" y1="20" x2="380" y2="230"/><line x1="420" y1="20" x2="420" y2="230"/><line x1="460" y1="20" x2="460" y2="230"/><line x1="500" y1="20" x2="500" y2="230"/><line x1="540" y1="20" x2="540" y2="230"/><line x1="580" y1="20" x2="580" y2="230"/><line x1="620" y1="20" x2="620" y2="230"/><line x1="660" y1="20" x2="660" y2="230"/>
+    </g>
+    <g font-size="10.5" fill="#16211c">
+      <text x="0" y="40"><tspan font-weight="700">0</tspan>  Safety net</text>
+      <text x="0" y="70"><tspan font-weight="700">1</tspan>  Core and cost meter</text>
+      <text x="0" y="100"><tspan font-weight="700">2</tspan>  Memory</text>
+      <text x="0" y="130"><tspan font-weight="700">3</tspan>  Tasks, autonomy, alerts</text>
+      <text x="0" y="160"><tspan font-weight="700">4</tspan>  Voice</text>
+      <text x="0" y="190"><tspan font-weight="700">5</tspan>  Leads and workflows</text>
+      <text x="0" y="220"><tspan font-weight="700">6</tspan>  Optimize (ongoing)</text>
+    </g>
+    <g>
+      <rect x="181" y="29" width="38" height="16" rx="4" fill="#14674f"/>
+      <rect x="221" y="59" width="78" height="16" rx="4" fill="#14674f"/>
+      <rect x="261" y="89" width="118" height="16" rx="4" fill="#14674f"/>
+      <rect x="341" y="119" width="118" height="16" rx="4" fill="#14674f"/>
+      <rect x="421" y="149" width="118" height="16" rx="4" fill="#14674f"/>
+      <rect x="501" y="179" width="158" height="16" rx="4" fill="#14674f"/>
+      <rect x="301" y="209" width="358" height="16" rx="4" fill="#9fd1bd"/>
+    </g>
+  </svg>
+
+  <table>
+    <tr><th style="width:21%">Phase</th><th>Delivers</th><th style="width:30%">Done when (and tested how)</th></tr>
+    <tr><td><b>0. Safety net</b><br><span class="small">week 1</span></td><td>Staging server restored from a production backup. CRM regression suite (automated plus a short checklist) run twice as a baseline. Buddy user in the CRM. Buddy's OAuth app on staging. Accounts: Anthropic workspace and key, Apify, speech.</td><td>Regression suite passes twice in a row on staging. Login as a person works end to end.</td></tr>
+    <tr><td><b>1. Core and cost meter</b><br><span class="small">weeks 2 and 3</span></td><td>Buddy service, login as you, tools adapter with our tool list, text chat, usage ledger, live cost dashboard, budgets, kill switch, estimator.</td><td>A read-only user cannot change anything through Buddy (test). Buddy's numbers match Anthropic's report within 2%.</td></tr>
+    <tr><td><b>2. Memory</b><br><span class="small">weeks 3 to 5</span></td><td>Buddy Postgres, event log, webhook ingestion, slow night-time backfill, search by meaning, permission re-check, deletion sync, graph tables.</td><td>Right answers on a 50-question "who mentioned X" set. Nobody sees memory from records they can't open (test).</td></tr>
+    <tr><td><b>3. Tasks, autonomy, alerts</b><br><span class="small">weeks 5 to 7</span></td><td>Scheduler, tasks for Buddy, monitors and alerts, daily and weekly reports, email sorting and drafts, then Do and tell for trusted email types.</td><td>A week with no missed or doubled job. Alerts within 5 minutes. No auto-send until a type reaches 90% unchanged.</td></tr>
+    <tr><td><b>4. Voice</b><br><span class="small">weeks 7 to 9</span></td><td>Pipecat voice worker, speech in and out, voice in the Buddy app, optional CRM app button, speed tuning.</td><td>First words back in about a second on office internet. Same answers as chat on the test set.</td></tr>
+    <tr><td><b>5. Leads and workflows</b><br><span class="small">weeks 9 to 12</span></td><td>Apify through MCP, dedupe, scoring, outreach domain and warm-up, sequences, nurture, interest alerts, daily lead report, workflow drafts (switched off), n8n.</td><td>Two weeks with bounces under 2% and no complaints. Every "interested" reply alerted within 5 minutes.</td></tr>
+    <tr><td><b>6. Optimize</b><br><span class="small">from week 4</span></td><td>Weekly cost review, model routing checked against tests, graph memory upgrade if search needs it.</td><td>Cost per completed task falls or holds while quality holds.</td></tr>
+  </table>
+  <div class="safe"><span class="tag">CRM-SAFE</span><span>CRM code changes in every phase: <b>none</b>. Each phase ends with the CRM regression suite on staging, before and after Buddy is switched on, and goes to production only after both pass.</span></div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 12. TESTING AND RISKS -->
+<section class="page">
+  <div class="eyebrow">12 · Testing and risks</div>
+  <h2>How we prove nothing broke, every time</h2>
+  <div class="flow">
+    <div class="step"><b>1. Fresh copy</b>Restore the latest production backup to staging</div>
+    <div class="arr">→</div>
+    <div class="step"><b>2. Test the CRM</b>Full regression suite, Buddy off</div>
+    <div class="arr">→</div>
+    <div class="step hl"><b>3. Switch Buddy on</b>Run Buddy's own tests on staging</div>
+    <div class="arr">→</div>
+    <div class="step"><b>4. Test the CRM again</b>Same suite, plus speed and error rates</div>
+    <div class="arr">→</div>
+    <div class="step"><b>5. Production</b>Only if both runs pass, right after a backup</div>
+  </div>
+  <table>
+    <tr><th style="width:30%">CRM regression suite covers</th><th>How</th></tr>
+    <tr><td>Login and permissions</td><td>Admin, editor and read-only users each try what they should and shouldn't be able to do</td></tr>
+    <tr><td>People, Applications, views and filters</td><td>Open, filter, edit and save, on production-sized data</td></tr>
+    <tr><td>Forms</td><td>Submit a public form, check the person, the answers and the timeline</td></tr>
+    <tr><td>Team inbox and email</td><td>Sync, read state, send and reply from a +crmtest address</td></tr>
+    <tr><td>Workflows and the chatbot</td><td>Workflows page loads, a test run works, the chatbot answers and uses tools</td></tr>
+    <tr><td>Speed</td><td>Page and API response times before and after Buddy, within 10%</td></tr>
+  </table>
+  <p class="small">Automated with Playwright (the repo already has a <code>twenty-e2e-testing</code> package), plus a 15-minute manual checklist. <b>Rollback:</b> stop Buddy. The CRM keeps working because nothing in it changed, and every record Buddy made can be listed from its log and reverted.</p>
+  <p class="small"><b>Why restore staging from a backup:</b> on 30 Oct we found that a fresh, empty CRM install currently fails to create its first workspace (the FORM_SUBMISSIONS widget type issue). Production is not affected. Restoring a backup avoids the problem and tests on real-sized data.</p>
+
+  <h3>Risks and the plan for each</h3>
+  <table>
+    <tr><th style="width:32%">Risk</th><th>Plan</th></tr>
+    <tr><td>Buddy shows someone data they can't see</td><td>Acts with their role. Memory is re-checked against the CRM with their login before it is shown.</td></tr>
+    <tr><td>Buddy slows the CRM</td><td>Own server. The CRM's own rate limits for apps. Night-time, throttled backfills. Speed is part of the regression suite.</td></tr>
+    <tr><td>A wrong or unwanted email goes out</td><td>Drafts first; trust is earned per email type. Daily caps, quiet hours, +crmtest addresses in testing.</td></tr>
+    <tr><td>Instructions hidden in an email from an applicant or lead</td><td>Treated as data, never as orders. Only team members can instruct Buddy. Outgoing actions follow the autonomy levels whatever the email says.</td></tr>
+    <tr><td>Costs run away</td><td>Live meter, caps per person and feature, alerts at 50, 80 and 100%, pause at 100%.</td></tr>
+    <tr><td>Cold outreach hurts applicant email</td><td>Separate domain and mailboxes, warm-up, low volume, unsubscribe and opt-out list.</td></tr>
+    <tr><td>Legal: GDPR, cold email, AI in hiring</td><td>Legitimate-interest check and source notice for leads; country rules; no automated hiring decisions; a DPIA before anything ranks applicants.</td></tr>
+    <tr><td>A CRM upgrade breaks Buddy</td><td>Contract tests on every upgrade. Only the tools adapter knows the CRM, so a fix lands in one place.</td></tr>
+  </table>
+  <div class="safe"><span class="tag">CRM-SAFE</span><span>The test steps above run for every Buddy release. A Buddy release never ships together with a CRM release, so if something changes we know which one did it.</span></div>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<!-- 14. DECISIONS, REPOS, SOURCES -->
+<section class="page">
+  <div class="eyebrow">13 · Decisions, open source and sources</div>
+  <h2>What we need from you, and what we build on</h2>
+  <div class="grid4" style="gap:2mm">
+    <div class="card"><h4><span class="num-badge">1</span>The two rules</h4><p>Approve them, and API-first (option A), for every phase.</p></div>
+    <div class="card"><h4><span class="num-badge">2</span>Where it runs</h4><p>Own server (recommended, ~$51/month) or a capped container.</p></div>
+    <div class="card"><h4><span class="num-badge">3</span>Voice</h4><p>Hosted (Deepgram, Cartesia) or local (Kokoro). Arabic needed?</p></div>
+    <div class="card"><h4><span class="num-badge">4</span>Embeddings</h4><p>Local model (recommended) or Voyage.</p></div>
+    <div class="card"><h4><span class="num-badge">5</span>Email autonomy</h4><p>Which email types may send without approval after the trial.</p></div>
+    <div class="card"><h4><span class="num-badge">6</span>Lead generation</h4><p>Target profile, countries, outreach domain, daily caps.</p></div>
+    <div class="card"><h4><span class="num-badge">7</span>Budget</h4><p>Monthly AI budget and daily cap per person.</p></div>
+    <div class="card"><h4><span class="num-badge">8</span>Roles</h4><p>Who sets the Buddy user's role and the app ceiling.</p></div>
+  </div>
+
+  <h3>Open-source projects we can use</h3>
+  <table>
+    <tr><th style="width:17%">Need</th><th style="width:28%">Repository</th><th style="width:20%">License</th><th>Use</th></tr>
+    <tr><td>Voice</td><td><code>pipecat-ai/pipecat</code></td><td>BSD-2</td><td>Voice worker (recommended)</td></tr>
+    <tr><td>Voice</td><td><code>livekit/agents</code></td><td>Apache-2.0*</td><td>Alternative, rooms and telephony at scale</td></tr>
+    <tr><td>Voice</td><td><code>kyutai-labs/unmute</code></td><td>check</td><td>Try for a fully local voice</td></tr>
+    <tr><td>Speech</td><td><code>hexgrad/kokoro</code>, <code>resemble-ai/chatterbox</code></td><td>Apache-2.0, MIT</td><td>Local text to speech</td></tr>
+    <tr><td>Speech</td><td><code>SYSTRAN/faster-whisper</code></td><td>MIT</td><td>Local speech to text (GPU for real time)</td></tr>
+    <tr><td>Memory</td><td><code>pgvector/pgvector</code>, <code>apache/age</code></td><td>PostgreSQL, Apache-2.0</td><td>Search by meaning, graph in Postgres</td></tr>
+    <tr><td>Memory</td><td><code>getzep/graphiti</code>, <code>mem0ai/mem0</code></td><td>Apache-2.0</td><td>Temporal graph (trial), preferences memory</td></tr>
+    <tr><td>Jobs</td><td><code>timgit/pg-boss</code></td><td>MIT</td><td>Scheduler on Buddy's Postgres</td></tr>
+    <tr><td>Leads</td><td><code>apify/apify-mcp-server</code></td><td>MIT</td><td>Apify actors as tools</td></tr>
+    <tr><td>Leads</td><td><code>Kandid-ai/AgentSDR</code></td><td>MIT</td><td>Reference for sequences and reply sorting</td></tr>
+    <tr><td>Cost</td><td><code>langfuse/langfuse</code></td><td>MIT core</td><td>Traces and charts, only if we outgrow our own meter</td></tr>
+  </table>
+  <p class="small">* LiveKit's turn-detection model has its own license that limits it to LiveKit Agents. Licenses were taken from the sources below; check each repository before use.</p>
+
+  <h3>Sources</h3>
+  <ul class="small" style="font-size:7.3pt; columns: 2; column-gap: 6mm;">
+    <li>Claude prices: platform.claude.com/docs/en/about-claude/pricing (31 Oct 2026)</li>
+    <li>Our code: automations_branch; <code>mcp-protocol.service.ts</code>, <code>build-user-role-ids-by-source.util.ts</code>, <code>oauth-registration.controller.ts</code>, <code>agent-turn.workspace-entity.ts</code></li>
+    <li>Pipecat vs LiveKit: forasoft.com/blog/article/pipecat-vs-livekit-agents</li>
+    <li>Open voice models: dograh.com/feeds/blog/open-source-ai-voice-generator</li>
+    <li>Deepgram prices: brasstranscripts.com (Nova-3 per minute)</li>
+    <li>TTS prices: beri.net (ElevenLabs vs Cartesia vs Azure, Oct 2026)</li>
+    <li>Telnyx: telnyx.com/pricing/voice-ai-agents; LiveKit guide on developers.telnyx.com</li>
+    <li>Kyutai Unmute: kyutai.org/unmute</li>
+    <li>Memory tools: danilchenko.dev (Mem0 vs Cognee vs Letta)</li>
+    <li>Graphiti: Thoughtworks Technology Radar, Apr 2026</li>
+    <li>Kùzu archived: theregister.com, 14 Oct 2025</li>
+    <li>FalkorDB license: atlan.com</li>
+    <li>Apache AGE: news.apache.org project spotlight, Jan 2026</li>
+    <li>Voyage prices: developersdigest.tech (voyage-4)</li>
+    <li>Apify MCP: github.com/apify/apify-mcp-server</li>
+    <li>Apify prices: automationatlas.io; help.apify.com (Google Maps pay per event)</li>
+    <li>AgentSDR: github.com/Kandid-ai/AgentSDR</li>
+    <li>Cost tools: getmaxim.ai (LLM cost tracking, 2026)</li>
+  </ul>
+  <div class="foot"><span>Manager Buddy · Implementation plan v2</span><span class="pn"></span></div>
+</section>
+
+<script>
+  const pageElements = document.querySelectorAll('.page');
+  pageElements.forEach((pageElement, index) => {
+    pageElement.querySelector('.pn').textContent = (index + 1) + ' / ' + pageElements.length;
+  });
+</script>
+</body>
+</html>
