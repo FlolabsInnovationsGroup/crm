@@ -7,6 +7,10 @@ import { EMAIL_TEMPLATE_OBJECT_NAME_SINGULAR } from '@/activities/emails/constan
 import { type EmailComposerContextRecord } from '@/activities/emails/recipients/types/EmailComposerContextRecord';
 import { type EmailComposerState } from '@/activities/emails/types/EmailComposerState';
 import { fillEmailTemplateVariables } from '@/activities/emails/utils/fillEmailTemplateVariables';
+import {
+  getEmailTemplateBody,
+  type EmailTemplateBodySource,
+} from '@/activities/emails/utils/getEmailTemplateBody';
 import { useObjectMetadataItems } from '@/object-metadata/hooks/useObjectMetadataItems';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { useFindOneRecord } from '@/object-record/hooks/useFindOneRecord';
@@ -14,11 +18,11 @@ import { type ObjectRecord } from '@/object-record/types/ObjectRecord';
 import { Select } from '@/ui/input/components/Select';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 
-type EmailTemplateRecord = ObjectRecord & {
-  name: string | null;
-  subject: string | null;
-  bodyHtml: string | null;
-};
+type EmailTemplateRecord = ObjectRecord &
+  EmailTemplateBodySource & {
+    name: string | null;
+    subject: string | null;
+  };
 
 type PersonNameRecord = ObjectRecord & {
   name: { firstName: string | null; lastName: string | null } | null;
@@ -40,7 +44,13 @@ const EmailTemplatePickerContent = ({
   const { records: templates } = useFindManyRecords<EmailTemplateRecord>({
     objectNameSingular: EMAIL_TEMPLATE_OBJECT_NAME_SINGULAR,
     orderBy: [{ name: 'AscNullsLast' }],
-    recordGqlFields: { id: true, name: true, subject: true, bodyHtml: true },
+    recordGqlFields: {
+      id: true,
+      name: true,
+      subject: true,
+      body: true,
+      bodyHtml: true,
+    },
     limit: 200,
   });
 
@@ -78,12 +88,19 @@ const EmailTemplatePickerContent = ({
       subject: isNonEmptyString(composerState.subject)
         ? composerState.subject
         : fillEmailTemplateVariables(template.subject ?? '', recipientName),
-      body: fillEmailTemplateVariables(template.bodyHtml ?? '', recipientName),
+      body: fillEmailTemplateVariables(
+        getEmailTemplateBody(template),
+        recipientName,
+      ),
     });
   };
 
   const options = templates
-    .filter((template) => isNonEmptyString(template.bodyHtml))
+    .filter(
+      (template) =>
+        isNonEmptyString(template.body?.markdown?.trim()) ||
+        isNonEmptyString(template.bodyHtml),
+    )
     .map((template) => ({
       value: template.id,
       label: template.name ?? t`Untitled template`,

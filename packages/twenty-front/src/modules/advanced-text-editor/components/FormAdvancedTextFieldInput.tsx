@@ -16,7 +16,13 @@ import { css } from '@linaria/core';
 import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
 import { type Editor } from '@tiptap/core';
-import { type ComponentType, useEffect, useId, useState } from 'react';
+import {
+  type ComponentType,
+  type ReactNode,
+  useEffect,
+  useId,
+  useState,
+} from 'react';
 import { isDefined } from 'twenty-shared/utils';
 import { LightIconButton } from 'twenty-ui/components/input';
 import { IconMaximize } from 'twenty-ui/icon';
@@ -105,6 +111,8 @@ type FormAdvancedTextFieldInputProps = {
   enableFullScreen?: boolean;
   fullScreenBreadcrumbs?: BreadcrumbProps['links'];
   onEditorReady?: (editor: Editor | null) => void;
+  // Actions kept reachable while the editor covers the screen, e.g. Send.
+  fullScreenFooter?: ReactNode;
 };
 
 export const FormAdvancedTextFieldInput = ({
@@ -124,6 +132,7 @@ export const FormAdvancedTextFieldInput = ({
   enableFullScreen,
   fullScreenBreadcrumbs,
   onEditorReady,
+  fullScreenFooter,
 }: FormAdvancedTextFieldInputProps) => {
   const { chrome, variant, minHeight: profileMinHeight } = profile;
 
@@ -233,6 +242,7 @@ export const FormAdvancedTextFieldInput = ({
               variant={variant}
             />
           </StyledFullScreenEditorContainer>
+          {fullScreenFooter}
         </div>,
         isFullScreen,
       )

@@ -11,6 +11,7 @@ import { SendEmailResolver } from 'src/modules/messaging/message-outbound-manage
 
 const WORKSPACE_ID = '33333333-3333-4333-8333-333333333333';
 const USER_WORKSPACE_ID = '66666666-6666-4666-8666-666666666666';
+const WORKSPACE_MEMBER_ID = '77777777-7777-4777-8777-777777777777';
 
 describe('SendEmailResolver errors', () => {
   const workspace = { id: WORKSPACE_ID } as WorkspaceEntity;
@@ -30,7 +31,7 @@ describe('SendEmailResolver errors', () => {
     };
 
     const resolver = new SendEmailResolver(
-      { verifyUsableByCaller: jest.fn() } as never,
+      { verifyCanSendFrom: jest.fn() } as never,
       { composeEmail } as never,
       {} as never,
       {} as never,
@@ -52,6 +53,7 @@ describe('SendEmailResolver errors', () => {
       input,
       workspace,
       USER_WORKSPACE_ID,
+      WORKSPACE_MEMBER_ID,
       context,
     );
 
@@ -72,6 +74,7 @@ describe('SendEmailResolver errors', () => {
       input,
       workspace,
       USER_WORKSPACE_ID,
+      WORKSPACE_MEMBER_ID,
       context,
     );
 
@@ -90,6 +93,7 @@ describe('SendEmailResolver errors', () => {
       input,
       workspace,
       USER_WORKSPACE_ID,
+      WORKSPACE_MEMBER_ID,
       context,
     );
 

@@ -1,13 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { UserVarsModule } from 'src/engine/core-modules/user/user-vars/user-vars.module';
+import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { ConnectionProviderModule } from 'src/engine/core-modules/application/connection-provider/connection-provider.module';
 import { AppOAuthRefreshModule } from 'src/engine/core-modules/application/connection-provider/refresh/app-oauth-refresh.module';
 import { CalendarChannelEntity } from 'src/engine/metadata-modules/calendar-channel/entities/calendar-channel.entity';
 import { ConnectedAccountMetadataService } from 'src/engine/metadata-modules/connected-account/connected-account-metadata.service';
 import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
 import { ConnectedAccountResolver } from 'src/engine/metadata-modules/connected-account/resolvers/connected-account.resolver';
+import { TeamMailboxResolver } from 'src/engine/metadata-modules/connected-account/resolvers/team-mailbox.resolver';
 import { ConnectedAccountOwnershipTransferService } from 'src/engine/metadata-modules/connected-account/services/connected-account-ownership-transfer.service';
+import { TeamMailboxService } from 'src/engine/metadata-modules/connected-account/services/team-mailbox.service';
 import { WorkspaceManyOrAllFlatEntityMapsCacheModule } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.module';
 import { MessageChannelEntity } from 'src/engine/metadata-modules/message-channel/entities/message-channel.entity';
 import { PermissionsModule } from 'src/engine/metadata-modules/permissions/permissions.module';
@@ -24,7 +28,9 @@ import { ApplicationRegistrationLookupModule } from 'src/engine/core-modules/app
       ConnectedAccountEntity,
       CalendarChannelEntity,
       MessageChannelEntity,
+      UserWorkspaceEntity,
     ]),
+    UserVarsModule,
     AppOAuthRefreshModule,
     ConnectionProviderModule,
     WebhookSubscriptionModule,
@@ -36,10 +42,13 @@ import { ApplicationRegistrationLookupModule } from 'src/engine/core-modules/app
     ConnectedAccountMetadataService,
     ConnectedAccountOwnershipTransferService,
     ConnectedAccountResolver,
+    TeamMailboxService,
+    TeamMailboxResolver,
   ],
   exports: [
     ConnectedAccountMetadataService,
     ConnectedAccountOwnershipTransferService,
+    TeamMailboxService,
   ],
 })
 export class ConnectedAccountMetadataModule {}

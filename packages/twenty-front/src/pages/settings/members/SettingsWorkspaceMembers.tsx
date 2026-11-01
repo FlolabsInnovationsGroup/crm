@@ -3,6 +3,7 @@ import { SettingsPath } from 'twenty-shared/types';
 import { getSettingsPath } from 'twenty-shared/utils';
 import { Section } from 'twenty-ui/components/layout';
 import {
+  IconAt,
   IconLock,
   IconSparkle2,
   IconUserPlus,
@@ -15,6 +16,7 @@ import { SettingsPageLayout } from '@/settings/components/layout/SettingsPageLay
 import { SettingsTabBar } from '@/settings/components/layout/SettingsTabBar';
 import { useSettingsActiveTabId } from '@/settings/components/layout/useSettingsActiveTabId';
 import { useHasPermissionFlag } from '@/settings/roles/hooks/useHasPermissionFlag';
+import { SettingsTeamMailboxesSection } from '@/settings/team-mailboxes/components/SettingsTeamMailboxesSection';
 import { PermissionFlagType } from '~/generated-metadata/graphql';
 import coverDark from '~/pages/settings/members/assets/cover-dark.png';
 import coverLight from '~/pages/settings/members/assets/cover-light.png';
@@ -27,6 +29,7 @@ const MEMBERS_TAB_LIST_ID = 'members-tab-list';
 const MEMBERS_TAB_TEAM_ID = 'team';
 const MEMBERS_TAB_INVITE_ID = 'invite';
 const MEMBERS_TAB_ROLES_ID = 'roles';
+const MEMBERS_TAB_MAILBOXES_ID = 'mailboxes';
 
 const SETTINGS_MEMBERS_HERO_INSTANCE_ID_PREFIX = 'settings-members-hero';
 
@@ -34,12 +37,18 @@ export const SettingsWorkspaceMembers = () => {
   const { t } = useLingui();
 
   const hasRolesPermission = useHasPermissionFlag(PermissionFlagType.ROLES);
+  const hasMembersPermission = useHasPermissionFlag(
+    PermissionFlagType.WORKSPACE_MEMBERS,
+  );
 
   const tabs = [
     { id: MEMBERS_TAB_TEAM_ID, title: t`Team`, Icon: IconUsers },
     { id: MEMBERS_TAB_INVITE_ID, title: t`Invite`, Icon: IconUserPlus },
     ...(hasRolesPermission
       ? [{ id: MEMBERS_TAB_ROLES_ID, title: t`Roles`, Icon: IconLock }]
+      : []),
+    ...(hasMembersPermission
+      ? [{ id: MEMBERS_TAB_MAILBOXES_ID, title: t`Mailboxes`, Icon: IconAt }]
       : []),
   ];
 
@@ -52,6 +61,12 @@ export const SettingsWorkspaceMembers = () => {
     switch (activeTabId) {
       case MEMBERS_TAB_INVITE_ID:
         return <SettingsWorkspaceMembersInviteTab />;
+      case MEMBERS_TAB_MAILBOXES_ID:
+        return hasMembersPermission ? (
+          <SettingsTeamMailboxesSection />
+        ) : (
+          <SettingsWorkspaceMembersTeamTab />
+        );
       case MEMBERS_TAB_ROLES_ID:
         return hasRolesPermission ? (
           <SettingsWorkspaceMembersRolesTab />

@@ -1,7 +1,7 @@
 import { useStore } from 'jotai';
 import { useCallback } from 'react';
 
-import { myConnectedAccountsState } from '@/accounts/states/myConnectedAccountsState';
+import { mySenderConnectedAccountsState } from '@/accounts/states/mySenderConnectedAccountsState';
 import { findFirstConnectedAccountAbleToSendEmail } from '@/accounts/utils/findFirstConnectedAccountAbleToSendEmail';
 import { useOpenComposeEmailInSidePanel } from '@/side-panel/hooks/useOpenComposeEmailInSidePanel';
 import { isDefined } from 'twenty-shared/utils';
@@ -14,7 +14,7 @@ export const useOpenEmailInAppOrFallback = () => {
   const openEmail = useCallback(
     (email: string) => {
       const connectedAccount = findFirstConnectedAccountAbleToSendEmail(
-        store.get(myConnectedAccountsState.atom) ?? [],
+        store.get(mySenderConnectedAccountsState.atom) ?? [],
       );
 
       if (isDefined(connectedAccount)) {

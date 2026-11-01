@@ -2,10 +2,6 @@ import { useQuery } from '@apollo/client/react';
 import { renderHook } from '@testing-library/react';
 
 import { useReplyConnectedAccount } from '@/activities/emails/hooks/useReplyConnectedAccount';
-import {
-  MyConnectedAccountsDocument,
-  MyMessageChannelsDocument,
-} from '~/generated-metadata/graphql';
 import { ConnectedAccountProvider } from 'twenty-shared/types';
 
 const mockUseQuery = useQuery as unknown as jest.Mock;
@@ -23,14 +19,16 @@ const stubQueries = (
     provider: ConnectedAccountProvider;
   }[],
 ) => {
-  mockUseQuery.mockImplementation((query: unknown) => {
-    if (query === MyConnectedAccountsDocument) {
-      return { data: { myConnectedAccounts: accounts }, loading: false };
-    }
-    if (query === MyMessageChannelsDocument) {
-      return { data: { myMessageChannels: channels }, loading: false };
-    }
-    return { data: undefined, loading: false };
+  mockUseQuery.mockReturnValue({
+    data: {
+      mySenderConnectedAccounts: accounts.map((account) => ({
+        ...account,
+        messageChannelIds: channels
+          .filter((channel) => channel.connectedAccountId === account.id)
+          .map((channel) => channel.id),
+      })),
+    },
+    loading: false,
   });
 };
 
@@ -89,6 +87,23 @@ describe('useReplyConnectedAccount', () => {
 
     expect(result.current.connectedAccountId).toBe('account-group');
     expect(result.current.connectedAccountHandle).toBe('support@example.com');
+  });
+
+  it('returns a mailbox an admin shared with the caller', () => {
+    stubQueries(
+      [{ id: 'channel-hr', connectedAccountId: 'account-hr' }],
+      [
+        {
+          id: 'account-hr',
+          handle: 'hr@example.com',
+          provider: ConnectedAccountProvider.IMAP_SMTP_CALDAV,
+        },
+      ],
+    );
+
+    const { result } = renderHook(() => useReplyConnectedAccount('channel-hr'));
+
+    expect(result.current.connectedAccountHandle).toBe('hr@example.com');
   });
 
   it('returns null when the thread channel is not accessible to the current user', () => {

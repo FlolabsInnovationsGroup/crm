@@ -1,27 +1,19 @@
 import { useQuery } from '@apollo/client/react';
 import { type ConnectedAccountProvider } from 'twenty-shared/types';
 
-import {
-  MyConnectedAccountsDocument,
-  MyMessageChannelsDocument,
-} from '~/generated-metadata/graphql';
+import { GET_MY_SENDER_CONNECTED_ACCOUNTS } from '@/accounts/graphql/queries/getMySenderConnectedAccounts';
+import { type SenderConnectedAccount } from '@/accounts/types/SenderConnectedAccount';
 
 export const useReplyConnectedAccount = (messageChannelId: string | null) => {
-  const { data: connectedAccountsData, loading: connectedAccountsLoading } =
-    useQuery(MyConnectedAccountsDocument);
-
-  const { data: messageChannelsData, loading: messageChannelsLoading } =
-    useQuery(MyMessageChannelsDocument);
-
-  const threadMessageChannel =
-    messageChannelsData?.myMessageChannels.find(
-      (messageChannel) => messageChannel.id === messageChannelId,
-    ) ?? null;
+  const { data, loading } = useQuery<{
+    mySenderConnectedAccounts: SenderConnectedAccount[];
+  }>(GET_MY_SENDER_CONNECTED_ACCOUNTS);
 
   const replyConnectedAccount =
-    connectedAccountsData?.myConnectedAccounts.find(
+    data?.mySenderConnectedAccounts.find(
       (connectedAccount) =>
-        connectedAccount.id === threadMessageChannel?.connectedAccountId,
+        messageChannelId !== null &&
+        connectedAccount.messageChannelIds.includes(messageChannelId),
     ) ?? null;
 
   return {
@@ -29,6 +21,6 @@ export const useReplyConnectedAccount = (messageChannelId: string | null) => {
     connectedAccountHandle: replyConnectedAccount?.handle ?? null,
     connectedAccountProvider:
       (replyConnectedAccount?.provider as ConnectedAccountProvider) ?? null,
-    loading: connectedAccountsLoading || messageChannelsLoading,
+    loading,
   };
 };
