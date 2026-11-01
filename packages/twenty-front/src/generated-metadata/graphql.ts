@@ -3340,6 +3340,7 @@ export type Mutation = {
   setRecordGeneralAccess: RecordSharingDto;
   setRecordShare: RecordSharingDto;
   setResourceCreditSubscriptionPrice: BillingUpdate;
+  setTeamMailboxMembers: TeamMailbox;
   signIn: AvailableWorkspacesAndAccessTokens;
   signOut: Scalars['Boolean']['output'];
   signUp: AvailableWorkspacesAndAccessTokens;
@@ -4345,6 +4346,12 @@ export type MutationSetRecordShareArgs = {
 
 export type MutationSetResourceCreditSubscriptionPriceArgs = {
   priceId: Scalars['String']['input'];
+};
+
+
+export type MutationSetTeamMailboxMembersArgs = {
+  connectedAccountId: Scalars['UUID']['input'];
+  workspaceMemberIds: Array<Scalars['UUID']['input']>;
 };
 
 
@@ -5477,6 +5484,7 @@ export type Query = {
   myConnectedAccounts: Array<ConnectedAccountPublicDto>;
   myMessageChannels: Array<MessageChannel>;
   myMessageFolders: Array<MessageFolder>;
+  mySenderConnectedAccounts: Array<SenderConnectedAccount>;
   myUserApplicationVariables: Array<WorkspaceMemberApplicationVariables>;
   navigationMenuItem?: Maybe<NavigationMenuItem>;
   navigationMenuItems: Array<NavigationMenuItem>;
@@ -5491,6 +5499,7 @@ export type Query = {
   recordSharing: RecordSharingDto;
   skill?: Maybe<Skill>;
   skills: Array<Skill>;
+  teamMailboxes: Array<TeamMailbox>;
   timelineActivityTypes: Array<TimelineActivityType>;
   twoFactorAuthenticationRecoveryStatus: TwoFactorAuthenticationRecoveryStatus;
   unsubscribeTopics: Array<UnsubscribeTopic>;
@@ -6432,6 +6441,29 @@ export type SendMessageCampaignTestInput = {
   unsubscribeTopicId?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type SenderConnectedAccount = {
+  __typename?: 'SenderConnectedAccount';
+  applicationId?: Maybe<Scalars['UUID']['output']>;
+  archivedAt?: Maybe<Scalars['DateTime']['output']>;
+  authFailedAt?: Maybe<Scalars['DateTime']['output']>;
+  authFailedReason?: Maybe<Scalars['String']['output']>;
+  connectionParameters?: Maybe<PublicImapSmtpCaldavConnectionParameters>;
+  connectionProviderId?: Maybe<Scalars['UUID']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  handle: Scalars['String']['output'];
+  handleAliases?: Maybe<Array<Scalars['String']['output']>>;
+  id: Scalars['UUID']['output'];
+  lastCredentialsRefreshedAt?: Maybe<Scalars['DateTime']['output']>;
+  lastSignedInAt?: Maybe<Scalars['DateTime']['output']>;
+  messageChannelIds: Array<Scalars['String']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  provider: Scalars['String']['output'];
+  scopes?: Maybe<Array<Scalars['String']['output']>>;
+  updatedAt: Scalars['DateTime']['output'];
+  userWorkspaceId: Scalars['UUID']['output'];
+  visibility: Scalars['String']['output'];
+};
+
 export type Sentry = {
   __typename?: 'Sentry';
   dsn?: Maybe<Scalars['String']['output']>;
@@ -6608,6 +6640,15 @@ export enum SupportDriver {
 export type TasksConfiguration = {
   __typename?: 'TasksConfiguration';
   configurationType: WidgetConfigurationType;
+};
+
+export type TeamMailbox = {
+  __typename?: 'TeamMailbox';
+  handle: Scalars['String']['output'];
+  id: Scalars['UUID']['output'];
+  ownerUserId?: Maybe<Scalars['String']['output']>;
+  provider: Scalars['String']['output'];
+  sharedWithWorkspaceMemberIds: Array<Scalars['String']['output']>;
 };
 
 export type TimelineActivityType = {
@@ -10488,6 +10529,19 @@ export type GetSsoIdentityProvidersQueryVariables = Exact<{ [key: string]: never
 
 export type GetSsoIdentityProvidersQuery = { __typename?: 'Query', getSSOIdentityProviders: Array<{ __typename?: 'FindAvailableSSOIDP', type: IdentityProviderType, id: string, name: string, issuer: string, status: SsoIdentityProviderStatus }> };
 
+export type TeamMailboxesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type TeamMailboxesQuery = { __typename?: 'Query', teamMailboxes: Array<{ __typename?: 'TeamMailbox', id: string, handle: string, provider: string, ownerUserId?: string | null, sharedWithWorkspaceMemberIds: Array<string> }> };
+
+export type SetTeamMailboxMembersMutationVariables = Exact<{
+  connectedAccountId: Scalars['UUID']['input'];
+  workspaceMemberIds: Array<Scalars['UUID']['input']> | Scalars['UUID']['input'];
+}>;
+
+
+export type SetTeamMailboxMembersMutation = { __typename?: 'Mutation', setTeamMailboxMembers: { __typename?: 'TeamMailbox', id: string, handle: string, provider: string, ownerUserId?: string | null, sharedWithWorkspaceMemberIds: Array<string> } };
+
 export type MetadataTranslationsQueryVariables = Exact<{
   input: MetadataTranslationsInput;
 }>;
@@ -11234,6 +11288,8 @@ export const EditSsoIdentityProviderDocument = {"kind":"Document","definitions":
 export const ValidateApprovedAccessDomainDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ValidateApprovedAccessDomain"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ValidateApprovedAccessDomainInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"validateApprovedAccessDomain"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"isValidated"}},{"kind":"Field","name":{"kind":"Name","value":"domain"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}}]}}]} as unknown as DocumentNode<ValidateApprovedAccessDomainMutation, ValidateApprovedAccessDomainMutationVariables>;
 export const GetApprovedAccessDomainsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetApprovedAccessDomains"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"getApprovedAccessDomains"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"domain"}},{"kind":"Field","name":{"kind":"Name","value":"isValidated"}}]}}]}}]} as unknown as DocumentNode<GetApprovedAccessDomainsQuery, GetApprovedAccessDomainsQueryVariables>;
 export const GetSsoIdentityProvidersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetSSOIdentityProviders"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"getSSOIdentityProviders"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"issuer"}},{"kind":"Field","name":{"kind":"Name","value":"status"}}]}}]}}]} as unknown as DocumentNode<GetSsoIdentityProvidersQuery, GetSsoIdentityProvidersQueryVariables>;
+export const TeamMailboxesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TeamMailboxes"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"teamMailboxes"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"handle"}},{"kind":"Field","name":{"kind":"Name","value":"provider"}},{"kind":"Field","name":{"kind":"Name","value":"ownerUserId"}},{"kind":"Field","name":{"kind":"Name","value":"sharedWithWorkspaceMemberIds"}}]}}]}}]} as unknown as DocumentNode<TeamMailboxesQuery, TeamMailboxesQueryVariables>;
+export const SetTeamMailboxMembersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"SetTeamMailboxMembers"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"connectedAccountId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UUID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workspaceMemberIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UUID"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setTeamMailboxMembers"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"connectedAccountId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"connectedAccountId"}}},{"kind":"Argument","name":{"kind":"Name","value":"workspaceMemberIds"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workspaceMemberIds"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"handle"}},{"kind":"Field","name":{"kind":"Name","value":"provider"}},{"kind":"Field","name":{"kind":"Name","value":"ownerUserId"}},{"kind":"Field","name":{"kind":"Name","value":"sharedWithWorkspaceMemberIds"}}]}}]}}]} as unknown as DocumentNode<SetTeamMailboxMembersMutation, SetTeamMailboxMembersMutationVariables>;
 export const MetadataTranslationsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"MetadataTranslations"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"MetadataTranslationsInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"metadataTranslations"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"metadataName"}},{"kind":"Field","name":{"kind":"Name","value":"recordId"}},{"kind":"Field","name":{"kind":"Name","value":"objectMetadataId"}},{"kind":"Field","name":{"kind":"Name","value":"property"}},{"kind":"Field","name":{"kind":"Name","value":"locale"}},{"kind":"Field","name":{"kind":"Name","value":"sourceValue"}},{"kind":"Field","name":{"kind":"Name","value":"canonicalValue"}},{"kind":"Field","name":{"kind":"Name","value":"value"}},{"kind":"Field","name":{"kind":"Name","value":"provenance"}}]}}]}}]} as unknown as DocumentNode<MetadataTranslationsQuery, MetadataTranslationsQueryVariables>;
 export const GenerateTwoFactorAuthenticationRecoveryCodeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"generateTwoFactorAuthenticationRecoveryCode"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UUID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"otp"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"generateTwoFactorAuthenticationRecoveryCode"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}},{"kind":"Argument","name":{"kind":"Name","value":"otp"},"value":{"kind":"Variable","name":{"kind":"Name","value":"otp"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"recoveryCode"}},{"kind":"Field","name":{"kind":"Name","value":"expiresAt"}}]}}]}}]} as unknown as DocumentNode<GenerateTwoFactorAuthenticationRecoveryCodeMutation, GenerateTwoFactorAuthenticationRecoveryCodeMutationVariables>;
 export const RevokeTwoFactorAuthenticationRecoveryCodeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"revokeTwoFactorAuthenticationRecoveryCode"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UUID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"revokeTwoFactorAuthenticationRecoveryCode"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}]}]}}]} as unknown as DocumentNode<RevokeTwoFactorAuthenticationRecoveryCodeMutation, RevokeTwoFactorAuthenticationRecoveryCodeMutationVariables>;

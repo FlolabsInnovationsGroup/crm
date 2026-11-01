@@ -8,7 +8,8 @@ import {
   getSendableEmailHandles,
   isDefined,
 } from 'twenty-shared/utils';
-import { IconPaperclip } from 'twenty-ui/icon';
+import { IconPaperclip, IconSend } from 'twenty-ui/icon';
+import { Button } from 'twenty-ui/primitives/input';
 import { useTheme, themeCssVariables } from 'twenty-ui/theme';
 
 import { ComposerFieldRow } from '@/activities/components/ComposerFieldRow';
@@ -26,14 +27,14 @@ import { type EmailRecipientsFieldId } from '@/activities/emails/recipients/type
 import { getEmailRecipientKey } from '@/activities/emails/recipients/utils/getEmailRecipientKey';
 import { type EmailRecipientsByFieldId } from '@/activities/emails/recipients/utils/moveEmailRecipientsBetweenFields';
 import { type EmailComposerState } from '@/activities/emails/types/EmailComposerState';
-import { type ConnectedAccount } from '@/accounts/types/ConnectedAccount';
+import { GET_MY_SENDER_CONNECTED_ACCOUNTS } from '@/accounts/graphql/queries/getMySenderConnectedAccounts';
+import { type SenderConnectedAccount } from '@/accounts/types/SenderConnectedAccount';
 import { buildConnectedAccountSenderOptions } from '@/accounts/utils/buildConnectedAccountSenderOptions';
 import { FormAdvancedTextFieldInput } from '@/advanced-text-editor/components/FormAdvancedTextFieldInput';
 import { Select } from '@/ui/input/components/Select';
 import { DND_KIT_PROVIDER_PLUGINS_WITHOUT_DROP_ANIMATION } from '@/ui/utilities/drag-and-drop/constants/DndKitProviderPluginsWithoutDropAnimation';
 import { DND_KIT_SENSORS } from '@/ui/utilities/drag-and-drop/constants/DndKitSensors';
 import { DragDropItemDndContext } from '@/ui/utilities/drag-and-drop/context/DragDropItemDndContext';
-import { GET_MY_CONNECTED_ACCOUNTS } from '@/settings/accounts/graphql/queries/getMyConnectedAccounts';
 
 const StyledFieldsContainer = styled.div`
   display: flex;
@@ -61,11 +62,12 @@ const StyledCcBccToggle = styled.button`
   }
 `;
 
+// The thread above can take most of the panel; keep room to write.
 const StyledBody = styled.div`
   display: flex;
   flex: 1;
   flex-direction: column;
-  min-height: 0;
+  min-height: 240px;
   padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[3]};
 `;
 
@@ -96,6 +98,11 @@ const StyledAttachAction = styled.button`
   }
 `;
 
+const StyledFullScreenFooter = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`;
+
 const StyledRecipientLimitWarning = styled.div`
   color: ${themeCssVariables.color.red};
   font-size: ${themeCssVariables.font.size.xs};
@@ -107,28 +114,28 @@ type EmailComposerFieldsProps = {
   contextRecord?: EmailComposerContextRecord | null;
   // For surfaces without a composer footer of their own.
   onAttachFiles?: () => void;
+  isSendDisabled?: boolean;
 };
 
 export const EmailComposerFields = ({
   composerState,
   contextRecord,
   onAttachFiles,
+  isSendDisabled,
 }: EmailComposerFieldsProps) => {
   const theme = useTheme();
   const { uploadEmailImage } = useUploadEmailImage();
   const { data: accountsData } = useQuery<{
-    myConnectedAccounts: Pick<
-      ConnectedAccount,
-      'id' | 'handle' | 'handleAliases' | 'provider' | 'connectionParameters'
-    >[];
-  }>(GET_MY_CONNECTED_ACCOUNTS);
+    mySenderConnectedAccounts: SenderConnectedAccount[];
+  }>(GET_MY_SENDER_CONNECTED_ACCOUNTS);
 
-  const sendableAccounts = (accountsData?.myConnectedAccounts ?? []).filter(
-    (connectedAccount) =>
-      canConnectedAccountPerformEmailOperation({
-        connectedAccount,
-        operation: EmailOperation.SEND,
-      }),
+  const sendableAccounts = (
+    accountsData?.mySenderConnectedAccounts ?? []
+  ).filter((connectedAccount) =>
+    canConnectedAccountPerformEmailOperation({
+      connectedAccount,
+      operation: EmailOperation.SEND,
+    }),
   );
 
   const senderOptions = buildConnectedAccountSenderOptions(sendableAccounts);
@@ -301,6 +308,18 @@ export const EmailComposerFields = ({
           onChange={composerState.setBody}
           profile={INLINE_EMAIL_BODY_EDITOR_PROFILE}
           onImageUpload={uploadEmailImage}
+          fullScreenFooter={
+            <StyledFullScreenFooter>
+              <Button
+                size="sm"
+                startIcon={<IconSend />}
+                onClick={composerState.handleSend}
+                disabled={isSendDisabled ?? !composerState.canSend}
+                variant="solid"
+                color="accent"
+              >{t`Send`}</Button>
+            </StyledFullScreenFooter>
+          }
         />
       </StyledBody>
       {(composerState.files.length > 0 || isDefined(onAttachFiles)) && (

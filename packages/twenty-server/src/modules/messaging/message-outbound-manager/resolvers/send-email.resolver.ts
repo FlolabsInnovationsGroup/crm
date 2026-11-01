@@ -19,10 +19,11 @@ import { type I18nContext } from 'src/engine/core-modules/i18n/types/i18n-contex
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { EmailComposerService } from 'src/engine/core-modules/tool/tools/email-tool/email-composer.service';
 import { AuthUserWorkspaceId } from 'src/engine/decorators/auth/auth-user-workspace-id.decorator';
+import { AuthWorkspaceMemberId } from 'src/engine/decorators/auth/auth-workspace-member-id.decorator';
 import { AuthWorkspace } from 'src/engine/decorators/auth/auth-workspace.decorator';
 import { SettingsPermissionGuard } from 'src/engine/guards/settings-permission.guard';
 import { AuthPrincipalGuard } from 'src/engine/guards/auth-principal.guard';
-import { ConnectedAccountMetadataService } from 'src/engine/metadata-modules/connected-account/connected-account-metadata.service';
+import { TeamMailboxService } from 'src/engine/metadata-modules/connected-account/services/team-mailbox.service';
 import { SendEmailOutputDTO } from 'src/modules/messaging/message-outbound-manager/dtos/send-email-output.dto';
 import { SendEmailInput } from 'src/modules/messaging/message-outbound-manager/dtos/send-email.input';
 import { SendEmailService } from 'src/modules/messaging/message-outbound-manager/services/send-email.service';
@@ -51,7 +52,7 @@ export class SendEmailResolver {
   private readonly logger = new Logger(SendEmailResolver.name);
 
   constructor(
-    private readonly connectedAccountMetadataService: ConnectedAccountMetadataService,
+    private readonly teamMailboxService: TeamMailboxService,
     private readonly emailComposerService: EmailComposerService,
     private readonly fileEmailAttachmentService: FileEmailAttachmentService,
     private readonly sendEmailService: SendEmailService,
@@ -63,12 +64,14 @@ export class SendEmailResolver {
     @Args('input') input: SendEmailInput,
     @AuthWorkspace() workspace: WorkspaceEntity,
     @AuthUserWorkspaceId() userWorkspaceId: string,
+    @AuthWorkspaceMemberId() workspaceMemberId: string | undefined,
     @Context() context: I18nContext,
   ): Promise<SendEmailOutputDTO> {
     try {
-      await this.connectedAccountMetadataService.verifyUsableByCaller({
-        id: input.connectedAccountId,
+      await this.teamMailboxService.verifyCanSendFrom({
+        connectedAccountId: input.connectedAccountId,
         userWorkspaceId,
+        workspaceMemberId,
         workspaceId: workspace.id,
       });
 

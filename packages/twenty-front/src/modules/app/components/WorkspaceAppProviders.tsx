@@ -10,6 +10,7 @@ import { InitializeQueryParamStateEffect } from '@/app/effect-components/Initial
 import { PageChangeEffect } from '@/app/effect-components/PageChangeEffect';
 import { ApplicationsLoadEffect } from '@/applications/components/ApplicationsLoadEffect';
 import { MyConnectedAccountsLoadEffect } from '@/accounts/components/MyConnectedAccountsLoadEffect';
+import { MySenderConnectedAccountsLoadEffect } from '@/accounts/components/MySenderConnectedAccountsLoadEffect';
 import { AuthProvider } from '@/auth/components/AuthProvider';
 import { SignOutOnOtherTabSignOutEffect } from '@/auth/effect-components/SignOutOnOtherTabSignOutEffect';
 import { CaptchaProvider } from '@/captcha/components/CaptchaProvider';
@@ -58,6 +59,7 @@ export const WorkspaceAppProviders = () => {
                 <SSEProvider>
                   <ApplicationsLoadEffect />
                   <MyConnectedAccountsLoadEffect />
+                  <MySenderConnectedAccountsLoadEffect />
                   <UserThemeProviderEffect />
                   <UserUiScaleProviderEffect />
                   <ContextStoreComponentInstanceContext.Provider

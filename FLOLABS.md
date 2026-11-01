@@ -48,6 +48,8 @@ Data imported from HubSpot, as of 26 Oct 2026:
 
 Sign in at https://crm.flolabsinnovations.com. Invite teammates from **Settings → Members**. Each member connects their own mailbox under **Settings → Accounts**, and can connect several accounts (for example a personal and a shared mailbox).
 
+To let teammates send from a mailbox they did not connect (for example `hr@`), an admin opens **Settings → Members → Mailboxes** and switches on the members who may send from it. They can send and reply from it; syncing and its settings stay with the owner.
+
 ### People and applicants
 
 - **People** holds every applicant and contact. Recruiting fields on each person:
@@ -72,7 +74,8 @@ The person page has these tabs:
 
 - Open a person and press **Send Email**, or reply from any thread.
 - **Reply** answers the sender. **Reply all** keeps everyone on the thread.
-- **Insert template** in the composer lists the records of the `Email Templates` object. `{{firstName}}` and `{{lastName}}` are filled from the recipient.
+- **Insert template** in the composer lists the records of the `Email Templates` object. `{{firstName}}` and `{{lastName}}` are filled from the recipient. It inserts the template's **Body** as edited in the CRM; the `Body HTML` field is the original HubSpot copy, used only while the text was never edited.
+- The expand icon opens the body full screen, with its own **Send** button.
 - Every email preview shows the time it was received. Emails whose headers claim a date in the future are shown at the time we actually received them.
 
 ### Team inbox
@@ -187,7 +190,7 @@ The first commit of this repository is the unmodified Twenty `v2.48.1` source. E
 | Area | Added | Twenty `v2.48.1` |
 |---|---|---|
 | Branding | Product name, logo, app icons, emails, AI prompts and every visible text say **FloLabs CRM** / FloLabs Innovations Group. | Twenty branding. |
-| Email | **Reply all**; **Insert template** with `{{firstName}}` / `{{lastName}}`; time on every preview; protection against future-dated IMAP headers. | Reply to sender only, no templates. |
+| Email | **Reply all**; **Insert template** with `{{firstName}}` / `{{lastName}}`; time on every preview; protection against future-dated IMAP headers; **Send** in the full-screen editor; mailboxes shared with chosen members. | Reply to sender only, no templates. |
 | Team inbox | One inbox for all mailboxes, Unread / Received / Sent tabs, per-person read and unread state, unread count in the sidebar. | No shared inbox, no read state. |
 | Notifications | Feed of replies, form submissions and assigned tasks, with server-side read state. | None. |
 | Forms | Full form builder (see [Forms](#3-forms)): 21 question types, logic, calculations, endings, actions, design and code tabs, responses and analytics, public pages, embed, prefill, Arabic and RTL, review page, image blocks. | No public forms. |
