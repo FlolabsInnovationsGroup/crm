@@ -68,9 +68,9 @@ npx nx run twenty-front:graphql:generate      # after GraphQL schema changes (--
 
 This section lets a new chat or a compacted session continue without losing context. Read it before doing anything on the analytics tool. **Keep it current:** update it after every 2 or 3 decisions and at the end of every phase. To update: edit `.claude/worktrees/analytics-work/state_block.md` (absolute path `D:\Coding\Flolabs\crm\.claude\worktrees\analytics-work\state_block.md`), run `python -X utf8` on `sync_claude_md.py` in that folder, then commit `CLAUDE.md` on the `analytics_tool` branch.
 
-Last updated: 2026-11-07 20:15.
+Last updated: 2026-11-07 21:50. Restarted: the five continuation workflows are running, with run IDs in `RESUME.md`.
 
-**PAUSED: the user had to close the chat. Read `RESUME.md` in the worktree root first** (`D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\RESUME.md`, with a copy in the main checkout). It has where every workflow stopped, the exact continuation scripts to launch, test results, remaining steps and the time estimate. To restart, the user opens a new chat in the worktree and asks to continue from `RESUME.md`. Time left when paused: 3 to 4.5 hours from restart, most likely about 3.5. The final step is running it on the user's laptop with seed data, which they open themselves at http://localhost:3001.
+**Paused from 20:00 to 21:50 when the user had to close the chat. Read `RESUME.md` in the worktree root first** (`D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\RESUME.md`, with a copy in the main checkout). It has where every workflow stopped, the exact continuation scripts to launch, test results, remaining steps and the time estimate. To restart, the user opens a new chat in the worktree and asks to continue from `RESUME.md`. Time left when paused: 3 to 4.5 hours from restart, most likely about 3.5. The final step is running it on the user's laptop with seed data, which they open themselves at http://localhost:3001.
 
 ### Status at the pause
 | Phase | State |

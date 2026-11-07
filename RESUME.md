@@ -4,6 +4,8 @@ Paused on 2026-11-07 at about 20:00 Pakistan time because the user had to close 
 
 Nothing was lost. All code is committed on the local branch `analytics_tool`. Nothing is pushed, because the user said to keep it local.
 
+**Restarted on 2026-11-07 at 21:50.** The five workflows in section 3 are running: backend `wf_82d28687-032`, UI `wf_00e66097-be6`, tests `wf_24060795-bfa`, data flow `wf_02f3a634-e5f`, seed `wf_00006db9-6bb`. If the chat closes before they report, first check what finished in each run's `journal.jsonl` under `C:\Users\Ahsan\.claude\projects\D--Coding-Flolabs-crm\80ecf43a-baa7-43f2-95f1-efcb443943ff\subagents\workflows\<run id>\`, and in `git status`, since agents do not commit. In this same session, `Workflow({scriptPath, resumeFromRunId})` with these run IDs returns finished agents from cache. In a new chat, rerun the continuation scripts after removing any step already finished.
+
 ## 1. How to restart
 
 **The user:** start Docker Desktop, close Chrome, open a new chat in `D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool` and send:
