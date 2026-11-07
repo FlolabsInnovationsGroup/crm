@@ -3,6 +3,7 @@ import { t } from '@lingui/core/macro';
 import { useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { isDefined } from 'twenty-shared/utils';
+import { IconChevronDown, IconChevronRight } from 'twenty-ui/icon';
 import { MOBILE_VIEWPORT, themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsReportView } from '@/crm-analytics/components/AnalyticsReportView';
@@ -51,12 +52,56 @@ const StyledGroup = styled.div`
   gap: ${themeCssVariables.spacing[1]};
 `;
 
-const StyledGroupTitle = styled.p`
-  color: ${themeCssVariables.font.color.tertiary};
-  font-size: ${themeCssVariables.font.size.xs};
+const StyledGroupTitle = styled.button`
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: ${themeCssVariables.border.radius.sm};
+  color: ${themeCssVariables.font.color.secondary};
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.sm};
   font-weight: ${themeCssVariables.font.weight.medium};
-  margin: 0;
-  padding: 0 ${themeCssVariables.spacing[2]};
+  gap: ${themeCssVariables.spacing[1]};
+  padding: ${themeCssVariables.spacing[1]} ${themeCssVariables.spacing[2]};
+  text-align: start;
+  width: 100%;
+
+  &:hover {
+    background: ${themeCssVariables.background.transparent.light};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${themeCssVariables.color.blue};
+    outline-offset: -2px;
+  }
+`;
+
+const StyledGroupCount = styled.span`
+  color: ${themeCssVariables.font.color.tertiary};
+  font-weight: ${themeCssVariables.font.weight.regular};
+  margin-left: auto;
+`;
+
+const StyledShowMoreButton = styled.button`
+  background: none;
+  border: none;
+  color: ${themeCssVariables.font.color.tertiary};
+  cursor: pointer;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.sm};
+  padding: ${themeCssVariables.spacing[1]} ${themeCssVariables.spacing[2]};
+  text-align: start;
+
+  &:hover {
+    color: ${themeCssVariables.font.color.primary};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${themeCssVariables.color.blue};
+    outline-offset: -2px;
+  }
 `;
 
 const StyledGroupEmpty = styled.p`
@@ -137,39 +182,82 @@ type AnalyticsReportGroupProps = {
   onSelect: (reportKey: string) => void;
 };
 
+const COLLAPSED_REPORT_COUNT = 5;
+
 const AnalyticsReportGroup = ({
   title,
   reports,
   selectedReportKey,
   onSelect,
-}: AnalyticsReportGroupProps) => (
-  <StyledGroup>
-    <StyledGroupTitle>{title}</StyledGroupTitle>
-    {reports.length === 0 ? (
-      <StyledGroupEmpty>{t`None yet`}</StyledGroupEmpty>
-    ) : (
-      <StyledList aria-label={title}>
-        {reports.map((report) => {
-          const reportKey = getReportKey(report);
-          const isSelected = reportKey === selectedReportKey;
+}: AnalyticsReportGroupProps) => {
+  const [isOpen, setIsOpen] = useState(true);
+  const [isShowingAll, setIsShowingAll] = useState(false);
 
-          return (
-            <li key={reportKey}>
-              <StyledReportButton
-                type="button"
-                isSelected={isSelected}
-                aria-current={isSelected ? 'true' : undefined}
-                onClick={() => onSelect(reportKey)}
-              >
-                {formatAnalyticsReportPeriod(report)}
-              </StyledReportButton>
-            </li>
-          );
-        })}
-      </StyledList>
-    )}
-  </StyledGroup>
-);
+  const selectedIndex = reports.findIndex(
+    (report) => getReportKey(report) === selectedReportKey,
+  );
+  const visibleCount =
+    isShowingAll || selectedIndex >= COLLAPSED_REPORT_COUNT
+      ? reports.length
+      : COLLAPSED_REPORT_COUNT;
+  const visibleReports = reports.slice(0, visibleCount);
+  const hiddenCount = reports.length - visibleReports.length;
+
+  return (
+    <StyledGroup>
+      <StyledGroupTitle
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {isOpen ? (
+          <IconChevronDown size={14} stroke={1.6} />
+        ) : (
+          <IconChevronRight size={14} stroke={1.6} />
+        )}
+        {title}
+        <StyledGroupCount>{reports.length}</StyledGroupCount>
+      </StyledGroupTitle>
+      {isOpen &&
+        (reports.length === 0 ? (
+          <StyledGroupEmpty>{t`None yet`}</StyledGroupEmpty>
+        ) : (
+          <StyledList aria-label={title}>
+            {visibleReports.map((report) => {
+              const reportKey = getReportKey(report);
+              const isSelected = reportKey === selectedReportKey;
+
+              return (
+                <li key={reportKey}>
+                  <StyledReportButton
+                    type="button"
+                    isSelected={isSelected}
+                    aria-current={isSelected ? 'true' : undefined}
+                    onClick={() => onSelect(reportKey)}
+                  >
+                    {formatAnalyticsReportPeriod(report)}
+                  </StyledReportButton>
+                </li>
+              );
+            })}
+            {(hiddenCount > 0 || isShowingAll) &&
+              reports.length > COLLAPSED_REPORT_COUNT && (
+                <li>
+                  <StyledShowMoreButton
+                    type="button"
+                    onClick={() => setIsShowingAll(!isShowingAll)}
+                  >
+                    {hiddenCount > 0
+                      ? t`Show ${hiddenCount} more`
+                      : t`Show less`}
+                  </StyledShowMoreButton>
+                </li>
+              )}
+          </StyledList>
+        ))}
+    </StyledGroup>
+  );
+};
 
 type AnalyticsReportsTabProps = {
   onFilterChange?: (nextFilter: AnalyticsFilter) => void;

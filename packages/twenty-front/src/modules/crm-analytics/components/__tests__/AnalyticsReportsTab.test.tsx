@@ -181,7 +181,9 @@ describe('AnalyticsReportsTab', () => {
 
     const reportButtons = within(
       screen.getByRole('navigation', { name: 'Reports' }),
-    ).getAllByRole('button');
+    )
+      .getAllByRole('button')
+      .filter((button) => !button.hasAttribute('aria-expanded'));
 
     expect(reportButtons.map((button) => button.textContent)).toEqual([
       'Oct 26 to Nov 1, 2026',
