@@ -77,7 +77,7 @@ Last updated: 2026-11-07 18:15, backend, UI, integration and SQL proof workflows
 | Research, critique, contract | Done. Contract corrected by the verifier: 13 defects fixed |
 | Backend `analytics-backend` (`wf_3a38ec46-0e1`) | Foundation done, all 8 specs pass. Pipeline and metrics agents running, then up to 3 review and fix rounds |
 | UI `analytics-ui` (`wf_f8080ac4-839`) | Foundation done, 30 tests pass; component tests need `twenty-ui` built. Funnel and Categories, Trends and Reports agents running, then up to 3 review and fix rounds |
-| Integration `analytics-integration` (`wf_1c810e29-9f0`) | Running: writer agent, then a different reviewer agent, on the five existing files. Commit each file separately once approved |
+| Integration `analytics-integration` | Written and APPROVED by a separate reviewer: five existing files, 27 lines added, none deleted. Uncommitted: commit one per file after the backend and UI are committed. Compile and boot not proven until the typecheck and boot test |
 | SQL proof `analytics-sql-proof` (`wf_182ab2dc-c6d`) | Running: real Postgres harness in `analytics-work/e2e/sql-proof/`, results in `analytics-work/e2e/RESULTS.md`. **Rerun it once the backend services exist**, and feed failures to a backend fix agent |
 | Automated tests `analytics-tests` | Running continuously: Opus writes permanent test files in `packages/twenty-utils/flolabs/analytics-tests/`, Haiku runs them when code changes, Sonnet evaluates. Run any layer with `node packages/twenty-utils/flolabs/analytics-tests/run-tests.mjs --layer <unit-server, unit-front, integration, blackbox, ui, all>`. Results and bugs are in `analytics-work/test-results/` (`latest-<layer>.json`, `history.jsonl`, `bugs.md`). A data flow graph layer (`analytics-tests/dataflow/`, workflow `analytics-dataflow-tests`, requested by the user) maps every path from CRM tables to the screen, tests each definition-use edge, and proves no personal data reaches the analytics tables. Seed data (`analytics-tests/seed/`, workflow `analytics-seed-data-small`): **the user said not to make test data large: keep it small but reflecting every use case.** Hand-designed people, each tied to a numbered use case in `use-cases.json`, with independently calculated expected results and a check that fails if any use case has no seed or assertion. No large dataset, so query speed at production scale (about 43,000 people) is unmeasured until production or a one-off check the user approves. It never fixes product code: **read `bugs.md` between phases and send real bugs to a fix agent.** Local only, it refuses non-localhost targets |
 | Typecheck, lint, boot test, full local end-to-end | Not started |
@@ -167,7 +167,7 @@ From the requirements: track contact and application counts by pipeline, track, 
 | Positions to tracks | Table in contract section 1 | Recruiting |
 | Time zone, windows, limits | UTC, 14 days per step, 90 overall, 14 stuck, minimum sample 30 | Recruiting |
 | Funnel unit, one pipeline | People, one pipeline | Team |
-| Who may view | Roles with `EXPORT_CSV`, whose label is overloaded | User |
+| Who may view | Roles with `EXPORT_CSV`. **Wider than it sounds:** the default Member role has `canAccessAllTools`, so every default member sees the page and passes the guard; only Guests and restricted custom roles are excluded. Page reads use the system context, so a role with tool access but no People permission could still see stuck-list names. To narrow it, change the flag in `NavigationDrawerAnalyticsItem.tsx` and `crm-analytics.resolver.ts`, both new files | User |
 | Reports | Frozen on a Reports tab, no delivery in v1 | User |
 | Retention | Paragraph in contract section 3 | User |
 | Tracking start | 2026-10-27, the day after the import | User, after audit |
@@ -185,6 +185,10 @@ From the requirements: track contact and application counts by pipeline, track, 
 10. One hand-counted sample period.
 11. Approve the retention paragraph.
 12. Start Docker Desktop and close other apps when end-to-end testing begins.
+
+### Before any production deploy (from the integration review)
+- The first deploy turns analytics on: `entrypoint.sh` runs `cron:register:all`, so jobs start for every active workspace and create the `analytics` schema. Hold the merge or deploy until the data audit passes, or insert `CRM_ANALYTICS_DISABLED` for each workspace first and accept that the nav item still shows an "off" page.
+- Analytics jobs share `workspaceQueue` (concurrency 1) with member email updates, cleanup, app installs and trash cleanup, so a slow run delays them. Compare `started_at` and `finished_at` in `analytics.sync_log`; if sync takes over 30 seconds, switch to the hourly pattern.
 
 ### Reported to the user, left alone
 - Possible bug: `useNotificationsSeenState.ts`, `FormBuilderResponsesTab.tsx:161` and `FormBuilderActionsEditor.tsx:63` appear to omit the core Apollo client, so those queries may fail. Unconfirmed. New code must not copy it.
