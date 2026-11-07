@@ -74,7 +74,7 @@ This section lets a new chat or a compacted session continue without losing cont
 
 Last updated: 2026-11-07 23:45.
 
-**Current position: building the graph-first redesign the user asked for after seeing the first version. Read `docs/analytics/dashboard-redesign.md`, which replaces contract section 8's chart rules.** The user wants many graphs of the best type for each question, very easy navigation, about 100 or more demo applications, then a review of the changed code, and no more test workflows. The CRM ran locally with seed data and first boot passed; `RESUME.md` section 11 has the run steps. The user asked to be reminded about clearing builds and installs at the very end, and only to do it when they ask.
+**Current position: building the graph-first redesign the user asked for after seeing the first version. Read `docs/analytics/dashboard-redesign.md`, which replaces contract section 8's chart rules.** The user wants many graphs of the best type for each question, very easy navigation, about 100 or more demo applications, then a review of the changed code, and no more test workflows. The CRM ran locally with seed data and first boot passed; `RESUME.md` section 11 has the run steps. **Final step the user asked for (2026-11-07): a large code review, with many Opus agents at max effort, of all the code changed on this branch, to find bugs.** It runs after the redesign and PDF workflows and the type check. Findings are checked by independent agents before fixing. The user approved many agents for this, above the usual limit of 6. The user asked to be reminded about clearing builds and installs at the very end, and only to do it when they ask.
 
 ### Status
 | Phase | State |
@@ -199,6 +199,7 @@ From the requirements: track contact and application counts by pipeline, track, 
 - GitHub reported 402 dependency vulnerabilities on `main`, 5 critical. Not investigated.
 
 ### Decision log
+- 2026-11-07, 23:50: The user asked that reports download as PDFs with all their graphs, and for a large final code review by many Opus agents at max effort. Test workflows stay stopped.
 - 2026-11-07, 23:40: After seeing the page the user said it needs many graphs of different types, easy navigation and about 100 demo applications, and that testing is now enough because the tool is read-only: review the changed code and stop there. Test workflows stopped. Design in `docs/analytics/dashboard-redesign.md`. This overrides the critic's cut to one chart and tables, and the later-not-v1 list where they conflict.
 - 2026-11-07, 22:20: The user asked to be reminded at the very end, after testing and the presentation, about clearing the builds, installs and other local data to get the disk space back. **Do it only when the user asks.** Listed in `docs/analytics/THINGS-TO-DO-BEFORE-MERGE.md` section 7. Show the exact list and sizes first; never delete the code or the branch.
 - 2026-11-07, 22:15: The user ruled that Claude can never merge or push to `main`, in any case. Written in CLAUDE.md Rule #2, memory, `RESUME.md` and the before-merge checklist. The user also asked to run the CRM with seed data now and test while the review finishes, with one review pass instead of three rounds.
