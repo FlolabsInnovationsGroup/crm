@@ -139,6 +139,8 @@ export PATH="/d/Coding/Flolabs/crm/.claude/worktrees/analytics-work/bin:$PATH" N
 8. **Hand it to the user:** they open `http://localhost:3001` themselves, with the prefilled login ("Continue with Email"). The user asked for this to be the final step.
 9. **Merging and deploying are done by a person, never by Claude.** Claude only prepares the checklist in `docs/analytics/THINGS-TO-DO-BEFORE-MERGE.md`.
 
+10. **Clean up, at the very end of everything (the user, 2026-11-07), to get the disk space back.** Details in `docs/analytics/THINGS-TO-DO-BEFORE-MERGE.md` section 7. Show the user the exact list and sizes before deleting.
+
 Update `CLAUDE.md` and this file at the end of each of these steps.
 
 ## 7. Time left

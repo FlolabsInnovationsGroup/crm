@@ -86,7 +86,17 @@ Run from the worktree. Each must pass on the final code.
 - [ ] **Watch job time:** analytics jobs share a queue with member updates, cleanup and app installs. Compare `started_at` and `finished_at` in `analytics.sync_log`. If sync takes over 30 seconds, switch to the hourly pattern.
 - [ ] **Removal, if ever needed:** `DROP SCHEMA analytics CASCADE`. No CRM table is touched.
 
-## 7. Noticed along the way, separate from this work
+## 7. Clean up at the very end, to get the disk space back
+
+The user asked for this as the last step, after testing and the presentation. Claude shows the exact list and sizes first, then deletes. Stop the local CRM before starting.
+
+- [ ] **Installs and builds in the worktree:** `node_modules` everywhere, every package's `dist` and `build`, the `.nx` cache, and the Vite cache.
+- [ ] **Local settings:** `packages/twenty-server/.env`, `packages/twenty-front/.env` and `analytics-work/e2e/token.txt`.
+- [ ] **Docker:** the local containers and their volumes (`twenty-dev-db-1`, `twenty-dev-redis-1`), which hold only the local test CRM and test databases, plus any images pulled for this work.
+- [ ] **Caches on C:** Jest and Node caches in `%TEMP%`, Playwright browsers if this work installed them, and this session's scratch folder.
+- [ ] **Never delete the code:** the `analytics_tool` branch and its commits are the only copy until a person pushes them. Keep them, and keep `RESUME.md`, the contract and the docs.
+
+## 8. Noticed along the way, separate from this work
 
 These are not blockers for this merge, and nobody has acted on them.
 
