@@ -68,7 +68,7 @@ npx nx run twenty-front:graphql:generate      # after GraphQL schema changes (--
 
 This section lets a new chat or a compacted session continue without losing context. Read it before doing anything on the analytics tool. **Keep it current:** update it after every 2 or 3 decisions and at the end of every phase. To update: edit `.claude/worktrees/analytics-work/state_block.md` (absolute path `D:\Coding\Flolabs\crm\.claude\worktrees\analytics-work\state_block.md`), run `python -X utf8` on `sync_claude_md.py` in that folder, then commit `CLAUDE.md` on the `analytics_tool` branch.
 
-Last updated: 2026-11-07 18:15, backend, UI, integration and SQL proof workflows running.
+Last updated: 2026-11-07 19:05, code written; reviews, test suite, seed, data flow and merge guard agents finishing.
 
 ### Status
 | Phase | State (2026-11-07, 18:15) |
@@ -111,7 +111,7 @@ If a workflow cannot be resumed in a new chat, check `git status` in the worktre
 3. **Build what is intended, do not over-engineer, make the tool the team needs.** Critically evaluate scope.
 4. **A good UI and good visual graphs matter.** Use the UI, Apple and dataviz skills for UI work.
 5. **The user makes the decisions.** Give suggestions and ask before decisions, changes and anything irreversible. On 2026-11-07 the user said to start, and later to stop spending time on research and build now, with the suggested defaults as the starting point. Report at the end of each phase. Do not fix or "improve" things that were not asked for, including bugs you notice: report them.
-6. **Agents:** up to 12 at the same time (the user said on 2026-11-07 "run as many as you want until 12", read as 12 agents). Complex work can use Opus 5.5 at max effort (`model: 'opus', effort: 'max'`). Heavy commands stay one at a time because the machine has 15 GB of RAM. Be especially careful with development, because this is the live CRM. Never use `isolation: 'worktree'` for agents, since that branches from the wrong commit.
+6. **Use tokens carefully, step by step (the user, 2026-11-07, 19:00):** take the most optimized approach. Run tests, type checks and builds directly with Bash, since only their output costs tokens. Spawn an agent only for real work such as fixing a confirmed bug, with a tight brief, preferably one at a time. No looping workflows. Never more than 6 agents without asking. Be especially careful with development, because this is the live CRM. Never use `isolation: 'worktree'` for agents, since that branches from the wrong commit.
 7. **All work on `analytics_tool`.** Nothing merges to `main` or deploys until the user reviews it. Do not push until the user says so.
 8. **Keep this section updated with all details.**
 
@@ -204,5 +204,6 @@ From the requirements: track contact and application counts by pipeline, track, 
 - 2026-11-07: The user has no production access. Production data is not a build blocker: the page shows real stage values as Unmapped rows once deployed, and timeline behaviour is proven locally.
 - 2026-11-07: The user asked for a workflow that keeps testing, with test files that can be rerun: Opus writes, Haiku or Sonnet run and evaluate.
 - 2026-11-07: The user said seed data must not be merged, and asked for a merge layer and a things-to-do-before-merge file.
+- 2026-11-07, 19:00: The user said to go step by step and not burn tokens. The test loop stops after its first round, reviews stop after one review and one fix, and the main session runs checks directly from now on.
 - 2026-11-07: The user said to stop waiting on research and build now. Critic's simplifications adopted: no current-state table, mapping in a constant, 15-minute sync, metrics per request, eight views instead of 13, reports on a page, no polling. Build started before the contract verifier finished.
 <!-- analytics-state:end -->
