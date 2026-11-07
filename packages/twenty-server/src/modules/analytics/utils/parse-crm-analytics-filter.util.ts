@@ -3,12 +3,18 @@ import { Temporal } from 'temporal-polyfill';
 import { isDefined } from 'twenty-shared/utils';
 
 import { UserInputError } from 'src/engine/core-modules/graphql/utils/graphql-errors.util';
+import { CRM_ANALYTICS_CONFIG } from 'src/modules/analytics/constants/crm-analytics-config.constant';
+import { CRM_ANALYTICS_SERIES_LIMITS } from 'src/modules/analytics/constants/crm-analytics-series-limits.constant';
+import { CRM_ANALYTICS_SERIES_STAGES } from 'src/modules/analytics/constants/crm-analytics-series-stages.constant';
 import { type CrmAnalyticsFilterInput } from 'src/modules/analytics/dtos/crm-analytics-filter.input';
+import { type CrmAnalyticsSeriesRequestInput } from 'src/modules/analytics/dtos/crm-analytics-series-request.input';
 import {
   type AnalyticsCategoryGroupBy,
   type AnalyticsFilter,
   type AnalyticsPeriod,
   type AnalyticsReportPeriodType,
+  type AnalyticsSeriesGroupBy,
+  type AnalyticsSeriesRequest,
   type AnalyticsStatusFilter,
   type AnalyticsTrendMetric,
 } from 'src/modules/analytics/types/analytics-api.type';
@@ -38,6 +44,25 @@ const TREND_METRICS: AnalyticsTrendMetric[] = [
   'MEDIAN_DAYS',
 ];
 const REPORT_PERIOD_TYPES: AnalyticsReportPeriodType[] = ['WEEK', 'MONTH'];
+const SERIES_GROUP_BYS: AnalyticsSeriesGroupBy[] = [
+  'NONE',
+  'TRACK',
+  'SOURCE',
+  'STAGE',
+];
+const STAGE_TREND_METRICS: AnalyticsTrendMetric[] = [
+  'STAGE_COUNT',
+  'DROP_OFF',
+  'MEDIAN_DAYS',
+];
+
+// Fixed for a request whatever the filter, so a filter change cannot start rejecting it.
+const SERIES_COUNT_BY_GROUP_BY: Record<AnalyticsSeriesGroupBy, number> = {
+  NONE: 1,
+  TRACK: CRM_ANALYTICS_CONFIG.tracks.length,
+  SOURCE: CRM_ANALYTICS_SERIES_LIMITS.topSources,
+  STAGE: CRM_ANALYTICS_SERIES_STAGES.length,
+};
 
 const parseLiteral = <TLiteral extends string>(
   value: string,
@@ -141,3 +166,36 @@ export const parseCrmAnalyticsReportPeriodType = (
   value: string,
 ): AnalyticsReportPeriodType =>
   parseLiteral(value, REPORT_PERIOD_TYPES, 'periodType');
+
+const parseSeriesRequest = (
+  input: CrmAnalyticsSeriesRequestInput,
+): AnalyticsSeriesRequest => {
+  const metric = parseCrmAnalyticsTrendMetric(input.metric);
+  const stageKey = parseCrmAnalyticsStageKey(input.stageKey);
+  const groupBy = parseLiteral(input.groupBy, SERIES_GROUP_BYS, 'groupBy');
+
+  if (
+    groupBy === 'STAGE' &&
+    (isDefined(stageKey) || !STAGE_TREND_METRICS.includes(metric))
+  ) {
+    throw new UserInputError('Invalid analytics stage grouping');
+  }
+
+  return { metric, stageKey, groupBy };
+};
+
+export const parseCrmAnalyticsSeriesRequests = (
+  inputs: CrmAnalyticsSeriesRequestInput[],
+): AnalyticsSeriesRequest[] => {
+  const requests = inputs.map(parseSeriesRequest);
+  const seriesCount = requests.reduce(
+    (total, { groupBy }) => total + SERIES_COUNT_BY_GROUP_BY[groupBy],
+    0,
+  );
+
+  if (seriesCount > CRM_ANALYTICS_SERIES_LIMITS.maximumSeries) {
+    throw new UserInputError('Too many analytics series requested');
+  }
+
+  return requests;
+};

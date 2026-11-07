@@ -7,6 +7,8 @@ import {
   CRM_ANALYTICS_CONFIG,
   type CrmAnalyticsStageConfig,
 } from 'src/modules/analytics/constants/crm-analytics-config.constant';
+import { CRM_ANALYTICS_SERIES_LIMITS } from 'src/modules/analytics/constants/crm-analytics-series-limits.constant';
+import { CRM_ANALYTICS_SERIES_STAGES } from 'src/modules/analytics/constants/crm-analytics-series-stages.constant';
 import { CrmAnalyticsFacadeService } from 'src/modules/analytics/facade/crm-analytics-facade.service';
 import { CrmAnalyticsDatabaseService } from 'src/modules/analytics/services/crm-analytics-database.service';
 import { CrmAnalyticsSettingsService } from 'src/modules/analytics/services/crm-analytics-settings.service';
@@ -21,7 +23,11 @@ import {
   type AnalyticsFunnelRow,
   type AnalyticsMovementRow,
   type AnalyticsOverview,
+  type AnalyticsOption,
   type AnalyticsPeriod,
+  type AnalyticsSeries,
+  type AnalyticsSeriesBundle,
+  type AnalyticsSeriesRequest,
   type AnalyticsStageTotalRow,
   type AnalyticsStatusFilter,
   type AnalyticsStuckRow,
@@ -108,6 +114,13 @@ type FunnelGroup = {
 };
 
 type TrendValue = { value: number | null; size: number | null };
+
+type SeriesGroup = {
+  groupKey: string | null;
+  groupLabel: string | null;
+  filter: AnalyticsFilter;
+  stageKey: string | null;
+};
 
 const NONE_CATEGORY_KEY = 'NONE';
 const UNMAPPED_CATEGORY_KEY = 'UNMAPPED';
@@ -340,16 +353,30 @@ const buildFunnelCtes = ({
   overallWindowParameter,
   successStageParameter,
   entryRankParameter,
+  windowsClosedAtParameter,
 }: {
   groupSql: string;
   overallWindowParameter: string;
   successStageParameter: string;
   entryRankParameter: string;
-}): string => `funnel_group AS (${groupSql}),
+  windowsClosedAtParameter?: string;
+}): string => {
+  const windowsClosedAtSql = isDefined(windowsClosedAtParameter)
+    ? `${windowsClosedAtParameter}::timestamptz`
+    : 'now()';
+  // Someone who reached the funnel only after that moment was not in it yet.
+  const stepEnteredFilterSql = isDefined(windowsClosedAtParameter)
+    ? ` WHERE ps.entered_at < ${windowsClosedAtSql}`
+    : '';
+  const overallEnteredFilterSql = isDefined(windowsClosedAtParameter)
+    ? ` AND e.entered_at < ${windowsClosedAtSql}`
+    : '';
+
+  return `funnel_group AS (${groupSql}),
 step_row AS (
   SELECT g.group_key, ps.person_id, ps.stage_key, ps.entered_at, ps.next_at,
     ps.entered_at + ps.window_days * interval '1 day' AS window_end
-  FROM person_step ps JOIN funnel_group g ON g.person_id = ps.person_id),
+  FROM person_step ps JOIN funnel_group g ON g.person_id = ps.person_id${stepEnteredFilterSql}),
 step_exit AS (
   SELECT DISTINCT r.group_key, r.person_id, r.stage_key
   FROM step_row r JOIN transition t ON t.person_id = r.person_id
@@ -357,9 +384,9 @@ step_exit AS (
 step_total AS (
   SELECT r.group_key, r.stage_key,
     count(*)::int AS entered,
-    count(*) FILTER (WHERE r.window_end <= now())::int AS eligible,
-    count(*) FILTER (WHERE r.window_end <= now() AND r.next_at <= r.window_end)::int AS reached_next,
-    count(*) FILTER (WHERE r.window_end <= now() AND (r.next_at IS NULL OR r.next_at > r.window_end) AND x.person_id IS NOT NULL)::int AS exited,
+    count(*) FILTER (WHERE r.window_end <= ${windowsClosedAtSql})::int AS eligible,
+    count(*) FILTER (WHERE r.window_end <= ${windowsClosedAtSql} AND r.next_at <= r.window_end)::int AS reached_next,
+    count(*) FILTER (WHERE r.window_end <= ${windowsClosedAtSql} AND (r.next_at IS NULL OR r.next_at > r.window_end) AND x.person_id IS NOT NULL)::int AS exited,
     count(r.next_at)::int AS reached_so_far
   FROM step_row r
   LEFT JOIN step_exit x ON x.group_key = r.group_key AND x.person_id = r.person_id AND x.stage_key = r.stage_key
@@ -369,15 +396,16 @@ overall_row AS (
   FROM person_step e
   JOIN funnel_group g ON g.person_id = e.person_id
   LEFT JOIN person_step f ON f.person_id = e.person_id AND f.stage_key = ${successStageParameter}::text
-  WHERE e.rank = ${entryRankParameter}::int),
+  WHERE e.rank = ${entryRankParameter}::int${overallEnteredFilterSql}),
 overall_total AS (
   SELECT o.group_key,
     count(*)::int AS entered,
-    count(*) FILTER (WHERE o.window_end <= now())::int AS eligible,
-    count(*) FILTER (WHERE o.window_end <= now() AND o.success_at <= o.window_end)::int AS reached,
+    count(*) FILTER (WHERE o.window_end <= ${windowsClosedAtSql})::int AS eligible,
+    count(*) FILTER (WHERE o.window_end <= ${windowsClosedAtSql} AND o.success_at <= o.window_end)::int AS reached,
     count(o.success_at)::int AS reached_so_far
   FROM overall_row o
   GROUP BY o.group_key)`;
+};
 
 const FUNNEL_SELECT_SQL = `SELECT a.group_key, a.entered, a.eligible, a.reached, a.reached_so_far,
   (SELECT json_agg(json_build_object(
@@ -539,8 +567,8 @@ const computeCategoryRowOrder = ({
 };
 
 const compareCategoryRows = (
-  first: AnalyticsCategoryRow,
-  second: AnalyticsCategoryRow,
+  first: Pick<AnalyticsCategoryRow, 'key' | 'isUnmapped' | 'people'>,
+  second: Pick<AnalyticsCategoryRow, 'key' | 'isUnmapped' | 'people'>,
 ): number => {
   const orderDifference =
     computeCategoryRowOrder(first) - computeCategoryRowOrder(second);
@@ -815,6 +843,20 @@ export class CrmAnalyticsMetricsService {
     );
   }
 
+  async getSeries({
+    workspaceId,
+    filter,
+    requests,
+  }: {
+    workspaceId: string;
+    filter: AnalyticsFilter;
+    requests: AnalyticsSeriesRequest[];
+  }): Promise<AnalyticsSeriesBundle | null> {
+    return this.runPageRead(workspaceId, (context) =>
+      this.computeSeriesBundle({ context, filter, requests }),
+    );
+  }
+
   async buildQueryContext({
     state,
     trackingStart,
@@ -857,6 +899,47 @@ export class CrmAnalyticsMetricsService {
       from <
       computeCrmAnalyticsLocalDate(context.trackingStart, context.timeZone)
     );
+  }
+
+  // For a frozen report: buckets end at lastDay whenever this runs, and a rate counts
+  // only windows closed by then, so a backfill matches a report built on time.
+  async computeReportSeries({
+    context,
+    metric,
+    period,
+    lastDay,
+    windowsClosedAt,
+  }: {
+    context: CrmAnalyticsQueryContext;
+    metric: AnalyticsTrendMetric;
+    period: AnalyticsPeriod;
+    lastDay: string;
+    windowsClosedAt: string;
+  }): Promise<AnalyticsSeries> {
+    const stageKey = this.resolveTrendStageKey(metric, null);
+    const { series: points, unavailableReason } = await this.computeTrendSeries(
+      {
+        context,
+        filter: {
+          ...CRM_ANALYTICS_NO_PERSON_FILTER,
+          dateFrom: null,
+          dateTo: lastDay,
+          period,
+        },
+        metric,
+        stageKey,
+        windowsClosedAt,
+      },
+    );
+
+    return {
+      metric,
+      stageKey,
+      groupKey: null,
+      groupLabel: null,
+      unavailableReason,
+      points,
+    };
   }
 
   async computeNewApplications({
@@ -981,31 +1064,12 @@ GROUP BY cs.stage_key`,
     submissionRange: CrmAnalyticsClosedDateRange;
     cohortDateRange: CrmAnalyticsDateRange;
   }): Promise<AnalyticsCategories> {
-    const peopleStatement = this.createBaseStatement({
+    const peopleRows = await this.readCategoryPeople({
       context,
       personFilter,
-      scopeDateRange: peopleDateRange,
+      groupBy,
+      peopleDateRange,
     });
-    const activeConditionSql = buildActiveConditionSql(
-      peopleStatement,
-      's.current_kind',
-      's.current_key',
-    );
-    const peopleRows = await context.run(
-      `${joinCtes(
-        peopleStatement.withSql,
-        buildCategoryMemberCtes({
-          statement: peopleStatement,
-          groupBy,
-          personFilter,
-        }),
-      )}
-SELECT cm.parent_key, cm.category_key, count(*)::int AS people,
-  count(*) FILTER (WHERE ${activeConditionSql})::int AS active_people
-FROM category_member cm JOIN scope s ON s.person_id = cm.person_id
-GROUP BY cm.parent_key, cm.category_key`,
-      peopleStatement.parameters,
-    );
 
     const overlap = await this.readCategoryOverlap({
       context,
@@ -1671,12 +1735,14 @@ WHERE COALESCE(s.raw_stage, '') <> '' AND s.current_key IS NULL AND mm.person_id
     cohortDateRange,
     buildExtraCtes,
     buildGroupSql,
+    windowsClosedAt,
   }: {
     context: CrmAnalyticsQueryContext;
     personFilter: CrmAnalyticsPersonFilter;
     cohortDateRange: CrmAnalyticsDateRange;
     buildExtraCtes?: (statement: SqlStatement) => string;
     buildGroupSql: (statement: SqlStatement) => string;
+    windowsClosedAt?: string;
   }): Promise<Map<string, FunnelGroup>> {
     const statement = this.createBaseStatement({
       context,
@@ -1691,6 +1757,9 @@ WHERE COALESCE(s.raw_stage, '') <> '' AND s.current_key IS NULL AND mm.person_id
       ),
       successStageParameter: statement.bind(SUCCESS_STAGE_KEY),
       entryRankParameter: statement.bind(ENTRY_RANK),
+      windowsClosedAtParameter: isDefined(windowsClosedAt)
+        ? statement.bind(windowsClosedAt)
+        : undefined,
     });
 
     const rows = await context.run(
@@ -1704,6 +1773,41 @@ ${FUNNEL_SELECT_SQL}`,
         String(row.group_key),
         parseFunnelGroup(row),
       ]),
+    );
+  }
+
+  private async readCategoryPeople({
+    context,
+    personFilter,
+    groupBy,
+    peopleDateRange,
+  }: {
+    context: CrmAnalyticsQueryContext;
+    personFilter: CrmAnalyticsPersonFilter;
+    groupBy: AnalyticsCategoryGroupBy;
+    peopleDateRange: CrmAnalyticsDateRange;
+  }): Promise<SqlRow[]> {
+    const statement = this.createBaseStatement({
+      context,
+      personFilter,
+      scopeDateRange: peopleDateRange,
+    });
+    const activeConditionSql = buildActiveConditionSql(
+      statement,
+      's.current_kind',
+      's.current_key',
+    );
+
+    return context.run(
+      `${joinCtes(
+        statement.withSql,
+        buildCategoryMemberCtes({ statement, groupBy, personFilter }),
+      )}
+SELECT cm.parent_key, cm.category_key, count(*)::int AS people,
+  count(*) FILTER (WHERE ${activeConditionSql})::int AS active_people
+FROM category_member cm JOIN scope s ON s.person_id = cm.person_id
+GROUP BY cm.parent_key, cm.category_key`,
+      statement.parameters,
     );
   }
 
@@ -1888,6 +1992,156 @@ GROUP BY cm.parent_key, cm.category_key`,
     };
   }
 
+  private async computeSeriesBundle({
+    context,
+    filter,
+    requests,
+  }: {
+    context: CrmAnalyticsQueryContext;
+    filter: AnalyticsFilter;
+    requests: AnalyticsSeriesRequest[];
+  }): Promise<AnalyticsSeriesBundle> {
+    const topSources = requests.some(({ groupBy }) => groupBy === 'SOURCE')
+      ? await this.readTopSources(context, filter)
+      : [];
+    const series: AnalyticsSeries[] = [];
+
+    // One transaction runs one statement at a time, so these stay sequential.
+    for (const request of requests) {
+      for (const group of this.buildSeriesGroups({
+        context,
+        filter,
+        request,
+        topSources,
+      })) {
+        const stageKey = this.resolveTrendStageKey(
+          request.metric,
+          group.stageKey,
+        );
+        const { series: points, unavailableReason } =
+          await this.computeTrendSeries({
+            context,
+            filter: group.filter,
+            metric: request.metric,
+            stageKey,
+          });
+
+        series.push({
+          metric: request.metric,
+          stageKey,
+          groupKey: group.groupKey,
+          groupLabel: group.groupLabel,
+          unavailableReason,
+          points,
+        });
+      }
+    }
+
+    return { ...this.buildBase(context), period: filter.period, series };
+  }
+
+  private buildSeriesGroups({
+    context,
+    filter,
+    request: { stageKey, groupBy },
+    topSources,
+  }: {
+    context: CrmAnalyticsQueryContext;
+    filter: AnalyticsFilter;
+    request: AnalyticsSeriesRequest;
+    topSources: AnalyticsOption[];
+  }): SeriesGroup[] {
+    switch (groupBy) {
+      case 'NONE':
+        return [{ groupKey: null, groupLabel: null, filter, stageKey }];
+      case 'TRACK':
+        return this.resolveSeriesTrackKeys(filter).map((trackKey) => ({
+          groupKey: trackKey,
+          groupLabel: this.buildCategoryLabel({
+            state: context.state,
+            groupBy: 'TRACK_PROGRAM',
+            parentKey: null,
+            key: trackKey,
+          }),
+          // A chosen program already narrows further than its track, and adding the track
+          // could only turn a snapshot metric unavailable.
+          filter: isDefined(filter.programKey)
+            ? filter
+            : { ...filter, trackKey },
+          stageKey,
+        }));
+      case 'SOURCE':
+        return topSources.map(({ key, label }) => ({
+          groupKey: key,
+          groupLabel: label,
+          filter: { ...filter, sourceKey: key },
+          stageKey,
+        }));
+      case 'STAGE':
+        return CRM_ANALYTICS_SERIES_STAGES.map((stage) => ({
+          groupKey: stage.stageKey,
+          groupLabel: stage.label,
+          filter,
+          stageKey: stage.stageKey,
+        }));
+    }
+  }
+
+  // Filtering the page to one track or program leaves one line, not every track's.
+  private resolveSeriesTrackKeys({
+    trackKey,
+    programKey,
+  }: Pick<AnalyticsFilter, 'trackKey' | 'programKey'>): string[] {
+    if (isDefined(trackKey)) {
+      return [trackKey];
+    }
+
+    if (!isDefined(programKey)) {
+      return CRM_ANALYTICS_CONFIG.tracks.map((track) => track.trackKey);
+    }
+
+    return [
+      programKey === NONE_CATEGORY_KEY
+        ? NONE_CATEGORY_KEY
+        : (TRACK_KEY_BY_POSITION.get(programKey) ?? UNMAPPED_CATEGORY_KEY),
+    ];
+  }
+
+  // Ranked as the source bars are, so the lines and the bars name the same sources.
+  private async readTopSources(
+    context: CrmAnalyticsQueryContext,
+    filter: AnalyticsFilter,
+  ): Promise<AnalyticsOption[]> {
+    const rows = await this.readCategoryPeople({
+      context,
+      personFilter: filter,
+      groupBy: 'SOURCE',
+      peopleDateRange: { from: filter.dateFrom, to: filter.dateTo },
+    });
+    const sourceCategory = {
+      state: context.state,
+      groupBy: 'SOURCE',
+      parentKey: null,
+    } as const;
+
+    return rows
+      .map((row) => {
+        const key = String(row.category_key);
+
+        return {
+          key,
+          people: toCount(row.people),
+          isUnmapped: this.isCategoryUnmapped({ ...sourceCategory, key }),
+        };
+      })
+      .sort(compareCategoryRows)
+      .slice(0, CRM_ANALYTICS_SERIES_LIMITS.topSources)
+      .map(({ key }) => ({
+        key,
+        label: this.buildCategoryLabel({ ...sourceCategory, key }),
+      }));
+  }
+
   // Daily conversion is out of scope, and the page explains an empty table at DAY.
   private async computeTrendCohorts(
     context: CrmAnalyticsQueryContext,
@@ -1964,11 +2218,13 @@ GROUP BY cm.parent_key, cm.category_key`,
     filter,
     metric,
     stageKey,
+    windowsClosedAt,
   }: {
     context: CrmAnalyticsQueryContext;
     filter: AnalyticsFilter;
     metric: AnalyticsTrendMetric;
     stageKey: string | null;
+    windowsClosedAt?: string;
   }): Promise<Pick<AnalyticsTrends, 'series' | 'unavailableReason'>> {
     const isRateMetric = metric === 'OVERALL_CONVERSION' || metric === 'DROP_OFF';
 
@@ -2017,6 +2273,7 @@ GROUP BY cm.parent_key, cm.category_key`,
       stageKey,
       range,
       snapshotDimension,
+      windowsClosedAt,
     });
 
     return {
@@ -2032,6 +2289,7 @@ GROUP BY cm.parent_key, cm.category_key`,
     stageKey,
     range,
     snapshotDimension,
+    windowsClosedAt,
   }: {
     context: CrmAnalyticsQueryContext;
     filter: AnalyticsFilter;
@@ -2039,6 +2297,7 @@ GROUP BY cm.parent_key, cm.category_key`,
     stageKey: string | null;
     range: CrmAnalyticsClosedDateRange;
     snapshotDimension: { dimension: string; dimensionKey: string } | null;
+    windowsClosedAt?: string;
   }): Promise<(bucketStart: string) => TrendValue> {
     switch (metric) {
       case 'NEW_APPLICATIONS': {
@@ -2090,6 +2349,7 @@ GROUP BY cm.parent_key, cm.category_key`,
           cohortDateRange: range,
           buildGroupSql: (statement) =>
             `SELECT c.person_id, ${buildBucketSql(statement, filter.period, 'c.created_at')} AS group_key FROM cohort c`,
+          windowsClosedAt,
         });
 
         return (bucketStart) =>

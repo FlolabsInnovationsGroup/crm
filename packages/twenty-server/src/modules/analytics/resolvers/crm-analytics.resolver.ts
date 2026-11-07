@@ -13,6 +13,7 @@ import { SettingsPermissionGuard } from 'src/engine/guards/settings-permission.g
 import { PermissionsGraphqlApiExceptionFilter } from 'src/engine/metadata-modules/permissions/utils/permissions-graphql-api-exception.filter';
 import { CrmAnalyticsFilterInput } from 'src/modules/analytics/dtos/crm-analytics-filter.input';
 import { CrmAnalyticsPayloadDTO } from 'src/modules/analytics/dtos/crm-analytics-payload.dto';
+import { CrmAnalyticsSeriesRequestInput } from 'src/modules/analytics/dtos/crm-analytics-series-request.input';
 import { CrmAnalyticsMetaService } from 'src/modules/analytics/services/crm-analytics-meta.service';
 import { CrmAnalyticsMetricsService } from 'src/modules/analytics/services/crm-analytics-metrics.service';
 import { CrmAnalyticsReportService } from 'src/modules/analytics/services/crm-analytics-report.service';
@@ -21,6 +22,7 @@ import {
   parseCrmAnalyticsGroupBy,
   parseCrmAnalyticsLocalDate,
   parseCrmAnalyticsReportPeriodType,
+  parseCrmAnalyticsSeriesRequests,
   parseCrmAnalyticsStageKey,
   parseCrmAnalyticsTrendMetric,
 } from 'src/modules/analytics/utils/parse-crm-analytics-filter.util';
@@ -131,6 +133,26 @@ export class CrmAnalyticsResolver {
         filter: parsedFilter,
         metric: parsedMetric,
         stageKey: parsedStageKey,
+      }),
+    };
+  }
+
+  @Query(() => CrmAnalyticsPayloadDTO)
+  async getCrmAnalyticsSeries(
+    @AuthWorkspace() workspace: WorkspaceEntity,
+    @Args('filter', { type: () => CrmAnalyticsFilterInput })
+    filter: CrmAnalyticsFilterInput,
+    @Args('requests', { type: () => [CrmAnalyticsSeriesRequestInput] })
+    requests: CrmAnalyticsSeriesRequestInput[],
+  ): Promise<CrmAnalyticsPayloadDTO> {
+    const parsedFilter = parseCrmAnalyticsFilter(filter);
+    const parsedRequests = parseCrmAnalyticsSeriesRequests(requests);
+
+    return {
+      payload: await this.metricsService.getSeries({
+        workspaceId: workspace.id,
+        filter: parsedFilter,
+        requests: parsedRequests,
       }),
     };
   }

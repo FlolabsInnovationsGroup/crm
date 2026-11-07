@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { CRM_ANALYTICS_CONFIG } from 'src/modules/analytics/constants/crm-analytics-config.constant';
 import { CrmAnalyticsDatabaseService } from 'src/modules/analytics/services/crm-analytics-database.service';
@@ -9,10 +9,13 @@ import {
   type CrmAnalyticsQueryContext,
 } from 'src/modules/analytics/services/crm-analytics-metrics.service';
 import { CrmAnalyticsSettingsService } from 'src/modules/analytics/services/crm-analytics-settings.service';
+import { computeCrmAnalyticsErrorMessage } from 'src/modules/analytics/services/crm-analytics-sync.service';
 import {
   type AnalyticsReport,
   type AnalyticsReportListItem,
   type AnalyticsReportPeriodType,
+  type AnalyticsSeries,
+  type AnalyticsTrendMetric,
 } from 'src/modules/analytics/types/analytics-api.type';
 import {
   type CrmAnalyticsCrmState,
@@ -20,6 +23,7 @@ import {
 } from 'src/modules/analytics/types/crm-analytics-crm-state.type';
 import {
   addCrmAnalyticsLocalDays,
+  computeCrmAnalyticsLocalDayStart,
   computeCrmAnalyticsPreviousReportPeriod,
   computeCrmAnalyticsReportPeriods,
   type CrmAnalyticsReportPeriod,
@@ -31,6 +35,25 @@ const STORAGE_EXISTS_SQL = `SELECT to_regclass('analytics.sync_log') IS NOT NULL
 
 const REPORT_PAYLOAD_VERSION = 1;
 
+// Reports run on workspaceQueue, which has concurrency 1, so a slow database must not hold every
+// other workspace job for hours. Missing periods are built on the next run.
+const REPORT_RUN_TIME_BUDGET_MS = 10 * 60 * 1000;
+
+const POSTGRES_QUERY_CANCELED_CODE = '57014';
+
+const REPORT_TREND_METRICS: AnalyticsTrendMetric[] = [
+  'NEW_APPLICATIONS',
+  'TOTAL_CONTACTS',
+  'OVERALL_CONVERSION',
+  'DROP_OFF',
+  'MEDIAN_DAYS',
+];
+
+const isStatementTimeout = (error: unknown): boolean =>
+  error instanceof Error &&
+  (('code' in error && error.code === POSTGRES_QUERY_CANCELED_CODE) ||
+    error.message.includes('statement timeout'));
+
 const toInclusiveRange = ({
   periodStart,
   periodEnd,
@@ -41,6 +64,8 @@ const toInclusiveRange = ({
 
 @Injectable()
 export class CrmAnalyticsReportService {
+  private readonly logger = new Logger(CrmAnalyticsReportService.name);
+
   constructor(
     private readonly databaseService: CrmAnalyticsDatabaseService,
     private readonly metricsService: CrmAnalyticsMetricsService,
@@ -148,9 +173,17 @@ WHERE r.workspace_id = $1::uuid`,
         })),
     });
 
+    const startedAt = Date.now();
     let builtCount = 0;
 
     for (const period of periods) {
+      if (Date.now() - startedAt > REPORT_RUN_TIME_BUDGET_MS) {
+        this.logger.warn(
+          `Reports stopped at the time budget before ${period.periodType} ${period.periodStart}`,
+        );
+        break;
+      }
+
       const report = await this.buildReport(context, period);
 
       const insertedRows = await run(
@@ -280,6 +313,46 @@ RETURNING period_start::text AS period_start`,
               cohortDateRange,
             })
           : [],
+      trendSeries: await this.buildTrendSeries(context, period),
     };
+  }
+
+  // Job statements autocommit, so a failed one leaves the next free to run. A line lost
+  // here stays out of this frozen report, which the view already handles. A timeout is
+  // thrown instead: nothing is stored, and the next run builds the report whole.
+  private async buildTrendSeries(
+    context: CrmAnalyticsQueryContext,
+    period: CrmAnalyticsReportPeriod,
+  ): Promise<AnalyticsSeries[]> {
+    const lastDay = toInclusiveRange(period).to;
+    const windowsClosedAt = computeCrmAnalyticsLocalDayStart(
+      period.periodEnd,
+      context.timeZone,
+    );
+    const trendSeries: AnalyticsSeries[] = [];
+
+    for (const metric of REPORT_TREND_METRICS) {
+      try {
+        trendSeries.push(
+          await this.metricsService.computeReportSeries({
+            context,
+            metric,
+            period: period.periodType,
+            lastDay,
+            windowsClosedAt,
+          }),
+        );
+      } catch (error) {
+        if (isStatementTimeout(error)) {
+          throw error;
+        }
+
+        this.logger.warn(
+          `Report ${period.periodType} ${period.periodStart} left out ${metric}: ${computeCrmAnalyticsErrorMessage(error)}`,
+        );
+      }
+    }
+
+    return trendSeries;
   }
 }

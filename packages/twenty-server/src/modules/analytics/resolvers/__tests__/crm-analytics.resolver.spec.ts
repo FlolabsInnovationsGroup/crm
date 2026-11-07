@@ -37,6 +37,7 @@ const setup = () => {
     getFunnel: jest.fn(async () => ({ view: 'funnel' })),
     getCategories: jest.fn(async () => ({ view: 'categories' })),
     getTrends: jest.fn(async () => ({ view: 'trends' })),
+    getSeries: jest.fn(async () => ({ view: 'series' })),
   };
   const reportService = {
     listReports: jest.fn(async () => [{ periodType: 'WEEK' }]),
@@ -119,6 +120,7 @@ describe('CrmAnalyticsResolver', () => {
       'getCrmAnalyticsFunnel',
       'getCrmAnalyticsCategories',
       'getCrmAnalyticsTrends',
+      'getCrmAnalyticsSeries',
       'getCrmAnalyticsReports',
       'getCrmAnalyticsReport',
     ] as const)('exposes %s as a query', (queryName) => {
@@ -161,6 +163,11 @@ describe('CrmAnalyticsResolver', () => {
             'TOTAL_CONTACTS',
           ),
       ],
+      [
+        'getCrmAnalyticsSeries',
+        (resolver: CrmAnalyticsResolver) =>
+          resolver.getCrmAnalyticsSeries(WORKSPACE, { period: 'YEAR' }, []),
+      ],
     ])('rejects a bad filter on %s before any read', async (_name, query) => {
       const { resolver, metricsService } = setup();
 
@@ -198,6 +205,41 @@ describe('CrmAnalyticsResolver', () => {
       expect(metricsService.getCategories).not.toHaveBeenCalled();
       expect(metricsService.getTrends).not.toHaveBeenCalled();
       expect(reportService.getReport).not.toHaveBeenCalled();
+    });
+
+    it('rejects more than 40 resulting series before any read', async () => {
+      const { resolver, metricsService } = setup();
+
+      await expect(
+        resolver.getCrmAnalyticsSeries(
+          WORKSPACE,
+          {},
+          new Array<{ metric: string; groupBy: string }>(9).fill({
+            metric: 'TOTAL_CONTACTS',
+            groupBy: 'TRACK',
+          }),
+        ),
+      ).rejects.toBeInstanceOf(UserInputError);
+
+      expect(metricsService.getSeries).not.toHaveBeenCalled();
+    });
+
+    it('hands the parsed series requests to the service', async () => {
+      const { resolver, metricsService } = setup();
+
+      await expect(
+        resolver.getCrmAnalyticsSeries(WORKSPACE, { period: 'MONTH' }, [
+          { metric: 'NEW_APPLICATIONS', groupBy: 'TRACK' },
+        ]),
+      ).resolves.toEqual({ payload: { view: 'series' } });
+
+      expect(metricsService.getSeries).toHaveBeenCalledWith({
+        workspaceId: 'workspace-id',
+        filter: { ...PARSED_DEFAULT_FILTER, period: 'MONTH' },
+        requests: [
+          { metric: 'NEW_APPLICATIONS', stageKey: null, groupBy: 'TRACK' },
+        ],
+      });
     });
 
     it('hands the parsed values to the services', async () => {

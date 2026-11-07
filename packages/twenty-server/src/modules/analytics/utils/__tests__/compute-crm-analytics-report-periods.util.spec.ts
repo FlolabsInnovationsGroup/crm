@@ -2,6 +2,7 @@ import {
   addCrmAnalyticsLocalDays,
   addCrmAnalyticsPeriods,
   computeCrmAnalyticsLocalDate,
+  computeCrmAnalyticsLocalDayStart,
   computeCrmAnalyticsPeriodStart,
   computeCrmAnalyticsPreviousReportPeriod,
   computeCrmAnalyticsReportPeriods,
@@ -368,6 +369,15 @@ describe('local date helpers', () => {
     ).toBe('2026-11-09');
     expect(computeCrmAnalyticsLocalDate('2026-11-08T19:00:00.000Z', 'UTC')).toBe(
       '2026-11-08',
+    );
+  });
+
+  it('gives the instant a local day starts', () => {
+    expect(computeCrmAnalyticsLocalDayStart('2026-11-09', 'UTC')).toBe(
+      '2026-11-09T00:00:00Z',
+    );
+    expect(computeCrmAnalyticsLocalDayStart('2026-11-09', 'Asia/Karachi')).toBe(
+      '2026-11-08T19:00:00Z',
     );
   });
 

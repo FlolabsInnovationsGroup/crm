@@ -19,7 +19,7 @@ const JOB_STATEMENT_TIMEOUT_MS = 120000;
 // Page reads share the pool that serves all CRM records and its waiters never time out,
 // so these bounds keep analytics from starving it.
 const MAXIMUM_CONCURRENT_PAGE_READS = 2;
-const PAGE_READ_SLOT_WAIT_MS = 2000;
+const PAGE_READ_SLOT_WAIT_MS = 10000;
 const PAGE_READ_TIME_BUDGET_MS = 15000;
 
 // CTE row estimates run low, so nested loops hit the limits; their disable cost would trip JIT.

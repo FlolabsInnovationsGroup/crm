@@ -4,9 +4,81 @@ import {
   parseCrmAnalyticsGroupBy,
   parseCrmAnalyticsLocalDate,
   parseCrmAnalyticsReportPeriodType,
+  parseCrmAnalyticsSeriesRequests,
   parseCrmAnalyticsStageKey,
   parseCrmAnalyticsTrendMetric,
 } from 'src/modules/analytics/utils/parse-crm-analytics-filter.util';
+
+describe('parseCrmAnalyticsSeriesRequests', () => {
+  const TOTAL_CONTACTS = { metric: 'TOTAL_CONTACTS', groupBy: 'NONE' };
+
+  const repeatRequest = (
+    count: number,
+    request: { metric: string; groupBy: string },
+  ) => new Array<{ metric: string; groupBy: string }>(count).fill(request);
+
+  it('gives a missing stage key as null and accepts every grouping', () => {
+    expect(
+      parseCrmAnalyticsSeriesRequests([
+        TOTAL_CONTACTS,
+        { metric: 'NEW_APPLICATIONS', stageKey: null, groupBy: 'TRACK' },
+        { metric: 'OVERALL_CONVERSION', groupBy: 'SOURCE' },
+        { metric: 'STAGE_COUNT', groupBy: 'STAGE' },
+        { metric: 'DROP_OFF', stageKey: 'CONTACTED', groupBy: 'NONE' },
+      ]),
+    ).toEqual([
+      { metric: 'TOTAL_CONTACTS', stageKey: null, groupBy: 'NONE' },
+      { metric: 'NEW_APPLICATIONS', stageKey: null, groupBy: 'TRACK' },
+      { metric: 'OVERALL_CONVERSION', stageKey: null, groupBy: 'SOURCE' },
+      { metric: 'STAGE_COUNT', stageKey: null, groupBy: 'STAGE' },
+      { metric: 'DROP_OFF', stageKey: 'CONTACTED', groupBy: 'NONE' },
+    ]);
+    expect(parseCrmAnalyticsSeriesRequests([])).toEqual([]);
+  });
+
+  it.each([
+    ['metric', { metric: 'REVENUE', groupBy: 'NONE' }],
+    ['groupBy', { metric: 'TOTAL_CONTACTS', groupBy: 'TRACK_PROGRAM' }],
+    [
+      'stageKey',
+      { metric: 'STAGE_COUNT', stageKey: 'x'.repeat(201), groupBy: 'NONE' },
+    ],
+    ['stage metric', { metric: 'TOTAL_CONTACTS', groupBy: 'STAGE' }],
+    [
+      'stage alongside a stage grouping',
+      { metric: 'STAGE_COUNT', stageKey: 'NEW', groupBy: 'STAGE' },
+    ],
+  ])('rejects a bad %s', (_name, input) => {
+    expect(() => parseCrmAnalyticsSeriesRequests([input])).toThrow(
+      UserInputError,
+    );
+  });
+
+  it('allows exactly 40 resulting series and rejects 41', () => {
+    const fortySeries = [
+      ...repeatRequest(7, { metric: 'TOTAL_CONTACTS', groupBy: 'TRACK' }),
+      ...repeatRequest(5, TOTAL_CONTACTS),
+    ];
+
+    expect(parseCrmAnalyticsSeriesRequests(fortySeries)).toHaveLength(12);
+    expect(() =>
+      parseCrmAnalyticsSeriesRequests([...fortySeries, TOTAL_CONTACTS]),
+    ).toThrow(UserInputError);
+  });
+
+  it('counts what each grouping expands to, not the requests', () => {
+    expect(() =>
+      parseCrmAnalyticsSeriesRequests(
+        repeatRequest(4, { metric: 'STAGE_COUNT', groupBy: 'STAGE' }),
+      ),
+    ).toThrow(UserInputError);
+    expect(() =>
+      parseCrmAnalyticsSeriesRequests(
+        repeatRequest(9, { metric: 'TOTAL_CONTACTS', groupBy: 'SOURCE' }),
+      ),
+    ).toThrow(UserInputError);
+  });
+});
 
 describe('parseCrmAnalyticsFilter', () => {
   it.each([[null], [undefined], [{}]])(

@@ -69,6 +69,15 @@ export const computeCrmAnalyticsLocalDate = (
     .toPlainDate()
     .toString();
 
+export const computeCrmAnalyticsLocalDayStart = (
+  localDate: string,
+  timeZone: string,
+): string =>
+  Temporal.PlainDate.from(localDate)
+    .toZonedDateTime(timeZone)
+    .toInstant()
+    .toString();
+
 export const addCrmAnalyticsLocalDays = (
   localDate: string,
   days: number,

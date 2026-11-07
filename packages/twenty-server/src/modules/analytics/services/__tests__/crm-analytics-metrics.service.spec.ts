@@ -1,3 +1,5 @@
+import { Logger } from '@nestjs/common';
+
 import { CRM_ANALYTICS_CONFIG } from 'src/modules/analytics/constants/crm-analytics-config.constant';
 import { CrmAnalyticsFacadeService } from 'src/modules/analytics/facade/crm-analytics-facade.service';
 import { type CrmAnalyticsDatabaseService } from 'src/modules/analytics/services/crm-analytics-database.service';
@@ -8,6 +10,8 @@ import {
   type AnalyticsFilter,
   type AnalyticsFunnelRow,
   type AnalyticsReport,
+  type AnalyticsSeriesRequest,
+  type AnalyticsTrendMetric,
 } from 'src/modules/analytics/types/analytics-api.type';
 import {
   type CrmAnalyticsCrmState,
@@ -64,23 +68,33 @@ const setup = ({
   hasStorage = true,
   state = buildState(),
   trackingStart = TRACKING_START,
+  now = NOW,
+  failingStatement,
+  failureMessage = 'canceling statement due to statement timeout',
 }: {
   answers?: SqlAnswer[];
   isDisabled?: boolean;
   hasStorage?: boolean;
   state?: CrmAnalyticsCrmState;
   trackingStart?: string;
+  now?: string;
+  failingStatement?: RegExp;
+  failureMessage?: string;
 } = {}) => {
   const statements: RecordedStatement[] = [];
 
   const run: CrmAnalyticsSqlRunner = async (sql, parameters) => {
     statements.push({ sql, parameters: [...parameters] });
 
+    if (failingStatement?.test(sql) === true) {
+      throw new Error(failureMessage);
+    }
+
     if (sql.includes('to_regclass')) {
       return [
         {
-          as_of: new Date(NOW),
-          local_today: LOCAL_TODAY,
+          as_of: new Date(now),
+          local_today: now.slice(0, 10),
           has_storage: hasStorage,
         },
       ];
@@ -2008,6 +2022,333 @@ describe('CrmAnalyticsMetricsService', () => {
     });
   });
 
+  describe('series bundle', () => {
+    const buildSourceRow = (categoryKey: string, people: number) => ({
+      parent_key: null,
+      category_key: categoryKey,
+      people,
+      active_people: 0,
+    });
+
+    // The two largest rank last: one is not a listed option, the other has no source.
+    const SOURCE_ROWS = [
+      buildSourceRow('NONE', 90),
+      buildSourceRow('OLD_VALUE', 80),
+      buildSourceRow('LINKEDIN', 40),
+      buildSourceRow('SOURCE_A', 30),
+      buildSourceRow('SOURCE_B', 20),
+      buildSourceRow('SOURCE_C', 10),
+    ];
+
+    const STATE_WITH_SOURCES = buildState({
+      applicantSource: {
+        status: 'OK',
+        options: [
+          { value: 'LINKEDIN', label: 'LinkedIn' },
+          { value: 'SOURCE_A', label: 'Source A' },
+          { value: 'SOURCE_B', label: 'Source B' },
+          { value: 'SOURCE_C', label: 'Source C' },
+        ],
+      },
+    });
+
+    const readSeries = async ({
+      requests,
+      filter = DEFAULT_FILTER,
+      answers = [],
+      state,
+    }: {
+      requests: AnalyticsSeriesRequest[];
+      filter?: AnalyticsFilter;
+      answers?: SqlAnswer[];
+      state?: CrmAnalyticsCrmState;
+    }) => {
+      const context = setup({ answers, state });
+      const bundle = await context.metricsService.getSeries({
+        workspaceId: WORKSPACE_ID,
+        filter,
+        requests,
+      });
+
+      if (bundle === null) {
+        throw new Error('Expected a series bundle');
+      }
+
+      return { ...context, bundle };
+    };
+
+    it('gives a null payload and reads nothing when switched off', async () => {
+      const { metricsService, runPageTransaction } = setup({
+        isDisabled: true,
+      });
+
+      await expect(
+        metricsService.getSeries({
+          workspaceId: WORKSPACE_ID,
+          filter: DEFAULT_FILTER,
+          requests: [
+            { metric: 'TOTAL_CONTACTS', stageKey: null, groupBy: 'NONE' },
+          ],
+        }),
+      ).resolves.toBeNull();
+      expect(runPageTransaction).not.toHaveBeenCalled();
+    });
+
+    it('runs every series in one transaction, without cohorts or movement', async () => {
+      const { bundle, runPageTransaction, statements } = await readSeries({
+        filter: { ...DEFAULT_FILTER, period: 'MONTH' },
+        requests: [
+          { metric: 'OVERALL_CONVERSION', stageKey: null, groupBy: 'TRACK' },
+          { metric: 'MEDIAN_DAYS', stageKey: null, groupBy: 'NONE' },
+          { metric: 'TOTAL_CONTACTS', stageKey: null, groupBy: 'NONE' },
+        ],
+      });
+
+      expect(runPageTransaction).toHaveBeenCalledTimes(1);
+      expect(bundle.period).toBe('MONTH');
+      expect(bundle.minimumSample).toBe(CRM_ANALYTICS_CONFIG.minimumSample);
+      expect(bundle.series).toHaveLength(7);
+      expect(bundle).not.toHaveProperty('cohorts');
+      expect(bundle).not.toHaveProperty('movement');
+      expect(statements.some(({ sql }) => MOVEMENT.test(sql))).toBe(false);
+      // The context read, then one statement for each series.
+      expect(statements).toHaveLength(8);
+    });
+
+    it('leaves a plain series ungrouped and resolves its stage as trends does', async () => {
+      const { bundle } = await readSeries({
+        requests: [
+          { metric: 'STAGE_COUNT', stageKey: null, groupBy: 'NONE' },
+          { metric: 'STAGE_COUNT', stageKey: 'CONTACTED', groupBy: 'NONE' },
+          { metric: 'TOTAL_CONTACTS', stageKey: 'CONTACTED', groupBy: 'NONE' },
+        ],
+      });
+
+      expect(
+        bundle.series.map(({ stageKey, groupKey, groupLabel }) => ({
+          stageKey,
+          groupKey,
+          groupLabel,
+        })),
+      ).toEqual([
+        { stageKey: 'NEW', groupKey: null, groupLabel: null },
+        { stageKey: 'CONTACTED', groupKey: null, groupLabel: null },
+        { stageKey: null, groupKey: null, groupLabel: null },
+      ]);
+    });
+
+    it('gives the same points as the trends query', async () => {
+      const answers: SqlAnswer[] = [
+        [
+          SUBMISSION_BUCKETS,
+          [{ bucket_start: '2026-11-02', bucket_value: 3 }],
+        ],
+      ];
+      const { metricsService } = setup({ answers });
+      const trends = await metricsService.getTrends({
+        workspaceId: WORKSPACE_ID,
+        filter: DEFAULT_FILTER,
+        metric: 'NEW_APPLICATIONS',
+        stageKey: null,
+      });
+      const { bundle } = await readSeries({
+        answers,
+        requests: [
+          { metric: 'NEW_APPLICATIONS', stageKey: null, groupBy: 'NONE' },
+        ],
+      });
+
+      expect(bundle.series[0]?.points).toEqual(trends?.series);
+      expect(bundle.series[0]?.points.length).toBeGreaterThan(0);
+    });
+
+    it('gives one series per track, each filtered to that track', async () => {
+      const { bundle, statements } = await readSeries({
+        requests: [
+          { metric: 'TOTAL_CONTACTS', stageKey: null, groupBy: 'TRACK' },
+        ],
+      });
+
+      expect(bundle.series.map(({ groupKey }) => groupKey)).toEqual(
+        CRM_ANALYTICS_CONFIG.tracks.map(({ trackKey }) => trackKey),
+      );
+      expect(bundle.series.map(({ groupLabel }) => groupLabel)).toEqual(
+        CRM_ANALYTICS_CONFIG.tracks.map(({ label }) => label),
+      );
+
+      const snapshotReads = statements.filter(({ sql }) =>
+        SNAPSHOT_BUCKETS.test(sql),
+      );
+
+      CRM_ANALYTICS_CONFIG.tracks.forEach(({ trackKey }, index) => {
+        expect(snapshotReads[index]?.parameters).toEqual(
+          expect.arrayContaining(['track', trackKey]),
+        );
+      });
+    });
+
+    it('leaves one track line when the page is filtered to a track or program', async () => {
+      const { bundle: trackBundle } = await readSeries({
+        filter: { ...DEFAULT_FILTER, trackKey: 'BUSINESS' },
+        requests: [
+          { metric: 'TOTAL_CONTACTS', stageKey: null, groupBy: 'TRACK' },
+        ],
+      });
+      const { bundle: programBundle, statements } = await readSeries({
+        filter: { ...DEFAULT_FILTER, programKey: 'FINANCE_INTERN' },
+        requests: [
+          { metric: 'TOTAL_CONTACTS', stageKey: null, groupBy: 'TRACK' },
+        ],
+      });
+
+      expect(trackBundle.series.map(({ groupKey }) => groupKey)).toEqual([
+        'BUSINESS',
+      ]);
+      expect(programBundle.series.map(({ groupKey }) => groupKey)).toEqual([
+        'BUSINESS',
+      ]);
+      expect(programBundle.series[0]?.unavailableReason).toBeNull();
+      expect(
+        statements.find(({ sql }) => SNAPSHOT_BUCKETS.test(sql))?.parameters,
+      ).toEqual(expect.arrayContaining(['position', 'FINANCE_INTERN']));
+    });
+
+    it('gives the top 5 sources, real values first, reading them once', async () => {
+      const { bundle, statements } = await readSeries({
+        state: STATE_WITH_SOURCES,
+        answers: [[CATEGORY_PEOPLE, SOURCE_ROWS]],
+        requests: [
+          { metric: 'NEW_APPLICATIONS', stageKey: null, groupBy: 'SOURCE' },
+          { metric: 'TOTAL_CONTACTS', stageKey: null, groupBy: 'SOURCE' },
+        ],
+      });
+
+      const expectedKeys = [
+        'LINKEDIN',
+        'SOURCE_A',
+        'SOURCE_B',
+        'SOURCE_C',
+        'OLD_VALUE',
+      ];
+
+      expect(bundle.series.map(({ groupKey }) => groupKey)).toEqual([
+        ...expectedKeys,
+        ...expectedKeys,
+      ]);
+      expect(bundle.series[0]?.groupLabel).toBe('LinkedIn');
+      expect(bundle.series[1]?.groupLabel).toBe('Source A');
+      expect(bundle.series[4]?.groupLabel).toBe('OLD_VALUE');
+      expect(
+        statements.filter(({ sql }) => CATEGORY_PEOPLE.test(sql)),
+      ).toHaveLength(1);
+
+      const submissionReads = statements.filter(({ sql }) =>
+        SUBMISSION_BUCKETS.test(sql),
+      );
+
+      expectedKeys.forEach((sourceKey, index) => {
+        expect(submissionReads[index]?.parameters).toContain(sourceKey);
+      });
+    });
+
+    it('labels a no-source series and binds source values as parameters', async () => {
+      const hostileValue = `x'; DROP TABLE person; --`;
+      const { bundle, statements } = await readSeries({
+        answers: [
+          [
+            CATEGORY_PEOPLE,
+            [
+              buildSourceRow('NONE', 9),
+              buildSourceRow(hostileValue, 1),
+            ],
+          ],
+        ],
+        requests: [
+          { metric: 'TOTAL_CONTACTS', stageKey: null, groupBy: 'SOURCE' },
+        ],
+      });
+
+      expect(bundle.series.map(({ groupLabel }) => groupLabel)).toEqual([
+        hostileValue,
+        'No source',
+      ]);
+      statements.forEach(({ sql }) => expect(sql).not.toContain('DROP TABLE'));
+      expect(
+        statements.some(({ parameters }) => parameters.includes(hostileValue)),
+      ).toBe(true);
+    });
+
+    it('reads top sources only when a request groups by source', async () => {
+      const { statements } = await readSeries({
+        answers: [[CATEGORY_PEOPLE, SOURCE_ROWS]],
+        requests: [
+          { metric: 'TOTAL_CONTACTS', stageKey: null, groupBy: 'NONE' },
+        ],
+      });
+
+      expect(statements.some(({ sql }) => CATEGORY_PEOPLE.test(sql))).toBe(
+        false,
+      );
+    });
+
+    it('gives one series per main and exit stage, leaving other stages out', async () => {
+      const { bundle } = await readSeries({
+        requests: [{ metric: 'STAGE_COUNT', stageKey: null, groupBy: 'STAGE' }],
+      });
+      const expectedStages = CRM_ANALYTICS_CONFIG.stages.filter(
+        ({ kind }) => kind !== 'OTHER',
+      );
+
+      expect(bundle.series.map(({ groupKey }) => groupKey)).toEqual(
+        expectedStages.map(({ stageKey }) => stageKey),
+      );
+      expect(bundle.series.map(({ stageKey }) => stageKey)).toEqual(
+        expectedStages.map(({ stageKey }) => stageKey),
+      );
+      expect(bundle.series.map(({ groupLabel }) => groupLabel)).toEqual(
+        expectedStages.map(({ label }) => label),
+      );
+      expect(bundle.series.map(({ groupKey }) => groupKey)).not.toContain(
+        'INTERESTED',
+      );
+    });
+
+    it('carries the reason a series cannot be drawn, with no points and no read', async () => {
+      const { bundle, statements } = await readSeries({
+        filter: { ...DEFAULT_FILTER, period: 'DAY' },
+        requests: [
+          { metric: 'OVERALL_CONVERSION', stageKey: null, groupBy: 'TRACK' },
+        ],
+      });
+
+      expect(bundle.series).toHaveLength(CRM_ANALYTICS_CONFIG.tracks.length);
+      bundle.series.forEach(({ unavailableReason, points }) => {
+        expect(unavailableReason).toBe('DAILY_RATE');
+        expect(points).toEqual([]);
+      });
+      expect(statements).toHaveLength(1);
+    });
+
+    it('marks a snapshot metric unavailable when the group and filter cannot combine', async () => {
+      const { bundle } = await readSeries({
+        filter: { ...DEFAULT_FILTER, sourceKey: 'LINKEDIN' },
+        requests: [
+          { metric: 'TOTAL_CONTACTS', stageKey: null, groupBy: 'TRACK' },
+        ],
+      });
+
+      bundle.series.forEach(({ unavailableReason }) =>
+        expect(unavailableReason).toBe('SNAPSHOT_FILTER_COMBINATION'),
+      );
+    });
+
+    it('returns no series for no requests', async () => {
+      const { bundle } = await readSeries({ requests: [] });
+
+      expect(bundle.series).toEqual([]);
+    });
+  });
+
   describe('every statement', () => {
     const FILTERS: AnalyticsFilter[] = [
       DEFAULT_FILTER,
@@ -2060,6 +2401,10 @@ describe('CrmAnalyticsMetricsService', () => {
               },
             ],
           ],
+          [
+            CATEGORY_PEOPLE,
+            [{ category_key: 'LINKEDIN', people: 3, active_people: 1 }],
+          ],
         ],
       });
 
@@ -2088,6 +2433,24 @@ describe('CrmAnalyticsMetricsService', () => {
             stageKey: metric === 'MEDIAN_DAYS' ? 'CONTACTED' : null,
           });
         }
+
+        await metricsService.getSeries({
+          workspaceId: WORKSPACE_ID,
+          filter,
+          requests: METRICS.flatMap((metric) => [
+            { metric, stageKey: null, groupBy: 'TRACK' as const },
+            { metric, stageKey: null, groupBy: 'SOURCE' as const },
+          ]),
+        });
+        await metricsService.getSeries({
+          workspaceId: WORKSPACE_ID,
+          filter,
+          requests: [
+            { metric: 'STAGE_COUNT', stageKey: null, groupBy: 'STAGE' },
+            { metric: 'DROP_OFF', stageKey: null, groupBy: 'STAGE' },
+            { metric: 'MEDIAN_DAYS', stageKey: null, groupBy: 'STAGE' },
+          ],
+        });
       }
 
       return statements;
@@ -2538,6 +2901,291 @@ describe('CrmAnalyticsReportService', () => {
     expect(
       firstReportStatements.find(({ sql }) => CATEGORY_PEOPLE.test(sql))?.sql,
     ).not.toContain('p.created_at >= $2');
+  });
+
+  describe('frozen trend series', () => {
+    const FIRST_WEEK_END = '2026-08-10';
+    const LAST_DAY_OF_FIRST_WEEK = '2026-08-09';
+    const RATE_BUCKETS =
+      /::date::text AS group_key FROM cohort c[\s\S]*overall_total a/;
+
+    const buildReports = async ({
+      answers = [],
+      now,
+      state,
+      failingStatement,
+      failureMessage,
+    }: {
+      answers?: SqlAnswer[];
+      now?: string;
+      state?: CrmAnalyticsCrmState;
+      failingStatement?: RegExp;
+      failureMessage?: string;
+    } = {}) => {
+      const context = setup({
+        answers: [
+          ...answers,
+          [INSERT_REPORT, [{ period_start: 'inserted' }]],
+          ...REPORT_ANSWERS,
+        ],
+        now,
+        state,
+        failingStatement,
+        failureMessage,
+      });
+
+      await context.reportService.buildMissingReports({
+        workspaceId: WORKSPACE_ID,
+        state: state ?? buildState(),
+        run: context.run,
+      });
+
+      const reports = context.statements
+        .filter(({ sql }) => INSERT_REPORT.test(sql))
+        .map(
+          ({ parameters }) =>
+            JSON.parse(String(parameters[5])) as AnalyticsReport,
+        );
+
+      return {
+        reports,
+        statements: context.statements,
+        firstWeek: reports[0],
+        firstMonth: reports.find(({ periodType }) => periodType === 'MONTH'),
+      };
+    };
+
+    const readSeries = (
+      report: AnalyticsReport | undefined,
+      metric: AnalyticsTrendMetric,
+    ) => report?.trendSeries?.find((series) => series.metric === metric);
+
+    it('stores the five series at the period type of the report', async () => {
+      const { firstWeek, firstMonth } = await buildReports();
+
+      expect(firstWeek.trendSeries?.map(({ metric }) => metric)).toEqual([
+        'NEW_APPLICATIONS',
+        'TOTAL_CONTACTS',
+        'OVERALL_CONVERSION',
+        'DROP_OFF',
+        'MEDIAN_DAYS',
+      ]);
+      expect(readSeries(firstWeek, 'NEW_APPLICATIONS')?.points).toHaveLength(12);
+      expect(readSeries(firstWeek, 'OVERALL_CONVERSION')?.points).toHaveLength(
+        26,
+      );
+      expect(readSeries(firstWeek, 'DROP_OFF')?.stageKey).toBe('NEW');
+      expect(readSeries(firstWeek, 'MEDIAN_DAYS')?.stageKey).toBeNull();
+      expect(readSeries(firstMonth, 'DROP_OFF')?.points).toHaveLength(12);
+    });
+
+    it('ends every series with the period of the report, as a finished bucket', async () => {
+      const { firstWeek, firstMonth } = await buildReports();
+
+      [firstWeek, firstMonth].forEach((report) =>
+        report?.trendSeries?.forEach(({ points }) => {
+          expect(points[points.length - 1].bucketStart).toBe(
+            report.periodStart,
+          );
+          expect(points.every(({ isPartial }) => !isPartial)).toBe(true);
+        }),
+      );
+    });
+
+    it('reads no data past the last day of the period', async () => {
+      const { statements } = await buildReports();
+      const firstInsert = statements.findIndex(({ sql }) =>
+        INSERT_REPORT.test(sql),
+      );
+      const firstReportStatements = statements.slice(0, firstInsert);
+
+      [SUBMISSION_BUCKETS, SNAPSHOT_BUCKETS, MEDIAN_BUCKETS].forEach(
+        (pattern) => {
+          const { parameters } = firstReportStatements.find(({ sql }) =>
+            pattern.test(sql),
+          ) as RecordedStatement;
+
+          expect(parameters).toContain(LAST_DAY_OF_FIRST_WEEK);
+          expect(parameters).not.toContain(FIRST_WEEK_END);
+        },
+      );
+
+      const rateStatements = firstReportStatements.filter(({ sql }) =>
+        RATE_BUCKETS.test(sql),
+      );
+
+      expect(rateStatements).toHaveLength(2);
+      rateStatements.forEach(({ parameters }) =>
+        expect(parameters).toContain(LAST_DAY_OF_FIRST_WEEK),
+      );
+    });
+
+    it('closes rate windows at the end of the period, not at build time', async () => {
+      const { statements } = await buildReports();
+      const rateStatement = statements.find(({ sql }) =>
+        RATE_BUCKETS.test(sql),
+      ) as RecordedStatement;
+
+      expect(rateStatement.parameters).toContain(`${FIRST_WEEK_END}T00:00:00Z`);
+      expect(rateStatement.sql).not.toContain('now()');
+      expect(rateStatement.sql).toMatch(
+        /WHERE ps\.entered_at < \$\d+::timestamptz/,
+      );
+      expect(rateStatement.sql).toMatch(
+        /AND e\.entered_at < \$\d+::timestamptz/,
+      );
+    });
+
+    it('leaves the page reading windows against now', async () => {
+      const { metricsService, statements } = setup();
+
+      await metricsService.getTrends({
+        workspaceId: WORKSPACE_ID,
+        filter: DEFAULT_FILTER,
+        metric: 'OVERALL_CONVERSION',
+        stageKey: null,
+      });
+
+      const rateStatement = statements.find(({ sql }) =>
+        RATE_BUCKETS.test(sql),
+      ) as RecordedStatement;
+
+      expect(rateStatement.sql).toContain('o.window_end <= now()');
+      expect(rateStatement.sql).not.toContain('entered_at <');
+    });
+
+    it('holds the same series when built much later', async () => {
+      const answers: SqlAnswer[] = [
+        [SUBMISSION_BUCKETS, [{ bucket_start: '2026-08-03', bucket_value: 7 }]],
+        [SNAPSHOT_BUCKETS, [{ bucket_start: '2026-08-03', bucket_value: 90 }]],
+        [
+          MEDIAN_BUCKETS,
+          [
+            {
+              bucket_start: '2026-08-03',
+              median_days: 2.5,
+              completed_stays: 4,
+            },
+          ],
+        ],
+      ];
+      const onTime = await buildReports({
+        answers,
+        now: '2026-08-11T02:30:00.000Z',
+      });
+      const backfill = await buildReports({ answers });
+
+      expect(onTime.firstWeek.periodStart).toBe('2026-08-03');
+      expect(backfill.firstWeek.periodStart).toBe('2026-08-03');
+      expect(backfill.firstWeek.trendSeries).toEqual(
+        onTime.firstWeek.trendSeries,
+      );
+
+      const lastPoint = (metric: AnalyticsTrendMetric) =>
+        readSeries(backfill.firstWeek, metric)?.points.slice(-1)[0];
+
+      expect(lastPoint('NEW_APPLICATIONS')?.value).toBe(7);
+      expect(lastPoint('TOTAL_CONTACTS')?.value).toBe(90);
+      expect(lastPoint('MEDIAN_DAYS')).toMatchObject({ value: 2.5, size: 4 });
+    });
+
+    it('stores unknown buckets as null, never 0', async () => {
+      const { firstWeek } = await buildReports();
+
+      (
+        ['TOTAL_CONTACTS', 'OVERALL_CONVERSION', 'DROP_OFF', 'MEDIAN_DAYS'] as const
+      ).forEach((metric) =>
+        readSeries(firstWeek, metric)?.points.forEach(({ value }) =>
+          expect(value).toBeNull(),
+        ),
+      );
+      expect(
+        readSeries(firstWeek, 'NEW_APPLICATIONS')?.points[0].value,
+      ).toBeNull();
+    });
+
+    it('stores a series the CRM cannot provide with its reason', async () => {
+      const { firstWeek } = await buildReports({
+        state: buildState({ hasFormSubmissionObject: false }),
+      });
+
+      expect(readSeries(firstWeek, 'NEW_APPLICATIONS')).toMatchObject({
+        unavailableReason: 'NO_SUBMISSION_OBJECT',
+        points: [],
+      });
+      expect(firstWeek.trendSeries).toHaveLength(5);
+    });
+
+    it('keeps the report and the other series when one series fails', async () => {
+      const warn = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+
+      try {
+        const { reports, firstWeek } = await buildReports({
+          failingStatement: MEDIAN_BUCKETS,
+          failureMessage: 'function not available',
+        });
+
+        expect(reports).toHaveLength(8);
+        expect(firstWeek.trendSeries?.map(({ metric }) => metric)).toEqual([
+          'NEW_APPLICATIONS',
+          'TOTAL_CONTACTS',
+          'OVERALL_CONVERSION',
+          'DROP_OFF',
+        ]);
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining('WEEK 2026-08-03 left out MEDIAN_DAYS'),
+        );
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('stores nothing and stops the run when a series times out', async () => {
+      const { reportService, run, statements } = setup({
+        answers: [
+          [INSERT_REPORT, [{ period_start: 'inserted' }]],
+          ...REPORT_ANSWERS,
+        ],
+        failingStatement: MEDIAN_BUCKETS,
+      });
+
+      await expect(
+        reportService.buildMissingReports({
+          workspaceId: WORKSPACE_ID,
+          state: buildState(),
+          run,
+        }),
+      ).rejects.toThrow('statement timeout');
+      expect(statements.some(({ sql }) => INSERT_REPORT.test(sql))).toBe(false);
+    });
+
+    it('stops building reports past the time budget, leaving the rest for the next run', async () => {
+      const warn = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      const realNow = Date.now();
+      let readCount = 0;
+      const clock = jest.spyOn(Date, 'now').mockImplementation(() => {
+        readCount += 1;
+
+        // The run's start and the first period's check are on time, then the budget is gone.
+        return readCount <= 2 ? realNow : realNow + 11 * 60 * 1000;
+      });
+
+      try {
+        const { reports } = await buildReports();
+
+        expect(reports).toHaveLength(1);
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining('Reports stopped at the time budget'),
+        );
+      } finally {
+        clock.mockRestore();
+        warn.mockRestore();
+      }
+    });
   });
 
   describe('reading stored reports', () => {

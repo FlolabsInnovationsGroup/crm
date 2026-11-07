@@ -129,7 +129,7 @@ describe('CrmAnalyticsDatabaseService', () => {
         await expect(second).resolves.toBe('second');
       });
 
-      it('gives a clear busy error after about 2 seconds of waiting, without touching the database', async () => {
+      it('gives a clear busy error after about 10 seconds of waiting, without touching the database', async () => {
         const { service, executeRawQuery } = setupPageTransaction();
         const gate = buildGate();
         const hold = () =>
@@ -149,7 +149,7 @@ describe('CrmAnalyticsDatabaseService', () => {
         const busyExpectation =
           expect(waiting).rejects.toMatchObject(BUSY_ERROR);
 
-        await jest.advanceTimersByTimeAsync(1999);
+        await jest.advanceTimersByTimeAsync(9999);
         expect(isSettled).toBe(false);
 
         await jest.advanceTimersByTimeAsync(1);

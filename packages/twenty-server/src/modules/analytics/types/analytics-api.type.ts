@@ -214,6 +214,28 @@ export type AnalyticsTrends = AnalyticsBase & {
   movement: { from: string; to: string; rows: AnalyticsMovementRow[] };
 };
 
+export type AnalyticsSeriesGroupBy = 'NONE' | 'TRACK' | 'SOURCE' | 'STAGE';
+
+export type AnalyticsSeriesRequest = {
+  metric: AnalyticsTrendMetric;
+  stageKey: string | null;
+  groupBy: AnalyticsSeriesGroupBy;
+};
+
+export type AnalyticsSeries = {
+  metric: AnalyticsTrendMetric;
+  stageKey: string | null;
+  groupKey: string | null;
+  groupLabel: string | null;
+  unavailableReason: AnalyticsTrends['unavailableReason'];
+  points: AnalyticsTrendPoint[];
+};
+
+export type AnalyticsSeriesBundle = AnalyticsBase & {
+  period: AnalyticsPeriod;
+  series: AnalyticsSeries[];
+};
+
 export type AnalyticsReportListItem = {
   periodType: AnalyticsReportPeriodType;
   periodStart: string;
@@ -240,4 +262,5 @@ export type AnalyticsReport = AnalyticsReportListItem & AnalyticsBase & {
   stuckByStage: { stageKey: string; label: string; count: number }[];
   comparisons: AnalyticsReportComparison[];
   cohorts: AnalyticsCohortRow[];
+  trendSeries?: AnalyticsSeries[];
 };
