@@ -555,7 +555,13 @@ module.exports = {
         await fixtures.softDeletePerson({ personId: people.ben, deletedAt: context.daysAgo(1) });
       },
       expected: softDeleteBen.expected,
-      reports: { allowed: [...STAGE_REPORT_PARTS, 'newApplications'] },
+      reports: () => ({
+        allowed: [...STAGE_REPORT_PARTS, 'newApplications'],
+        spots: {
+          [reportKey('WEEK', weekOf(10), 'newApplications')]: [1, 0],
+          [reportKey('WEEK', weekOf(10), 'comparisons[NEW_APPLICATIONS].current')]: [1, 0],
+        },
+      }),
     });
 
     independent('FP-07 person.deletedAt restored: every sink returns and no fake move appears', async (t) => {
@@ -847,6 +853,41 @@ module.exports = {
       reports: { allowed: ['categories.rows'] },
     });
 
+    scenario('FP-27 formSubmission.personId cleared: an application with no person stays in the totals and the line, and leaves the category rows', {
+      mutate: async ({ submissions, table }) => {
+        await context.query(`UPDATE ${table('_formSubmission')} SET "personId" = NULL WHERE id = $1`, [submissions.adaRecent]);
+      },
+      expected: () => ({
+        'categoriesTrack.rows[/BUSINESS].newApplications': [1, 0],
+        'categoriesTrack.rows[BUSINESS/FINANCE_INTERN].newApplications': [1, 0],
+        'categoriesSource.rows[/LINKEDIN].newApplications': [1, 0],
+      }),
+      reports: { allowed: ['categories.rows'] },
+    });
+
+    independent("FP-28 applications against person filters: a soft-deleted person's never count, with or without a filter; one with no person counts only without", async (t) => {
+      const workspace = await seedAndRun();
+      const { page } = context;
+      const filter = { sourceKey: 'LINKEDIN' };
+      const newApplications = async (options) => (await page.overview(workspace, options)).figures.newApplications;
+      const onTheLine = async (options) =>
+        (await page.trends(workspace, 'NEW_APPLICATIONS', { filter: options })).series.reduce((total, { value }) => total + (value ?? 0), 0);
+
+      await workspace.fixtures.insertSubmission({ formId: workspace.forms.application, personId: null, submittedAt: context.daysAgo(3) });
+
+      t.equal('no filter: ada and nobody', await newApplications(), 2);
+      t.equal('no filter, the line: ada, ben and nobody', await onTheLine(), 3);
+      t.equal('a filter cannot place nobody: ada', await newApplications(filter), 1);
+      t.equal('a filter, the line: ada', await onTheLine(filter), 1);
+
+      await workspace.fixtures.softDeletePerson({ personId: workspace.people.ada, deletedAt: context.daysAgo(1) });
+
+      t.equal('ada gone, no filter: nobody', await newApplications(), 1);
+      t.equal('ada gone, no filter, the line: ben and nobody', await onTheLine(), 2);
+      t.equal('ada gone, a filter', await newApplications(filter), 0);
+      t.equal('ada gone, a filter, the line', await onTheLine(filter), 0);
+    });
+
     const fieldOf = ({ flatMaps }, name) =>
       flatMaps.flatFieldMetadataMaps.byUniversalIdentifier[`person-${name}-uid`];
 
@@ -911,8 +952,14 @@ module.exports = {
     independent('FP-20 tracking start moved later: cohort and clocks follow, storage does not', async (t) => {
       const workspace = await seedAndRun();
       const transitions = await sinks.readTransitions(workspace);
+      const volumeOfWeek30 = async () =>
+        (await context.page.trends(workspace, 'NEW_APPLICATIONS')).series.find(({ bucketStart }) => bucketStart === weekOf(30)).value;
+
+      t.equal('a tracked week with no application is a real 0', await volumeOfWeek30(), 0);
 
       workspace.setTrackingStart(context.daysAgo(22));
+
+      t.equal('the same week before the new start is unknown', await volumeOfWeek30(), null);
 
       const funnel = await context.page.funnel(workspace);
       const overview = await context.page.overview(workspace);

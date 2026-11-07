@@ -525,12 +525,14 @@ module.exports = {
 
       try {
         const categories = await context.page.categories(small.workspace, 'SOURCE');
-
-        // Which key the flagged row carries is an open question the seed layer reports.
         const flagged = categories.rows.filter(({ isUnmapped }) => isUnmapped);
 
         t.equal('source label', categoryOf(categories, null, 'LINKEDIN').label, 'LinkedIn');
-        t.equal('a value no option lists gets one flagged row', flagged.map(({ people }) => people), [1]);
+        t.equal(
+          'a value no option lists keeps its raw key and label, flagged',
+          flagged.map(({ key, label, people }) => [key, label, people]),
+          [['WEBSITE', 'WEBSITE', 1]],
+        );
         t.equal('the listed one is not flagged', categoryOf(categories, null, 'LINKEDIN').isUnmapped, false);
       } finally {
         field.options = options;
@@ -597,6 +599,17 @@ module.exports = {
       t.equal('so far', row.overallSoFarRate, 2 / 3);
     });
 
+    await check('metric.trendBuckets', 'metric.cohortTable', async (t) => {
+      const weekly = await distinctTrend('TOTAL_CONTACTS');
+      const buckets = weekly.cohorts.map(({ bucketStart }) => bucketStart).sort();
+      const reaching = await distinctTrend('TOTAL_CONTACTS', { filter: { dateFrom: toDate(context.daysAgo(110)) } });
+
+      t.equal('only rows inside the 12 weeks of the line', buckets, [weekStart(context.daysAgo(40)), weekStart(context.daysAgo(5))]);
+      t.ok('both start at the first bucket or later', buckets[0] >= weekly.series[0].bucketStart, [buckets[0], weekly.series[0].bucketStart]);
+      t.equal('a date filter moves the window, and the rows follow', pointAt(reaching.cohorts, weekStart(context.daysAgo(100)))?.size, 3);
+      t.equal('daily conversion is out of scope, so no rows by day', (await distinctTrend('TOTAL_CONTACTS', { filter: { period: 'DAY' } })).cohorts, []);
+    });
+
     await check('cte.overall_total', 'metric.trendOverallConversion', async (t) => {
       const { series } = await distinctTrend('OVERALL_CONVERSION', { filter: { period: 'MONTH' } });
       const oldPoint = pointAt(series, monthStart(context.daysAgo(100)));
@@ -647,6 +660,50 @@ module.exports = {
       const active = await distinctTrend('NEW_APPLICATIONS', { filter: { status: 'ACTIVE' } });
 
       t.equal('r1 to r7', active.series.reduce((total, point) => total + point.value, 0), 7);
+    });
+
+    await check('settings.trackingStart', 'metric.trendNewApplications', async (t) => {
+      const workspace = await context.createWorkspace();
+      const { insertForm, insertPerson, insertSubmission } = workspace.fixtures;
+      const formId = await insertForm({ name: 'Internship Application' });
+      const personId = await insertPerson({ stage: 'NEW', createdAt: context.daysAgo(70) });
+      const ages = [60, 10];
+
+      for (const age of ages) {
+        await insertSubmission({ formId, personId, submittedAt: context.daysAgo(age) });
+      }
+
+      workspace.setTrackingStart(context.daysAgo(45));
+      await context.runSync(workspace);
+
+      const readLine = async (period) => (await context.page.trends(workspace, 'NEW_APPLICATIONS', { filter: { period } })).series;
+      const checkBuckets = async ({ period, bucketOf, startAge }) => {
+        workspace.setTrackingStart(context.daysAgo(startAge));
+
+        const firstTracked = bucketOf(context.daysAgo(startAge));
+        const series = await readLine(period);
+
+        for (const { bucketStart, value } of series) {
+          const count = ages.filter((age) => bucketOf(context.daysAgo(age)) === bucketStart).length;
+
+          t.equal(`${period} ${bucketStart}, tracking from ${firstTracked}`, value, bucketStart < firstTracked ? null : count);
+        }
+
+        t.ok(`${period} has buckets both sides of the start`, series[0].bucketStart < firstTracked && series.at(-1).bucketStart >= firstTracked, series[0]);
+
+        return series;
+      };
+
+      await checkBuckets({ period: 'DAY', bucketOf: toDate, startAge: 20 });
+      await checkBuckets({ period: 'MONTH', bucketOf: monthStart, startAge: 45 });
+
+      const weeks = await checkBuckets({ period: 'WEEK', bucketOf: weekStart, startAge: 45 });
+
+      t.equal('nothing to compare with yet: every previous is unknown', [...new Set(weeks.map(({ previousValue }) => previousValue))], [null]);
+      t.equal('a dated row before the start does not make its period known', pointAt(weeks, weekStart(context.daysAgo(60))).value, null);
+
+      workspace.setTrackingStart(context.daysAgo(65));
+      t.equal('an earlier start makes that total known', pointAt(await readLine('WEEK'), weekStart(context.daysAgo(60))).value, 1);
     });
 
     const snapshotHistory = await fixture('two snapshots in one earlier week', async () => {

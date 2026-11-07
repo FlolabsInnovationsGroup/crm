@@ -201,6 +201,7 @@ module.exports = {
       );
 
       t.equal('an empty source is no source', category(sources, null, 'NONE').people, 2);
+      t.equal('a TEXT field lists no options, so typed text is not unmapped', category(sources, null, 'Typed source').isUnmapped, false);
       t.equal('stored the same way', stored, [{ dimension_key: 'NONE', total: 2 }, { dimension_key: 'Typed source', total: 1 }]);
 
       t.equal('no stage', totalsRow(overview, 'NO_STAGE').count, 1);
@@ -278,25 +279,60 @@ module.exports = {
       t.equal('not yet', row.inWindow, 1);
     }, { needs: [recent] });
 
-    // Between 14 and 15 days is left out: whether part of a day counts is an open question
-    // the seed layer reports.
-    await test('UNKNOWN-16 the stuck limit: under 14 days is not stuck, 15 and a half is one whole day over', async (t) => {
+    await test('UNKNOWN-16 the stuck limit compares whole days: 14 days and 6 hours is not over 14 until day 15, while the funnel window compares exact times', async (t) => {
       const workspace = await context.createWorkspace();
       const { insertPerson } = workspace.fixtures;
-      const halfDay = 43_200_000;
+      const hour = 3_600_000;
+      const aged = (days, hours) => new Date(Date.now() - days * 86_400_000 - hours * hour);
 
       workspace.setTrackingStart(daysAgo(45));
-      await insertPerson({ firstName: 'UnderLimit', stage: 'NEW', createdAt: new Date(Date.now() - 13 * 86_400_000 - halfDay) });
+      await insertPerson({ firstName: 'UnderLimit', stage: 'NEW', createdAt: aged(13, 12) });
+      await insertPerson({ firstName: 'PartDay', stage: 'NEW', createdAt: aged(14, 6) });
+      await insertPerson({ firstName: 'LastHours', stage: 'NEW', createdAt: aged(14, 22) });
 
-      const overPerson = await insertPerson({ firstName: 'OverLimit', stage: 'NEW', createdAt: new Date(Date.now() - 15 * 86_400_000 - halfDay) });
+      const dayFifteen = await insertPerson({ firstName: 'DayFifteen', stage: 'NEW', createdAt: aged(15, 2) });
+      const overPerson = await insertPerson({ firstName: 'OverLimit', stage: 'NEW', createdAt: aged(15, 12) });
 
       await context.runSync(workspace);
 
-      const { figures, stuck } = await page.overview(workspace);
+      const overview = await page.overview(workspace);
+      const { figures, stuck } = overview;
+      const row = stage((await page.funnel(workspace)).rows, 'NEW');
 
-      t.equal('one stuck', [figures.stuckPeople, stuck.total], [1, 1]);
-      t.equal('the one over it', stuck.rows[0]?.personId, overPerson);
-      t.equal('whole days over', [stuck.rows[0]?.daysInStage, stuck.rows[0]?.daysOverLimit], [15, 1]);
+      t.equal('only day 15 on is stuck', [figures.stuckPeople, stuck.total], [2, 2]);
+      t.equal('those two', stuck.rows.map(({ personId }) => personId).sort(), [dayFifteen, overPerson].sort());
+      t.equal('whole days over', stuck.rows.map(({ daysInStage, daysOverLimit }) => [daysInStage, daysOverLimit]), [[15, 1], [15, 1]]);
+      t.equal('the stage row agrees', totalsRow(overview, 'NEW').pastLimitCount, 2);
+      t.equal('the same part days are past the exact funnel window', [row.eligible, row.timedOut, row.inWindow], [4, 4, 1]);
+    }, { needs });
+
+    await test('UNKNOWN-17 an unknown source keeps its raw value as the key, flagged, with no shared UNMAPPED row, and a filter finds it by that value', async (t) => {
+      const { workspace } = unknown;
+      const field = workspace.flatMaps.flatFieldMetadataMaps.byUniversalIdentifier['person-applicantSource-uid'];
+      const { options } = field;
+
+      field.options = options.filter(({ value }) => value !== 'UNIVERSITY');
+
+      try {
+        const sources = await page.categories(workspace, 'SOURCE');
+        const row = category(sources, null, 'UNIVERSITY');
+
+        t.equal('row', [row?.label, row?.isUnmapped, row?.people], ['UNIVERSITY', true, 1]);
+        t.equal('no shared key', category(sources, null, 'UNMAPPED'), undefined);
+        t.equal('nothing else is flagged', sources.rows.filter(({ isUnmapped }) => isUnmapped).map(({ key }) => key), ['UNIVERSITY']);
+        t.equal('the filter uses the raw value', (await page.overview(workspace, { sourceKey: 'UNIVERSITY' })).figures.totalContacts, 1);
+        t.equal('and on stored counts', (await page.trends(workspace, 'TOTAL_CONTACTS', { filter: { sourceKey: 'UNIVERSITY' } })).series.at(-1).value, 1);
+        t.equal('the old shared key finds nobody', (await page.overview(workspace, { sourceKey: 'UNMAPPED' })).figures.totalContacts, 0);
+      } finally {
+        field.options = options;
+      }
+
+      const stored = await query(
+        `SELECT DISTINCT dimension_key FROM analytics.daily_snapshot WHERE workspace_id = $1 AND dimension = 'source' ORDER BY 1`,
+        [workspace.workspaceId],
+      );
+
+      t.equal('stored raw too', stored.map(({ dimension_key: key }) => key), ['NONE', 'UNIVERSITY']);
     }, { needs });
 
     await test('UNKNOWN-14 too recent people are not stuck either', async (t) => {

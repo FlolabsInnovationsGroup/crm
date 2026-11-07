@@ -125,7 +125,7 @@ module.exports = {
       const before = runner.results.length;
 
       await runner.test(
-        { name: 'self check', requires: [{ isAvailable: false, label: 'src/modules/analytics/not-written-yet.ts' }] },
+        { name: 'COVERAGE-08 self check', requires: [{ isAvailable: false, label: 'src/modules/analytics/not-written-yet.ts' }] },
         (inner) => inner.fail('must not run'),
       );
 
@@ -234,7 +234,8 @@ module.exports = {
     await dbTest('COVERAGE-12 every CTE the real statements use is a node', async (t) => {
       const workspace = await seedBaseline(context);
       const { page } = context;
-      const mark = context.statements.length;
+
+      context.statements.length = 0;
 
       await context.runSync(workspace);
       await context.runDaily(workspace);
@@ -249,7 +250,6 @@ module.exports = {
 
       const names = new Set(
         context.statements
-          .slice(mark)
           .filter(({ sql }) => sql.trimStart().startsWith('WITH'))
           .flatMap(({ sql }) => listCteNames(sql)),
       );

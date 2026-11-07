@@ -135,7 +135,9 @@ module.exports = {
     }, { needs });
 
     await test('FILTER-07 a bad value stops at the parser: no statement runs', async (t) => {
-      const mark = context.statements.length;
+      // Emptied, because a full list stays the same length as it takes new statements.
+      context.statements.length = 0;
+
       const refuses = async (work) => {
         try {
           await work();
@@ -153,7 +155,7 @@ module.exports = {
       t.ok('metric', await refuses(() => page.trends(small, 'REVENUE')));
       t.ok('period type', await refuses(() => page.report(small, 'YEAR', '2026-01-01')));
       t.ok('report date', await refuses(() => page.report(small, 'WEEK', 'last week')));
-      t.equal('no SQL ran', context.statements.length, mark);
+      t.equal('no SQL ran', context.statements.length, 0);
     }, { needs });
 
     await test('FILTER-08 what the screen sends is what the server accepts, and each document asks a real root field', async (t) => {

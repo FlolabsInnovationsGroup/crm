@@ -259,11 +259,11 @@ export const OTHER_WORKSPACES = {
     people: [],
     setupUseCases: ['UC-86'],
   },
-  // Apart from the main people, so one open question does not move every stuck total there.
+  // Apart from the main people, whose ages are mostly whole days.
   partDayOverLimit: {
     number: 10,
     fields: { personFields: 'FULL', forms: 'NONE', withApplication: false },
-    people: [person('W10-1', 'NEW@14d6h', SOFTWARE, 'LINKEDIN', 'T', 0, ['UC-120'], 'Over the limit by six hours: is that stuck?')],
+    people: [person('W10-1', 'NEW@28d12h CONTACTED@14d6h', SOFTWARE, 'LINKEDIN', 'TT', null, ['UC-120'], 'At Contacted for 14 days and 6 hours: not stuck until day 15. Left New 14 days and 6 hours after entering: late, because windows compare exact times')],
   },
 };
 

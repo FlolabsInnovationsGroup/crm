@@ -678,7 +678,9 @@ const real: {
   overview: AnalyticsOverview;
   funnel: AnalyticsFunnel;
   categories: AnalyticsCategories;
+  categoriesWithUnknownSource: AnalyticsCategories;
   dropOff: AnalyticsTrends;
+  volumeAroundStart: AnalyticsTrends;
   reports: AnalyticsReportListItem[];
   report: AnalyticsReport;
 } = REAL_PAYLOADS_FILE ? JSON.parse(readFileSync(REAL_PAYLOADS_FILE, 'utf8')) : null;
@@ -807,6 +809,32 @@ const real: {
     expect(await screen.findByText(periodType === 'MONTH' ? /^Monthly report, / : /^Weekly report, /)).toBeInTheDocument();
     shows(/^Generated /);
     shows(/^Cohort size: \d+, counted from/);
+  });
+
+  it('PATH-11 new applications: a week before tracking start shows no number and no comparison, a tracked week its real 0', () => {
+    const { minimumSample, series } = real.volumeAroundStart;
+    const tracked = series.filter(({ value }) => value !== null);
+
+    expect(tracked).toHaveLength(tracked.filter(({ value }) => value === 0).length);
+    expect(tracked.length).toBeGreaterThan(0);
+    expect(tracked.length).toBeLessThan(series.length);
+
+    render(<AnalyticsTrendTable points={series} metric="NEW_APPLICATIONS" period="WEEK" minimumSample={minimumSample} />);
+
+    expect(screen.getAllByText('Not enough data')).toHaveLength(series.length - tracked.length);
+    expect(screen.getAllByText('0')).toHaveLength(tracked.length);
+    expect(screen.queryByText('Change')).not.toBeInTheDocument();
+
+    const chartSeries = buildTrendChartSeries({ points: series, metric: 'NEW_APPLICATIONS', period: 'WEEK', formatBucketLabel: (bucket) => bucket });
+
+    expect(chartSeries.map(({ key }) => key)).toEqual(['current']);
+    expect(chartSeries[0].data.map(({ y }) => y)).toEqual(series.map(({ value }) => value));
+  });
+
+  it('PATH-12 sources: a value the field no longer lists shows as Unmapped with its raw value', () => {
+    render(<AnalyticsCategoryTable categories={real.categoriesWithUnknownSource} stages={real.meta.stages} />);
+
+    shows('Unmapped: LINKEDIN');
   });
 });
 

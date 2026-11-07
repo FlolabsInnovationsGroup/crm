@@ -33,7 +33,7 @@ Every load refuses a database host other than `localhost` or `127.0.0.1`, before
 |---|---|
 | `use-cases.json` | The numbered use cases, each with its contract section |
 | `seed-data.mjs` | People, timeline rows, submissions and the job plan, as tables with use case IDs and hand-calculated outcomes |
-| `expected.mjs` | Every expected number, calculated in plain JavaScript from contract sections 5 and 6. Imports nothing from the product |
+| `expected.mjs` | Every expected number, calculated in plain JavaScript from contract sections 5 and 6 and its "Decisions from testing". Imports nothing from the product |
 | `load.mjs` | Loads the seed. Also the fixed clock |
 | `use-case-checks.mjs` | One check per use case, with values worked out by hand |
 | `seeded-metrics.test.mjs` | Runs the real sync, daily and metrics code, then compares |
@@ -49,7 +49,7 @@ Only metadata, user variables, the queue and the workspace ORM are fakes. The co
 
 Each one lists both values and a `suspect`: product bug, bug in `expected.mjs`, or contract ambiguity. That is a lean, not a ruling, and the check still fails. Whoever rules a difference fine sets `isAccepted` on its note in `difference-notes.mjs`. `CORRECTED_IN_EXPECTED` lists readings changed after comparing, so they can be overruled.
 
-Not compared, because the contract does not define them: `size` on trend points, labels. `medianDays` is compared at one decimal, and check D-1 reports that rounding once. A part-day `daysInStage` gets one day of room.
+Not compared, because the contract does not define them: `size` on trend points, labels.
 
 ## With `--crm`
 

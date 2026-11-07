@@ -146,13 +146,10 @@ export const USE_CASE_CHECKS = [
     t.equal('steps', stepsOf('P051'), 'T');
     t.equal('clock runs from creation', stuckOf('P051')?.daysInStage, 30);
   }],
-  [['UC-25'], 'P052: seen, then merged back', async (t, { transitionsOf, stepsOf, overviewOf, personIdOf }) => {
+  [['UC-25'], 'P052: seen, then merged back', async (t, { transitionsOf, stepsOf, stuckOf }) => {
     t.equal('backward move appended', describeRows(transitionsOf('P052')), ['NEW>CONTACTED timeline', 'CONTACTED>NEW timeline']);
     t.equal('steps', stepsOf('P052'), 'RT');
-
-    const { stuck } = await overviewOf({});
-
-    t.equal('clock runs from the merge', Math.floor(stuck.rows[personIdOf('P052')]?.daysInStage ?? -1), 20);
+    t.equal('clock runs from the merge', stuckOf('P052')?.daysInStage, 20);
   }],
   [['UC-26'], 'Reconcile rows count for reached and movement, not durations', async (t, { transitionsOf, stepsOf, funnelOf, trendsOf }) => {
     t.equal('P045 flagged row', describeRows(transitionsOf('P045')).at(-1), 'CONTACTED>BEFORE_MEETING reconcile');
@@ -381,8 +378,12 @@ export const USE_CASE_CHECKS = [
       t.equal(sourceKey, source.rows[`TOP/${sourceKey}`]?.people, people);
     }
   }],
-  [['UC-64'], 'P061 has an unknown source', async (t, { source }) => {
-    t.equal('UNMAPPED row', pick(source.rows['TOP/UNMAPPED'], ['people', 'isUnmapped']), { people: 1, isUnmapped: true });
+  [['UC-64'], 'P061 has an unknown source', async (t, { source, overviewOf }) => {
+    t.equal('its row is the raw value', pick(source.rows['TOP/LEGACY_SOURCE'], ['people', 'isUnmapped']), { people: 1, isUnmapped: true });
+    t.equal('no shared key', source.rows['TOP/UNMAPPED'], undefined);
+    t.equal('known and catch-all rows are not marked', [source.rows['TOP/WEBSITE']?.isUnmapped, source.rows['TOP/NONE']?.isUnmapped], [false, false]);
+    t.equal('the filter uses the raw value', (await overviewOf({ sourceKey: 'LEGACY_SOURCE' })).figures.totalContacts, 1);
+    t.equal('nobody under the old key', (await overviewOf({ sourceKey: 'UNMAPPED' })).figures.totalContacts, 0);
   }],
   [['UC-65'], 'No source, and rows add up', async (t, { source }) => {
     t.equal('NONE row', source.rows['TOP/NONE']?.people, 5);
@@ -467,13 +468,14 @@ export const USE_CASE_CHECKS = [
     t.equal('fields', pick(others.wrongStageType.meta.fields, ['stage', 'positionsAppliedFor', 'applicantSource']), { stage: 'WRONG_TYPE', positionsAppliedFor: 'WRONG_TYPE', applicantSource: 'WRONG_TYPE' });
   }],
   [['UC-81'], 'TEXT stage and source', async (t, { others }) => {
-    const { meta, overview, funnel } = others.textFields;
+    const { meta, overview, funnel, source } = others.textFields;
 
     t.equal('fields', pick(meta.fields, ['stage', 'positionsAppliedFor', 'applicantSource']), { stage: 'OK', positionsAppliedFor: 'MISSING', applicantSource: 'OK' });
     t.equal('state', meta.state, 'READY');
     t.equal('NEW read', overview.stageTotals.NEW?.count, 1);
     t.equal('free text unmapped', overview.stageTotals['UNMAPPED/NOT_A_STAGE']?.count, 1);
     t.equal('cohort', [funnel.cohortSize, funnel.cohortExcludedUnmapped], [1, 1]);
+    t.equal('source rows are the raw values', [source.rows['TOP/LINKEDIN']?.people, source.rows['TOP/NOT_A_SOURCE']?.people], [1, 1]);
   }],
   [['UC-82'], 'Positions and source fields missing', async (t, { others }) => {
     const { meta, track, source, funnel, logs } = others.noPositionOrSourceField;
@@ -607,7 +609,16 @@ export const USE_CASE_CHECKS = [
     t.equal('current week', pick(series['2026-11-16'], ['value', 'isPartial']), { value: 2, isPartial: true });
     t.equal('week before', pick(series['2026-11-09'], ['value', 'isPartial']), { value: 6, isPartial: false });
     t.equal('an empty week is 0', series['2026-10-19']?.value, 0);
-    t.equal('a bucket twelve weeks back holds S12 as previous', series['2026-11-02']?.previousValue, 1);
+    t.equal('the week holding tracking start counts: S12 as previous', series['2026-11-02']?.previousValue, 1);
+    t.equal('the week before it is unknown, not 0', series['2026-10-26']?.previousValue, null);
+
+    const months = (await trendsOf('NEW_APPLICATIONS', null, { period: 'MONTH' })).series;
+
+    t.equal('months around tracking start', [months['2026-07-01']?.value, months['2026-08-01']?.value], [null, 1]);
+
+    const days = (await trendsOf('NEW_APPLICATIONS', null, { period: 'DAY', dateFrom: '2026-08-09', dateTo: '2026-08-10' })).series;
+
+    t.equal('days around tracking start', [days['2026-08-09']?.value, days['2026-08-10']?.value], [null, 0]);
   }],
   [['UC-101'], 'Rate metrics', async (t, { trendsOf }) => {
     const daily = await trendsOf('OVERALL_CONVERSION', null, { period: 'DAY' });
@@ -620,7 +631,8 @@ export const USE_CASE_CHECKS = [
   [['UC-102'], 'Median days by the end of the stay', async (t, { trendsOf }) => {
     const { series } = await trendsOf('MEDIAN_DAYS', 'NEW', { period: 'MONTH' });
 
-    t.equal('November: eight New stays ended, the middle two are P054 and P056', series['2026-11-01']?.value, (18 + 1310 / 1440 + 18 + 1320 / 1440) / 2);
+    // The middle two are 18 days 1310 and 1320 minutes, so 18.91 before rounding.
+    t.equal('November: eight New stays ended, the middle two are P054 and P056', series['2026-11-01']?.value, 18.9);
     t.ok('no stay ended: null, not 0', series['2026-07-01'] === undefined || series['2026-07-01'].value === null);
   }],
   [['UC-103'], 'Cohort table', async (t, { trendsOf }) => {
@@ -631,6 +643,13 @@ export const USE_CASE_CHECKS = [
     t.equal('August size', august?.size, 8);
     t.equal('August New cell is mature', pick(august?.cells?.NEW, ['entered', 'eligible', 'isMature']), { entered: 8, eligible: 8, isMature: true });
     t.equal('November New cell is not', pick(november?.cells?.NEW, ['entered', 'eligible', 'isMature']), { entered: 6, eligible: 3, isMature: false });
+
+    const weeks = (await trendsOf('NEW_APPLICATIONS', null, { period: 'WEEK' })).cohorts;
+    const reached = (await trendsOf('NEW_APPLICATIONS', null, { period: 'WEEK', dateFrom: '2026-08-10', dateTo: '2026-08-23' })).cohorts;
+
+    t.equal('12 weeks by default: the oldest row is the first trend bucket', Object.keys(weeks).sort()[0], '2026-08-31');
+    t.equal('that week holds P018', weeks['2026-08-31']?.size, 1);
+    t.equal('a date filter reaches older weeks', [reached['2026-08-10']?.size, reached['2026-08-17']?.size], [5, 3]);
   }],
   [['UC-104'], 'Movement this week, by hand', async (t, { trendsOf }) => {
     const { movement } = await trendsOf('NEW_APPLICATIONS', null, { period: 'WEEK' });
@@ -745,8 +764,11 @@ export const USE_CASE_CHECKS = [
     t.equal('longest stay first', noLimits.firstRow, { personKey: 'P039', daysInStage: 100, daysOverLimit: null });
     t.ok('never increases', noLimits.isSorted);
   }],
-  [['UC-120'], 'W10-1 is 14 days and 6 hours in its stage', async (t, { others }) => {
-    t.equal('partDayOverLimit stuck', others.partDayOverLimit.overview.stuck.total, 1);
+  [['UC-120'], 'W10-1 has been 14 days and 6 hours at Contacted, and took as long to leave New', async (t, { others }) => {
+    const { overview, funnel } = others.partDayOverLimit;
+
+    t.equal('whole days: not stuck until day 15', [overview.figures.stuckPeople, overview.stuck.total, overview.stageTotals.CONTACTED?.pastLimitCount], [0, 0, 0]);
+    t.equal('exact times: the move came six hours too late', pick(funnel.rows.NEW, ['eligible', 'reachedNext', 'timedOut']), { eligible: 1, reachedNext: 0, timedOut: 1 });
   }],
   [['UC-118'], 'Loaders refuse a non-local target', async (t, { guards }) => {
     t.equal('other host', guards.otherHost, { status: 3, refused: true });

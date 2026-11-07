@@ -4,11 +4,12 @@ const { buildTappedStatement, hasCte } = require('./sql-tap.cjs');
 // Runs real page calls and keeps their statements, then reads any CTE out of them.
 const createTapReader = ({ query, statements }) => {
   const collect = async (work) => {
-    const mark = statements.length;
+    // The list keeps only its newest statements, so a position in a full list finds nothing.
+    statements.length = 0;
 
     await work();
 
-    return statements.slice(mark).filter(({ sql }) => sql.trimStart().startsWith('WITH'));
+    return statements.filter(({ sql }) => sql.trimStart().startsWith('WITH'));
   };
 
   const tapOf = (collected) => async (cteName, selectSql, adjustParameters = (parameters) => parameters) => {

@@ -2,7 +2,7 @@
 
 What this layer tests: each value is followed from where it is defined to everywhere it is used, so one that gets lost, altered or leaked fails a test.
 
-- `dataflow-graph.json` is the machine-readable graph: 361 nodes, 529 edges, each edge with its id, the field defined at the source, and its use.
+- `dataflow-graph.json` is the machine-readable graph: 361 nodes, 531 edges, each edge with its id, the field defined at the source, and its use.
 - Every edge has a test named with its id. `tests/graph-coverage.cjs` fails if one has none, if a test names an unknown edge, or if a stored column, payload field or CTE has no node.
 - Run it: `node packages/twenty-utils/flolabs/analytics-tests/run-tests.mjs --layer dataflow`. Local Postgres only, on a database of its own for each run, dropped at the end.
 
@@ -289,6 +289,7 @@ flowchart LR
   metric_sync_and_page_state --> payload_meta_sync
   metric_sync_and_page_state --> payload_report
   metric_sync_and_page_state --> report_builder
+  metric_trend_lines --> metric_cohort_table
   metric_trend_lines --> payload_trends
   metric_trend_lines --> payload_trends_series
   payload_categories --> ui_AnalyticsCategoryTable
@@ -321,6 +322,7 @@ flowchart LR
   settings_isDisabled --> metric_sync_and_page_state
   settings_trackingStart --> cte_base_CTEs
   settings_trackingStart --> facade_stageChangeRelation
+  settings_trackingStart --> metric_trend_lines
   settings_trackingStart --> payload_base
   settings_trackingStart --> report_builder
   settings_trackingStart --> sync_cursor
@@ -357,10 +359,10 @@ flowchart LR
 | Filter and query arguments | CTEs | 10 | DF-085 | `status`: ACTIVE, SUCCESS, EXITED, UNMAPPED, NO_STAGE |
 | Analytics tables | CTEs | 12 | DF-090 | `person_id`: joined to the cohort and scope |
 | CTEs | Metrics | 46 | DF-151 | `raw_stage`: sum over stages |
-| Mapping constant and settings | Metrics | 11 | DF-153 | `kind, isSuccess`: decides which stages are active |
+| Mapping constant and settings | Metrics | 12 | DF-153 | `kind, isSuccess`: decides which stages are active |
 | Filter and query arguments | Metrics | 4 | DF-157 | `dateFrom, dateTo`: range, or the last 7 local days |
 | Facade relations | Metrics | 6 | DF-159 | `total`: null without the object |
-| Metrics | Metrics | 26 | DF-174 | `eligible`: eligible minus reachedNext minus exited |
+| Metrics | Metrics | 27 | DF-174 | `eligible`: eligible minus reachedNext minus exited |
 | Analytics tables | Metrics | 6 | DF-240 | `finished_at`: last success and last reconciliation |
 | Sync, reconcile, snapshot and report jobs | Sync, reconcile, snapshot and report jobs | 1 | DF-260 | `periodStart, periodEnd`: range of movement and new applications |
 | Metrics | Sync, reconcile, snapshot and report jobs | 8 | DF-261 | `current, previous`: submittedAt inside the period |

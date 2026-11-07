@@ -2763,7 +2763,7 @@
       "from": "cte.stage_age",
       "to": "metric.stuckPeople",
       "field": "stuck_count",
-      "use": "total past limit"
+      "use": "total past limit, compared in whole days"
     },
     {
       "id": "DF-168",
@@ -3057,7 +3057,7 @@
       "from": "facade.crmState.applicantSource",
       "to": "metric.categoryRows",
       "field": "options",
-      "use": "source labels; unknown sources flagged"
+      "use": "source labels; an unknown source keeps its raw key and is flagged"
     },
     {
       "id": "DF-210",
@@ -3148,7 +3148,7 @@
       "from": "cte.completed_stay",
       "to": "metric.trendMedianDays",
       "field": "stay_days, ended_at",
-      "use": "bucket of stay end date"
+      "use": "bucket of stay end date, one decimal"
     },
     {
       "id": "DF-223",
@@ -5298,6 +5298,20 @@
       "to": "facade.submissionRelation",
       "field": "person.deletedAt",
       "use": "WHERE filter: applications of a soft-deleted person leave; one with no person stays"
+    },
+    {
+      "id": "DF-530",
+      "from": "settings.trackingStart",
+      "to": "metric.trendNewApplications",
+      "field": "trackingStart",
+      "use": "a bucket that ended before the local tracking start date is unknown, not 0, whatever dated rows it holds"
+    },
+    {
+      "id": "DF-531",
+      "from": "metric.trendBuckets",
+      "to": "metric.cohortTable",
+      "field": "bucketStart of the first bucket",
+      "use": "cohort rows are cut to the window of the trend line, or the date filter"
     }
   ]
 }

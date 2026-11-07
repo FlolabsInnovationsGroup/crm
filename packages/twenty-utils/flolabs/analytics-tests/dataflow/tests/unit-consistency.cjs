@@ -6,7 +6,7 @@ const path = require('node:path');
 const { REPO_ROOT } = require('../lib/context.cjs');
 const { createSinkReader, diffCaptures, toIso } = require('../lib/sinks.cjs');
 const { seedBaseline, seedDistinct } = require('../lib/seed.cjs');
-const { toDate, weekStart } = require('../lib/taps.cjs');
+const { createTapReader, toDate, weekStart } = require('../lib/taps.cjs');
 
 const DAY_MS = 86_400_000;
 const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
@@ -290,6 +290,36 @@ module.exports = {
       }
 
       t.ok('median days, not milliseconds', values(smallPayloads.MEDIAN_DAYS).every((value) => value > 0 && value <= 100), values(smallPayloads.MEDIAN_DAYS));
+    }, { needs });
+
+    await test('UNIT-12 median days are rounded to one decimal before leaving the server; the stay itself keeps the exact time', async (t) => {
+      const workspace = await context.createWorkspace();
+      const { insertPerson, insertStageChange } = workspace.fixtures;
+      const { page } = context;
+      const createdAt = daysAgo(30);
+      const movedAt = new Date(createdAt.getTime() + 10 * DAY_MS + 8 * 3_600_000);
+
+      workspace.setTrackingStart(daysAgo(45));
+
+      const personId = await insertPerson({ stage: 'CONTACTED', createdAt });
+
+      await insertStageChange({ personId, before: 'NEW', after: 'CONTACTED', happensAt: movedAt });
+      await context.runSync(workspace);
+      await context.runDaily(workspace);
+
+      const { collect, tapOf } = createTapReader(context);
+      const funnel = await page.funnel(workspace);
+      const tap = tapOf(await collect(() => page.funnel(workspace)));
+      const [stay] = await tap('completed_stay', 'SELECT stay_days FROM completed_stay');
+      const { series } = await page.trends(workspace, 'MEDIAN_DAYS');
+      const [report] = await page.reports(workspace);
+      const { funnel: stored } = await page.report(workspace, report.periodType, report.periodStart);
+      const medianOfNew = ({ rows }) => rows.find(({ stageKey }) => stageKey === 'NEW').medianDays;
+
+      t.ok('the stay is 10 days 8 hours', Math.abs(Number(stay.stay_days) - 31 / 3) < 1e-6, stay);
+      t.equal('funnel', medianOfNew(funnel), 10.3);
+      t.equal('trend line', series.find(({ bucketStart }) => bucketStart === weekStart(movedAt))?.value, 10.3);
+      t.equal('stored report', medianOfNew(stored), 10.3);
     }, { needs });
 
     await test('UNIT-08 the rate becomes a percent only in the front helper', (t) => {

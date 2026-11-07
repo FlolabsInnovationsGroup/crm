@@ -288,12 +288,11 @@ module.exports = {
       t.ok('jobs ran statements', tainted.jobStatements.length > 20, tainted.jobStatements.length);
       t.equal('no job statement names one', offenders.map(({ sql }) => sql.slice(0, 200)), []);
 
-      const mark = context.statements.length;
+      context.statements.length = 0;
 
       await context.page.overview(tainted.workspace);
 
-      const pageStatements = context.statements.slice(mark);
-      const nameStatements = pageStatements.filter(({ sql }) => /nameFirstName/.test(sql));
+      const nameStatements = context.statements.filter(({ sql }) => /nameFirstName/.test(sql));
 
       t.equal('one live read', nameStatements.length, 1);
       t.equal('from the read-only page transaction', nameStatements[0]?.origin, 'page');

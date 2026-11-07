@@ -84,19 +84,6 @@ const isEmptyValue = (value) => {
 const keyBy = (rows, key) =>
   Object.fromEntries((rows ?? []).map((row) => [row[key], row]));
 
-// The contract does not say how a part day displays, so whole-day people are exact and a
-// mid-day clock gets one day of room. Medians are compared at the product's one decimal;
-// check D-1 reports that rounding once, so it does not repeat on every median.
-const toleranceFor = (path, expected) => {
-  if (path.endsWith('.daysInStage') || path.endsWith('.daysOverLimit')) {
-    return Number.isInteger(expected) ? NUMBER_TOLERANCE : 1;
-  }
-
-  return /(\.medianDays|MEDIAN_DAYS.*\.(value|previousValue)|New stays ended.*)$/.test(path)
-    ? 0.05 + NUMBER_TOLERANCE
-    : NUMBER_TOLERANCE;
-};
-
 const createRecorder = () => {
   const results = [];
   const differences = [];
@@ -121,7 +108,7 @@ const createRecorder = () => {
       counter.count += 1;
 
       if (typeof expected === 'number' && typeof actual === 'number') {
-        if (Math.abs(actual - expected) > toleranceFor(path, expected)) {
+        if (Math.abs(actual - expected) > NUMBER_TOLERANCE) {
           report(path, expected, actual);
         }
 
@@ -703,8 +690,8 @@ const main = async () => {
       const engineRow = expectedOverview.stuck.rows[personIdOf(key)];
       const productRow = stuckOf(key);
 
-      t.equal(`${key} expected.mjs`, engineRow === undefined ? null : Math.round(engineRow.daysOverLimit), hand);
-      t.equal(`${key} product`, productRow === undefined ? null : Math.round(productRow.daysOverLimit), hand);
+      t.equal(`${key} expected.mjs`, engineRow === undefined ? null : engineRow.daysOverLimit, hand);
+      t.equal(`${key} product`, productRow === undefined ? null : productRow.daysOverLimit, hand);
 
       if (productRow !== undefined) {
         t.equal(`${key} lower bound`, productRow.isLowerBound, isLowerBound);
@@ -753,6 +740,7 @@ const main = async () => {
     ['program NONE', { programKey: 'NONE' }, ['UC-57', 'UC-92']],
     ['source REFERRAL', { sourceKey: 'REFERRAL' }, ['UC-93']],
     ['source NONE', { sourceKey: 'NONE' }, ['UC-93']],
+    ['source LEGACY_SOURCE', { sourceKey: 'LEGACY_SOURCE' }, ['UC-64', 'UC-93']],
     ['source UNMAPPED', { sourceKey: 'UNMAPPED' }, ['UC-64', 'UC-93']],
     ['September', { dateFrom: '2026-09-01', dateTo: '2026-09-30' }, ['UC-94', 'UC-95']],
     ['from October on', { dateFrom: '2026-10-01' }, ['UC-94']],
@@ -808,10 +796,13 @@ const main = async () => {
     ['NEW_APPLICATIONS', null, { period: 'MONTH' }, ['UC-100', 'UC-103']],
     ['NEW_APPLICATIONS', null, { period: 'WEEK', dateFrom: '2026-11-01', dateTo: '2026-11-18' }, ['UC-95', 'UC-100']],
     ['NEW_APPLICATIONS', null, { period: 'WEEK', trackKey: 'AI_SOFTWARE' }, ['UC-71', 'UC-100']],
+    ['NEW_APPLICATIONS', null, { period: 'WEEK', dateFrom: '2026-08-10', dateTo: '2026-08-23' }, ['UC-103']],
+    ['NEW_APPLICATIONS', null, { period: 'DAY', dateFrom: '2026-08-09', dateTo: '2026-08-10' }, ['UC-100']],
     ['TOTAL_CONTACTS', null, { period: 'DAY' }, ['UC-99']],
     ['TOTAL_CONTACTS', null, { period: 'WEEK' }, ['UC-99']],
     ['TOTAL_CONTACTS', null, { period: 'MONTH' }, ['UC-99']],
     ['TOTAL_CONTACTS', null, { period: 'WEEK', trackKey: 'ROBOTICS' }, ['UC-99']],
+    ['TOTAL_CONTACTS', null, { period: 'WEEK', sourceKey: 'LEGACY_SOURCE' }, ['UC-64', 'UC-99']],
     ['TOTAL_CONTACTS', null, { period: 'WEEK', trackKey: 'ROBOTICS', sourceKey: 'WEBSITE' }, ['UC-105']],
     ['ACTIVE_PEOPLE', null, { period: 'WEEK' }, ['UC-99']],
     ['STAGE_COUNT', 'CONTACTED', { period: 'WEEK' }, ['UC-99']],
@@ -883,10 +874,14 @@ const main = async () => {
     });
   }
 
-  await check('D-1', 'Median days keep their full precision', ['UC-102'], async (t) => {
-    const exact = mainExpected.computeFunnel().rows.NEW.medianDays;
+  await check('D-1', 'Median days leave the server rounded to one decimal', ['UC-102'], async (t) => {
+    const medians = [
+      ...Object.values((await funnelOf({})).rows).map((row) => row.medianDays),
+      ...Object.values((await trendsOf('MEDIAN_DAYS', 'NEW', { period: 'WEEK' })).series).map((point) => point.value),
+    ].filter((value) => value !== null);
 
-    t.equal('funnel.rows.NEW.medianDays to full precision', (await funnelOf({})).rows.NEW?.medianDays, exact);
+    t.ok('there are medians to check', medians.length > 0);
+    t.equal('medians with more than one decimal', medians.filter((value) => Math.abs(value * 10 - Math.round(value * 10)) > NUMBER_TOLERANCE), []);
   });
 
   // Small separate setups, each with its own engine and jobs at the fixed now.
@@ -911,9 +906,11 @@ const main = async () => {
     await runSync(workspaceId);
     await runDaily(workspaceId);
 
-    const expected = expectedFor(workspaceName, jobs);
-    // A TEXT source has no option list, so known and unknown mean nothing there.
-    const hasKnownSourceOptions = workspaceName !== 'textFields';
+    const expected = expectedFor(
+      workspaceName,
+      jobs,
+      workspaceName === 'textFields' ? { knownSources: null } : {},
+    );
     const read = {
       meta: await metaService().getMeta(workspaceId),
       overview: normalizeOverview(await reader.getOverview(workspaceId, {})),
@@ -933,11 +930,7 @@ const main = async () => {
       t.equal(`${workspaceName}.overview`, read.overview, expected.computeOverview());
       t.equal(`${workspaceName}.funnel`, read.funnel, expected.computeFunnel());
       t.equal(`${workspaceName}.track`, read.track, expected.computeCategories({ groupBy: 'TRACK_PROGRAM' }));
-
-      if (hasKnownSourceOptions) {
-        t.equal(`${workspaceName}.source`, read.source, expected.computeCategories({ groupBy: 'SOURCE' }));
-      }
-
+      t.equal(`${workspaceName}.source`, read.source, expected.computeCategories({ groupBy: 'SOURCE' }));
       t.equal(
         `${workspaceName}.transitions`,
         (await readTransitions(workspaceId)).map((row) => `${keyById.get(row.person_id)} ${row.from_stage}>${row.to_stage} ${row.origin}`).sort(),

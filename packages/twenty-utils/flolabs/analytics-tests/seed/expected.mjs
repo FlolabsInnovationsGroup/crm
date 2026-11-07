@@ -1,6 +1,6 @@
-// The expected results, calculated from the seed in plain JavaScript, from the definitions
-// in contract sections 5 and 6. Written without reading the product's SQL and imports
-// nothing from it, so a match between the two means two separate calculations agree.
+// The expected results, calculated from the seed in plain JavaScript, from contract sections
+// 5 and 6 and its "Decisions from testing". Written without reading the product's SQL and
+// imports nothing from it, so a match between the two means two separate calculations agree.
 const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;
 
@@ -25,15 +25,17 @@ export const NO_FILTER = {
 
 const compareNumbers = (first, second) => first - second;
 
-const median = (values) => {
+// A median leaves the server rounded to one decimal.
+const medianDays = (values) => {
   if (values.length === 0) {
     return null;
   }
 
   const sorted = [...values].sort(compareNumbers);
   const middle = (sorted.length - 1) / 2;
+  const exact = (sorted[Math.floor(middle)] + sorted[Math.ceil(middle)]) / 2;
 
-  return (sorted[Math.floor(middle)] + sorted[Math.ceil(middle)]) / 2;
+  return Math.round(exact * 10) / 10;
 };
 
 const ratio = (top, bottom) => (bottom > 0 ? top / bottom : null);
@@ -316,12 +318,15 @@ export const createExpectedWorkspace = ({
         ];
   const programsOf = (state) =>
     state.positions.length === 0 ? [NONE_KEY] : state.positions;
-  const sourceCategoryOf = (state) => {
-    if (state.source === null) {
-      return NONE_KEY;
+  // An unknown source keeps its raw value as the key, so the row names what needs mapping.
+  const sourceCategoryOf = (state) => state.source ?? NONE_KEY;
+  // knownSources is null for a TEXT source: with no option list, no value can be unknown.
+  const isUnmappedCategory = ({ key, parentKey }, groupBy) => {
+    if (groupBy !== 'SOURCE') {
+      return key === UNMAPPED_KEY || parentKey === UNMAPPED_KEY;
     }
 
-    return knownSources.includes(state.source) ? state.source : UNMAPPED_KEY;
+    return knownSources !== null && key !== NONE_KEY && !knownSources.includes(key);
   };
 
   const buildSnapshotRows = (people) => {
@@ -737,7 +742,7 @@ export const createExpectedWorkspace = ({
         dropOffRate: isFinal
           ? null
           : ratio(counts.eligible - counts.reachedNext, counts.eligible),
-        medianDays: median(stays),
+        medianDays: medianDays(stays),
         completedStays: stays.length,
         ...(isFinal ? {} : { isUnderMinimum: counts.eligible < minimumSample }),
       };
@@ -868,7 +873,9 @@ export const createExpectedWorkspace = ({
       state.isActive &&
       transitions.length === 0;
     const clock = clockOf(state, transitions);
-    const days = clock === null ? null : (asOf - clock.enteredAt) / DAY_MS;
+    // Whole days, as the table shows them. Funnel windows keep comparing exact times.
+    const days =
+      clock === null ? null : Math.floor((asOf - clock.enteredAt) / DAY_MS);
     const isStuck =
       state.isActive &&
       !isInactive &&
@@ -1062,7 +1069,7 @@ export const createExpectedWorkspace = ({
       const personMatches = (state) => belongs(state, category);
 
       rows[rowId] = {
-        isUnmapped: category.key === UNMAPPED_KEY || category.parentKey === UNMAPPED_KEY,
+        isUnmapped: isUnmappedCategory(category, groupBy),
         people: inRow.length,
         activePeople: inRow.filter((state) => state.isActive).length,
         newApplications: hasFormObjects
@@ -1312,7 +1319,7 @@ export const createExpectedWorkspace = ({
       })
       .map((stay) => stay.days);
 
-    return median(stays);
+    return medianDays(stays);
   };
 
   const computeTrends = ({ metric, stageKey = null, filter = NO_FILTER, asOf = nowMs }) => {
@@ -1329,12 +1336,22 @@ export const createExpectedWorkspace = ({
       unavailableReason = 'NO_SUBMISSION_OBJECT';
     }
 
+    const buckets = buildBuckets({
+      dateFrom: filter.dateFrom,
+      dateTo: filter.dateTo,
+      period,
+      today,
+    });
+
     const valueOf = (bucketStart) => {
       switch (metric) {
         case 'NEW_APPLICATIONS': {
-          const bucketEnd = addLocalDays(addPeriods(bucketStart, period, 1), -1);
+          const lastDay = addLocalDays(addPeriods(bucketStart, period, 1), -1);
 
-          return countSubmissions({ from: bucketStart, to: bucketEnd, filter, asOf });
+          // A bucket over before tracking began is unknown, not a known zero.
+          return lastDay < localDate(trackingStartMs)
+            ? null
+            : countSubmissions({ from: bucketStart, to: lastDay, filter, asOf });
         }
         case 'OVERALL_CONVERSION':
         case 'DROP_OFF':
@@ -1350,12 +1367,7 @@ export const createExpectedWorkspace = ({
       unavailableReason !== null
         ? {}
         : Object.fromEntries(
-            buildBuckets({
-              dateFrom: filter.dateFrom,
-              dateTo: filter.dateTo,
-              period,
-              today,
-            }).map(({ bucketStart, previousBucketStart, isPartial }) => [
+            buckets.map(({ bucketStart, previousBucketStart, isPartial }) => [
               bucketStart,
               {
                 value: valueOf(bucketStart),
@@ -1364,6 +1376,17 @@ export const createExpectedWorkspace = ({
               },
             ]),
           );
+
+    // The cohort table covers the same window as the trend line.
+    const cohortsInWindow = () => {
+      const rows = computeCohortRows({ period, filter, asOf });
+
+      return Object.fromEntries(
+        buckets
+          .filter(({ bucketStart }) => rows[bucketStart] !== undefined)
+          .map(({ bucketStart }) => [bucketStart, rows[bucketStart]]),
+      );
+    };
 
     const movementFrom = filter.dateFrom ?? periodStart(today, period);
     const movementTo =
@@ -1377,9 +1400,7 @@ export const createExpectedWorkspace = ({
         from: movementFrom,
         rows: computeMovement({ from: movementFrom, to: movementTo, filter, asOf }),
       },
-      ...(period === 'DAY'
-        ? {}
-        : { cohorts: computeCohortRows({ period, filter, asOf }) }),
+      ...(period === 'DAY' ? {} : { cohorts: cohortsInWindow() }),
     };
   };
 
