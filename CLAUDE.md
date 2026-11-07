@@ -186,9 +186,8 @@ From the requirements: track contact and application counts by pipeline, track, 
 11. Approve the retention paragraph.
 12. Start Docker Desktop and close other apps when end-to-end testing begins.
 
-### Before any production deploy (from the integration review)
-- The first deploy turns analytics on: `entrypoint.sh` runs `cron:register:all`, so jobs start for every active workspace and create the `analytics` schema. Hold the merge or deploy until the data audit passes, or insert `CRM_ANALYTICS_DISABLED` for each workspace first and accept that the nav item still shows an "off" page.
-- Analytics jobs share `workspaceQueue` (concurrency 1) with member email updates, cleanup, app installs and trash cleanup, so a slow run delays them. Compare `started_at` and `finished_at` in `analytics.sync_log`; if sync takes over 30 seconds, switch to the hourly pattern.
+### Before merging or deploying
+**Everything that must happen before a merge or deploy is in `docs/analytics/THINGS-TO-DO-BEFORE-MERGE.md`. Add any new item there as it comes up.** The user's rule: seed and test data must not go into `main` or reach the live CRM. Merge from the clean branch made by `analytics-tests/merge-guard/prepare-merge.mjs`, checked by `check-before-merge.mjs`, with a pull request workflow as a backstop (workflow `analytics-merge-guard` is building these).
 
 ### Reported to the user, left alone
 - Possible bug: `useNotificationsSeenState.ts`, `FormBuilderResponsesTab.tsx:161` and `FormBuilderActionsEditor.tsx:63` appear to omit the core Apollo client, so those queries may fail. Unconfirmed. New code must not copy it.
@@ -204,5 +203,6 @@ From the requirements: track contact and application counts by pipeline, track, 
 - 2026-11-07: Verifier fixes adopted: merged timeline rows append instead of overwrite (requirement R2), snapshot and consistency check run in one statement, reports' comparisons use counts only, `countPrevious` removed, phase gates added (code on defaults, sign-off in order).
 - 2026-11-07: The user has no production access. Production data is not a build blocker: the page shows real stage values as Unmapped rows once deployed, and timeline behaviour is proven locally.
 - 2026-11-07: The user asked for a workflow that keeps testing, with test files that can be rerun: Opus writes, Haiku or Sonnet run and evaluate.
+- 2026-11-07: The user said seed data must not be merged, and asked for a merge layer and a things-to-do-before-merge file.
 - 2026-11-07: The user said to stop waiting on research and build now. Critic's simplifications adopted: no current-state table, mapping in a constant, 15-minute sync, metrics per request, eight views instead of 13, reports on a page, no polling. Build started before the contract verifier finished.
 <!-- analytics-state:end -->
