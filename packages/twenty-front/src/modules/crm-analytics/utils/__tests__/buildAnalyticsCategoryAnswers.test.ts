@@ -76,7 +76,7 @@ describe('buildAnalyticsCategoryAnswers', () => {
         people: 800,
         overallRate: 0.9,
       }),
-      buildRow({ key: 'A', label: 'Ads', people: 10, overallRate: 0.1 }),
+      buildRow({ key: 'A', label: 'Ads', people: 40, overallRate: 0.1 }),
     ]);
 
     expect(largest.detail).toBe('Ads');
@@ -89,6 +89,54 @@ describe('buildAnalyticsCategoryAnswers', () => {
     expect(answers.map(({ value }) => value)).toEqual([null, null, null]);
     expect(answers[0].detail).toBe(
       'Not enough people in any group to compare yet',
+    );
+  });
+
+  it('does not call a small group the largest', () => {
+    const [largest] = build([
+      buildRow({ key: 'A', label: 'Ads', people: 3 }),
+      buildRow({ key: 'B', label: 'Board', people: 2 }),
+    ]);
+
+    expect(largest.value).toBeNull();
+  });
+
+  it('names no best group when none has converted', () => {
+    const [, best] = build([
+      buildRow({ key: 'A', label: 'Ads', overallRate: 0 }),
+      buildRow({ key: 'B', label: 'Board', overallRate: 0 }),
+    ]);
+
+    expect(best).toMatchObject({
+      value: null,
+      detail: 'No group has converted yet',
+    });
+  });
+
+  it('names no drop when everyone moved on', () => {
+    const [, , drop] = build([
+      buildRow({
+        key: 'A',
+        label: 'Ads',
+        stepRates: [{ stageKey: 'NEW', eligible: 40, rate: 1, soFarRate: 1 }],
+      }),
+    ]);
+
+    expect(drop).toMatchObject({
+      value: null,
+      detail: 'Everyone moved on at every step',
+    });
+  });
+
+  it('says why when only catch-all rows are in view', () => {
+    const answers = build([
+      buildRow({ key: 'NONE', label: 'No source', people: 500 }),
+    ]);
+
+    expect(answers.map(({ detail }) => detail)).toEqual(
+      Array(3).fill(
+        'Only people with no value or an unmapped value are in view',
+      ),
     );
   });
 

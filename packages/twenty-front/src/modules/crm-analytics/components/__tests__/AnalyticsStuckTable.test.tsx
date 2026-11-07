@@ -96,6 +96,7 @@ describe('AnalyticsStuckTable', () => {
     );
 
     expect(screen.getByText('at least 40')).toBeInTheDocument();
+    expect(screen.getByText('at least 23')).toBeInTheDocument();
   });
 
   it('says how many of the total are shown', () => {

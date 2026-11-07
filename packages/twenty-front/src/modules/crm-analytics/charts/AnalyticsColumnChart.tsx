@@ -90,11 +90,21 @@ const StyledSlot = styled.div`
 
 const StyledColumn = styled.div`
   display: flex;
-  flex-direction: column-reverse;
-  gap: 2px;
+  flex-direction: column;
   max-width: 24px;
+  min-height: 2px;
   position: relative;
   width: 72%;
+`;
+
+// Clips the segment minimums and gaps, so a short stack never draws past its true height.
+const StyledColumnSegments = styled.div`
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column-reverse;
+  gap: 2px;
+  min-height: 0;
+  overflow: hidden;
 `;
 
 const StyledColumnSegment = styled.div`
@@ -152,6 +162,18 @@ const StyledXLabel = styled.span`
   text-align: center;
 `;
 
+const StyledThinnedXLabels = styled(StyledXLabels)`
+  height: 1.2em;
+  position: relative;
+`;
+
+const StyledThinnedXLabel = styled.span`
+  line-height: 1.2;
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+`;
+
 const getColumnTotal = ({ segments }: AnalyticsColumn) =>
   segments.reduce((total, { value }) => total + value, 0);
 
@@ -167,6 +189,8 @@ type AnalyticsColumnChartProps = {
   // Top of the axis, such as 1 for a rate. Defaults to a clean value above the tallest column.
   maxValue?: number;
   formatValue?: (value: number) => string;
+  // Dates can skip labels to fit. Other axes keep every name, because a column with none cannot be read.
+  isTimeAxis?: boolean;
 };
 
 export const AnalyticsColumnChart = ({
@@ -177,6 +201,7 @@ export const AnalyticsColumnChart = ({
   height = 200,
   maxValue,
   formatValue,
+  isTimeAxis = false,
 }: AnalyticsColumnChartProps) => {
   const { formatNumber } = useNumberFormat();
   const { widthRef, width } = useAnalyticsChartWidth();
@@ -200,7 +225,9 @@ export const AnalyticsColumnChart = ({
 
   const plotWidth = Math.max(width - AXIS_WIDTH_IN_PX, 1);
   const slotWidth = plotWidth / columns.length;
-  const xLabelStride = Math.ceil(X_LABEL_WIDTH_IN_PX / slotWidth);
+  const xLabelStride = isTimeAxis
+    ? Math.ceil(X_LABEL_WIDTH_IN_PX / slotWidth)
+    : 1;
   const hasValueLabels = slotWidth >= VALUE_LABEL_WIDTH_IN_PX;
 
   const legendItems = [
@@ -279,17 +306,19 @@ export const AnalyticsColumnChart = ({
                         {column.valueLabel ?? formatColumnValue(total)}
                       </StyledColumnValue>
                     )}
-                    {column.segments
-                      .filter(({ value }) => value > 0)
-                      .map(({ key, value, color }) => (
-                        <StyledColumnSegment
-                          key={key}
-                          style={{
-                            background: color ?? getDefaultColor(column.key),
-                            flexGrow: value,
-                          }}
-                        />
-                      ))}
+                    <StyledColumnSegments>
+                      {column.segments
+                        .filter(({ value }) => value > 0)
+                        .map(({ key, value, color }) => (
+                          <StyledColumnSegment
+                            key={key}
+                            style={{
+                              background: color ?? getDefaultColor(column.key),
+                              flexGrow: value,
+                            }}
+                          />
+                        ))}
+                    </StyledColumnSegments>
                   </StyledColumn>
                 )}
               </StyledSlot>
@@ -297,13 +326,26 @@ export const AnalyticsColumnChart = ({
           })}
         </StyledColumns>
       </StyledPlot>
-      <StyledXLabels aria-hidden="true">
-        {columns.map((column, index) => (
-          <StyledXLabel key={column.key}>
-            {index % xLabelStride === 0 ? column.label : ''}
-          </StyledXLabel>
-        ))}
-      </StyledXLabels>
+      {xLabelStride > 1 ? (
+        <StyledThinnedXLabels aria-hidden="true">
+          {columns.map((column, index) =>
+            index % xLabelStride === 0 ? (
+              <StyledThinnedXLabel
+                key={column.key}
+                style={{ left: `${((index + 0.5) / columns.length) * 100}%` }}
+              >
+                {column.label}
+              </StyledThinnedXLabel>
+            ) : null,
+          )}
+        </StyledThinnedXLabels>
+      ) : (
+        <StyledXLabels aria-hidden="true">
+          {columns.map((column) => (
+            <StyledXLabel key={column.key}>{column.label}</StyledXLabel>
+          ))}
+        </StyledXLabels>
+      )}
       {tooltip}
     </StyledRoot>
   );

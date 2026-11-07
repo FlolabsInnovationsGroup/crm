@@ -11,12 +11,15 @@ export const getAnalyticsPdfRowLabelLayout = (
   labels: string[],
   rowHeight: number,
 ) => {
+  // Whole points, so charts subtracting the gap get back at least the estimate despite float rounding.
   const neededWidth =
     LABEL_GAP +
-    Math.max(
-      0,
-      ...labels.map((label) =>
-        estimateAnalyticsPdfTextWidth(label, ANALYTICS_PDF_FONT_SIZE.label),
+    Math.ceil(
+      Math.max(
+        0,
+        ...labels.map((label) =>
+          estimateAnalyticsPdfTextWidth(label, ANALYTICS_PDF_FONT_SIZE.label),
+        ),
       ),
     );
 

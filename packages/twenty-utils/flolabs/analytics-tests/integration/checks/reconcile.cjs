@@ -145,7 +145,7 @@ module.exports = {
       t.equal('late row stored', rows.filter((row) => row.origin === 'timeline').length, 2);
     });
 
-    await harness.check({ id: 'R10', title: 'Two members editing at once: rows interleave, and the chain still ends on the CRM stage', needs: [] }, async (t) => {
+    await harness.check({ id: 'R10', title: 'Two members editing at once: rows interleave, and reconcile invents no move', needs: [] }, async (t) => {
       const workspace = await newWorkspace();
       const { insertPerson, insertStageChange, mergeStageChange } = workspace.fixtures;
 
@@ -166,9 +166,8 @@ module.exports = {
       t.equal('rows', summarize(rows), [
         'NEW>SECOND_MEETING timeline',
         'CONTACTED>ATTENDED timeline',
-        'ATTENDED>SECOND_MEETING reconcile',
       ]);
-      t.equal('last stored stage is the CRM stage', rows.at(-1)?.to_stage, 'SECOND_MEETING');
+      t.equal('no false reconcile row inside the merge window', rows.filter((row) => row.origin === 'reconcile').length, 0);
     });
 
     await harness.check({ id: 'R9', title: 'A soft-deleted person gets no reconcile row', needs: [] }, async (t) => {

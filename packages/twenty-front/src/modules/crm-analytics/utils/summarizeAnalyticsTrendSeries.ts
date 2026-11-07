@@ -10,6 +10,7 @@ import {
 import { isAnalyticsRateMetric } from '@/crm-analytics/utils/isAnalyticsRateMetric';
 import { isAnalyticsRunningCountMetric } from '@/crm-analytics/utils/isAnalyticsRunningCountMetric';
 import { formatAnalyticsBucketLabel } from '@/crm-analytics/utils/formatAnalyticsBucketLabel';
+import { formatAnalyticsRatePointChange } from '@/crm-analytics/utils/formatAnalyticsRatePointChange';
 import { formatAnalyticsSignedNumber } from '@/crm-analytics/utils/formatAnalyticsSignedNumber';
 import { formatAnalyticsTrendValue } from '@/crm-analytics/utils/formatAnalyticsTrendValue';
 import { getAnalyticsBucketDescription } from '@/crm-analytics/utils/getAnalyticsBucketDescription';
@@ -72,6 +73,12 @@ const getWhenText = (
         })
       : t`People`;
 
+    if (isPartial) {
+      return period === 'WEEK'
+        ? t`${people} who applied so far in the week of ${label}`
+        : t`${people} who applied so far in ${label}`;
+    }
+
     return period === 'WEEK'
       ? t`${people} who applied in the week of ${label}`
       : t`${people} who applied in ${label}`;
@@ -95,18 +102,20 @@ const getWhenText = (
 };
 
 const formatDelta = (
-  delta: number,
+  latestValue: number,
+  precedingValue: number,
   metric: AnalyticsTrendMetric,
   formatNumber: FormatNumber,
 ) => {
   if (isAnalyticsRateMetric(metric)) {
-    const points = formatAnalyticsSignedNumber(
-      Math.round(delta * 100),
+    return formatAnalyticsRatePointChange(
+      latestValue,
+      precedingValue,
       formatNumber,
     );
-
-    return t`${points} points`;
   }
+
+  const delta = latestValue - precedingValue;
 
   if (metric === 'MEDIAN_DAYS') {
     const roundedDays = Math.round(delta * 10) / 10;
@@ -141,6 +150,8 @@ export const summarizeAnalyticsTrendSeries = ({
     isDefined(size) && size < base.minimumSample;
 
   const isRunningCount = isAnalyticsRunningCountMetric(metric);
+  const isRateStillInProgress =
+    isAnalyticsRateMetric(metric) && latestPoint.isPartial;
   const whenText = getWhenText(latestPoint, metric, period, formatNumber);
   const precedingPoint = points[points.indexOf(latestPoint) - 1];
   const precedingPeriod = getPrecedingPeriodText(period);
@@ -149,6 +160,7 @@ export const summarizeAnalyticsTrendSeries = ({
     if (
       !isDefined(precedingPoint) ||
       !isDefined(precedingPoint.value) ||
+      isRateStillInProgress ||
       isUnderMinimum(latestPoint) ||
       isUnderMinimum(precedingPoint) ||
       (isRunningCount &&
@@ -165,7 +177,8 @@ export const summarizeAnalyticsTrendSeries = ({
     }
 
     const delta = formatDelta(
-      (latestPoint.value ?? 0) - precedingPoint.value,
+      latestPoint.value ?? 0,
+      precedingPoint.value,
       metric,
       formatNumber,
     );
@@ -180,6 +193,7 @@ export const summarizeAnalyticsTrendSeries = ({
     detail: isDefined(changeText)
       ? t`${whenText}. ${changeText}.`
       : t`${whenText}.`,
-    isSmallSample: isUnderMinimum(latestPoint),
+    // Drawn lighter, as the chart draws the same point.
+    isSmallSample: isUnderMinimum(latestPoint) || isRateStillInProgress,
   };
 };

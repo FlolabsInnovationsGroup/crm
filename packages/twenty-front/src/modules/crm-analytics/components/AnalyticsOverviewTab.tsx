@@ -6,7 +6,10 @@ import { themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsChartGrid } from '@/crm-analytics/charts/AnalyticsChartGrid';
 import { AnalyticsOverviewCharts } from '@/crm-analytics/components/AnalyticsOverviewCharts';
-import { AnalyticsTabLayout } from '@/crm-analytics/components/AnalyticsSection';
+import {
+  AnalyticsNotice,
+  AnalyticsTabLayout,
+} from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsSkeleton } from '@/crm-analytics/components/AnalyticsSkeleton';
 import { AnalyticsStatePanel } from '@/crm-analytics/components/AnalyticsStatePanel';
 import { GET_CRM_ANALYTICS_OVERVIEW } from '@/crm-analytics/graphql/getCrmAnalyticsOverview';
@@ -20,7 +23,7 @@ import { buildOverviewTakeaway } from '@/crm-analytics/utils/buildOverviewTakeaw
 import { isAnalyticsPeriodFullyTracked } from '@/crm-analytics/utils/isAnalyticsPeriodFullyTracked';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
-const StyledLoading = styled.div`
+const StyledStack = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${themeCssVariables.spacing[5]};
@@ -66,7 +69,8 @@ export const AnalyticsOverviewTab = ({
   } = useCrmAnalyticsQuery<AnalyticsOverview>({
     query: GET_CRM_ANALYTICS_OVERVIEW,
     rootField: 'getCrmAnalyticsOverview',
-    variables: { filter },
+    // The server ignores period here, so the Trends selector must not miss this cache.
+    variables: { filter: { ...filter, period: 'WEEK' } },
   });
 
   if (isForbidden) {
@@ -77,38 +81,54 @@ export const AnalyticsOverviewTab = ({
     return <AnalyticsStatePanel kind="ERROR" error={error} onRetry={retry} />;
   }
 
+  const loadingView = (
+    <StyledStack>
+      <AnalyticsSkeleton shape="figures" />
+      <AnalyticsChartGrid>
+        <AnalyticsSkeleton shape="chart" />
+        <AnalyticsSkeleton shape="chart" />
+      </AnalyticsChartGrid>
+    </StyledStack>
+  );
+
   if (isFirstLoad) {
-    return (
-      <StyledLoading>
-        <AnalyticsSkeleton shape="figures" />
-        <AnalyticsChartGrid>
-          <AnalyticsSkeleton shape="chart" />
-          <AnalyticsSkeleton shape="chart" />
-        </AnalyticsChartGrid>
-      </StyledLoading>
-    );
+    return loadingView;
   }
 
   if (!isDefined(overview)) {
     return <AnalyticsStatePanel kind="DISABLED" />;
   }
 
-  if (overview.figures.totalContacts === 0) {
-    return <AnalyticsStatePanel kind="EMPTY" onReset={onResetFilter} />;
-  }
-
   const importedExcludedByDate = formatNumber(overview.importedExcludedByDate);
+  const importedNotice =
+    overview.importedExcludedByDate > 0
+      ? t`${importedExcludedByDate} imported people have no known application date and are not shown.`
+      : null;
+
+  // People are limited by creation date and applications are not, so a filter can leave only applications.
+  if (
+    overview.figures.totalContacts === 0 &&
+    (overview.figures.newApplications ?? 0) === 0
+  ) {
+    // The payload is still the old filter's, so it says nothing yet about this one.
+    if (isRefetching) {
+      return loadingView;
+    }
+
+    return (
+      <StyledStack>
+        {isDefined(importedNotice) && (
+          <AnalyticsNotice>{importedNotice}</AnalyticsNotice>
+        )}
+        <AnalyticsStatePanel kind="EMPTY" onReset={onResetFilter} />
+      </StyledStack>
+    );
+  }
 
   return (
     <AnalyticsTabLayout
       takeaway={buildOverviewTakeaway({ overview, formatNumber })}
-      notices={
-        overview.importedExcludedByDate > 0
-          ? [
-              t`${importedExcludedByDate} imported people have no known application date and are not shown.`,
-            ]
-          : []
-      }
+      notices={isDefined(importedNotice) ? [importedNotice] : []}
       isRefetching={isRefetching}
     >
       <AnalyticsOverviewCharts

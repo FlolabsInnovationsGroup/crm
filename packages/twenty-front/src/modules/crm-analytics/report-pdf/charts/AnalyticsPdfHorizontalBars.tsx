@@ -20,7 +20,11 @@ const BAR_SHARE_OF_ROW = 0.68;
 const TWO_LINE_ROW_HEIGHT = 17;
 const SMALLEST_SCALE_MAXIMUM = 0.01;
 
-export type AnalyticsPdfBarTone = 'ACCENT' | 'LIGHTER' | 'NEUTRAL';
+export type AnalyticsPdfBarTone =
+  | 'ACCENT'
+  | 'LIGHTER'
+  | 'NEUTRAL'
+  | 'NEUTRAL_LIGHTER';
 
 export type AnalyticsPdfBarRow = {
   key: string;
@@ -38,13 +42,14 @@ const getBarFill = (tone: AnalyticsPdfBarTone) => {
     return ANALYTICS_PDF_COLOR.neutral;
   }
 
+  if (tone === 'NEUTRAL_LIGHTER') {
+    return ANALYTICS_PDF_COLOR.neutralSoft;
+  }
+
   return tone === 'LIGHTER'
     ? ANALYTICS_PDF_COLOR.accentLight
     : ANALYTICS_PDF_COLOR.accent;
 };
-
-const getPartBarFill = (tone: AnalyticsPdfBarTone) =>
-  tone === 'NEUTRAL' ? ANALYTICS_PDF_COLOR.neutral : ANALYTICS_PDF_COLOR.accent;
 
 const estimateTipWidth = ({ valueText, detailText }: AnalyticsPdfBarRow) => {
   const valueWidth = estimateAnalyticsPdfTextWidth(
@@ -94,7 +99,10 @@ export const AnalyticsPdfHorizontalBars = ({
         const barWidth = ((row.value ?? 0) / scaleMaximum) * plotWidth;
         const partWidth = ((row.partValue ?? 0) / scaleMaximum) * plotWidth;
         const tipX = labelWidth + barWidth + TIP_GAP;
-        const isLighter = row.tone === 'LIGHTER' || !isDefined(row.value);
+        const isLighter =
+          row.tone === 'LIGHTER' ||
+          row.tone === 'NEUTRAL_LIGHTER' ||
+          !isDefined(row.value);
         const baseline = getAnalyticsPdfBaseline(
           centerY,
           ANALYTICS_PDF_FONT_SIZE.label,
@@ -138,7 +146,7 @@ export const AnalyticsPdfHorizontalBars = ({
                   height: barHeight,
                   dataEnd: 'RIGHT',
                 })}
-                fill={getPartBarFill(row.tone)}
+                fill={ANALYTICS_PDF_COLOR.accent}
               />
             )}
             <AnalyticsPdfSvgText

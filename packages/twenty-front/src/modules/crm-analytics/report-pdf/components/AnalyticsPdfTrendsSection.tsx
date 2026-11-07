@@ -70,6 +70,17 @@ const getUnavailableLine = (
   }
 };
 
+// The chart has no room for a count on each earlier value, and one person's 100% would stretch the axis over the firm line.
+const isSmallPreviousGroup = (
+  { previousValue, previousSize }: AnalyticsSeries['points'][number],
+  report: AnalyticsReport,
+  isRate: boolean,
+) =>
+  isRate &&
+  isDefined(previousValue) &&
+  isDefined(previousSize) &&
+  previousSize < report.minimumSample;
+
 const buildLinePoints = (
   series: AnalyticsSeries,
   report: AnalyticsReport,
@@ -77,7 +88,8 @@ const buildLinePoints = (
 ): AnalyticsPdfLineChartPoint[] => {
   const period = report.periodType === 'MONTH' ? 'MONTH' : 'WEEK';
 
-  return series.points.map(({ bucketStart, value, previousValue, size }) => {
+  return series.points.map((point) => {
+    const { bucketStart, value, previousValue, size } = point;
     const isLighter = isRate && isDefined(size) && size < report.minimumSample;
     const formattedSize = isDefined(size) ? formatAnalyticsPdfNumber(size) : '';
 
@@ -89,7 +101,9 @@ const buildLinePoints = (
         isCompact: true,
       }),
       value,
-      previousValue,
+      previousValue: isSmallPreviousGroup(point, report, isRate)
+        ? null
+        : previousValue,
       isLighter,
       shortDetail: isLighter ? t`of ${formattedSize}` : null,
     };
@@ -159,7 +173,11 @@ const AnalyticsPdfTrendLine = ({
     return (
       <AnalyticsPdfNoData
         title={title}
-        line={getUnavailableLine(series?.unavailableReason ?? null)}
+        line={
+          isDefined(series)
+            ? getUnavailableLine(series.unavailableReason)
+            : t`This line is not stored in this report.`
+        }
         width={width}
         isInPair={isInPair}
       />
@@ -167,6 +185,9 @@ const AnalyticsPdfTrendLine = ({
   }
 
   const linePoints = buildLinePoints(series, report, isRate);
+  const hasSmallPreviousGroups = series.points.some((point) =>
+    isSmallPreviousGroup(point, report, isRate),
+  );
   const legendLabels = buildLineLegendLabels(
     linePoints.length,
     report.periodType,
@@ -181,11 +202,17 @@ const AnalyticsPdfTrendLine = ({
   return (
     <AnalyticsPdfChartBlock
       title={title}
-      note={
+      note={[
+        note,
         hasPreviousLine
-          ? `${note} ${t`Dashed is the window before, moved forward to compare.`}`
-          : note
-      }
+          ? t`Dashed is the window before, moved forward to compare.`
+          : null,
+        hasSmallPreviousGroups
+          ? t`Earlier periods with a small group are left out of it.`
+          : null,
+      ]
+        .filter(isDefined)
+        .join(' ')}
       width={width}
       noteMinimumHeight={noteMinimumHeight}
       isInPair={isInPair}
@@ -206,6 +233,8 @@ const AnalyticsPdfTrendLine = ({
                     color: ANALYTICS_PDF_COLOR.neutral,
                     isLine: true,
                     lineDash: ANALYTICS_PDF_LINE_DASH.previous,
+                    lineWidth: 1.25,
+                    lineCap: 'butt' as const,
                   },
                 ]
               : []),

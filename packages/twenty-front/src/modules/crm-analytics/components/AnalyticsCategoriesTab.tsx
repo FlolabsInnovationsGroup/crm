@@ -70,7 +70,8 @@ const AnalyticsCategoriesView = ({
   } = useCrmAnalyticsQuery<AnalyticsCategories>({
     query: GET_CRM_ANALYTICS_CATEGORIES,
     rootField: 'getCrmAnalyticsCategories',
-    variables: { filter, groupBy },
+    // The server ignores period here, so the Trends selector must not miss this cache.
+    variables: { filter: { ...filter, period: 'WEEK' }, groupBy },
   });
 
   if (isForbidden) {
@@ -86,23 +87,35 @@ const AnalyticsCategoriesView = ({
     );
   }
 
+  const loadingView = (
+    <StyledLayout isRefetching={false}>
+      {groupSwitch}
+      <AnalyticsChartGrid>
+        <AnalyticsChartCard title={t`How many people in each?`} isLoading />
+        <AnalyticsChartCard title={t`Which converts best?`} isLoading />
+      </AnalyticsChartGrid>
+    </StyledLayout>
+  );
+
   if (isFirstLoad) {
-    return (
-      <StyledLayout isRefetching={false}>
-        {groupSwitch}
-        <AnalyticsChartGrid>
-          <AnalyticsChartCard title={t`How many people in each?`} isLoading />
-          <AnalyticsChartCard title={t`Which converts best?`} isLoading />
-        </AnalyticsChartGrid>
-      </StyledLayout>
-    );
+    return loadingView;
   }
 
   if (!isDefined(categories)) {
     return <AnalyticsStatePanel kind="DISABLED" />;
   }
 
-  if (categories.rows.every((row) => row.people === 0)) {
+  // People are limited by creation date and applications are not, so a filter can leave only applications.
+  const isEmpty = categories.rows.every(
+    (row) => row.people === 0 && (row.newApplications ?? 0) === 0,
+  );
+
+  if (isEmpty) {
+    // The payload is still the old filter's, so it says nothing yet about this one.
+    if (isRefetching) {
+      return loadingView;
+    }
+
     return (
       <StyledLayout isRefetching={false}>
         {groupSwitch}

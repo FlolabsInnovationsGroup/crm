@@ -351,7 +351,7 @@ describe('AnalyticsCategoriesTab', () => {
     expect(within(card).getByText('-')).toBeInTheDocument();
   });
 
-  it('ranks measured rates first, then so far, then unknown', async () => {
+  it('ranks firm rates first, then small groups, so far and unknown', async () => {
     renderTab({ mocks: [categoriesMock(buildCategories())] });
 
     await findCard('Which converts best?');
@@ -365,8 +365,8 @@ describe('AnalyticsCategoriesTab', () => {
       .map((row) => row.getAttribute('aria-label'));
 
     expect(rowNames).toEqual([
-      'Design: 50%',
       'Robotics: 20%',
+      'Design: 50%',
       'Emerging sciences: 3% so far',
       'No position: ',
     ]);
@@ -388,14 +388,14 @@ describe('AnalyticsCategoriesTab', () => {
     ).toBeInTheDocument();
   });
 
-  it('leaves unknown points out of the scatter and says how many', async () => {
+  it('leaves unknown and catch-all points out of the scatter', async () => {
     renderTab({ mocks: [categoriesMock(buildCategories())] });
 
     const card = await findCard('Big but weak, or small but strong?');
 
     expect(
       within(card).getByText(
-        '2 not shown because there is not enough data yet.',
+        '1 not shown because there is not enough data yet.',
       ),
     ).toBeInTheDocument();
   });
@@ -449,6 +449,39 @@ describe('AnalyticsCategoriesTab', () => {
     ).toBeInTheDocument();
   });
 
+  it('says rates ignore a status filter and passes over a group with no one in it', async () => {
+    const filter: AnalyticsFilter = {
+      ...CRM_ANALYTICS_DEFAULT_FILTER,
+      status: 'EXITED',
+    };
+
+    renderTab({
+      filter,
+      mocks: [
+        categoriesMock(
+          buildCategories({
+            rows: [
+              ROBOTICS_ROW,
+              buildRow({
+                key: 'DESIGN',
+                label: 'Design',
+                people: 0,
+                overallRate: 0.9,
+              }),
+            ],
+          }),
+          'TRACK_PROGRAM',
+          filter,
+        ),
+      ],
+    });
+
+    expect(await screen.findByText('Largest')).toBeInTheDocument();
+    expect(screen.getByText(/ignore the status filter/)).toBeInTheDocument();
+    expect(screen.getByText('Robotics, of 50 people')).toBeInTheDocument();
+    expect(screen.queryByText('Design, of 50 people')).not.toBeInTheDocument();
+  });
+
   it('offers a reset when nothing matches the filters', async () => {
     const user = userEvent.setup();
     const onResetFilter = jest.fn();
@@ -465,6 +498,31 @@ describe('AnalyticsCategoriesTab', () => {
     await user.click(screen.getByText('Reset filters'));
 
     expect(onResetFilter).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the view when a filter leaves only new applications', async () => {
+    renderTab({
+      mocks: [
+        categoriesMock(
+          buildCategories({
+            rows: [
+              buildRow({
+                key: 'ROBOTICS',
+                label: 'Robotics',
+                people: 0,
+                activePeople: 0,
+                newApplications: 3,
+              }),
+            ],
+          }),
+        ),
+      ],
+    });
+
+    expect(await screen.findByText('Largest')).toBeInTheDocument();
+    expect(
+      screen.queryByText('No people match these filters'),
+    ).not.toBeInTheDocument();
   });
 
   it('says why when the field is missing, and sends no query', async () => {

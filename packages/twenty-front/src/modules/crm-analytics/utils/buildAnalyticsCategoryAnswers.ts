@@ -41,7 +41,7 @@ export const buildAnalyticsCategoryAnswers = ({
   const groupRows = rows.filter((row) => !isAnalyticsCatchAllRow(row));
 
   const largestRow = groupRows
-    .filter((row) => row.people > 0)
+    .filter((row) => row.people >= minimumSample)
     .reduce<AnalyticsCategoryRow | null>(
       (largest, row) =>
         !isDefined(largest) || row.people > largest.people ? row : largest,
@@ -79,7 +79,21 @@ export const buildAnalyticsCategoryAnswers = ({
       null,
     );
 
-  const notEnoughPeople = t`Not enough people in any group to compare yet`;
+  const noGroupReason =
+    groupRows.length === 0 && rows.some((row) => row.people > 0)
+      ? t`Only people with no value or an unmapped value are in view`
+      : t`Not enough people in any group to compare yet`;
+
+  // A highest rate of 0 or a lowest of 1 means no group stands out from the others.
+  const convertingRow = (bestRow?.overallRate ?? 0) > 0 ? bestRow : null;
+  const droppingStep =
+    isDefined(lowestStep) && lowestStep.rate < 1 ? lowestStep : null;
+
+  const getBestFallback = () =>
+    isDefined(bestRow) ? t`No group has converted yet` : noGroupReason;
+
+  const getDropFallback = () =>
+    isDefined(lowestStep) ? t`Everyone moved on at every step` : noGroupReason;
 
   const getBestDetail = (row: AnalyticsCategoryRow) => {
     const label = getAnalyticsCategoryLabel(row, groupBy);
@@ -107,25 +121,27 @@ export const buildAnalyticsCategoryAnswers = ({
         : null,
       detail: isDefined(largestRow)
         ? getAnalyticsCategoryLabel(largestRow, groupBy)
-        : notEnoughPeople,
+        : noGroupReason,
     },
     {
       key: 'best',
       label: t`Best converting`,
-      value: isDefined(bestRow)
-        ? formatAnalyticsRate(bestRow.overallRate)
+      value: isDefined(convertingRow)
+        ? formatAnalyticsRate(convertingRow.overallRate)
         : null,
-      detail: isDefined(bestRow) ? getBestDetail(bestRow) : notEnoughPeople,
+      detail: isDefined(convertingRow)
+        ? getBestDetail(convertingRow)
+        : getBestFallback(),
     },
     {
       key: 'drop',
       label: t`Biggest drop`,
-      value: isDefined(lowestStep)
-        ? formatAnalyticsRate(1 - lowestStep.rate)
+      value: isDefined(droppingStep)
+        ? formatAnalyticsRate(1 - droppingStep.rate)
         : null,
-      detail: isDefined(lowestStep)
-        ? getDropDetail(lowestStep)
-        : notEnoughPeople,
+      detail: isDefined(droppingStep)
+        ? getDropDetail(droppingStep)
+        : getDropFallback(),
     },
   ];
 };

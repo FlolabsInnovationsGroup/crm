@@ -48,6 +48,20 @@ describe('getAnalyticsCategoryChartRows', () => {
     ).toEqual(['ML']);
   });
 
+  it('shows only the chosen track while the previous answer is still in hand', () => {
+    expect(
+      getKeys(
+        getAnalyticsCategoryChartRows(
+          {
+            groupBy: 'TRACK_PROGRAM',
+            rows: [...ROWS, buildRow('ICONS', 'DESIGN')],
+          },
+          { trackKey: 'AI', programKey: null },
+        ),
+      ),
+    ).toEqual(['ML']);
+  });
+
   it('keeps the track when it has no programs to expand to', () => {
     expect(
       getKeys(

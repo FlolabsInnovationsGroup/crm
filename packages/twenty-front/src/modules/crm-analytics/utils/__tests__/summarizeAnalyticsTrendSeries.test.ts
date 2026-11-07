@@ -119,6 +119,33 @@ describe('summarizeAnalyticsTrendSeries', () => {
     });
   });
 
+  it('calls a rate in a running period so far and shows no change', () => {
+    const summary = summarize(
+      [
+        buildPoint('2027-02-01', 0.3, { size: 60 }),
+        buildPoint('2027-03-01', 0.35, { size: 40, isPartial: true }),
+      ],
+      'DROP_OFF',
+      'MONTH',
+    );
+
+    expect(summary?.detail).toBe('40 people who applied so far in Mar 2027.');
+    expect(summary?.isSmallSample).toBe(true);
+  });
+
+  it('says one point in the singular', () => {
+    const summary = summarize(
+      [
+        buildPoint('2027-01-01', 0.2, { size: 60 }),
+        buildPoint('2027-02-01', 0.21, { size: 60 }),
+      ],
+      'OVERALL_CONVERSION',
+      'MONTH',
+    );
+
+    expect(summary?.detail).toContain('+1 point against the month before');
+  });
+
   it('names a month for a monthly rate', () => {
     expect(
       summarize(

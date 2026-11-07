@@ -352,6 +352,33 @@ describe('AnalyticsTrendsTab', () => {
     expect(getCard('Median days in a stage')).toBeInTheDocument();
   });
 
+  it('gives no waiting reason when the last period had no applicants', async () => {
+    const lastPoint = RATE_POINTS[RATE_POINTS.length - 1];
+
+    renderTab({
+      mocks: allMocks({
+        smallSeries: SMALL_REQUESTS.map(({ metric }) =>
+          metric === 'OVERALL_CONVERSION'
+            ? buildSeries(metric, {
+                points: [
+                  { ...lastPoint, value: 0.25, size: 40 },
+                  { ...lastPoint, value: null, size: 0 },
+                ],
+              })
+            : buildSeries(metric),
+        ),
+      }),
+    });
+
+    await screen.findByText('So far this week. 74 the week before.');
+
+    expect(
+      within(getCard('Overall conversion')).queryByText(
+        /The line stops before recent periods/,
+      ),
+    ).not.toBeInTheDocument();
+  });
+
   it('says the rate line stops before recent periods', async () => {
     renderTab({ mocks: allMocks() });
 
@@ -609,7 +636,7 @@ describe('AnalyticsTrendsTab', () => {
 
     expect(
       await screen.findByText(
-        /Dates widen to whole weeks on this tab\. Showing the latest 2 periods\./,
+        /Dates widen to whole weeks on the charts\. Moves use the exact dates\. Showing the latest 2 periods\./,
       ),
     ).toBeInTheDocument();
   });
@@ -633,6 +660,53 @@ describe('AnalyticsTrendsTab', () => {
 
     expect(await screen.findByText(/Dates widen/)).toBeInTheDocument();
     expect(screen.queryByText(/Showing the latest/)).not.toBeInTheDocument();
+  });
+
+  it('shows the error, not an empty panel, when a new filter fails', async () => {
+    const nextFilter = { ...CRM_ANALYTICS_DEFAULT_FILTER, sourceKey: 'Y' };
+    const failure = { errors: [{ message: 'Query failed' }] };
+    const mocks = [
+      ...allMocks({
+        trends: buildTrends({
+          series: [],
+          cohorts: [],
+          movement: { from: '2026-11-02', to: '2026-11-07', rows: [] },
+        }),
+        smallSeries: SMALL_REQUESTS.map(({ metric }) =>
+          buildSeries(metric, { points: [] }),
+        ),
+      }),
+      ...allMocks({ filter: nextFilter }).map((mock) => ({
+        ...mock,
+        result: failure,
+      })),
+    ];
+    const jotaiStore = createStore();
+    const renderWithFilter = (filter: AnalyticsFilter) => (
+      <JotaiProvider store={jotaiStore}>
+        <MockedProvider mocks={mocks}>
+          <AnalyticsTrendsTab
+            filter={filter}
+            meta={META}
+            onFilterChange={jest.fn()}
+            onResetFilter={jest.fn()}
+          />
+        </MockedProvider>
+      </JotaiProvider>
+    );
+
+    const { rerender } = render(renderWithFilter(CRM_ANALYTICS_DEFAULT_FILTER));
+
+    await screen.findByText('No people match these filters');
+
+    rerender(renderWithFilter(nextFilter));
+
+    expect(
+      (await screen.findAllByText('This chart could not load')).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.queryByText('No people match these filters'),
+    ).not.toBeInTheDocument();
   });
 
   it('offers a reset when nothing matches the filters', async () => {

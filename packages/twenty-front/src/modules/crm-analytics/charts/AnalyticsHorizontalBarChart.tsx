@@ -83,10 +83,13 @@ const StyledBarArea = styled.div`
   position: relative;
 `;
 
+// Clips the segment minimums and gaps, so a short stack never draws past its true length.
 const StyledBar = styled.div`
   display: flex;
   gap: 2px;
   height: 100%;
+  min-width: 2px;
+  overflow: hidden;
 `;
 
 const StyledSegment = styled.div`
@@ -171,7 +174,9 @@ export const AnalyticsHorizontalBarChart = ({
     legendRows: AnalyticsHorizontalBarRow[],
     defaultColor: string,
   ) =>
-    legendRows
+    // The fullest row goes first, so a row missing a middle segment cannot reorder the legend.
+    [...legendRows]
+      .sort((first, second) => second.segments.length - first.segments.length)
       .flatMap(({ segments }) => segments)
       .map(
         ({ key, label, color }) =>
@@ -228,7 +233,11 @@ export const AnalyticsHorizontalBarChart = ({
       row.valueLabel ??
       (row.segments.length > 0 ? formatRowValue(total) : undefined);
     const isClickable = isDefined(onRowClick);
-    const activate = () => onRowClick?.(row.key);
+    // A click can replace this row, and a removed row never fires the leave that hides its tooltip.
+    const activate = () => {
+      hideTooltip();
+      onRowClick?.(row.key);
+    };
 
     return (
       <StyledRow
@@ -284,6 +293,7 @@ export const AnalyticsHorizontalBarChart = ({
     <StyledRoot
       role={isDefined(onRowClick) ? 'group' : 'img'}
       aria-label={ariaLabel}
+      onPointerLeave={hideTooltip}
     >
       {legendItems.length > 1 && <AnalyticsChartLegend items={legendItems} />}
       <StyledRows>

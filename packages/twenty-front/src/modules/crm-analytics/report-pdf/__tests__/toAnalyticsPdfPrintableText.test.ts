@@ -18,4 +18,9 @@ describe('toAnalyticsPdfPrintableText', () => {
   it('shows a plain mark for anything else instead of wrong characters', () => {
     expect(toAnalyticsPdfPrintableText('2026年')).toBe('2026?');
   });
+
+  it('keeps accents typed as separate marks and adds no stray mark for them', () => {
+    expect(toAnalyticsPdfPrintableText('Résumé')).toBe('Résumé');
+    expect(toAnalyticsPdfPrintableText('❤️')).toBe('?');
+  });
 });

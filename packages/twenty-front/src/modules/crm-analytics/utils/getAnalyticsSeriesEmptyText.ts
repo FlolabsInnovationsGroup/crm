@@ -29,9 +29,15 @@ export const getAnalyticsSeriesNoValueText = (
     reportingTimeZone,
   }: Pick<AnalyticsBase, 'trackingStartedAt' | 'reportingTimeZone'>,
 ) => {
+  const trackingStartedOn = i18n.date(new Date(trackingStartedAt), {
+    dateStyle: 'medium',
+    timeZone: reportingTimeZone,
+  });
+
   switch (metric) {
+    // A period before tracking has no value because its total is unknown, not because it is zero.
     case 'NEW_APPLICATIONS':
-      return t`No applications in this range yet.`;
+      return t`No applications counted in this range. Tracking started ${trackingStartedOn}, and earlier totals are not known.`;
     case 'TOTAL_CONTACTS':
     case 'ACTIVE_PEOPLE':
     case 'STAGE_COUNT':
@@ -39,15 +45,9 @@ export const getAnalyticsSeriesNoValueText = (
     case 'MEDIAN_DAYS':
       return t`No completed stays in this range yet.`;
     case 'OVERALL_CONVERSION':
-    case 'DROP_OFF': {
-      const trackingStartedOn = i18n.date(new Date(trackingStartedAt), {
-        dateStyle: 'medium',
-        timeZone: reportingTimeZone,
-      });
-
+    case 'DROP_OFF':
       return period === 'MONTH'
         ? t`Tracking started ${trackingStartedOn}. No period here has a rate to draw yet. Try a longer date range.`
         : t`Tracking started ${trackingStartedOn}. No period here has a rate to draw yet. Try By month or a longer date range.`;
-    }
   }
 };

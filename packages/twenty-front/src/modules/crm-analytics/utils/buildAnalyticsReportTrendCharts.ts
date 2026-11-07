@@ -12,6 +12,7 @@ import {
 import { buildAnalyticsSeriesBuckets } from '@/crm-analytics/utils/buildAnalyticsSeriesBuckets';
 import { buildAnalyticsSeriesSample } from '@/crm-analytics/utils/buildAnalyticsSeriesSample';
 import { formatAnalyticsTrendValue } from '@/crm-analytics/utils/formatAnalyticsTrendValue';
+import { getAnalyticsWindowLength } from '@/crm-analytics/utils/getAnalyticsWindowLength';
 import { getAnalyticsSeriesUnavailableText } from '@/crm-analytics/utils/getAnalyticsSeriesEmptyText';
 import { isAnalyticsRateMetric } from '@/crm-analytics/utils/isAnalyticsRateMetric';
 
@@ -24,6 +25,7 @@ export type AnalyticsReportTrendChart = {
   buckets: AnalyticsLineChartBucket[];
   values: (number | null)[];
   previousValues?: (number | null)[];
+  previousLabel: string;
   sample: Pick<
     AnalyticsLineChartSeries,
     'sizes' | 'minimumSample' | 'formatSize'
@@ -32,7 +34,10 @@ export type AnalyticsReportTrendChart = {
   formatValue: (value: number) => string;
 };
 
-const getSeriesLabel = (metric: AnalyticsTrendMetric) => {
+const getSeriesLabel = (
+  metric: AnalyticsTrendMetric,
+  stageLabel: string | undefined,
+) => {
   switch (metric) {
     case 'NEW_APPLICATIONS':
       return t`New applications`;
@@ -45,7 +50,9 @@ const getSeriesLabel = (metric: AnalyticsTrendMetric) => {
     case 'OVERALL_CONVERSION':
       return t`Overall conversion`;
     case 'DROP_OFF':
-      return t`Drop-off rate`;
+      return isDefined(stageLabel)
+        ? t`Drop-off from ${stageLabel}`
+        : t`Drop-off rate`;
     case 'MEDIAN_DAYS':
       return t`Median days in a stage`;
   }
@@ -58,8 +65,15 @@ export const buildAnalyticsReportTrendCharts = (
   (report.trendSeries ?? [])
     .filter((series) => !isDefined(series.groupKey))
     .map(({ metric, stageKey, unavailableReason, points }) => {
-      const seriesLabel = getSeriesLabel(metric);
+      const seriesLabel = getSeriesLabel(
+        metric,
+        report.funnel.rows.find((row) => row.stageKey === stageKey)?.label,
+      );
       const previousValues = points.map(({ previousValue }) => previousValue);
+      const windowLength = getAnalyticsWindowLength(
+        points.length,
+        report.periodType,
+      );
 
       return {
         key: `${metric}:${stageKey ?? ''}`,
@@ -81,6 +95,7 @@ export const buildAnalyticsReportTrendCharts = (
         previousValues: previousValues.some(isDefined)
           ? previousValues
           : undefined,
+        previousLabel: t`${windowLength} before`,
         sample: buildAnalyticsSeriesSample({
           points,
           metric,

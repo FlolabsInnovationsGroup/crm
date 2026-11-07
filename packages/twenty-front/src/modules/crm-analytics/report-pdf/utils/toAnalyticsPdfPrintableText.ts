@@ -26,7 +26,12 @@ const toPrintableCharacter = (character: string) => {
 
   const simplified = character.normalize('NFKD').replace(COMBINING_MARKS, '');
 
-  return simplified.length > 0 && Array.from(simplified).every(isPrintable)
+  // A mark that composes with nothing, or an emoji's variation selector, has no glyph of its own to stand in for.
+  if (simplified.length === 0) {
+    return '';
+  }
+
+  return Array.from(simplified).every(isPrintable)
     ? simplified
     : UNPRINTABLE_CHARACTER;
 };
@@ -34,4 +39,4 @@ const toPrintableCharacter = (character: string) => {
 // Built-in PDF fonts cover Windows ANSI only, and pdfkit prints anything else as wrong
 // characters without an error: a narrow space from a date or number format becomes " /".
 export const toAnalyticsPdfPrintableText = (text: string) =>
-  Array.from(text).map(toPrintableCharacter).join('');
+  Array.from(text.normalize('NFC')).map(toPrintableCharacter).join('');

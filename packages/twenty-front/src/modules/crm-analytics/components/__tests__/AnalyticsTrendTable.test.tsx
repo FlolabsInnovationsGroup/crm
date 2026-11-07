@@ -239,6 +239,55 @@ describe('AnalyticsTrendTable', () => {
     expect(screen.getByText('0 points')).toBeInTheDocument();
   });
 
+  it('measures a rate change from the rates as shown', () => {
+    renderTable(
+      [
+        buildPoint({
+          bucketStart: '2026-11-02',
+          value: 0.124,
+          previousValue: 0.116,
+          size: 120,
+          previousSize: 120,
+        }),
+        buildPoint({
+          bucketStart: '2026-10-26',
+          value: 0.007,
+          previousValue: 0.003,
+          size: 150,
+          previousSize: 400,
+        }),
+        buildPoint({
+          bucketStart: '2026-10-19',
+          value: 0.51,
+          previousValue: 0.5,
+          size: 120,
+          previousSize: 120,
+        }),
+      ],
+      'OVERALL_CONVERSION',
+    );
+
+    expect(screen.getByText('0 points')).toBeInTheDocument();
+    expect(screen.getByText('+0.4 points')).toBeInTheDocument();
+    expect(screen.getByText('+1 point')).toBeInTheDocument();
+  });
+
+  it('tags a count that only started part way through its period', () => {
+    renderTable(
+      [
+        buildPoint({ bucketStart: '2026-10-26', value: 4, previousValue: null }),
+        buildPoint({ bucketStart: '2026-11-02', value: 86, previousValue: null }),
+      ],
+      'NEW_APPLICATIONS',
+      '2026-10-27T00:00:00.000Z',
+    );
+
+    expect(screen.getAllByText('partly tracked')).toHaveLength(1);
+    expect(screen.getByText('partly tracked').closest('tr')).toHaveTextContent(
+      'Oct 26',
+    );
+  });
+
   it('keeps one decimal on median days', () => {
     renderTable(
       [buildPoint({ value: 4.5, previousValue: 3, size: 40 })],

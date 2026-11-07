@@ -1,4 +1,4 @@
-import { t } from '@lingui/core/macro';
+import { plural, t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
 
 import { type AnalyticsAnswerCard } from '@/crm-analytics/charts/AnalyticsAnswerCards';
@@ -58,12 +58,15 @@ const buildBiggestDropCard = ({
     biggestDropRow.eligible,
     formatNumber,
   );
+  const windowDays = biggestDropRow.windowDays;
 
   return {
     key: 'biggestDrop',
     label: t`Biggest drop`,
     value: formatAnalyticsRate(biggestDropRow.dropOffRate),
-    detail: t`From ${fromLabel} to ${toLabel}. ${stayedBehind} of ${people} did not move on.`,
+    detail: isDefined(windowDays)
+      ? t`From ${fromLabel} to ${toLabel}. ${stayedBehind} of ${people} did not move on within ${windowDays} days.`
+      : t`From ${fromLabel} to ${toLabel}. ${stayedBehind} of ${people} did not move on in time.`,
   };
 };
 
@@ -97,7 +100,10 @@ const buildSlowestStageCard = ({
   return {
     key: 'slowestStage',
     label: t`Slowest stage`,
-    value: t`${days} days`,
+    value: plural(Math.round(slowestRow.medianDays * 10) / 10, {
+      one: `${days} day`,
+      other: `${days} days`,
+    }),
     detail: t`Typical stay in ${stageLabel}, from ${stays} finished stays.`,
   };
 };

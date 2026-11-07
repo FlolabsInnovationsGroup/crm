@@ -102,6 +102,28 @@ describe('buildStageTotalsChartRows', () => {
     ]);
   });
 
+  it('does not call a stage with no limit within limit', () => {
+    expect(
+      mainRows[1].segments.map(({ key, label, value }) => [key, label, value]),
+    ).toEqual([['people', 'People', 8]]);
+  });
+
+  it('shows inactive people on a row outside the main steps', () => {
+    const {
+      otherRows: [stageRow],
+    } = buildStageTotalsChartRows({
+      rows: [buildStageRow('INTERESTED', 'OTHER', 100, { inactiveCount: 40 })],
+      formatNumber,
+    });
+
+    expect(
+      stageRow.tooltip?.rows.map(({ label, value }) => [label, value]),
+    ).toEqual([
+      ['People', '100'],
+      ['Inactive', '40'],
+    ]);
+  });
+
   it('keeps reminders out of the bars and in the tooltip', () => {
     expect(mainRows.map(({ key }) => key)).toEqual(['NEW', 'SIGNED']);
     expect(mainRows[0].tooltip?.rows).toContainEqual({

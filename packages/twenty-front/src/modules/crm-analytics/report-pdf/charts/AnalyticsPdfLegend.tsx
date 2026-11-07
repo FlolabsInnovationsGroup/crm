@@ -41,6 +41,9 @@ export type AnalyticsPdfLegendItem = {
   color: string;
   isLine?: boolean;
   lineDash?: string;
+  lineWidth?: number;
+  // Round caps close a dash's gap at this size, while the dotted key needs them to show dots at all.
+  lineCap?: 'butt' | 'round';
 };
 
 type AnalyticsPdfLegendProps = {
@@ -49,30 +52,40 @@ type AnalyticsPdfLegendProps = {
 
 export const AnalyticsPdfLegend = ({ items }: AnalyticsPdfLegendProps) => (
   <View style={styles.legend}>
-    {items.map(({ key, label, color, isLine = false, lineDash }) => (
-      <View key={key} style={styles.item}>
-        {isLine ? (
-          <Svg
-            width={LINE_KEY_WIDTH}
-            height={LINE_KEY_HEIGHT}
-            style={styles.lineKey}
-          >
-            <Line
-              x1={1}
-              y1={LINE_KEY_HEIGHT / 2}
-              x2={LINE_KEY_WIDTH - 1}
-              y2={LINE_KEY_HEIGHT / 2}
-              stroke={color}
-              strokeWidth={1.75}
-              strokeLinecap="round"
-              {...(isDefined(lineDash) ? { strokeDasharray: lineDash } : {})}
-            />
-          </Svg>
-        ) : (
-          <View style={[styles.swatch, { backgroundColor: color }]} />
-        )}
-        <AnalyticsPdfText style={styles.label}>{label}</AnalyticsPdfText>
-      </View>
-    ))}
+    {items.map(
+      ({
+        key,
+        label,
+        color,
+        isLine = false,
+        lineDash,
+        lineWidth = 1.75,
+        lineCap = 'round',
+      }) => (
+        <View key={key} style={styles.item}>
+          {isLine ? (
+            <Svg
+              width={LINE_KEY_WIDTH}
+              height={LINE_KEY_HEIGHT}
+              style={styles.lineKey}
+            >
+              <Line
+                x1={1}
+                y1={LINE_KEY_HEIGHT / 2}
+                x2={LINE_KEY_WIDTH - 1}
+                y2={LINE_KEY_HEIGHT / 2}
+                stroke={color}
+                strokeWidth={lineWidth}
+                strokeLinecap={lineCap}
+                {...(isDefined(lineDash) ? { strokeDasharray: lineDash } : {})}
+              />
+            </Svg>
+          ) : (
+            <View style={[styles.swatch, { backgroundColor: color }]} />
+          )}
+          <AnalyticsPdfText style={styles.label}>{label}</AnalyticsPdfText>
+        </View>
+      ),
+    )}
   </View>
 );

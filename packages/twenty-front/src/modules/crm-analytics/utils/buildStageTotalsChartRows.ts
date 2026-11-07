@@ -16,6 +16,19 @@ export const buildStageTotalsChartRows = ({
   rows,
   formatNumber,
 }: BuildStageTotalsChartRowsArgs) => {
+  const buildInactiveTooltipRows = (
+    inactive: number,
+  ): AnalyticsChartTooltipRow[] =>
+    inactive > 0
+      ? [
+          {
+            label: t`Inactive`,
+            value: formatNumber(inactive),
+            color: ANALYTICS_CHART_COLOR.neutral,
+          },
+        ]
+      : [];
+
   const buildNestedTooltipRows = (
     parentStageKey: string,
   ): AnalyticsChartTooltipRow[] =>
@@ -34,27 +47,24 @@ export const buildStageTotalsChartRows = ({
     const inactive = Math.min(row.inactiveCount ?? 0, row.count - pastLimit);
     const withinLimit = row.count - pastLimit - inactive;
 
-    const inactiveTooltipRows: AnalyticsChartTooltipRow[] =
-      inactive > 0
-        ? [
-            {
-              label: t`Inactive`,
-              value: formatNumber(inactive),
-              color: ANALYTICS_CHART_COLOR.neutral,
-            },
-          ]
-        : [];
-
     return {
       key: row.rowKey,
       label: getAnalyticsStageTotalLabel(row),
       segments: [
-        {
-          key: 'withinLimit',
-          label: t`Within limit`,
-          value: withinLimit,
-          color: ANALYTICS_CHART_COLOR.accent,
-        },
+        // The legend reads across rows, so a stage with no limit must not join Within limit.
+        isDefined(row.pastLimitCount)
+          ? {
+              key: 'withinLimit',
+              label: t`Within limit`,
+              value: withinLimit,
+              color: ANALYTICS_CHART_COLOR.accent,
+            }
+          : {
+              key: 'people',
+              label: t`People`,
+              value: withinLimit,
+              color: ANALYTICS_CHART_COLOR.accentStrong,
+            },
         ...(pastLimit > 0
           ? [
               {
@@ -94,7 +104,7 @@ export const buildStageTotalsChartRows = ({
                 },
               ]
             : [{ label: t`People`, value: formatNumber(row.count) }]),
-          ...inactiveTooltipRows,
+          ...buildInactiveTooltipRows(inactive),
           ...buildNestedTooltipRows(row.rowKey),
         ],
       },
@@ -113,6 +123,7 @@ export const buildStageTotalsChartRows = ({
       title: getAnalyticsStageTotalLabel(row),
       rows: [
         { label: t`People`, value: formatNumber(row.count) },
+        ...buildInactiveTooltipRows(Math.min(row.inactiveCount ?? 0, row.count)),
         ...buildNestedTooltipRows(row.rowKey),
       ],
     },

@@ -12,7 +12,7 @@ export const getAnalyticsDailyCountWarning = ({
   sync: { lastReconciliationAt },
 }: Pick<AnalyticsMeta, 'asOf' | 'reportingTimeZone' | 'sync'>) => {
   if (!isDefined(lastReconciliationAt)) {
-    return t`The daily count has not run yet. Trends and reports may be missing.`;
+    return t`The daily job has not finished cleanly yet. Trends and reports may be incomplete.`;
   }
 
   const lastRunAt = new Date(lastReconciliationAt);
@@ -29,5 +29,5 @@ export const getAnalyticsDailyCountWarning = ({
     timeZone: reportingTimeZone,
   });
 
-  return t`The daily count has not run since ${lastRunOn}. Trends and reports may be missing.`;
+  return t`The daily job has not finished cleanly since ${lastRunOn}. Trends and reports may be incomplete.`;
 };

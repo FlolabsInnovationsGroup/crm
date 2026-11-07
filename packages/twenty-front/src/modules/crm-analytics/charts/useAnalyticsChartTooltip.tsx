@@ -35,6 +35,22 @@ const getTooltipStart = ({
   );
 };
 
+const getScrollingAncestorBox = (element: Element) => {
+  for (
+    let ancestor = element.parentElement;
+    isDefined(ancestor);
+    ancestor = ancestor.parentElement
+  ) {
+    const { overflowY } = getComputedStyle(ancestor);
+
+    if (overflowY === 'auto' || overflowY === 'scroll') {
+      return ancestor.getBoundingClientRect();
+    }
+  }
+
+  return null;
+};
+
 const placeTooltip = (
   tooltipElement: HTMLDivElement | null,
   pointer: AnalyticsChartPointer,
@@ -49,6 +65,8 @@ const placeTooltip = (
   const bounds = (
     tooltipElement.closest('[data-analytics-chart-card]') ?? positionedParent
   ).getBoundingClientRect();
+  // A card can run past the fold, where the page body clips anything placed below its edge.
+  const scrollingBox = getScrollingAncestorBox(tooltipElement);
 
   const left = getTooltipStart({
     pointer: pointer.clientX,
@@ -59,31 +77,43 @@ const placeTooltip = (
   const top = getTooltipStart({
     pointer: pointer.clientY,
     size: tooltipElement.offsetHeight,
-    boundStart: bounds.top,
-    boundEnd: bounds.bottom,
+    boundStart: Math.max(bounds.top, scrollingBox?.top ?? 0),
+    boundEnd: Math.min(
+      bounds.bottom,
+      scrollingBox?.bottom ?? window.innerHeight,
+    ),
   });
 
   tooltipElement.style.transform = `translate(${left - parentBox.left}px, ${top - parentBox.top}px)`;
 };
 
 // Render `tooltip` inside the chart, outside any scrolling element. It stays within the chart card.
-export const useAnalyticsChartTooltip = () => {
+// A tooltip built under another `dataSignature` stops showing, since new data under a still pointer fires no event.
+export const useAnalyticsChartTooltip = (dataSignature?: string) => {
   const tooltipElementRef = useRef<HTMLDivElement>(null);
   const [activeTooltip, setActiveTooltip] = useState<{
     content: AnalyticsChartTooltipContent;
     pointer: AnalyticsChartPointer;
+    dataSignature?: string;
   } | null>(null);
+  const currentTooltip =
+    activeTooltip?.dataSignature === dataSignature ? activeTooltip : null;
 
   useLayoutEffect(() => {
-    if (isDefined(activeTooltip)) {
-      placeTooltip(tooltipElementRef.current, activeTooltip.pointer);
+    if (isDefined(currentTooltip)) {
+      placeTooltip(tooltipElementRef.current, currentTooltip.pointer);
     }
-  }, [activeTooltip]);
+  }, [currentTooltip]);
 
   const showTooltip = (
     content: AnalyticsChartTooltipContent,
     { clientX, clientY }: AnalyticsChartPointer,
-  ) => setActiveTooltip({ content, pointer: { clientX, clientY } });
+  ) =>
+    setActiveTooltip({
+      content,
+      pointer: { clientX, clientY },
+      dataSignature,
+    });
 
   // Keyboard focus has no pointer, so the tooltip opens from the middle of the focused mark.
   const showTooltipAtElement = (
@@ -103,9 +133,9 @@ export const useAnalyticsChartTooltip = () => {
 
   const hideTooltip = () => setActiveTooltip(null);
 
-  const tooltip = isDefined(activeTooltip) ? (
+  const tooltip = isDefined(currentTooltip) ? (
     <AnalyticsChartTooltip
-      content={activeTooltip.content}
+      content={currentTooltip.content}
       elementRef={tooltipElementRef}
     />
   ) : null;

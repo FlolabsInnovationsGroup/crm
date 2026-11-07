@@ -14,7 +14,13 @@ export const getAnalyticsCategoryChartRows = (
     return rows;
   }
 
-  const programRows = rows.filter((row) => isDefined(row.parentKey));
+  // While a filter loads, rows are still the previous answer, so the filter narrows them as the server will.
+  const programRows = rows.filter(
+    (row) =>
+      isDefined(row.parentKey) &&
+      (!isDefined(trackKey) || row.parentKey === trackKey) &&
+      (!isDefined(programKey) || row.key === programKey),
+  );
 
   if (
     (isDefined(trackKey) || isDefined(programKey)) &&

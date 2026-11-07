@@ -79,12 +79,13 @@ export const buildAnalyticsCohortHeatmap = ({
             const cell = row.cells.find(
               (rowCell) => rowCell.stageKey === stageKey,
             );
+            const columnLabel = getStepColumnLabel(stageKey, stages);
 
             // A cell still inside its window only has a so far value, even when some people have passed it.
             return buildAnalyticsRateHeatmapCell({
               columnKey: stageKey,
-              title,
-              rateLabel: getStepColumnLabel(stageKey, stages),
+              title: t`${title}, ${columnLabel}`,
+              rateLabel: t`Moved on`,
               rate: cell?.isMature === true ? cell.rate : null,
               soFarRate: cell?.soFarRate,
               count: cell?.eligible ?? 0,
@@ -95,8 +96,8 @@ export const buildAnalyticsCohortHeatmap = ({
           }),
           buildAnalyticsRateHeatmapCell({
             columnKey: OVERALL_COLUMN_KEY,
-            title,
-            rateLabel: overallLabel,
+            title: t`${title}, overall`,
+            rateLabel: t`Overall conversion`,
             rate: row.overallRate,
             soFarRate: row.overallSoFarRate,
             count: row.size,

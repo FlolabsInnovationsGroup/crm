@@ -1,5 +1,5 @@
 import { TWENTY_STANDARD_APPLICATION_UNIVERSAL_IDENTIFIER } from 'twenty-shared/application';
-import { FieldMetadataType } from 'twenty-shared/types';
+import { FieldMetadataType, RelationType } from 'twenty-shared/types';
 import { WorkspaceActivationStatus } from 'twenty-shared/workspace';
 import { type Repository } from 'typeorm';
 
@@ -51,6 +51,10 @@ const buildFlatMaps = (objects: FakeObject[]) => {
         type,
         isAuditLogged: isAuditLogged ?? true,
         options: options ?? null,
+        settings:
+          type === FieldMetadataType.RELATION
+            ? { relationType: RelationType.MANY_TO_ONE }
+            : null,
       }),
     );
 
@@ -118,8 +122,8 @@ const FORM_SUBMISSION_OBJECT: FakeObject = {
   nameSingular: 'formSubmission',
   fields: [
     { name: 'submittedAt', type: FieldMetadataType.DATE_TIME },
-    { name: 'person', type: FieldMetadataType.TEXT },
-    { name: 'form', type: FieldMetadataType.TEXT },
+    { name: 'person', type: FieldMetadataType.RELATION },
+    { name: 'form', type: FieldMetadataType.RELATION },
   ],
 };
 
@@ -265,6 +269,22 @@ describe('CrmAnalyticsFacadeService', () => {
       expect(state.stage).toMatchObject({ status: 'OK', isAuditLogged: false });
     });
 
+    it('treats form objects as absent when a required field has the wrong type', async () => {
+      const { hasFormSubmissionObject } = await buildFacade([
+        {
+          ...FORM_SUBMISSION_OBJECT,
+          fields: [
+            { name: 'submittedAt', type: FieldMetadataType.DATE_TIME },
+            { name: 'person', type: FieldMetadataType.TEXT },
+            { name: 'form', type: FieldMetadataType.RELATION },
+          ],
+        },
+        CRM_FORM_OBJECT,
+      ]).getCrmState(WORKSPACE_ID);
+
+      expect(hasFormSubmissionObject).toBe(false);
+    });
+
     it('needs both form objects before reporting form submissions', async () => {
       const { hasFormSubmissionObject: withBoth } = await buildFacade([
         FORM_SUBMISSION_OBJECT,
@@ -310,6 +330,27 @@ describe('CrmAnalyticsFacadeService', () => {
       ]).getCrmState(WORKSPACE_ID);
 
       expect(hasFormSubmissionObject).toBe(false);
+    });
+
+    it('reads whether a form has the configured name', async () => {
+      const facade = buildFacade([]);
+      const run: jest.MockedFunction<CrmAnalyticsSqlRunner> = jest.fn(
+        async () => [{ has_form: false }],
+      );
+
+      expect(
+        await facade.hasApplicationForm({ state: FULL_STATE, run }),
+      ).toBe(false);
+      expect(run.mock.calls[0]?.[0]).toContain(
+        `f.name IN ('Internship Application')`,
+      );
+      expect(
+        await facade.hasApplicationForm({
+          state: ABSENT_FIELDS_STATE,
+          run,
+        }),
+      ).toBe(false);
+      expect(run).toHaveBeenCalledTimes(1);
     });
 
     it('detects the applications object', async () => {

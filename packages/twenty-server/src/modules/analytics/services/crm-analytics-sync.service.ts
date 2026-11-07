@@ -38,8 +38,9 @@ export const computeCrmAnalyticsErrorMessage = (error: unknown): string =>
     ERROR_MESSAGE_MAX_LENGTH,
   );
 
-// A row seen before appends one more row from the last stored stage, because the CRM
-// merges changes into its timeline row in place and stored rows never change.
+// A row seen before appends one more row from the person's last stored stage, because
+// the CRM merges changes into its timeline row in place and stored rows never change.
+// Another member's row can sit in between, so the merged row's own stage is not enough.
 const buildTimelineReadSql = (
   stageChangeRelationSql: string,
 ): string => `WITH latest AS (
@@ -50,12 +51,15 @@ const buildTimelineReadSql = (
 inserted AS (
   INSERT INTO analytics.stage_transition (source_id, workspace_id, person_id, from_stage, to_stage, happened_at, source_updated_at, origin)
   SELECT c.id, $1::uuid, c.person_id,
-    CASE WHEN l.source_id IS NULL THEN c.from_stage ELSE l.to_stage END,
+    CASE WHEN l.source_id IS NULL THEN c.from_stage ELSE last_stored.to_stage END,
     c.to_stage,
     CASE WHEN l.source_id IS NULL THEN c.happened_at ELSE c.source_updated_at END,
     c.source_updated_at, 'timeline'
   FROM (${stageChangeRelationSql}) c
   LEFT JOIN latest l ON l.source_id = c.id
+  LEFT JOIN LATERAL (SELECT s.to_stage FROM analytics.stage_transition s
+    WHERE s.workspace_id = $1 AND s.person_id = c.person_id
+    ORDER BY s.source_updated_at DESC, s.happened_at DESC LIMIT 1) last_stored ON l.source_id IS NOT NULL
   WHERE l.source_id IS NULL OR l.to_stage IS DISTINCT FROM c.to_stage
   ON CONFLICT (workspace_id, source_id, source_updated_at) DO NOTHING
   RETURNING 1)
@@ -63,6 +67,8 @@ SELECT count(*)::int AS inserted_count FROM inserted`;
 
 // Recently updated people are left out because their timeline job may still be
 // pending. Comparing after mapping means a renamed value with an alias is no move.
+// Merged rows keep an old happensAt, so the last row by date can be stale while the
+// real last stage sits just before it: any row inside the merge window counts.
 const buildReconcileSql = (
   personRelationSql: string,
 ): string => `WITH ${buildCrmAnalyticsMappingCtes()},
@@ -71,13 +77,18 @@ inserted AS (
   INSERT INTO analytics.stage_transition (workspace_id, person_id, from_stage, to_stage, happened_at, source_updated_at, origin)
   SELECT $1::uuid, p.person_id, l.to_stage, p.raw_stage, now(), now(), 'reconcile'
   FROM crm_person p
-  JOIN LATERAL (SELECT t.to_stage FROM analytics.stage_transition t
+  JOIN LATERAL (SELECT t.to_stage, t.happened_at FROM analytics.stage_transition t
     WHERE t.workspace_id = $1 AND t.person_id = p.person_id
     ORDER BY t.happened_at DESC, t.source_updated_at DESC LIMIT 1) l ON true
   LEFT JOIN stage_map a ON a.raw_stage = l.to_stage
   LEFT JOIN stage_map b ON b.raw_stage = p.raw_stage
   WHERE p.updated_at < now() - interval '30 minutes'
     AND COALESCE(a.stage_key, l.to_stage) IS DISTINCT FROM COALESCE(b.stage_key, p.raw_stage)
+    AND NOT EXISTS (SELECT 1 FROM analytics.stage_transition w
+      LEFT JOIN stage_map m ON m.raw_stage = w.to_stage
+      WHERE w.workspace_id = $1 AND w.person_id = p.person_id
+        AND w.happened_at >= l.happened_at - interval '10 minutes'
+        AND COALESCE(m.stage_key, w.to_stage) IS NOT DISTINCT FROM COALESCE(b.stage_key, p.raw_stage))
   RETURNING 1)
 SELECT count(*)::int AS restored_count FROM inserted`;
 
@@ -230,7 +241,7 @@ WHERE workspace_id = $1`,
     run: CrmAnalyticsSqlRunner;
   }): Promise<boolean> {
     const rows = await run(
-      `SELECT 1 FROM analytics.sync_log WHERE workspace_id = $1 AND job_name = 'daily' LIMIT 1`,
+      `SELECT 1 FROM analytics.sync_log WHERE workspace_id = $1 AND job_name = 'daily' AND status <> 'skipped' LIMIT 1`,
       [workspaceId],
     );
 

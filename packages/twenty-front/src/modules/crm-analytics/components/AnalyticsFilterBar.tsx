@@ -41,6 +41,9 @@ const STATUS_OPTIONS: AnalyticsStatusFilter[] = [
 
 const COMPLETE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+// The server refuses anything later, which would turn every tab into an error panel.
+const LATEST_ALLOWED_DATE = '2100-12-31';
+
 const DATE_IDLE_COMMIT_DELAY_IN_MS = 600;
 
 const StyledBar = styled.div`
@@ -269,19 +272,42 @@ export const AnalyticsFilterBar = ({
     ? meta.programs.filter((program) => program.trackKey === filter.trackKey)
     : meta.programs;
 
+  const earliestAllowedDate = getTrackingStartDate(meta)
+    .with({ month: 1, day: 1 })
+    .toString();
+
   const isCompleteDateInReach = (date: string) =>
     COMPLETE_DATE_PATTERN.test(date) &&
-    Temporal.PlainDate.from(date).year >= getTrackingStartDate(meta).year;
+    date >= earliestAllowedDate &&
+    date <= LATEST_ALLOWED_DATE;
 
-  const isFromDateAllowed = (date: string) =>
-    isCompleteDateInReach(date) &&
-    (!isDefined(filter.dateTo) || date <= filter.dateTo);
+  // A date past the other end carries it along, so the entry is kept and the range never reverses.
+  const handleFromDateCommit = (dateFrom: string) =>
+    onChange({
+      ...filter,
+      dateFrom,
+      dateTo:
+        isDefined(filter.dateTo) && filter.dateTo < dateFrom
+          ? dateFrom
+          : filter.dateTo,
+    });
 
-  const isToDateAllowed = (date: string) =>
-    isCompleteDateInReach(date) &&
-    (!isDefined(filter.dateFrom) || date >= filter.dateFrom);
+  const handleToDateCommit = (dateTo: string) =>
+    onChange({
+      ...filter,
+      dateFrom:
+        isDefined(filter.dateFrom) && filter.dateFrom > dateTo
+          ? dateTo
+          : filter.dateFrom,
+      dateTo,
+    });
 
   const handleDatePresetChange = (preset: AnalyticsDatePreset) => {
+    // Select also fires for the option already chosen, which would wipe a typed range.
+    if (preset === selectedDatePreset) {
+      return;
+    }
+
     setIsCustomRange(preset === 'CUSTOM');
 
     if (preset === 'ALL') {
@@ -291,10 +317,17 @@ export const AnalyticsFilterBar = ({
     }
 
     if (preset === 'CUSTOM') {
+      const today = Temporal.Now.plainDateISO(timeZone);
+      const trackingStartDate = getTrackingStartDate(meta);
+
       onChange({
         ...filter,
-        dateFrom: getTrackingStartDate(meta).toString(),
-        dateTo: Temporal.Now.plainDateISO(timeZone).toString(),
+        // Tracking can be set to start in the future, and the server refuses a reversed range.
+        dateFrom: (Temporal.PlainDate.compare(trackingStartDate, today) > 0
+          ? today
+          : trackingStartDate
+        ).toString(),
+        dateTo: today.toString(),
       });
 
       return;
@@ -344,16 +377,18 @@ export const AnalyticsFilterBar = ({
             <AnalyticsDateInput
               label={t`From date`}
               appliedDate={filter.dateFrom}
-              latestDate={filter.dateTo}
-              isDateAllowed={isFromDateAllowed}
-              onCommit={(dateFrom) => onChange({ ...filter, dateFrom })}
+              earliestDate={earliestAllowedDate}
+              latestDate={LATEST_ALLOWED_DATE}
+              isDateAllowed={isCompleteDateInReach}
+              onCommit={handleFromDateCommit}
             />
             <AnalyticsDateInput
               label={t`To date`}
               appliedDate={filter.dateTo}
-              earliestDate={filter.dateFrom}
-              isDateAllowed={isToDateAllowed}
-              onCommit={(dateTo) => onChange({ ...filter, dateTo })}
+              earliestDate={earliestAllowedDate}
+              latestDate={LATEST_ALLOWED_DATE}
+              isDateAllowed={isCompleteDateInReach}
+              onCommit={handleToDateCommit}
             />
           </>
         )}

@@ -28,7 +28,9 @@ Merging to `main` triggers an image build, and a deploy can follow after approva
 
 The tool is built on guessed stage values. Until these are done, the page shows a "definitions are provisional" banner and the funnel numbers cannot be trusted. **Ahsan has no production access, so someone who does has to run the audit.**
 
+- [ ] **Application form name:** confirm the live `crmForm` name matches `applicationFormNames` exactly (`Internship Application`; its definition file is titled `FloLabs Internship Application`). If no form matches, New applications reads Not available.
 - [ ] **Run the audit on production:** `docs/analytics/production-audit.sql`. It is read-only and returns no personal data.
+- [ ] **Literal `NONE` source:** check sections 6 and 7 of the audit for a source stored as `NONE`. The tool uses that key for "no source", so a real one would merge with it and the filter would select only the empty ones. If one exists, ask Ahsan before changing the key.
 - [ ] **Stop rule:** if the audit shows no stage rows on the timeline, or `isAuditLogged` is false for `stage`, stop. The funnel depends on those rows.
 - [ ] **Stage list:** value, label and order. Mark each main, reminder (of which stage) or exit. Name the entry and success stages. Update `constants/crm-analytics-config.constant.ts`, then set `isProvisional` to false.
 - [ ] **Positions to tracks:** recruiting checks the 39-position, 5-track table in contract section 1.
@@ -44,6 +46,7 @@ The tool is built on guessed stage values. Until these are done, the page shows 
 ## 3. Decisions for Ahsan
 
 - [ ] **Who can see analytics.** The gate is the `EXPORT_CSV` permission, which is wider than it sounds: the default Member role has it, so nearly everyone sees the page. A role with no People access could still see names in the stuck list. To narrow it, change the flag in `NavigationDrawerAnalyticsItem.tsx` and `crm-analytics.resolver.ts`.
+- [ ] **Applications of destroyed people:** a soft-deleted person's applications stop counting, but 14 days later the person is destroyed, `personId` becomes NULL, and they count again as applications with no person. A NULL cannot tell this apart from a real personless application, which the contract says counts. Accept the upward drift, or stop counting all NULL rows?
 - [ ] **Reports:** is a Reports tab enough for now, with no email or n8n delivery?
 - [ ] **Retention:** approve the paragraph in contract section 3.
 - [ ] **Query speed at full size:** measured once with temporary fake data at about 43,000 people. Overview and the monthly conversion trend hit the 8 second limit until `enable_nestloop` and `jit` were turned off on analytics connections. That fix is now in `crm-analytics-database.service.ts`, and those reads took under a second in the latest run. Real production data may behave differently, so check `analytics.sync_log` and page speed after the first deploy.

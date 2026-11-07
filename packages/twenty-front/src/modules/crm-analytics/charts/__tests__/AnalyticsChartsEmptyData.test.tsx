@@ -21,6 +21,7 @@ jest.mock('d3-shape', () => ({
 
     generator.innerRadius = () => generator;
     generator.outerRadius = () => generator;
+    generator.padAngle = () => generator;
 
     return generator;
   },

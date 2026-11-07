@@ -28,6 +28,7 @@ jest.mock('d3-shape', () => ({
 
     generator.innerRadius = () => generator;
     generator.outerRadius = () => generator;
+    generator.padAngle = () => generator;
 
     return generator;
   },
@@ -58,9 +59,12 @@ jest.mock('@/side-panel/hooks/useOpenRecordInSidePanel', () => ({
   useOpenRecordInSidePanel: () => ({ openRecordInSidePanel: jest.fn() }),
 }));
 
+const mockFilterChange = jest.fn();
+
 const META = {
   showSignedFigure: false,
   fields: { positionsAppliedFor: 'OK', applicantSource: 'OK' },
+  programs: [{ key: 'ML', label: 'Machine Learning', trackKey: 'AI' }],
   stages: [
     { stageKey: 'NEW', isSuccess: false },
     { stageKey: 'SIGNED', isSuccess: true },
@@ -257,6 +261,37 @@ const errorMock = (code: string) => ({
   maxUsageCount: Number.POSITIVE_INFINITY,
 });
 
+const withFilter = <
+  TMock extends { request: { variables: Record<string, unknown> } },
+>(
+  mock: TMock,
+  filter: AnalyticsFilter,
+) => ({
+  ...mock,
+  request: {
+    ...mock.request,
+    variables: { ...mock.request.variables, filter },
+  },
+});
+
+const renderTabWithFilter = (filter: AnalyticsFilter) =>
+  render(
+    <JotaiProvider store={createStore()}>
+      <MockedProvider
+        mocks={[overviewMock(buildOverview({})), ...CHART_MOCKS].map((mock) =>
+          withFilter(mock, filter),
+        )}
+      >
+        <AnalyticsOverviewTab
+          filter={filter}
+          meta={META}
+          onFilterChange={mockFilterChange}
+          onResetFilter={jest.fn()}
+        />
+      </MockedProvider>
+    </JotaiProvider>,
+  );
+
 const renderTab = (
   mocks: ComponentProps<typeof MockedProvider>['mocks'],
   onResetFilter: () => void = jest.fn(),
@@ -402,6 +437,96 @@ describe('AnalyticsOverviewTab', () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('img', { name: 'Total contacts by week' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the program when its own track is clicked', async () => {
+    const user = userEvent.setup();
+    const filter = { ...CRM_ANALYTICS_DEFAULT_FILTER, programKey: 'ML' };
+
+    renderTabWithFilter(filter);
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Robots and code: 70' }),
+    );
+
+    expect(mockFilterChange).toHaveBeenLastCalledWith({
+      ...filter,
+      trackKey: 'AI',
+    });
+  });
+
+  it('hides the lines that ignore a date filter and says weeks widen', async () => {
+    renderTabWithFilter({
+      ...CRM_ANALYTICS_DEFAULT_FILTER,
+      dateFrom: '2026-10-01',
+      dateTo: '2026-10-31',
+    });
+
+    expect(
+      await screen.findByText('Dates widen to whole weeks here.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('img', { name: 'Active people by week' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('says the imported total is the whole CRM under a filter', async () => {
+    renderTabWithFilter({ ...CRM_ANALYTICS_DEFAULT_FILTER, trackKey: 'AI' });
+
+    expect(
+      await screen.findByText(
+        '42,371 imported in the whole CRM, dates unknown',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('drops the old rate and lines after a failed filter change', async () => {
+    const trackFilter = { ...CRM_ANALYTICS_DEFAULT_FILTER, trackKey: 'AI' };
+    const failure = {
+      errors: [
+        {
+          message: 'Query failed',
+          extensions: { code: 'INTERNAL_SERVER_ERROR' },
+        },
+      ],
+    };
+    const mocks = [
+      overviewMock(buildOverview({})),
+      ...CHART_MOCKS,
+      withFilter(overviewMock(buildOverview({})), trackFilter),
+      { ...withFilter(funnelMock(FUNNEL), trackFilter), result: failure },
+      { ...withFilter(seriesMock([]), trackFilter), result: failure },
+    ];
+    const jotaiStore = createStore();
+    const renderWithFilter = (filter: AnalyticsFilter) => (
+      <JotaiProvider store={jotaiStore}>
+        <MockedProvider mocks={mocks}>
+          <AnalyticsOverviewTab
+            filter={filter}
+            meta={META}
+            onResetFilter={jest.fn()}
+          />
+        </MockedProvider>
+      </JotaiProvider>
+    );
+
+    const { rerender } = render(renderWithFilter(CRM_ANALYTICS_DEFAULT_FILTER));
+
+    await screen.findByRole('img', { name: 'Active people by week' });
+
+    rerender(renderWithFilter(trackFilter));
+
+    const failedNote = await screen.findByText('This figure could not load');
+
+    expect(
+      within(failedNote.parentElement as HTMLElement).getByRole('button', {
+        name: 'Retry',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('10%')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('img', { name: 'Active people by week' }),
     ).not.toBeInTheDocument();
   });
 
@@ -659,7 +784,12 @@ describe('AnalyticsOverviewTab', () => {
       [
         overviewMock({
           ...overview,
-          figures: { ...overview.figures, totalContacts: 0, activePeople: 0 },
+          figures: {
+            ...overview.figures,
+            totalContacts: 0,
+            activePeople: 0,
+            newApplications: 0,
+          },
         }),
       ],
       onResetFilter,
@@ -672,6 +802,58 @@ describe('AnalyticsOverviewTab', () => {
     await user.click(screen.getByText('Reset filters'));
 
     expect(onResetFilter).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the imported notice when a date filter leaves no people', async () => {
+    const overview = buildOverview({ importedExcludedByDate: 5000 });
+
+    renderTab([
+      overviewMock({
+        ...overview,
+        figures: {
+          ...overview.figures,
+          totalContacts: 0,
+          activePeople: 0,
+          newApplications: 0,
+        },
+      }),
+    ]);
+
+    expect(
+      await screen.findByText('No people match these filters'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        '5,000 imported people have no known application date and are not shown.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('shows new applications when the filter leaves no people', async () => {
+    const overview = buildOverview({ importedExcludedByDate: 5000 });
+
+    renderTab([
+      overviewMock({
+        ...overview,
+        figures: {
+          ...overview.figures,
+          totalContacts: 0,
+          activePeople: 0,
+          newApplications: 12,
+          newApplicationsPrevious: null,
+        },
+      }),
+    ]);
+
+    expect(await screen.findByText('12')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        '5,000 imported people have no known application date and are not shown.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('No people match these filters'),
+    ).not.toBeInTheDocument();
   });
 
   it('shows the access message without a toast when forbidden', async () => {

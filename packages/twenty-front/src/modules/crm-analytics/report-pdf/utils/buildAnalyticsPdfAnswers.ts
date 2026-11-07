@@ -38,6 +38,17 @@ const buildOverallAnswer = ({ funnel, minimumSample }: AnalyticsReport) => {
       : t`${rate} ${ofPeople} reached ${finalLabel} within ${windowDays} days. All applications since tracking start.`;
   }
 
+  if (
+    funnel.cohortExcludedUnmapped > 0 &&
+    rows.every(({ entered }) => entered === 0)
+  ) {
+    const excludedPeople = formatAnalyticsPdfPeople(
+      funnel.cohortExcludedUnmapped,
+    );
+
+    return t`Cannot tell yet: ${excludedPeople} applied, but every stage they had is not mapped yet.`;
+  }
+
   const soFarRate = formatAnalyticsRate(overall.soFarRate);
 
   if (
@@ -70,8 +81,27 @@ const buildLowestStepAnswer = ({ funnel, minimumSample }: AnalyticsReport) => {
     minimumSample,
   }).text;
   const ofPeople = formatAnalyticsPdfOfPeople(lowestRow.eligible);
+  const answer = t`${fromLabel} to ${toLabel}: ${rate} moved on, ${ofPeople}.`;
+  const firstRow = funnel.rows[0];
+  const firstRate = firstRow.stepRate;
+  const secondRow = funnel.rows[1];
 
-  return t`${fromLabel} to ${toLabel}: ${rate} moved on, ${ofPeople}.`;
+  // The server leaves the first step out of the lowest step when a later one qualifies, so a lower first step needs saying.
+  if (
+    lowestIndex === 0 ||
+    !isDefined(firstRate) ||
+    !isDefined(lowestRow.stepRate) ||
+    firstRow.eligible < minimumSample ||
+    firstRate >= lowestRow.stepRate
+  ) {
+    return answer;
+  }
+
+  const firstFromLabel = firstRow.label;
+  const firstToLabel = secondRow.label;
+  const firstRateText = formatAnalyticsRate(firstRate);
+
+  return t`${answer} The first step is left out: ${firstFromLabel} to ${firstToLabel}, ${firstRateText}.`;
 };
 
 const buildSlowestStageAnswer = ({
@@ -85,9 +115,7 @@ const buildSlowestStageAnswer = ({
   const firmRows = timedRows.filter(
     ({ completedStays }) => completedStays >= minimumSample,
   );
-  const slowestRow = (firmRows.length > 0 ? firmRows : timedRows).reduce<
-    (typeof timedRows)[number] | undefined
-  >(
+  const slowestRow = firmRows.reduce<(typeof timedRows)[number] | undefined>(
     (slowest, row) =>
       !isDefined(slowest) || (row.medianDays ?? 0) > (slowest.medianDays ?? 0)
         ? row
@@ -95,8 +123,12 @@ const buildSlowestStageAnswer = ({
     undefined,
   );
 
-  if (!isDefined(slowestRow) || !isDefined(slowestRow.medianDays)) {
+  if (timedRows.length === 0) {
     return t`No one has completed a stage yet.`;
+  }
+
+  if (!isDefined(slowestRow) || !isDefined(slowestRow.medianDays)) {
+    return t`Not enough completed stays to say yet.`;
   }
 
   const label = slowestRow.label;
@@ -131,16 +163,22 @@ const buildTrackAnswer = ({ categories, minimumSample }: AnalyticsReport) => {
 
   const largestLabel = largestRow.label;
   const largestPeople = formatAnalyticsPdfPeople(largestRow.people);
+  const comparableRows = trackRows.filter(
+    ({ overallRate, overallEligible }) =>
+      isDefined(overallRate) && overallEligible >= minimumSample,
+  );
+
+  if (comparableRows.length === 0) {
+    return t`${largestLabel} is largest, with ${largestPeople}. No track has enough people to compare conversion yet.`;
+  }
+
   const bestRow = pickHighestRow(
-    trackRows.filter(
-      ({ overallRate, overallEligible }) =>
-        isDefined(overallRate) && overallEligible >= minimumSample,
-    ),
+    comparableRows.filter(({ overallRate }) => (overallRate ?? 0) > 0),
     ({ overallRate }) => overallRate ?? 0,
   );
 
   if (!isDefined(bestRow)) {
-    return t`${largestLabel} is largest, with ${largestPeople}. No track has enough people to compare conversion yet.`;
+    return t`${largestLabel} is largest, with ${largestPeople}. No track has converted anyone yet.`;
   }
 
   const bestLabel = bestRow.label;

@@ -160,7 +160,7 @@ export const AnalyticsPdfFirstPage = ({
             : t`Generated ${generatedAt}. It stays as generated; corrections appear in the next report.`}
         </AnalyticsPdfText>
         <AnalyticsPdfText style={styles.meta}>
-          {t`Tracking started ${trackingStartedOn}. Imported people count in current totals only, never in rates.`}
+          {t`Tracking started ${trackingStartedOn}. Imported people count in current totals and stage moves, never in rates.`}
         </AnalyticsPdfText>
       </View>
       {report.isProvisional === true && (

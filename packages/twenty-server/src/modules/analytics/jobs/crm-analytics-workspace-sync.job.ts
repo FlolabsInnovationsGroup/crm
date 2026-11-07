@@ -46,7 +46,7 @@ export class CrmAnalyticsWorkspaceSyncJob {
           run,
         });
 
-        // No daily row means a fresh database, so take the day-one baseline at once.
+        // No daily row that got past the stage check means no baseline yet, so take it at once.
         const hasDailyLogRow =
           await this.crmAnalyticsSyncService.hasDailyLogRow({
             workspaceId,

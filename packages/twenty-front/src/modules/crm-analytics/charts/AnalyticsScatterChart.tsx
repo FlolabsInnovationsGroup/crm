@@ -199,6 +199,32 @@ export const AnalyticsScatterChart = ({
   });
 
   const leftOutCount = points.length - plotted.length;
+  const isClickable = isDefined(onPointClick);
+
+  // A click can replace this point, and a removed point never fires the leave that hides its tooltip.
+  const activatePoint = (pointKey: string) => {
+    hideTooltip();
+    onPointClick?.(pointKey);
+  };
+
+  const buildPointContent = (
+    point: (typeof plotted)[number],
+  ): AnalyticsChartTooltipContent =>
+    point.tooltip ?? {
+      title: point.label,
+      rows: [
+        { label: xLabel, value: formatXValue(point.x) },
+        { label: yLabel, value: formatYValue(point.y) },
+      ],
+    };
+
+  const buildPointHandlers = (point: (typeof plotted)[number]) => ({
+    onClick: isClickable ? () => activatePoint(point.key) : undefined,
+    onPointerEnter: (event: { clientX: number; clientY: number }) =>
+      showTooltip(buildPointContent(point), event),
+    onPointerMove: moveTooltip,
+    onPointerLeave: hideTooltip,
+  });
 
   return (
     <StyledRoot
@@ -269,20 +295,22 @@ export const AnalyticsScatterChart = ({
         >
           {t`Median`}
         </AnalyticsChartAxisText>
+        {/* All hit areas sit underneath, so a neighbour's wider ring cannot take a visible dot's hover. */}
+        {plotted.map((point) => (
+          <circle
+            key={point.key}
+            cx={toSvgX(point.x)}
+            cy={toSvgY(point.y)}
+            r={HIT_RADIUS}
+            fill="transparent"
+            cursor={isClickable ? 'pointer' : 'default'}
+            {...buildPointHandlers(point)}
+          />
+        ))}
         {plotted.map((point) => {
           const svgX = toSvgX(point.x);
           const svgY = toSvgY(point.y);
           const placement = labelPlacements.get(point.key);
-          const isClickable = isDefined(onPointClick);
-          const activate = () => onPointClick?.(point.key);
-
-          const content: AnalyticsChartTooltipContent = point.tooltip ?? {
-            title: point.label,
-            rows: [
-              { label: xLabel, value: formatXValue(point.x) },
-              { label: yLabel, value: formatYValue(point.y) },
-            ],
-          };
 
           return (
             <StyledPointGroup
@@ -291,19 +319,21 @@ export const AnalyticsScatterChart = ({
               role={isClickable ? 'button' : undefined}
               tabIndex={isClickable ? 0 : undefined}
               aria-label={isClickable ? point.label : undefined}
-              onClick={isClickable ? activate : undefined}
               onKeyDown={
                 isClickable
-                  ? activateAnalyticsChartMarkOnKey(activate)
+                  ? activateAnalyticsChartMarkOnKey(() =>
+                      activatePoint(point.key),
+                    )
                   : undefined
               }
               onFocus={(event) =>
-                showTooltipAtElement(content, event.currentTarget)
+                showTooltipAtElement(
+                  buildPointContent(point),
+                  event.currentTarget,
+                )
               }
               onBlur={hideTooltip}
-              onPointerEnter={(event) => showTooltip(content, event)}
-              onPointerMove={moveTooltip}
-              onPointerLeave={hideTooltip}
+              {...buildPointHandlers(point)}
             >
               {isDefined(placement) && (
                 <StyledPointLabel
@@ -319,7 +349,6 @@ export const AnalyticsScatterChart = ({
                   {placement.text}
                 </StyledPointLabel>
               )}
-              <circle cx={svgX} cy={svgY} r={HIT_RADIUS} fill="transparent" />
               <circle
                 cx={svgX}
                 cy={svgY}

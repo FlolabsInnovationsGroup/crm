@@ -3,7 +3,10 @@ import {
   type AnalyticsCategoryRow,
   type AnalyticsCohortRow,
 } from '@/crm-analytics/types/AnalyticsApi';
-import { buildAnalyticsCategoryRateRows } from '@/crm-analytics/utils/buildAnalyticsCategoryBarRows';
+import {
+  buildAnalyticsCategoryPeopleRows,
+  buildAnalyticsCategoryRateRows,
+} from '@/crm-analytics/utils/buildAnalyticsCategoryBarRows';
 import { buildAnalyticsCohortHeatmap } from '@/crm-analytics/utils/buildAnalyticsCohortHeatmap';
 
 const BASE = {
@@ -84,6 +87,51 @@ describe('buildAnalyticsCategoryRateRows', () => {
     });
     expect(rows[3].segments).toEqual([]);
   });
+
+  it('never lets a tiny group outrank a firm rate', () => {
+    const { rows } = buildAnalyticsCategoryRateRows(
+      buildCategories([
+        buildCategoryRow({
+          key: 'SO_FAR',
+          overallRate: null,
+          overallSoFarRate: 0.9,
+          overallEligible: 0,
+        }),
+        buildCategoryRow({
+          key: 'TINY',
+          overallRate: 1,
+          overallEligible: 1,
+        }),
+        buildCategoryRow({
+          key: 'FIRM',
+          overallRate: 0.4,
+          overallEligible: 200,
+        }),
+      ]),
+      formatNumber,
+    );
+
+    expect(rows.map(({ key }) => key)).toEqual(['FIRM', 'TINY', 'SO_FAR']);
+  });
+});
+
+describe('buildAnalyticsCategoryPeopleRows', () => {
+  const getNewApplicationsLabel = (categories: AnalyticsCategories) =>
+    buildAnalyticsCategoryPeopleRows(categories, formatNumber).rows[0].tooltip
+      ?.rows[3].label;
+
+  it('says which dates new applications cover when the payload has them', () => {
+    const categories = buildCategories([buildCategoryRow({})]);
+
+    expect(getNewApplicationsLabel(categories)).toBe('New applications');
+    expect(
+      getNewApplicationsLabel({
+        ...categories,
+        newApplicationsFrom: '2026-11-02',
+        newApplicationsTo: '2026-11-08',
+      }),
+    ).toBe('New applications, Nov 2 to Nov 8');
+  });
 });
 
 describe('buildAnalyticsCohortHeatmap', () => {
@@ -134,7 +182,13 @@ describe('buildAnalyticsCohortHeatmap', () => {
     expect(rows[0].cells[1]).toMatchObject({ value: 0.1, isInProgress: true });
     expect(rows[0].cells[2]).toMatchObject({ value: null });
     expect(rows[0].cells[0].tooltip?.title).toBe(
-      'People who applied in Oct 2026',
+      'People who applied in Oct 2026, New to Contacted',
+    );
+    expect(rows[0].cells[1].tooltip?.title).toBe(
+      'People who applied in Oct 2026, Contacted to Signed',
+    );
+    expect(rows[0].cells[2].tooltip?.title).toBe(
+      'People who applied in Oct 2026, overall',
     );
   });
 });

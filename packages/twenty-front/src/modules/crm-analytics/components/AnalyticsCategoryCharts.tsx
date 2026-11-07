@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { plural, t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
 
@@ -12,6 +13,7 @@ import {
 } from '@/crm-analytics/charts/AnalyticsHorizontalBarChart';
 import { AnalyticsScatterChart } from '@/crm-analytics/charts/AnalyticsScatterChart';
 import { AnalyticsCategoryTable } from '@/crm-analytics/components/AnalyticsCategoryTable';
+import { AnalyticsNotice } from '@/crm-analytics/components/AnalyticsSection';
 import {
   type AnalyticsCategories,
   type AnalyticsCategoryRow,
@@ -35,21 +37,29 @@ const hasSoFarRate = (row: AnalyticsCategoryRow) =>
   isDefined(row.overallSoFarRate) &&
   row.overallSoFarRate > 0;
 
-const getRateRank = (row: AnalyticsCategoryRow) => {
+// A small group's high rate must not outrank a firm one.
+const getRateRank = (row: AnalyticsCategoryRow, minimumSample: number) => {
   if (hasMeasuredRate(row)) {
-    return 0;
+    return row.overallEligible >= minimumSample ? 0 : 1;
   }
 
-  return hasSoFarRate(row) ? 1 : 2;
+  return hasSoFarRate(row) ? 2 : 3;
 };
 
-const compareByRate = (
-  firstRow: AnalyticsCategoryRow,
-  secondRow: AnalyticsCategoryRow,
-) =>
-  getRateRank(firstRow) - getRateRank(secondRow) ||
-  (secondRow.overallRate ?? secondRow.overallSoFarRate ?? 0) -
-    (firstRow.overallRate ?? firstRow.overallSoFarRate ?? 0);
+const compareByRate =
+  (minimumSample: number) =>
+  (firstRow: AnalyticsCategoryRow, secondRow: AnalyticsCategoryRow) =>
+    getRateRank(firstRow, minimumSample) -
+      getRateRank(secondRow, minimumSample) ||
+    (secondRow.overallRate ?? secondRow.overallSoFarRate ?? 0) -
+      (firstRow.overallRate ?? firstRow.overallSoFarRate ?? 0);
+
+const formatRangeDate = (date: string) =>
+  i18n.date(new Date(`${date.slice(0, 10)}T00:00:00.000Z`), {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
 
 type AnalyticsCategoryChartsProps = {
   categories: AnalyticsCategories;
@@ -152,7 +162,7 @@ export const AnalyticsCategoryCharts = ({
         },
         {
           key: 'notActive',
-          label: t`Not active`,
+          label: t`Signed, left or not mapped`,
           value: notActivePeople,
           color: ANALYTICS_CHART_COLOR.neutral,
         },
@@ -167,7 +177,7 @@ export const AnalyticsCategoryCharts = ({
             color: ANALYTICS_CHART_COLOR.accent,
           },
           {
-            label: t`Not active`,
+            label: t`Signed, left or not mapped`,
             value: formatNumber(notActivePeople),
             color: ANALYTICS_CHART_COLOR.neutral,
           },
@@ -253,14 +263,16 @@ export const AnalyticsCategoryCharts = ({
     };
   };
 
-  const rateNote = [
-    isSourceView
-      ? t`People, by application date and current source. A person counts once they have had enough time to reach the end.`
-      : t`People, by application date and current positions. A person counts once they have had enough time to reach the end.`,
-    filter.status === 'ALL' ? null : t`Rates ignore the status filter.`,
-  ]
-    .filter(isDefined)
-    .join(' ');
+  const rateNote = isSourceView
+    ? t`People, by application date and current source. A person counts once they have had enough time to reach the end. Small groups draw lighter and sort below the rest.`
+    : t`People, by application date and current positions. A person counts once they have had enough time to reach the end. Small groups draw lighter and sort below the rest.`;
+
+  const isStatusFiltered = filter.status !== 'ALL';
+
+  // The rate ignores status, so a group with no one in this status has nothing to answer for.
+  const rowsInStatus = chartRows.filter(
+    (row) => !isStatusFiltered || row.people > 0,
+  );
 
   // Under a track filter the bars are programs, and the server counts only that track's positions.
   const isShowingPrograms = chartRows.some((row) => isDefined(row.parentKey));
@@ -315,7 +327,22 @@ export const AnalyticsCategoryCharts = ({
     };
   });
 
-  const scatterPoints = [...groupRows, ...catchAllRows].map((row) => ({
+  const scatterRows = rowsInStatus.filter(
+    (row) => !isAnalyticsCatchAllRow(row),
+  );
+
+  const scatterNote = [
+    t`Each point is one group: more people to the right, better conversion higher up. The lines mark the median of the groups shown.`,
+    catchAllRows.length > 0
+      ? isSourceView
+        ? t`People with no source or not mapped are left out.`
+        : t`People with no position or not mapped are left out.`
+      : null,
+  ]
+    .filter(isDefined)
+    .join(' ');
+
+  const scatterPoints = scatterRows.map((row) => ({
     key: row.key,
     label: getLabel(row),
     x: row.people,
@@ -335,13 +362,26 @@ export const AnalyticsCategoryCharts = ({
     },
   }));
 
+  const { newApplicationsFrom, newApplicationsTo } = categories;
+  const rangeFrom = isDefined(newApplicationsFrom)
+    ? formatRangeDate(newApplicationsFrom)
+    : null;
+  const rangeTo = isDefined(newApplicationsTo)
+    ? formatRangeDate(newApplicationsTo)
+    : null;
+
   const notTrackedLongEnough = t`No group has been tracked long enough yet. Overall conversion counts people once they have had enough time to reach the end.`;
 
   return (
     <>
+      {isStatusFiltered && (
+        <AnalyticsNotice>
+          {t`Rates and the people who applied ignore the status filter, so they cover everyone in the group, not only this status.`}
+        </AnalyticsNotice>
+      )}
       <AnalyticsAnswerCards
         cards={buildAnalyticsCategoryAnswers({
-          rows: chartRows,
+          rows: rowsInStatus,
           groupBy,
           minimumSample,
           stages,
@@ -369,9 +409,11 @@ export const AnalyticsCategoryCharts = ({
         >
           <AnalyticsHorizontalBarChart
             ariaLabel={t`Overall conversion of each group, highest first`}
-            rows={[...groupRows].sort(compareByRate).map(buildRateBar)}
+            rows={[...groupRows]
+              .sort(compareByRate(minimumSample))
+              .map(buildRateBar)}
             dividedRows={[...catchAllRows]
-              .sort(compareByRate)
+              .sort(compareByRate(minimumSample))
               .map(buildRateBar)}
             dividerLabel={dividerLabel}
             onRowClick={handleRowClick}
@@ -392,9 +434,9 @@ export const AnalyticsCategoryCharts = ({
         </AnalyticsChartCard>
         <AnalyticsChartCard
           title={t`Big but weak, or small but strong?`}
-          note={t`Each point is one group: more people to the right, better conversion higher up. The lines mark the median of the groups shown.`}
+          note={scatterNote}
           isFullWidth
-          isEmpty={!chartRows.some(hasMeasuredRate)}
+          isEmpty={!scatterRows.some(hasMeasuredRate)}
           emptyMessage={notTrackedLongEnough}
         >
           <AnalyticsScatterChart
@@ -409,6 +451,11 @@ export const AnalyticsCategoryCharts = ({
         </AnalyticsChartCard>
         <AnalyticsChartCard
           title={t`All the numbers`}
+          note={
+            isDefined(rangeFrom) && isDefined(rangeTo)
+              ? t`New applications counts submissions from ${rangeFrom} to ${rangeTo}.`
+              : undefined
+          }
           isFullWidth
           numbers={
             <AnalyticsCategoryTable categories={categories} stages={stages} />

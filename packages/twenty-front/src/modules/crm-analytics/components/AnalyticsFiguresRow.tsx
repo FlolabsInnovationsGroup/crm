@@ -2,6 +2,8 @@ import { i18n } from '@lingui/core';
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
+import { IconRefresh } from 'twenty-ui/icon';
+import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsChartUnknownValue } from '@/crm-analytics/charts/AnalyticsChartUnknownValue';
@@ -76,6 +78,10 @@ const StyledNote = styled.dd`
   margin: 0;
 `;
 
+const StyledRetry = styled.dd`
+  margin: 0;
+`;
+
 const StyledLighterValue = styled(StyledValue)`
   color: ${themeCssVariables.font.color.tertiary};
 `;
@@ -125,6 +131,7 @@ type AnalyticsFiguresRowProps = {
   unmappedPeople?: number;
   overallConversion?: AnalyticsOverallConversionAnswer | null;
   hasOverallConversionError?: boolean;
+  onRetryOverallConversion?: () => void;
   isStatusFiltered?: boolean;
   isRefetching?: boolean;
   sparklines?: {
@@ -143,6 +150,7 @@ export const AnalyticsFiguresRow = ({
   unmappedPeople = 0,
   overallConversion,
   hasOverallConversionError = false,
+  onRetryOverallConversion,
   isStatusFiltered = false,
   isRefetching = false,
   sparklines,
@@ -212,7 +220,9 @@ export const AnalyticsFiguresRow = ({
         )}
         {isDefined(importedApplications) && (
           <StyledNote>
-            {t`${importedApplications} imported, dates unknown`}
+            {hasActiveFilter
+              ? t`${importedApplications} imported in the whole CRM, dates unknown`
+              : t`${importedApplications} imported, dates unknown`}
           </StyledNote>
         )}
         <AnalyticsFigureSparkline
@@ -236,6 +246,18 @@ export const AnalyticsFiguresRow = ({
         )}
         {isDefined(overallConversionNote) && (
           <StyledNote>{overallConversionNote}</StyledNote>
+        )}
+        {hasOverallConversionError && isDefined(onRetryOverallConversion) && (
+          <StyledRetry>
+            <Button
+              variant="outline"
+              size="sm"
+              startIcon={<IconRefresh size={14} />}
+              onClick={() => onRetryOverallConversion()}
+            >
+              {t`Retry`}
+            </Button>
+          </StyledRetry>
         )}
         {isStatusFiltered && (
           <StyledNote>{t`The status filter does not change this rate.`}</StyledNote>

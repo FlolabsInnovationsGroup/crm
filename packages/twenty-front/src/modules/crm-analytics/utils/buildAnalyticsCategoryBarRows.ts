@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
 
@@ -13,6 +14,10 @@ import { getAnalyticsCategoryChartRows } from '@/crm-analytics/utils/getAnalytic
 import { getAnalyticsCategoryLabel } from '@/crm-analytics/utils/getAnalyticsCategoryLabel';
 import { isAnalyticsCatchAllRow } from '@/crm-analytics/utils/isAnalyticsCatchAllRow';
 
+const SMALL_SAMPLE_RANK_SHIFT = 2;
+const IN_PROGRESS_RATE_RANK = -3;
+const UNKNOWN_RATE_RANK = -4;
+
 type FormatNumber = (value: number) => string;
 
 export type AnalyticsCategoryBarRows = {
@@ -22,6 +27,27 @@ export type AnalyticsCategoryBarRows = {
 };
 
 // A report has no filter, so its charts always draw the top level.
+const formatShortDate = (value: string) =>
+  i18n.date(new Date(`${value.slice(0, 10)}T00:00:00.000Z`), {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+
+const getNewApplicationsLabel = ({
+  newApplicationsFrom,
+  newApplicationsTo,
+}: AnalyticsCategories) => {
+  if (!isDefined(newApplicationsFrom) || !isDefined(newApplicationsTo)) {
+    return t`New applications`;
+  }
+
+  const from = formatShortDate(newApplicationsFrom);
+  const to = formatShortDate(newApplicationsTo);
+
+  return t`New applications, ${from} to ${to}`;
+};
+
 const getTopLevelRows = (categories: AnalyticsCategories) =>
   getAnalyticsCategoryChartRows(categories, {
     trackKey: null,
@@ -83,7 +109,7 @@ export const buildAnalyticsCategoryPeopleRows = (
             ...(isDefined(row.newApplications)
               ? [
                   {
-                    label: t`New applications`,
+                    label: getNewApplicationsLabel(categories),
                     value: formatNumber(row.newApplications),
                   },
                 ]
@@ -111,11 +137,21 @@ export const buildAnalyticsCategoryRateRows = (
 ): AnalyticsCategoryBarRows => {
   const { minimumSample } = categories;
 
-  // Unknown rates go last, and a so far rate is not a finished one, so it ranks after every measured rate.
+  // Firm rates lead so a tiny group cannot top the chart. A so far rate is not a finished one, and unknown goes last.
   const getRank = (row: AnalyticsCategoryRow) => {
     const rate = describeOverallRate(row, minimumSample);
 
-    return rate.isInProgress ? -1 : (rate.value ?? -2);
+    if (rate.isInProgress) {
+      return IN_PROGRESS_RATE_RANK;
+    }
+
+    if (!isDefined(rate.value)) {
+      return UNKNOWN_RATE_RANK;
+    }
+
+    return rate.isSmallSample
+      ? rate.value - SMALL_SAMPLE_RANK_SHIFT
+      : rate.value;
   };
 
   return splitCatchAllRows(

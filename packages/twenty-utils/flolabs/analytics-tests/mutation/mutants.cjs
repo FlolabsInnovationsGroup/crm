@@ -141,7 +141,7 @@ const UNIT_SERVER = [
   {
     name: 'page transactions can write',
     file: `${SERVER}services/crm-analytics-database.service.ts`,
-    find: "await run('SET TRANSACTION READ ONLY', []);",
+    find: "await run(SET_PAGE_TRANSACTION_SQL, []);",
     replace: '',
     tests: 'database.service',
   },

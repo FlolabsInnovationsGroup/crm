@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { QueryFailedError } from 'typeorm';
+
 import { CRM_ANALYTICS_CONFIG } from 'src/modules/analytics/constants/crm-analytics-config.constant';
 import { CrmAnalyticsDatabaseService } from 'src/modules/analytics/services/crm-analytics-database.service';
 import {
@@ -23,6 +25,7 @@ import {
 } from 'src/modules/analytics/types/crm-analytics-crm-state.type';
 import {
   addCrmAnalyticsLocalDays,
+  computeCrmAnalyticsFirstFullLocalDate,
   computeCrmAnalyticsLocalDayStart,
   computeCrmAnalyticsPreviousReportPeriod,
   computeCrmAnalyticsReportPeriods,
@@ -150,6 +153,22 @@ WHERE r.workspace_id = $1::uuid AND r.period_type = $2::text AND r.period_start 
       run,
     });
 
+    // Provisional reports promise a rebuild, and these periods are no longer candidates
+    // for one, because tracking start moved past them.
+    if (!CRM_ANALYTICS_CONFIG.isProvisional) {
+      await run(
+        `DELETE FROM analytics.report r
+WHERE r.workspace_id = $1::uuid AND r.period_start < $2::date AND r.payload->>'isProvisional' = 'true'`,
+        [
+          workspaceId,
+          computeCrmAnalyticsFirstFullLocalDate(
+            trackingStart,
+            context.timeZone,
+          ),
+        ],
+      );
+    }
+
     const existingRows = await run(
       `SELECT r.period_type, r.period_start::text AS period_start,
   r.payload->>'isProvisional' = 'true' AS is_provisional
@@ -175,6 +194,7 @@ WHERE r.workspace_id = $1::uuid`,
 
     const startedAt = Date.now();
     let builtCount = 0;
+    const failures: unknown[] = [];
 
     for (const period of periods) {
       if (Date.now() - startedAt > REPORT_RUN_TIME_BUDGET_MS) {
@@ -184,26 +204,38 @@ WHERE r.workspace_id = $1::uuid`,
         break;
       }
 
-      const report = await this.buildReport(context, period);
+      // The list is oldest first, so one period that always fails must not block the rest.
+      try {
+        const report = await this.buildReport(context, period);
 
-      const insertedRows = await run(
-        `INSERT INTO analytics.report AS stored_report (workspace_id, period_type, period_start, period_end, generated_at, payload)
+        const insertedRows = await run(
+          `INSERT INTO analytics.report AS stored_report (workspace_id, period_type, period_start, period_end, generated_at, payload)
 VALUES ($1::uuid, $2::text, $3::date, $4::date, $5::timestamptz, $6::jsonb)
 ON CONFLICT (workspace_id, period_type, period_start) DO UPDATE
 SET period_end = EXCLUDED.period_end, generated_at = EXCLUDED.generated_at, payload = EXCLUDED.payload
 WHERE stored_report.payload->>'isProvisional' = 'true' AND EXCLUDED.payload->>'isProvisional' = 'false'
 RETURNING period_start::text AS period_start`,
-        [
-          workspaceId,
-          period.periodType,
-          period.periodStart,
-          period.periodEnd,
-          context.asOf,
-          JSON.stringify(report),
-        ],
-      );
+          [
+            workspaceId,
+            period.periodType,
+            period.periodStart,
+            period.periodEnd,
+            context.asOf,
+            JSON.stringify(report),
+          ],
+        );
 
-      builtCount += insertedRows.length;
+        builtCount += insertedRows.length;
+      } catch (error) {
+        failures.push(error);
+        this.logger.warn(
+          `Report ${period.periodType} ${period.periodStart} failed: ${computeCrmAnalyticsErrorMessage(error)}`,
+        );
+      }
+    }
+
+    if (failures.length > 0) {
+      throw failures[0];
     }
 
     return builtCount;
@@ -317,9 +349,8 @@ RETURNING period_start::text AS period_start`,
     };
   }
 
-  // Job statements autocommit, so a failed one leaves the next free to run. A line lost
-  // here stays out of this frozen report, which the view already handles. A timeout is
-  // thrown instead: nothing is stored, and the next run builds the report whole.
+  // A database error is thrown: nothing is stored, and the next run builds the report
+  // whole, because a line lost here would stay out of this frozen report for good.
   private async buildTrendSeries(
     context: CrmAnalyticsQueryContext,
     period: CrmAnalyticsReportPeriod,
@@ -343,7 +374,7 @@ RETURNING period_start::text AS period_start`,
           }),
         );
       } catch (error) {
-        if (isStatementTimeout(error)) {
+        if (isStatementTimeout(error) || error instanceof QueryFailedError) {
           throw error;
         }
 

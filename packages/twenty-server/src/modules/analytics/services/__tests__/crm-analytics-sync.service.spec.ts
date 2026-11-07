@@ -272,7 +272,7 @@ describe('CrmAnalyticsSyncService and the work jobs', () => {
         'l.source_id IS NULL OR l.to_stage IS DISTINCT FROM c.to_stage',
       );
       expect(timelineSql).toContain(
-        'CASE WHEN l.source_id IS NULL THEN c.from_stage ELSE l.to_stage END',
+        'CASE WHEN l.source_id IS NULL THEN c.from_stage ELSE last_stored.to_stage END',
       );
       expect(
         queries.filter(({ sql }) =>
@@ -282,7 +282,9 @@ describe('CrmAnalyticsSyncService and the work jobs', () => {
     });
 
     it('enqueues the daily job when no daily log row exists', async () => {
-      const { syncJob, messageQueueService } = setup({ hasDailyLogRow: false });
+      const { syncJob, messageQueueService, findQuery } = setup({
+        hasDailyLogRow: false,
+      });
 
       await syncJob.handle({ workspaceId: WORKSPACE_ID });
 
@@ -290,6 +292,9 @@ describe('CrmAnalyticsSyncService and the work jobs', () => {
       expect(messageQueueService.add).toHaveBeenCalledWith(
         CrmAnalyticsWorkspaceDailyJob.name,
         { workspaceId: WORKSPACE_ID },
+      );
+      expect(findQuery(SQL_MARKERS.dailyLogLookup)?.sql).toContain(
+        `status <> 'skipped'`,
       );
     });
 
@@ -632,6 +637,9 @@ describe('CrmAnalyticsSyncService and the work jobs', () => {
       );
       expect(reconcileQuery?.sql).toContain(
         'COALESCE(a.stage_key, l.to_stage) IS DISTINCT FROM COALESCE(b.stage_key, p.raw_stage)',
+      );
+      expect(reconcileQuery?.sql).toContain(
+        `w.happened_at >= l.happened_at - interval '10 minutes'`,
       );
     });
 

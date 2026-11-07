@@ -115,7 +115,9 @@ const renderTab = ({
           {
             request: {
               query: GET_CRM_ANALYTICS_FUNNEL,
-              variables: { filter: { ...filter, status: 'ALL' } },
+              variables: {
+                filter: { ...filter, status: 'ALL', period: 'WEEK' },
+              },
             },
             result: {
               data: {
@@ -224,7 +226,7 @@ describe('AnalyticsFunnelTab', () => {
     expect(screen.getByText('10%')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'From New to Contacted. 70 of 100 people did not move on.',
+        'From New to Contacted. 70 of 100 people did not move on within 14 days.',
       ),
     ).toBeInTheDocument();
     expect(screen.getByText('6.5 days', { selector: 'dd' })).toBeInTheDocument();

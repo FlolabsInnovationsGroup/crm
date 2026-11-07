@@ -5,6 +5,7 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { inflateSync } from 'node:zlib';
+import { isDefined } from 'twenty-shared/utils';
 
 import {
   buildEmptyReportFixture,
@@ -289,6 +290,148 @@ describe('AnalyticsReportPdfDocument', () => {
     expect(joinedText).not.toContain('?, continued');
     expect(joinedText).toContain('Entered Stage number 22');
     expect(joinedText).not.toContain('Sta\u0085');
+  });
+
+  it('says how many people the funnel leaves out as unmapped', async () => {
+    const weekly = buildWeeklyReportFixture();
+    const weeklyText = joinPdfText(
+      extractPdfText(
+        await renderToBuffer(<AnalyticsReportPdfDocument report={weekly} />),
+      ),
+    );
+    const empty = buildEmptyReportFixture();
+    const emptyText = joinPdfText(
+      extractPdfText(
+        await renderToBuffer(
+          <AnalyticsReportPdfDocument
+            report={{
+              ...empty,
+              funnel: { ...empty.funnel, cohortExcludedUnmapped: 200 },
+            }}
+          />,
+        ),
+      ),
+    );
+
+    expect(weeklyText).toContain(
+      '3 people left out because every stage they had is not mapped.',
+    );
+    expect(emptyText).toContain(
+      '200 people applied, but every stage they had is not mapped yet.',
+    );
+    expect(emptyText).not.toContain('No one has entered the funnel');
+  });
+
+  it('defines the lowest step and still in progress in the funnel notes', async () => {
+    const weekly = buildWeeklyReportFixture();
+    const text = joinPdfText(
+      extractPdfText(
+        await renderToBuffer(<AnalyticsReportPdfDocument report={weekly} />),
+      ),
+    );
+    const textWithoutLowestStep = joinPdfText(
+      extractPdfText(
+        await renderToBuffer(
+          <AnalyticsReportPdfDocument
+            report={{
+              ...weekly,
+              funnel: { ...weekly.funnel, lowestStepStageKey: null },
+            }}
+          />,
+        ),
+      ),
+    );
+
+    expect(text).toContain(
+      'The step in color is the lowest among steps with at least 30 people',
+    );
+    expect(text).toContain(
+      "Still in progress means the step's window has not closed yet",
+    );
+    expect(textWithoutLowestStep).not.toContain('The step in color');
+  });
+
+  it('says a trend line was not stored rather than that data is missing', async () => {
+    const weekly = buildWeeklyReportFixture();
+    const buffer = await renderToBuffer(
+      <AnalyticsReportPdfDocument
+        report={{
+          ...weekly,
+          trendSeries: weekly.trendSeries?.filter(
+            ({ metric }) => metric !== 'DROP_OFF',
+          ),
+        }}
+      />,
+    );
+    const joinedText = joinPdfText(extractPdfText(buffer));
+
+    expect(joinedText).toContain('This line is not stored in this report.');
+    expect(joinedText).not.toContain('Not enough data to draw this line yet.');
+  });
+
+  it('leaves small earlier groups out of the dashed rate lines and says so', async () => {
+    const weekly = buildWeeklyReportFixture();
+    const firmSeries = weekly.trendSeries?.map((series) => ({
+      ...series,
+      points: series.points.map((point) => ({
+        ...point,
+        previousSize: isDefined(point.previousSize) ? 500 : null,
+      })),
+    }));
+    const smallGroupText = joinPdfText(
+      extractPdfText(
+        await renderToBuffer(<AnalyticsReportPdfDocument report={weekly} />),
+      ),
+    );
+    const firmText = joinPdfText(
+      extractPdfText(
+        await renderToBuffer(
+          <AnalyticsReportPdfDocument
+            report={{ ...weekly, trendSeries: firmSeries }}
+          />,
+        ),
+      ),
+    );
+
+    expect(smallGroupText).toContain(
+      'Earlier periods with a small group are left out of it.',
+    );
+    expect(firmText).not.toContain('Earlier periods with a small group');
+  });
+
+  it('renders a lone earlier value and small-group step bars', async () => {
+    const weekly = buildWeeklyReportFixture();
+    const trendSeries = weekly.trendSeries?.map((series) => ({
+      ...series,
+      points: series.points.map((point, pointIndex) => ({
+        ...point,
+        previousValue: pointIndex === series.points.length - 1 ? 40 : null,
+      })),
+    }));
+    const oversized = buildOversizedReportFixture();
+    const rows = oversized.funnel.rows.map((row, rowIndex) =>
+      rowIndex === 1 ? { ...row, eligible: 2, stepRate: 0.5 } : row,
+    );
+
+    expectValidPdf(
+      await renderToBuffer(
+        <AnalyticsReportPdfDocument report={{ ...weekly, trendSeries }} />,
+      ),
+    );
+    expect(
+      joinPdfText(
+        extractPdfText(
+          await renderToBuffer(
+            <AnalyticsReportPdfDocument
+              report={{
+                ...oversized,
+                funnel: { ...oversized.funnel, rows },
+              }}
+            />,
+          ),
+        ),
+      ),
+    ).toContain('of 2 people');
   });
 
   it('never prints a person name field or the word n=', async () => {

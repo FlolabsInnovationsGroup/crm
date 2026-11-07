@@ -79,6 +79,71 @@ describe('buildAnalyticsPdfAnswers', () => {
     );
   });
 
+  it('names a lower first step that the lowest step leaves out', () => {
+    const report = buildWeeklyReportFixture();
+    const rows = report.funnel.rows.map((row, rowIndex) =>
+      rowIndex === 0 ? { ...row, stepRate: 0.2, eligible: 500 } : row,
+    );
+
+    expect(
+      getAnswer(
+        { ...report, funnel: { ...report.funnel, rows } },
+        'LOWEST_STEP',
+      ),
+    ).toBe(
+      'Contacted to Before meeting: 62% moved on, of 252 people. The first step is left out: New to Contacted, 20%.',
+    );
+  });
+
+  it('names no slowest stage from too few completed stays', () => {
+    const report = buildWeeklyReportFixture();
+    const rows = report.funnel.rows.map((row) => ({
+      ...row,
+      completedStays: 1,
+    }));
+
+    expect(
+      getAnswer(
+        { ...report, funnel: { ...report.funnel, rows } },
+        'SLOWEST_STAGE',
+      ),
+    ).toBe('Not enough completed stays to say yet.');
+  });
+
+  it('does not call a track best when no track has converted anyone', () => {
+    const report = buildWeeklyReportFixture();
+    const rows = report.categories.rows.map((row) => ({
+      ...row,
+      overallRate: 0,
+      overallEligible: 40,
+    }));
+
+    expect(
+      getAnswer(
+        { ...report, categories: { ...report.categories, rows } },
+        'TRACKS',
+      ),
+    ).toBe(
+      'Artificial Intelligence & Software Engineering is largest, with 168 people. No track has converted anyone yet.',
+    );
+  });
+
+  it('says why it cannot tell when everyone who applied is unmapped', () => {
+    const report = buildEmptyReportFixture();
+
+    expect(
+      getAnswer(
+        {
+          ...report,
+          funnel: { ...report.funnel, cohortExcludedUnmapped: 200 },
+        },
+        'OVERALL',
+      ),
+    ).toBe(
+      'Cannot tell yet: 200 people applied, but every stage they had is not mapped yet.',
+    );
+  });
+
   it('stays honest when a report has no data yet', () => {
     const report = buildEmptyReportFixture();
 

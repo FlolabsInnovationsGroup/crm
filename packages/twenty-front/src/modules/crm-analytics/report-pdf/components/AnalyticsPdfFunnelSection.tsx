@@ -6,6 +6,7 @@ import { AnalyticsPdfFunnel } from '@/crm-analytics/report-pdf/charts/AnalyticsP
 import {
   AnalyticsPdfHorizontalBars,
   type AnalyticsPdfBarRow,
+  type AnalyticsPdfBarTone,
 } from '@/crm-analytics/report-pdf/charts/AnalyticsPdfHorizontalBars';
 import { AnalyticsPdfLegend } from '@/crm-analytics/report-pdf/charts/AnalyticsPdfLegend';
 import {
@@ -24,6 +25,7 @@ import {
   formatAnalyticsPdfDays,
   formatAnalyticsPdfNumber,
   formatAnalyticsPdfOfPeople,
+  formatAnalyticsPdfPeople,
   formatAnalyticsPdfStays,
 } from '@/crm-analytics/report-pdf/utils/formatAnalyticsPdfNumber';
 import { getAnalyticsPdfRowLabelLayout } from '@/crm-analytics/report-pdf/utils/getAnalyticsPdfRowLabelLayout';
@@ -99,6 +101,18 @@ const buildDurationRow = (
   };
 };
 
+const getStepRateBarTone = (
+  row: AnalyticsFunnelRow,
+  rate: AnalyticsPdfRate,
+  lowestStepStageKey: string | null,
+): AnalyticsPdfBarTone => {
+  if (row.stageKey === lowestStepStageKey) {
+    return 'ACCENT';
+  }
+
+  return rate.isLighter ? 'NEUTRAL_LIGHTER' : 'NEUTRAL';
+};
+
 const buildStepRateBarRow = (
   row: AnalyticsFunnelRow,
   rate: AnalyticsPdfRate,
@@ -109,7 +123,7 @@ const buildStepRateBarRow = (
   value: rate.ratio,
   valueText: rate.text,
   detailText: rate.detail,
-  tone: row.stageKey === lowestStepStageKey ? 'ACCENT' : 'NEUTRAL',
+  tone: getStepRateBarTone(row, rate, lowestStepStageKey),
 });
 
 type AnalyticsPdfFunnelSectionProps = {
@@ -121,6 +135,10 @@ export const AnalyticsPdfFunnelSection = ({
 }: AnalyticsPdfFunnelSectionProps) => {
   const { funnel, minimumSample } = report;
   const hasData = funnel.rows.some(({ entered }) => entered > 0);
+  const hasExcludedPeople = funnel.cohortExcludedUnmapped > 0;
+  const excludedPeople = formatAnalyticsPdfPeople(
+    funnel.cohortExcludedUnmapped,
+  );
 
   if (!hasData) {
     return (
@@ -131,7 +149,11 @@ export const AnalyticsPdfFunnelSection = ({
         isCompact
       >
         <AnalyticsPdfNoData
-          line={t`No one has entered the funnel since tracking started.`}
+          line={
+            hasExcludedPeople
+              ? t`${excludedPeople} applied, but every stage they had is not mapped yet.`
+              : t`No one has entered the funnel since tracking started.`
+          }
         />
       </AnalyticsPdfSection>
     );
@@ -161,7 +183,10 @@ export const AnalyticsPdfFunnelSection = ({
   );
   const hasPeopleInSteps = stepRows.some(({ entered }) => entered > 0);
   const conversionTitle = t`Conversion at each step`;
-  const conversionNote = t`Share of people who moved on within the step's window, all applications since tracking start. The lowest step is in color.`;
+  const formattedMinimumSample = formatAnalyticsPdfNumber(minimumSample);
+  const conversionNote = isDefined(funnel.lowestStepStageKey)
+    ? t`Share of people who moved on within the step's window, all applications since tracking start. The step in color is the lowest among steps with at least ${formattedMinimumSample} people, leaving out the first step when a later one qualifies.`
+    : t`Share of people who moved on within the step's window, all applications since tracking start.`;
   const stackedTitle = t`What happened to people at each stage?`;
   const durationTitle = t`How long do people stay?`;
 
@@ -177,7 +202,11 @@ export const AnalyticsPdfFunnelSection = ({
     >
       <AnalyticsPdfChartBlock
         title={t`From ${firstLabel} to ${lastLabel}`}
-        note={t`People, all applications since tracking start. The percent moved on counts only people past that step's window.`}
+        note={
+          hasExcludedPeople
+            ? t`People, all applications since tracking start. The percent moved on counts only people past that step's window. ${excludedPeople} left out because every stage they had is not mapped.`
+            : t`People, all applications since tracking start. The percent moved on counts only people past that step's window.`
+        }
       >
         <AnalyticsPdfFunnel
           rows={funnel.rows.map((row, rowIndex) => ({
@@ -244,7 +273,7 @@ export const AnalyticsPdfFunnelSection = ({
           {hasPeopleInSteps && (
             <AnalyticsPdfChartBlock
               title={stackedTitle}
-              note={t`Share of the people who reached each stage, all applications since tracking start.`}
+              note={t`Share of the people who reached each stage, all applications since tracking start. Still in progress means the step's window has not closed yet, including people who have already moved on or left.`}
               legend={
                 <AnalyticsPdfLegend
                   items={[

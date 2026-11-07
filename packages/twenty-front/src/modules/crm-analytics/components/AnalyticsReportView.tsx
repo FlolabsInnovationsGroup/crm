@@ -46,6 +46,7 @@ import { buildAnalyticsReportTrendCharts } from '@/crm-analytics/utils/buildAnal
 import {
   buildFunnelChartSteps,
   buildStepConversionColumns,
+  hasAnyStepConversion,
 } from '@/crm-analytics/utils/buildFunnelCharts';
 import { formatAnalyticsRate } from '@/crm-analytics/utils/formatAnalyticsRate';
 import { formatAnalyticsReportPeriod } from '@/crm-analytics/utils/formatAnalyticsReportPeriod';
@@ -262,9 +263,13 @@ const AnalyticsReportPastLimitTable = ({
 
 type AnalyticsReportDownloadProps = {
   report: AnalyticsReport;
+  isDisabled: boolean;
 };
 
-const AnalyticsReportDownload = ({ report }: AnalyticsReportDownloadProps) => {
+const AnalyticsReportDownload = ({
+  report,
+  isDisabled,
+}: AnalyticsReportDownloadProps) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [hasDownloadFailed, setHasDownloadFailed] = useState(false);
 
@@ -291,6 +296,7 @@ const AnalyticsReportDownload = ({ report }: AnalyticsReportDownloadProps) => {
         variant="outline"
         size="sm"
         loading={isDownloading}
+        disabled={isDisabled}
         startIcon={<IconDownload size={14} />}
         onClick={handleDownload}
       >
@@ -390,6 +396,16 @@ export const AnalyticsReportView = ({
   });
   const canCompare =
     isPreviousPeriodTracked && report.comparisons.length > 0;
+  // While another report loads, this one stays on screen and must not be saved as the one selected.
+  const isOtherReportLoading =
+    report.periodType !== periodType ||
+    report.periodStart.slice(0, 10) !== periodStart.slice(0, 10);
+  const hasMovement = report.movement.some(
+    (row) => row.enteredInPeriod > 0 || row.leftInPeriod > 0,
+  );
+  const hasAnyCategoryRate = [...rateRows.rows, ...rateRows.dividedRows].some(
+    (row) => row.segments.length > 0,
+  );
 
   return (
     <StyledReport aria-busy={isRefetching} isRefetching={isRefetching}>
@@ -406,12 +422,13 @@ export const AnalyticsReportView = ({
               : t`Generated ${generatedAt}. It stays as generated; corrections appear in the next report.`}
           </StyledReportNotice>
           <StyledReportNotice>
-            {t`Tracking started ${trackingStartedOn}. Imported people count in current totals only, never in rates.`}
+            {t`Tracking started ${trackingStartedOn}. Imported people count in current totals and stage moves, never in rates.`}
           </StyledReportNotice>
         </StyledReportHeading>
         <AnalyticsReportDownload
           key={`${report.periodType}:${report.periodStart}`}
           report={report}
+          isDisabled={isOtherReportLoading}
         />
       </StyledReportHeader>
       {isProvisional && (
@@ -423,8 +440,9 @@ export const AnalyticsReportView = ({
       <AnalyticsChartGrid>
         <AnalyticsChartCard
           title={t`From new to signed`}
-          note={t`Counts people across all applications since tracking started. People who applied in this period are still in progress, so they are not rated yet.`}
-          isEmpty={report.funnel.rows.length === 0}
+          note={t`Counts people across all applications since tracking started, up to the end of this period. A rate counts only people past that stage's window when this report was made; anyone still inside it is not rated yet.`}
+          isEmpty={!report.funnel.rows.some((row) => row.entered > 0)}
+          emptyMessage={t`No one has entered the funnel since tracking started.`}
           numbers={<AnalyticsStageLedger funnel={report.funnel} />}
         >
           <AnalyticsFunnelChart
@@ -439,7 +457,8 @@ export const AnalyticsReportView = ({
         <AnalyticsChartCard
           title={t`Conversion at each step`}
           note={t`The percent of people who moved on within the time allowed. A lighter column is a small sample or still in progress, and a dash means not enough data.`}
-          isEmpty={report.funnel.rows.length < 2}
+          isEmpty={!hasAnyStepConversion(report.funnel)}
+          emptyMessage={t`No one has passed a stage's window yet.`}
         >
           <AnalyticsColumnChart
             ariaLabel={t`Percent of people moving on at each step`}
@@ -488,9 +507,8 @@ export const AnalyticsReportView = ({
               : t`Which track converts best?`
           }
           note={t`Overall conversion across all applications since tracking started. A lighter bar is a small sample or still in progress, and a dash means not enough data.`}
-          isEmpty={
-            rateRows.rows.length === 0 && rateRows.dividedRows.length === 0
-          }
+          isEmpty={!hasAnyCategoryRate}
+          emptyMessage={t`No group has been tracked long enough yet. Overall conversion counts people once they have had enough time to reach the end.`}
         >
           <AnalyticsHorizontalBarChart
             ariaLabel={
@@ -507,8 +525,14 @@ export const AnalyticsReportView = ({
         <AnalyticsChartCard
           title={t`What moved this period?`}
           note={t`Moves into and out of each stage in this period, by the date they happened.`}
-          isEmpty={report.movement.length === 0}
-          numbers={<AnalyticsMovementTable rows={report.movement} />}
+          isEmpty={!hasMovement}
+          emptyMessage={t`No one changed stage in this period.`}
+          numbers={
+            <AnalyticsMovementTable
+              rows={report.movement}
+              countHeading={t`At report time`}
+            />
+          }
         >
           <AnalyticsDivergingBarChart
             ariaLabel={t`People entering and leaving each stage this period`}
@@ -519,7 +543,7 @@ export const AnalyticsReportView = ({
               leftValue: row.leftInPeriod,
             }))}
             rightLabel={t`Entered`}
-            leftLabel={t`Left`}
+            leftLabel={t`Moved out`}
           />
         </AnalyticsChartCard>
         <AnalyticsChartCard
@@ -588,6 +612,7 @@ export const AnalyticsReportView = ({
                 },
               ]}
               previousValues={chart.previousValues}
+              previousLabel={chart.previousLabel}
               formatValue={chart.formatValue}
               isRate={chart.isRate}
             />

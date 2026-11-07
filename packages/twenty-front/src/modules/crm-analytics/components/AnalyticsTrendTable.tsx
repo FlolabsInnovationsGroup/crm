@@ -15,6 +15,7 @@ import {
 import { isAnalyticsRateMetric } from '@/crm-analytics/utils/isAnalyticsRateMetric';
 import { isAnalyticsRunningCountMetric } from '@/crm-analytics/utils/isAnalyticsRunningCountMetric';
 import { formatAnalyticsBucketLabel } from '@/crm-analytics/utils/formatAnalyticsBucketLabel';
+import { formatAnalyticsRatePointChange } from '@/crm-analytics/utils/formatAnalyticsRatePointChange';
 import { formatAnalyticsSignedNumber } from '@/crm-analytics/utils/formatAnalyticsSignedNumber';
 import { getAnalyticsWindowLength } from '@/crm-analytics/utils/getAnalyticsWindowLength';
 import { isAnalyticsPeriodFullyTracked } from '@/crm-analytics/utils/isAnalyticsPeriodFullyTracked';
@@ -125,16 +126,15 @@ const getChange = ({
     return null;
   }
 
-  const change = point.value - point.previousValue;
-
   if (isAnalyticsRateMetric(metric)) {
-    const points = formatAnalyticsSignedNumber(
-      Math.round(change * 100),
+    return formatAnalyticsRatePointChange(
+      point.value,
+      point.previousValue,
       formatNumber,
     );
-
-    return t`${points} points`;
   }
+
+  const change = point.value - point.previousValue;
 
   if (metric === 'MEDIAN_DAYS') {
     return formatAnalyticsSignedNumber(Math.round(change * 10) / 10, (value) =>
@@ -248,6 +248,12 @@ export const AnalyticsTrendTable = ({
               {point.isPartial && (
                 <StyledInProgress>{t`in progress`}</StyledInProgress>
               )}
+              {!point.isPartial &&
+                isDefined(point.value) &&
+                isAnalyticsRunningCountMetric(metric) &&
+                !isAnalyticsPeriodFullyTracked(point.bucketStart, base) && (
+                  <StyledInProgress>{t`partly tracked`}</StyledInProgress>
+                )}
             </AnalyticsTable.Cell>
             <AnalyticsTable.Cell isNumeric>
               <AnalyticsTrendValue

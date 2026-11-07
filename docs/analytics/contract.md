@@ -231,7 +231,7 @@ CREATE INDEX IF NOT EXISTS sync_log_workspace_started_idx
 | Situation | Behaviour |
 |---|---|
 | Created when | `ensureStorage()` runs the statements in order at the start of every worker job, on the job connection. Same role already creates workspace schemas. No advisory lock: one worker, concurrency 1 |
-| Fresh database | First sync creates everything, reads timeline since tracking start, then enqueues the daily job if no `daily` log row exists, so the day-one baseline is taken at once |
+| Fresh database | First sync creates everything, reads timeline since tracking start, then enqueues the daily job if no `daily` log row other than a skipped one exists, so the day-one baseline is taken at once |
 | Before any job ran | Reads check `to_regclass('analytics.sync_log')`; page state is `NEVER_SYNCED`. Page transactions are read-only and never create |
 | Repeated run | All statements are no-ops |
 | `database:reset` | `packages/twenty-server/src/database/scripts/truncate-db.ts:9-33` drops `analytics` too. Next job recreates it. History is lost (dev only) |
@@ -471,7 +471,7 @@ person_step AS (SELECT a.person_id, f.stage_key, f.rank, f.window_days,
 | Imported applications | Total only, labeled "dates unknown". Not in trends |
 | Stage totals | Current stage. Reminders and raw siblings nest under their stageKey. Top rows are MAIN, EXIT, OTHER, one per unmapped raw value, and No stage, so they sum to total contacts |
 | Stage entered at | Latest transition with `to_key = current_key` and `from_key` different. Else `created_at` if created on or after tracking start. Else unknown. `isLowerBound` when the row's origin is `reconcile` |
-| Inactive | Created before tracking start, active, no transition. Counted only, not listed |
+| Inactive | Created before tracking start, active, no transition that changes the stage key. Moves inside one stage, such as a reminder, are ignored. Counted only, not listed |
 | Stuck | Active, not inactive, `limitDays` set, days in stage over the limit. Sorted by days over limit, 100 rows plus total. If no stage has a limit: sorted by days in stage with a notice. A form reset restarts the clock (open question 4) |
 | Signed | People with success as current stage; only when `showSignedFigure` |
 | `entered(k)` | Rows of `person_step` at stage k |
@@ -1150,6 +1150,10 @@ Testing found places where this contract was silent or disagreed with itself. Th
 - **Track and program filters on Categories:** rows are limited to the chosen track or program, and the takeaway only names rows that are shown.
 - **Reports built on provisional definitions:** the payload carries `isProvisional` and `payloadVersion`, and the page marks them. Once `isProvisional` goes false in the config, those rows count as missing and are rebuilt. This is the only exception to frozen reports.
 - **Page reads:** at most 2 run at once per server process. Others wait briefly, then get a clear busy error, and a read stops once it has run for about 15 seconds in total. This protects the CRM's shared connection pool.
+- **New applications range past today:** a range that has started stops at today, and the previous span covers the same number of days. A range wholly in the future keeps its dates and has no comparison.
+- **Application form missing:** when no form has a configured name, New applications is not available everywhere, never a measured 0.
+- **Imported applications under a filter:** the workspace-wide total is left out under a track, program, source or status filter, because it cannot be narrowed.
+- **Movement repeats:** a row entering the stage the person just entered is not counted again, so a move recorded by both reconcile and the timeline counts once. Stored rows stay as they are.
 - **Comparisons before tracking:** a previous value is null, never 0, when the previous period starts before tracking start.
 - **Overall conversion by week:** the default window grows to 26 weeks, so it can include weeks old enough to count.
 

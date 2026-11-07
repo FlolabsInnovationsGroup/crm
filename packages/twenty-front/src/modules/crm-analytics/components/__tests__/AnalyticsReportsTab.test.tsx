@@ -200,7 +200,7 @@ describe('AnalyticsReportsTab', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Tracking started Aug 1, 2026. Imported people count in current totals only, never in rates.',
+        'Tracking started Aug 1, 2026. Imported people count in current totals and stage moves, never in rates.',
       ),
     ).toBeInTheDocument();
     expect(
@@ -297,9 +297,102 @@ describe('AnalyticsReportsTab', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('says no one moved in a quiet period, and names what a report line measures', async () => {
+    renderTab([
+      listMock([LATEST_WEEK]),
+      reportMock(
+        buildReport(LATEST_WEEK, {
+          movement: [
+            {
+              stageKey: 'NEW',
+              label: 'New',
+              enteredInPeriod: 0,
+              leftInPeriod: 0,
+              countNow: 900,
+            },
+          ],
+          funnel: {
+            ...buildReport(LATEST_WEEK).funnel,
+            rows: [
+              {
+                stageKey: 'NEW',
+                label: 'New',
+                windowDays: 14,
+                entered: 0,
+                eligible: 0,
+                reachedNext: 0,
+                timedOut: 0,
+                exited: 0,
+                inWindow: 0,
+                stepRate: null,
+                soFarRate: null,
+                dropOffRate: null,
+                isUnderMinimum: true,
+                medianDays: null,
+                completedStays: 0,
+              },
+            ],
+          },
+          trendSeries: [
+            {
+              metric: 'DROP_OFF',
+              stageKey: 'NEW',
+              groupKey: null,
+              groupLabel: null,
+              unavailableReason: null,
+              points: [
+                {
+                  bucketStart: '2026-10-26',
+                  value: 0.2,
+                  previousValue: null,
+                  size: 40,
+                  previousSize: null,
+                  isPartial: false,
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ]);
+
+    expect(
+      await screen.findByText('No one changed stage in this period.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Drop-off from New over time'),
+    ).toBeInTheDocument();
+  });
+
   describe('the PDF download', () => {
     const getDownloadButton = () =>
       screen.findByRole('button', { name: 'Download PDF' });
+
+    it('cannot save the old report while the selected one loads', async () => {
+      const user = userEvent.setup();
+
+      renderTab([
+        listMock([LATEST_WEEK, EARLIER_WEEK]),
+        reportMock(buildReport(LATEST_WEEK)),
+        { ...reportMock(buildReport(EARLIER_WEEK)), delay: 200 },
+      ]);
+
+      expect(await getDownloadButton()).toBeEnabled();
+
+      await user.click(
+        screen.getByRole('button', { name: 'Oct 19 to Oct 25, 2026' }),
+      );
+
+      expect(
+        screen.getByRole('button', { name: 'Download PDF' }),
+      ).toBeDisabled();
+
+      await screen.findByText('Weekly report, Oct 19 to Oct 25, 2026');
+
+      expect(
+        screen.getByRole('button', { name: 'Download PDF' }),
+      ).toBeEnabled();
+    });
 
     it('downloads the report that is open', async () => {
       const user = userEvent.setup();

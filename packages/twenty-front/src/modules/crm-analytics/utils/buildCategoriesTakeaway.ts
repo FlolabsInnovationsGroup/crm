@@ -51,6 +51,10 @@ export const buildCategoriesTakeaway = (
     return t`${largestLabel} is largest; no group has enough people to compare conversion yet.`;
   }
 
+  if (bestRow.overallRate === 0) {
+    return t`${largestLabel} is largest; no group has converted yet.`;
+  }
+
   const bestLabel = bestRow.label;
   const bestRate = formatAnalyticsRate(bestRow.overallRate);
 

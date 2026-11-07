@@ -89,6 +89,9 @@ export const AnalyticsStuckTable = ({ stuck }: AnalyticsStuckTableProps) => {
         <tbody>
           {stuck.rows.map((row) => {
             const daysInStage = formatNumber(row.daysInStage);
+            const daysOverLimit = isDefined(row.daysOverLimit)
+              ? formatNumber(row.daysOverLimit)
+              : null;
             const hasName = isNonEmptyString(row.displayName);
 
             return (
@@ -112,9 +115,9 @@ export const AnalyticsStuckTable = ({ stuck }: AnalyticsStuckTableProps) => {
                   {row.isLowerBound ? t`at least ${daysInStage}` : daysInStage}
                 </AnalyticsTable.Cell>
                 <AnalyticsTable.Cell isNumeric>
-                  {isDefined(row.daysOverLimit)
-                    ? formatNumber(row.daysOverLimit)
-                    : null}
+                  {row.isLowerBound && isDefined(daysOverLimit)
+                    ? t`at least ${daysOverLimit}`
+                    : daysOverLimit}
                 </AnalyticsTable.Cell>
               </AnalyticsTable.Row>
             );

@@ -3,8 +3,24 @@ import {
   truncateAnalyticsPdfLabel,
   wrapAnalyticsPdfLabel,
 } from '@/crm-analytics/report-pdf/utils/fitAnalyticsPdfLabel';
+import { getAnalyticsPdfRowLabelLayout } from '@/crm-analytics/report-pdf/utils/getAnalyticsPdfRowLabelLayout';
 
 const FONT_SIZE = 8;
+
+describe('getAnalyticsPdfRowLabelLayout', () => {
+  it('leaves the widest label room to print whole once the chart takes its gap back', () => {
+    const label = 'Waiting for second meeting date';
+    const { labelWidth } = getAnalyticsPdfRowLabelLayout([label], 13.5);
+
+    expect(
+      truncateAnalyticsPdfLabel({
+        text: label,
+        maximumWidth: labelWidth - 8,
+        fontSize: FONT_SIZE,
+      }),
+    ).toBe(label);
+  });
+});
 
 describe('wrapAnalyticsPdfLabel', () => {
   it('keeps a short label on one line', () => {

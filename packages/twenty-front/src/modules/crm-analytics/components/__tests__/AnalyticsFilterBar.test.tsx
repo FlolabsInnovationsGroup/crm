@@ -408,21 +408,70 @@ describe('AnalyticsFilterBar', () => {
       expect(input).toHaveValue('2026-10-27');
     });
 
-    it('keeps the last applied date for a reversed range', async () => {
+    it('keeps the range when Custom dates is chosen again', async () => {
       const user = userEvent.setup();
       const { onFilterChange } = renderCustomRange();
 
-      const fromInput = await retypeDate(user, 'From date', '2026-11-20');
+      await user.click(screen.getByText('Custom dates'));
+      await user.click((await screen.findAllByText('Custom dates')).at(-1)!);
 
+      expect(onFilterChange).not.toHaveBeenCalled();
+      expect(screen.getByLabelText('From date')).toHaveValue('2026-10-27');
+    });
+
+    it('moves To along when From passes it', async () => {
+      const user = userEvent.setup();
+      const { onFilterChange } = renderCustomRange();
+
+      await retypeDate(user, 'From date', '2026-11-20');
       await user.tab();
 
-      const toInput = await retypeDate(user, 'To date', '2026-10-01');
+      expect(onFilterChange).toHaveBeenCalledWith({
+        ...CUSTOM_RANGE_FILTER,
+        dateFrom: '2026-11-20',
+        dateTo: '2026-11-20',
+      });
+      expect(screen.getByLabelText('To date')).toHaveValue('2026-11-20');
+    });
+
+    it('moves From along when To goes before it', async () => {
+      const user = userEvent.setup();
+      const { onFilterChange } = renderCustomRange();
+
+      await retypeDate(user, 'To date', '2026-10-01');
+      await user.tab();
+
+      expect(onFilterChange).toHaveBeenCalledWith({
+        ...CUSTOM_RANGE_FILTER,
+        dateFrom: '2026-10-01',
+        dateTo: '2026-10-01',
+      });
+      expect(screen.getByLabelText('From date')).toHaveValue('2026-10-01');
+    });
+
+    it('keeps the last applied date for a year the server refuses', async () => {
+      const user = userEvent.setup();
+      const { onFilterChange } = renderCustomRange();
+
+      const input = await retypeDate(user, 'To date', '2206-11-08');
 
       await user.tab();
 
       expect(onFilterChange).not.toHaveBeenCalled();
-      expect(fromInput).toHaveValue('2026-10-27');
-      expect(toInput).toHaveValue('2026-11-05');
+      expect(input).toHaveValue('2026-11-05');
+    });
+
+    it('offers only years the filter accepts in the calendar', () => {
+      renderCustomRange();
+
+      expect(screen.getByLabelText('From date')).toHaveAttribute(
+        'min',
+        '2026-01-01',
+      );
+      expect(screen.getByLabelText('To date')).toHaveAttribute(
+        'max',
+        '2100-12-31',
+      );
     });
 
     it('keeps the last applied date when the field is left unfinished', async () => {
@@ -522,12 +571,12 @@ describe('AnalyticsFilterBar', () => {
       expect(onFilterChange).toHaveBeenCalledTimes(1);
     });
 
-    it('holds back a year before tracking started and a reversed range', () => {
+    it('holds back a year before tracking started and one past the limit', () => {
       const { onFilterChange } = renderCustomRange();
 
       pickDate('From date', '0202-10-15');
       waitFor(IDLE_DELAY_IN_MS);
-      pickDate('To date', '2026-10-01');
+      pickDate('To date', '2206-11-08');
       waitFor(IDLE_DELAY_IN_MS);
 
       expect(onFilterChange).not.toHaveBeenCalled();

@@ -7,10 +7,12 @@ import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
 type AnalyticsMovementTableProps = {
   rows: AnalyticsMovementRow[];
+  countHeading?: string;
 };
 
 export const AnalyticsMovementTable = ({
   rows,
+  countHeading,
 }: AnalyticsMovementTableProps) => {
   const { formatNumber } = useNumberFormat();
 
@@ -23,10 +25,10 @@ export const AnalyticsMovementTable = ({
             {t`Entered`}
           </AnalyticsTable.HeaderCell>
           <AnalyticsTable.HeaderCell isNumeric>
-            {t`Left`}
+            {t`Moved out`}
           </AnalyticsTable.HeaderCell>
           <AnalyticsTable.HeaderCell isNumeric>
-            {t`Now`}
+            {countHeading ?? t`Now`}
           </AnalyticsTable.HeaderCell>
         </tr>
       </thead>

@@ -148,9 +148,15 @@ export const AnalyticsLineChart = ({
 }: AnalyticsLineChartProps) => {
   const { formatNumber } = useNumberFormat();
   const { widthRef, width } = useAnalyticsChartWidth();
+  const dataSignature = JSON.stringify([buckets, series, previousValues]);
   const { tooltip, showTooltip, moveTooltip, hideTooltip } =
-    useAnalyticsChartTooltip();
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    useAnalyticsChartTooltip(dataSignature);
+  const [hover, setHover] = useState<{
+    index: number;
+    dataSignature: string;
+  } | null>(null);
+  const hoveredIndex =
+    hover?.dataSignature === dataSignature ? hover.index : null;
 
   const knownValues = [
     ...series.flatMap(({ values }) => values),
@@ -294,12 +300,12 @@ export const AnalyticsLineChart = ({
           .join(' ') || null,
     };
 
-    setHoveredIndex(nextIndex);
+    setHover({ index: nextIndex, dataSignature });
     showTooltip(content, event);
   };
 
   const handlePointerLeave = () => {
-    setHoveredIndex(null);
+    setHover(null);
     hideTooltip();
   };
 

@@ -71,6 +71,7 @@ const setup = ({
   now = NOW,
   failingStatement,
   failureMessage = 'canceling statement due to statement timeout',
+  hasApplicationForm = state.hasFormSubmissionObject,
 }: {
   answers?: SqlAnswer[];
   isDisabled?: boolean;
@@ -80,6 +81,7 @@ const setup = ({
   now?: string;
   failingStatement?: RegExp;
   failureMessage?: string;
+  hasApplicationForm?: boolean;
 } = {}) => {
   const statements: RecordedStatement[] = [];
 
@@ -110,6 +112,9 @@ const setup = ({
   );
 
   jest.spyOn(facadeService, 'getCrmState').mockResolvedValue(state);
+  jest
+    .spyOn(facadeService, 'hasApplicationForm')
+    .mockResolvedValue(hasApplicationForm);
   jest.spyOn(facadeService, 'countImportedApplications').mockResolvedValue(12);
   jest
     .spyOn(facadeService, 'getPersonDisplayNames')
@@ -831,6 +836,67 @@ describe('CrmAnalyticsMetricsService', () => {
           '2026-10-31',
         ]),
       );
+    });
+
+    it('stops a range still running at today and compares the same number of days', async () => {
+      const {
+        overview: { figures },
+        statements,
+      } = await readOverview({
+        ...DEFAULT_FILTER,
+        dateFrom: '2026-11-01',
+        dateTo: '2026-11-30',
+      });
+
+      expect(figures.newApplicationsFrom).toBe('2026-11-01');
+      expect(figures.newApplicationsTo).toBe('2026-11-07');
+      expect(figures.newApplicationsPrevious).toBe(2);
+      expect(
+        statements.find(({ sql }) => NEW_APPLICATION_TOTALS.test(sql))
+          ?.parameters,
+      ).toEqual(expect.arrayContaining(['2026-10-25', '2026-10-31']));
+    });
+
+    it.each<[string, string, string | null, string]>([
+      ['with an end', '2026-12-01', '2026-12-31', '2026-12-31'],
+      ['with no end', '2026-12-01', null, '2026-12-01'],
+    ])(
+      'keeps a range wholly in the future, %s, with no comparison',
+      async (_name, dateFrom, dateTo, expectedTo) => {
+        const {
+          overview: { figures },
+        } = await readOverview({ ...DEFAULT_FILTER, dateFrom, dateTo });
+
+        expect(figures.newApplicationsFrom).toBe('2026-12-01');
+        expect(figures.newApplicationsTo).toBe(expectedTo);
+        expect(figures.newApplicationsPrevious).toBeNull();
+      },
+    );
+
+    it('leaves the workspace-wide imported total out under a person filter', async () => {
+      const {
+        overview: { figures },
+      } = await readOverview({ ...DEFAULT_FILTER, trackKey: 'ROBOTICS' });
+
+      expect(figures.importedApplications).toBeNull();
+    });
+
+    it('gives null new applications when no form has the configured name', async () => {
+      const { metricsService, statements } = setup({
+        answers: OVERVIEW_ANSWERS,
+        hasApplicationForm: false,
+      });
+
+      const overview = await metricsService.getOverview({
+        workspaceId: WORKSPACE_ID,
+        filter: DEFAULT_FILTER,
+      });
+
+      expect(overview?.figures.newApplications).toBeNull();
+      expect(overview?.figures.newApplicationsPrevious).toBeNull();
+      expect(
+        statements.some(({ sql }) => NEW_APPLICATION_TOTALS.test(sql)),
+      ).toBe(false);
     });
 
     it('compares a date filter with the equal-length span before', async () => {
@@ -1775,9 +1841,15 @@ describe('CrmAnalyticsMetricsService', () => {
       expect(
         await dimensionOf({ trackKey: 'BUSINESS', programKey: 'FINANCE_INTERN' }),
       ).toEqual(expect.arrayContaining(['position', 'FINANCE_INTERN']));
+      expect(
+        await dimensionOf({ trackKey: 'UNMAPPED', programKey: 'LEGACY_POSITION' }),
+      ).toEqual(expect.arrayContaining(['position', 'LEGACY_POSITION']));
     });
 
     it.each([
+      [{ trackKey: 'ROBOTICS', programKey: 'LEGACY_POSITION' }],
+      [{ trackKey: 'UNMAPPED', programKey: 'FINANCE_INTERN' }],
+      [{ trackKey: 'UNMAPPED', programKey: 'NONE' }],
       [{ trackKey: 'ROBOTICS', sourceKey: 'LINKEDIN' }],
       [{ programKey: 'FINANCE_INTERN', sourceKey: 'LINKEDIN' }],
       [{ trackKey: 'ROBOTICS', programKey: 'FINANCE_INTERN' }],
@@ -2086,7 +2158,7 @@ describe('CrmAnalyticsMetricsService', () => {
       expect(trends.series[11]).toMatchObject({
         value: 3.1,
         size: 8,
-        previousSize: null,
+        previousSize: 0,
       });
       expect(trends.series[0]).toMatchObject({ value: null, size: 0 });
       expect(
@@ -2160,7 +2232,11 @@ describe('CrmAnalyticsMetricsService', () => {
       const movementSql =
         statements.find(({ sql }) => MOVEMENT.test(sql))?.sql ?? '';
 
-      expect(movementSql).toContain('t.happened_at AT TIME ZONE');
+      expect(movementSql).toContain('m.happened_at AT TIME ZONE');
+      // One move recorded by both reconcile and the timeline counts once.
+      expect(movementSql).toContain(
+        'm.previous_to_key IS DISTINCT FROM m.to_key',
+      );
       expect(movementSql).not.toContain('p.created_at >= $2');
     });
   });
@@ -2303,6 +2379,19 @@ describe('CrmAnalyticsMetricsService', () => {
 
       expect(bundle.series[0]?.points).toEqual(trends?.series);
       expect(bundle.series[0]?.points.length).toBeGreaterThan(0);
+    });
+
+    it('names a line by the chosen program and keeps the track key for its color', async () => {
+      const { bundle } = await readSeries({
+        filter: { ...DEFAULT_FILTER, programKey: 'FINANCE_INTERN' },
+        requests: [
+          { metric: 'NEW_APPLICATIONS', stageKey: null, groupBy: 'TRACK' },
+        ],
+      });
+
+      expect(bundle.series).toHaveLength(1);
+      expect(bundle.series[0]?.groupKey).toBe('BUSINESS');
+      expect(bundle.series[0]?.groupLabel).toBe('Finance intern');
     });
 
     it('gives one series per track, each filtered to that track', async () => {
@@ -3285,7 +3374,7 @@ describe('CrmAnalyticsReportService', () => {
       }
     });
 
-    it('stores nothing and stops the run when a series times out', async () => {
+    it('stores nothing and fails the run when a series times out, after trying the other periods', async () => {
       const { reportService, run, statements } = setup({
         answers: [
           [INSERT_REPORT, [{ period_start: 'inserted' }]],
@@ -3302,6 +3391,13 @@ describe('CrmAnalyticsReportService', () => {
         }),
       ).rejects.toThrow('statement timeout');
       expect(statements.some(({ sql }) => INSERT_REPORT.test(sql))).toBe(false);
+      expect(
+        new Set(
+          statements
+            .filter(({ sql }) => MEDIAN_BUCKETS.test(sql))
+            .map(({ parameters }) => JSON.stringify(parameters)),
+        ).size,
+      ).toBeGreaterThan(1);
     });
 
     it('stops building reports past the time budget, leaving the rest for the next run', async () => {

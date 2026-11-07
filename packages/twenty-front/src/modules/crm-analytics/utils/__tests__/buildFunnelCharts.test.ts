@@ -100,7 +100,7 @@ describe('buildFunnelAnswerCards', () => {
     );
     expect(biggestDrop.value).toBe('75%');
     expect(biggestDrop.detail).toBe(
-      'From Contacted to Signed. 75 of 100 people did not move on.',
+      'From Contacted to Signed. 75 of 100 people did not move on within 14 days.',
     );
     expect(slowest.value).toBe('12.5 days');
     expect(slowest.detail).toBe(
@@ -293,6 +293,18 @@ describe('buildStepConversionColumns', () => {
 });
 
 describe('buildStageOutcomeRows', () => {
+  it('draws a stage under the minimum sample lighter', () => {
+    const [smallRow] = buildStageOutcomeRows(
+      buildFunnel([buildRow('NEW', 'New', { entered: 3 }), SIGNED_ROW]),
+    );
+    const [largeRow] = buildStageOutcomeRows(
+      buildFunnel([buildRow('NEW', 'New'), SIGNED_ROW]),
+    );
+
+    expect(smallRow.isSmallSample).toBe(true);
+    expect(largeRow.isSmallSample).toBe(false);
+  });
+
   it('splits everyone who entered into the four outcomes', () => {
     const [newRow] = buildStageOutcomeRows(
       buildFunnel([buildRow('NEW', 'New'), SIGNED_ROW]),

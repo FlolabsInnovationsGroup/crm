@@ -157,16 +157,24 @@ export const AnalyticsDonutChart = ({
 
   const buildArcPath = arc<PieArcDatum<(typeof drawnSlices)[number]>>()
     .innerRadius(INNER_RADIUS)
-    .outerRadius(OUTER_RADIUS);
+    .outerRadius(OUTER_RADIUS)
+    // A full gap would erase a very small slice, leaving nothing to see or hover.
+    .padAngle((sliceArc) =>
+      Math.min(
+        sliceArc.padAngle,
+        (sliceArc.endAngle - sliceArc.startAngle) / 2,
+      ),
+    );
 
   return (
-    <StyledRoot role="img" aria-label={ariaLabel}>
+    <StyledRoot>
       <StyledRing style={{ height: SIZE_IN_PX, width: SIZE_IN_PX }}>
         <svg
           width={SIZE_IN_PX}
           height={SIZE_IN_PX}
           viewBox={`${-OUTER_RADIUS} ${-OUTER_RADIUS} ${SIZE_IN_PX} ${SIZE_IN_PX}`}
-          aria-hidden="true"
+          role="img"
+          aria-label={ariaLabel}
         >
           {buildArcs(drawnSlices).map((sliceArc) => {
             const slice = sliceArc.data;

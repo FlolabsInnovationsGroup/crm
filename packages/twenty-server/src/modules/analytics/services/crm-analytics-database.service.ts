@@ -5,6 +5,7 @@ import { msg } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
 import { DataSource } from 'typeorm';
 
+import { isQueryCanceledError } from 'src/engine/api/graphql/workspace-query-runner/utils/is-query-canceled-error.util';
 import { TimeoutError } from 'src/engine/core-modules/graphql/utils/graphql-errors.util';
 import { type WorkspaceTransactionScope } from 'src/engine/twenty-orm/types/workspace-transaction-scope.type';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
@@ -15,6 +16,7 @@ import { type CrmAnalyticsSqlRunner } from 'src/modules/analytics/types/crm-anal
 // Under the 10 s client-side query limit of the workspace pool.
 const PAGE_STATEMENT_TIMEOUT_MS = 8000;
 const JOB_STATEMENT_TIMEOUT_MS = 120000;
+const JOB_CLIENT_QUERY_TIMEOUT_MS = JOB_STATEMENT_TIMEOUT_MS + 10000;
 
 // Page reads share the pool that serves all CRM records and its waiters never time out,
 // so these bounds keep analytics from starving it.
@@ -25,6 +27,8 @@ const PAGE_READ_TIME_BUDGET_MS = 15000;
 // CTE row estimates run low, so nested loops hit the limits; their disable cost would trip JIT.
 const PLANNER_SETTINGS = ['enable_nestloop = off', 'jit = off'];
 
+const SET_PAGE_TRANSACTION_SQL =
+  'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY';
 const SET_STATEMENT_TIMEOUT_SQL = `SELECT set_config('statement_timeout', $1, true)`;
 
 const buildPageReadBusyError = (): TimeoutError =>
@@ -55,7 +59,9 @@ const buildPageReadRunner =
 
       return await transactionScope.executeRawQuery(sql, parameters);
     } catch (error) {
-      throw Date.now() >= deadline ? buildPageReadBusyError() : error;
+      throw Date.now() >= deadline || isQueryCanceledError(error)
+        ? buildPageReadBusyError()
+        : error;
     }
   };
 
@@ -87,7 +93,8 @@ export class CrmAnalyticsDatabaseService {
             async (transactionScope) => {
               const run = buildPageReadRunner(transactionScope, deadline);
 
-              await run('SET TRANSACTION READ ONLY', []);
+              // One snapshot, so figures in one response agree. Must stay the first statement.
+              await run(SET_PAGE_TRANSACTION_SQL, []);
               await run(SET_STATEMENT_TIMEOUT_SQL, [
                 String(PAGE_STATEMENT_TIMEOUT_MS),
               ]);
@@ -190,7 +197,9 @@ export class CrmAnalyticsDatabaseService {
       poolSize: 1,
       extra: {
         ...coreDataSourceOptions.extra,
-        query_timeout: undefined,
+        // Only a backstop for a silently dead socket, which the server cannot time out.
+        query_timeout: JOB_CLIENT_QUERY_TIMEOUT_MS,
+        keepAlive: true,
         statement_timeout: JOB_STATEMENT_TIMEOUT_MS,
       },
     });

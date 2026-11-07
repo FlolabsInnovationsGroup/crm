@@ -41,7 +41,8 @@ export const AnalyticsOverviewCategoryCard = ({
   } = useCrmAnalyticsQuery<AnalyticsCategories>({
     query: GET_CRM_ANALYTICS_CATEGORIES,
     rootField: 'getCrmAnalyticsCategories',
-    variables: { filter, groupBy },
+    // The server ignores period here, so the Trends selector must not miss this cache.
+    variables: { filter: { ...filter, period: 'WEEK' }, groupBy },
   });
 
   const isSource = groupBy === 'SOURCE';

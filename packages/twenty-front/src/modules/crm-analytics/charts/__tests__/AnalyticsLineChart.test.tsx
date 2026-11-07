@@ -190,6 +190,30 @@ describe('AnalyticsLineChart', () => {
 
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+
+  it('drops the tooltip when new data lands under a still pointer', () => {
+    const { container, rerender } = render(
+      <AnalyticsLineChart
+        ariaLabel="Trend"
+        buckets={BUCKETS}
+        series={[{ key: 'all', label: 'All', values: [1, 2, 3, 4, 5] }]}
+      />,
+    );
+
+    hoverAt(container.querySelector('rect[fill="transparent"]') as Element, 100);
+
+    expect(screen.getByText('All')).toBeInTheDocument();
+
+    rerender(
+      <AnalyticsLineChart
+        ariaLabel="Trend"
+        buckets={BUCKETS.slice(0, 2)}
+        series={[{ key: 'all', label: 'All', values: [7, 8] }]}
+      />,
+    );
+
+    expect(screen.queryByText('All')).not.toBeInTheDocument();
+  });
 });
 
 describe('AnalyticsSparkline', () => {
@@ -221,5 +245,22 @@ describe('AnalyticsSparkline', () => {
     hoverAt(container.querySelector('rect') as Element, 100);
 
     expect(screen.getByText('Week 3')).toBeInTheDocument();
+  });
+
+  it('shows the first period when the pointer is on the first point', () => {
+    const { container } = render(
+      <AnalyticsSparkline
+        ariaLabel="Trend"
+        values={[1, 2, 3, 4, 5]}
+        marks={[1, 2, 3, 4, 5].map((value) => ({
+          isLighter: false,
+          tooltip: { title: `Week ${value}`, rows: [] },
+        }))}
+      />,
+    );
+
+    hoverAt(container.querySelector('rect') as Element, 14);
+
+    expect(screen.getByText('Week 1')).toBeInTheDocument();
   });
 });

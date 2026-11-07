@@ -53,7 +53,9 @@ export const AnalyticsPdfPageFrame = ({
       <Text style={styles.runningTitle}>
         {toAnalyticsPdfPrintableText(title)}
       </Text>
-      <Text style={styles.runningBrand}>{t`FloLabs analytics`}</Text>
+      <Text style={styles.runningBrand}>
+        {toAnalyticsPdfPrintableText(t`FloLabs analytics`)}
+      </Text>
     </View>
     <View fixed style={styles.footer}>
       <Text style={styles.runningFooter}>
@@ -62,7 +64,7 @@ export const AnalyticsPdfPageFrame = ({
       <Text
         style={styles.runningFooter}
         render={({ pageNumber, totalPages }) =>
-          t`Page ${pageNumber} of ${totalPages}`
+          toAnalyticsPdfPrintableText(t`Page ${pageNumber} of ${totalPages}`)
         }
       />
     </View>

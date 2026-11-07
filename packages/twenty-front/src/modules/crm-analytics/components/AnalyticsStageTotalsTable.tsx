@@ -72,6 +72,9 @@ export const AnalyticsStageTotalsTable = ({
           <AnalyticsTable.HeaderCell isNumeric>
             {t`Past limit`}
           </AnalyticsTable.HeaderCell>
+          <AnalyticsTable.HeaderCell isNumeric>
+            {t`Inactive`}
+          </AnalyticsTable.HeaderCell>
         </tr>
       </thead>
       <tbody>
@@ -112,6 +115,11 @@ export const AnalyticsStageTotalsTable = ({
               <AnalyticsTable.Cell isNumeric>
                 {isDefined(row.pastLimitCount)
                   ? formatNumber(row.pastLimitCount)
+                  : null}
+              </AnalyticsTable.Cell>
+              <AnalyticsTable.Cell isNumeric>
+                {isDefined(row.pastLimitCount) || row.inactiveCount > 0
+                  ? formatNumber(row.inactiveCount)
                   : null}
               </AnalyticsTable.Cell>
             </AnalyticsTable.Row>

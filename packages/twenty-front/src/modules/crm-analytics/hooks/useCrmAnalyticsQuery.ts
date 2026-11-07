@@ -1,6 +1,7 @@
 import { type OperationVariables } from '@apollo/client';
 import { useQuery } from '@apollo/client/react';
 import { type DocumentNode } from 'graphql';
+import { isDefined } from 'twenty-shared/utils';
 
 import { isCrmAnalyticsForbiddenError } from '@/crm-analytics/utils/isCrmAnalyticsForbiddenError';
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
@@ -28,8 +29,9 @@ export const useCrmAnalyticsQuery = <TPayload>({
       fetchPolicy: 'cache-and-network',
     });
 
-  // A filter change keeps the last result on screen instead of flashing skeletons.
-  const currentData = data ?? previousData;
+  // A filter change keeps the last result on screen instead of flashing skeletons, but after a failed
+  // read those numbers would pass for the new filter's. A failed refetch of the same variables keeps `data`.
+  const currentData = data ?? (isDefined(error) ? undefined : previousData);
 
   const retry = () => {
     // A failed retry already surfaces through `error`.

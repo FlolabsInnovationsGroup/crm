@@ -67,7 +67,7 @@ describe('CrmAnalyticsDatabaseService', () => {
 
       expect(result).toBe('done');
       expect(executeRawQuery.mock.calls).toEqual([
-        ['SET TRANSACTION READ ONLY', []],
+        ['SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY', []],
         [`SELECT set_config('statement_timeout', $1, true)`, ['8000']],
         ['SET LOCAL enable_nestloop = off', []],
         ['SET LOCAL jit = off', []],
@@ -270,12 +270,14 @@ describe('CrmAnalyticsDatabaseService', () => {
         ).rejects.toMatchObject(BUSY_ERROR);
       });
 
-      it('keeps any other statement error as it is', async () => {
+      it('reports a statement cut off by its own limit as busy, inside the budget', async () => {
         const { service, executeRawQuery } = setupPageTransaction();
 
         executeRawQuery.mockImplementation(async (sql: string) => {
           if (sql === 'SELECT 1') {
-            throw new Error('canceling statement due to statement timeout');
+            throw Object.assign(new Error('Data validation error.'), {
+              code: '57014',
+            });
           }
 
           return [];
@@ -285,7 +287,25 @@ describe('CrmAnalyticsDatabaseService', () => {
           service.runPageTransaction(WORKSPACE_ID, (run) =>
             run('SELECT 1', []),
           ),
-        ).rejects.toThrow('canceling statement due to statement timeout');
+        ).rejects.toMatchObject(BUSY_ERROR);
+      });
+
+      it('keeps any other statement error as it is', async () => {
+        const { service, executeRawQuery } = setupPageTransaction();
+
+        executeRawQuery.mockImplementation(async (sql: string) => {
+          if (sql === 'SELECT 1') {
+            throw new Error('relation does not exist');
+          }
+
+          return [];
+        });
+
+        await expect(
+          service.runPageTransaction(WORKSPACE_ID, (run) =>
+            run('SELECT 1', []),
+          ),
+        ).rejects.toThrow('relation does not exist');
       });
     });
   });

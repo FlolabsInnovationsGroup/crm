@@ -24,6 +24,7 @@ const BOTTOM_BAND = 14;
 const TICK_GAP = 5;
 const END_LABEL_GAP = 6;
 const END_DETAIL_OFFSET = 7;
+const END_DETAIL_FLIP_DISTANCE = 8;
 const LINE_WIDTH = 1.75;
 const PREVIOUS_LINE_WIDTH = 1.25;
 const AREA_OPACITY = 0.1;
@@ -95,6 +96,11 @@ export const AnalyticsPdfLine = ({
         ? plotLeft + pointIndex * slotWidth
         : (plotLeft + plotRight) / 2,
     );
+  // Below the value it would run into the X axis labels when the point sits near the bottom.
+  const getEndDetailOffset = (pointY: number) =>
+    plotBottom - pointY < END_DETAIL_FLIP_DISTANCE
+      ? -ANALYTICS_PDF_FONT_SIZE.label
+      : END_DETAIL_OFFSET;
   const toLinePoints = (
     getValue: (point: AnalyticsPdfLineChartPoint) => number | null,
   ): AnalyticsLinePoint[] =>
@@ -189,6 +195,15 @@ export const AnalyticsPdfLine = ({
           fill="none"
         />
       )}
+      {getAnalyticsIsolatedPoints(previousPoints).map(({ x, y }) => (
+        <Circle
+          key={x}
+          cx={x}
+          cy={y}
+          r={ISOLATED_DOT_RADIUS}
+          fill={ANALYTICS_PDF_COLOR.neutral}
+        />
+      ))}
       {hasLighterPoints && (
         <Path
           d={buildAnalyticsLinePath(currentPoints)}
@@ -269,7 +284,7 @@ export const AnalyticsPdfLine = ({
                 getAnalyticsPdfBaseline(
                   getY(lastKnownPoint.value),
                   ANALYTICS_PDF_FONT_SIZE.label,
-                ) + END_DETAIL_OFFSET
+                ) + getEndDetailOffset(getY(lastKnownPoint.value))
               }
               text={lastKnownPoint.shortDetail}
               fontSize={ANALYTICS_PDF_FONT_SIZE.cellDetail}

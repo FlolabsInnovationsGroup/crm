@@ -98,7 +98,7 @@ export const AnalyticsFunnelCharts = ({
         </AnalyticsChartCard>
         <AnalyticsChartCard
           title={t`What happened to people at each stage?`}
-          note={t`Moved on means they reached a later stage within the window. Stalled means they did not move or leave within it. Left means they went to an exit stage. Still in progress means they are inside the window.`}
+          note={t`Moved on, Stalled and Left count only people whose window has ended. Moved on means they reached a later stage within it. Stalled means they did not move or leave within it. Left means they went to an exit stage within it. Still in progress means their window has not ended yet, so it can include people who have already moved on or left. Lighter bars are groups of fewer than ${minimumSample} people.`}
         >
           <AnalyticsHorizontalBarChart
             ariaLabel={t`Share of people who moved on, stalled, left or are still in progress at each stage`}

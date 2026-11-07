@@ -35,7 +35,12 @@ export const AnalyticsFunnelTab = ({
   const { formatNumber } = useNumberFormat();
 
   // Status is disabled on this tab, so a value picked on another tab must not reach the rates.
-  const funnelFilter: AnalyticsFilter = { ...filter, status: 'ALL' };
+  // The server ignores period here, so the Trends selector must not miss this cache.
+  const funnelFilter: AnalyticsFilter = {
+    ...filter,
+    status: 'ALL',
+    period: 'WEEK',
+  };
 
   const {
     payload: funnel,
@@ -58,13 +63,15 @@ export const AnalyticsFunnelTab = ({
     return <AnalyticsStatePanel kind="ERROR" error={error} onRetry={retry} />;
   }
 
+  const loadingView = (
+    <AnalyticsChartGrid>
+      <AnalyticsSkeleton shape="chart" />
+      <AnalyticsSkeleton shape="chart" />
+    </AnalyticsChartGrid>
+  );
+
   if (isFirstLoad) {
-    return (
-      <AnalyticsChartGrid>
-        <AnalyticsSkeleton shape="chart" />
-        <AnalyticsSkeleton shape="chart" />
-      </AnalyticsChartGrid>
-    );
+    return loadingView;
   }
 
   if (!isDefined(funnel)) {
@@ -76,7 +83,12 @@ export const AnalyticsFunnelTab = ({
   // The server always lists every stage, so an empty view shows as an empty cohort. A filter
   // can match only imported people, who are never in a cohort, so this cannot say nobody matched.
   if (funnel.cohortSize === 0 && hasActiveFilter) {
-    return <AnalyticsStatePanel kind="EMPTY_FUNNEL" onReset={onResetFilter} />;
+    // The payload is still the old filter's, so it says nothing yet about this one.
+    return isRefetching ? (
+      loadingView
+    ) : (
+      <AnalyticsStatePanel kind="EMPTY_FUNNEL" onReset={onResetFilter} />
+    );
   }
 
   // Four charts of nothing say less than the launch message and the ledger's own notice.

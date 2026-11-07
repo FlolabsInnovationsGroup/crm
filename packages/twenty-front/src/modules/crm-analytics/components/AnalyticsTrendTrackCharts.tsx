@@ -15,6 +15,7 @@ import {
 } from '@/crm-analytics/types/AnalyticsApi';
 import { buildAnalyticsSeriesBuckets } from '@/crm-analytics/utils/buildAnalyticsSeriesBuckets';
 import { buildAnalyticsSeriesSample } from '@/crm-analytics/utils/buildAnalyticsSeriesSample';
+import { getAnalyticsProgramFilterLabel } from '@/crm-analytics/utils/getAnalyticsFilterLabels';
 import { isAnalyticsRateMetric } from '@/crm-analytics/utils/isAnalyticsRateMetric';
 import { formatAnalyticsTrendValue } from '@/crm-analytics/utils/formatAnalyticsTrendValue';
 import {
@@ -85,7 +86,11 @@ const AnalyticsTrendTrackLines = ({
     };
 
     const getLineKey = (groupKey: string | null) => groupKey ?? 'all';
-    const getLineLabel = (groupLabel: string | null) => groupLabel ?? t`All`;
+    // Under a program filter the one line counts only that program, not its whole track.
+    const getLineLabel = (groupLabel: string | null) =>
+      isDefined(filter.programKey) && lines.length === 1
+        ? getAnalyticsProgramFilterLabel(filter.programKey, meta)
+        : (groupLabel ?? t`All`);
 
     return (
       <AnalyticsChartCard

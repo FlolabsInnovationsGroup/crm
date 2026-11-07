@@ -370,7 +370,7 @@ test('trends: line with a gap and a gray previous line, bucket, cohort and movem
     .getByRole('table')
     .filter({ has: page.getByRole('columnheader', { name: 'Entered', exact: true }) });
 
-  for (const header of ['Stage', 'Entered', 'Left', 'Now']) {
+  for (const header of ['Stage', 'Entered', 'Moved out', 'Now']) {
     await expect(movementTable.getByRole('columnheader', { name: header, exact: true })).toBeVisible();
   }
 

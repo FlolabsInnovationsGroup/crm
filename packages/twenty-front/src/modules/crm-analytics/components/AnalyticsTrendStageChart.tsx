@@ -135,7 +135,12 @@ export const AnalyticsTrendStageChart = ({
               color,
             })),
             ...(segments.length > 0
-              ? [{ label: t`Total`, value: formatNumber(total) }]
+              ? [
+                  {
+                    label: t`Total in these stages`,
+                    value: formatNumber(total),
+                  },
+                ]
               : []),
           ],
           note:
@@ -152,7 +157,7 @@ export const AnalyticsTrendStageChart = ({
   return (
     <AnalyticsChartCard
       title={t`People in each stage over time`}
-      note={t`People in each stage, from the last daily count in each period. Main stages climb from light to dark, and exits are gray. A dash means no count is stored for that period.`}
+      note={t`People in each stage, from the last daily count in each period. Dates only choose the periods shown, not when people were created. Main stages climb from light to dark, and exits are gray. A dash means no count is stored for that period. People in other stages, not mapped or with no stage are not shown, so a column can be lower than Total contacts.`}
       isLoading={isFirstLoad}
       isRefetching={isRefetching}
       error={error}
@@ -178,6 +183,7 @@ export const AnalyticsTrendStageChart = ({
       <AnalyticsColumnChart
         ariaLabel={t`People in each stage over time`}
         columns={columns}
+        isTimeAxis
       />
     </AnalyticsChartCard>
   );

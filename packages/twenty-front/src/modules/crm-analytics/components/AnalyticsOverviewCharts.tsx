@@ -6,9 +6,11 @@ import { AnalyticsChartGrid } from '@/crm-analytics/charts/AnalyticsChartGrid';
 import { AnalyticsDonutChart } from '@/crm-analytics/charts/AnalyticsDonutChart';
 import { AnalyticsHorizontalBarChart } from '@/crm-analytics/charts/AnalyticsHorizontalBarChart';
 import { AnalyticsLineChart } from '@/crm-analytics/charts/AnalyticsLineChart';
+import { type AnalyticsSparklineData } from '@/crm-analytics/charts/AnalyticsSparkline';
 import { AnalyticsFiguresRow } from '@/crm-analytics/components/AnalyticsFiguresRow';
 import { AnalyticsOverviewCategoryCard } from '@/crm-analytics/components/AnalyticsOverviewCategoryCard';
 import { AnalyticsOverviewFollowUpCard } from '@/crm-analytics/components/AnalyticsOverviewFollowUpCard';
+import { AnalyticsNote } from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsStageTotalsTable } from '@/crm-analytics/components/AnalyticsStageTotalsTable';
 import { GET_CRM_ANALYTICS_FUNNEL } from '@/crm-analytics/graphql/getCrmAnalyticsFunnel';
 import { useCrmAnalyticsQuery } from '@/crm-analytics/hooks/useCrmAnalyticsQuery';
@@ -27,6 +29,7 @@ import { buildPipelineStatusSlices } from '@/crm-analytics/utils/buildPipelineSt
 import { buildStageTotalsChartRows } from '@/crm-analytics/utils/buildStageTotalsChartRows';
 import { buildWeeklyLineChartBuckets } from '@/crm-analytics/utils/buildWeeklyLineChartBuckets';
 import { countAnalyticsUnmappedPeople } from '@/crm-analytics/utils/countAnalyticsUnmappedPeople';
+import { getAnalyticsWindowLength } from '@/crm-analytics/utils/getAnalyticsWindowLength';
 import { hasActiveAnalyticsFilter } from '@/crm-analytics/utils/hasActiveAnalyticsFilter';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
@@ -36,6 +39,8 @@ const OVERVIEW_SERIES_REQUESTS: AnalyticsSeriesRequest[] = [
   { metric: 'TOTAL_CONTACTS', stageKey: null, groupBy: 'NONE' },
   { metric: 'OVERALL_CONVERSION', stageKey: null, groupBy: 'NONE' },
 ];
+
+const NO_SPARKLINE: AnalyticsSparklineData = { values: [], marks: [] };
 
 type AnalyticsOverviewChartsProps = {
   // The tab dims everything while this runs, and opacity would multiply if a card dimmed too.
@@ -62,10 +67,11 @@ export const AnalyticsOverviewCharts = ({
     payload: funnel,
     isRefetching: isFunnelRefetching,
     error: funnelError,
+    retry: retryFunnel,
   } = useCrmAnalyticsQuery<AnalyticsFunnel>({
     query: GET_CRM_ANALYTICS_FUNNEL,
     rootField: 'getCrmAnalyticsFunnel',
-    variables: { filter: { ...filter, status: 'ALL' } },
+    variables: { filter: { ...filter, status: 'ALL', period: 'WEEK' } },
   });
 
   // The period selector lives on Trends only, so it must not change this tab out of sight.
@@ -92,10 +98,20 @@ export const AnalyticsOverviewCharts = ({
       formatNumber,
     });
 
+  const hasDateFilter = isDefined(filter.dateFrom) || isDefined(filter.dateTo);
+
+  // Snapshots have no creation date, so under a date filter these two would count people their tile leaves out.
+  const readEveryoneSparkline = (metric: AnalyticsTrendMetric, label: string) =>
+    hasDateFilter ? NO_SPARKLINE : readSparkline(metric, label);
+
   const newApplicationsSeries = findSeries('NEW_APPLICATIONS');
   const newApplicationsPoints = newApplicationsSeries?.points ?? [];
   const hasPreviousApplications = newApplicationsPoints.some((point) =>
     isDefined(point.previousValue),
+  );
+  const previousWindowLength = getAnalyticsWindowLength(
+    newApplicationsPoints.length,
+    'WEEK',
   );
 
   const { mainRows, otherRows } = buildStageTotalsChartRows({
@@ -103,12 +119,20 @@ export const AnalyticsOverviewCharts = ({
     formatNumber,
   });
 
-  const handleTrackSelect = (trackKey: string) =>
+  const handleTrackSelect = (trackKey: string) => {
+    const isTrackCleared = filter.trackKey === trackKey;
+    const isProgramInTrack = meta.programs.some(
+      (program) =>
+        program.key === filter.programKey && program.trackKey === trackKey,
+    );
+
     onFilterChange?.({
       ...filter,
-      trackKey: filter.trackKey === trackKey ? null : trackKey,
-      programKey: null,
+      trackKey: isTrackCleared ? null : trackKey,
+      programKey:
+        !isTrackCleared && isProgramInTrack ? filter.programKey : null,
     });
+  };
 
   const handleSourceSelect = (sourceKey: string) =>
     onFilterChange?.({
@@ -125,27 +149,38 @@ export const AnalyticsOverviewCharts = ({
         hasActiveFilter={hasActiveAnalyticsFilter(filter)}
         unmappedPeople={countAnalyticsUnmappedPeople(overview.stageTotals)}
         overallConversion={
-          isDefined(funnel)
+          isDefined(funnel) && !isDefined(funnelError)
             ? buildOverallConversionAnswer({ funnel, formatNumber })
             : null
         }
         hasOverallConversionError={isDefined(funnelError)}
+        onRetryOverallConversion={retryFunnel}
         isStatusFiltered={filter.status !== 'ALL'}
         isRefetching={
           (isFunnelRefetching || isSeriesRefetching) && !isOverviewRefetching
         }
-        sparklines={{
-          activePeople: readSparkline('ACTIVE_PEOPLE', t`Active people`),
-          newApplications: readSparkline(
-            'NEW_APPLICATIONS',
-            t`New applications`,
-          ),
-          overallConversion: readSparkline(
-            'OVERALL_CONVERSION',
-            t`Overall conversion`,
-          ),
-          totalContacts: readSparkline('TOTAL_CONTACTS', t`Total contacts`),
-        }}
+        sparklines={
+          isDefined(seriesError)
+            ? undefined
+            : {
+                activePeople: readEveryoneSparkline(
+                  'ACTIVE_PEOPLE',
+                  t`Active people`,
+                ),
+                newApplications: readSparkline(
+                  'NEW_APPLICATIONS',
+                  t`New applications`,
+                ),
+                overallConversion: readSparkline(
+                  'OVERALL_CONVERSION',
+                  t`Overall conversion`,
+                ),
+                totalContacts: readEveryoneSparkline(
+                  'TOTAL_CONTACTS',
+                  t`Total contacts`,
+                ),
+              }
+        }
       />
       <AnalyticsChartGrid>
         <AnalyticsChartCard
@@ -186,6 +221,9 @@ export const AnalyticsOverviewCharts = ({
           emptyMessage={t`This workspace has no application forms.`}
           isFullWidth
         >
+          {hasDateFilter && (
+            <AnalyticsNote>{t`Dates widen to whole weeks here.`}</AnalyticsNote>
+          )}
           <AnalyticsLineChart
             ariaLabel={t`New applications by week`}
             buckets={buildWeeklyLineChartBuckets(newApplicationsPoints)}
@@ -201,7 +239,7 @@ export const AnalyticsOverviewCharts = ({
                 ? newApplicationsPoints.map(({ previousValue }) => previousValue)
                 : undefined
             }
-            previousLabel={t`Previous period`}
+            previousLabel={t`${previousWindowLength} before`}
             hasArea
           />
         </AnalyticsChartCard>

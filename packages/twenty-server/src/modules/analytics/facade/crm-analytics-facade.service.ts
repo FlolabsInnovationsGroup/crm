@@ -45,8 +45,14 @@ const SOURCE_FIELD_NAME = 'applicantSource';
 
 // setup-forms.mjs creates objects and fields in separate calls, so a half-built
 // object can exist. The submission relation reads each of these fields.
-const FORM_SUBMISSION_REQUIRED_FIELD_NAMES = ['submittedAt', 'form', 'person'];
-const CRM_FORM_REQUIRED_FIELD_NAMES = ['name'];
+const FORM_SUBMISSION_REQUIRED_FIELDS: Record<string, FieldMetadataType> = {
+  submittedAt: FieldMetadataType.DATE_TIME,
+  form: FieldMetadataType.RELATION,
+  person: FieldMetadataType.RELATION,
+};
+const CRM_FORM_REQUIRED_FIELDS: Record<string, FieldMetadataType> = {
+  name: FieldMetadataType.TEXT,
+};
 
 const DISPLAY_NAMES_LIMIT = 100;
 
@@ -160,7 +166,7 @@ export class CrmAnalyticsFacadeService {
     const isCustomObjectUsable = (
       flatObject: FlatObjectMetadata | undefined,
       tableName: string,
-      requiredFieldNames: string[],
+      requiredFields: Record<string, FieldMetadataType>,
     ): boolean => {
       if (
         !isDefined(flatObject) ||
@@ -174,9 +180,17 @@ export class CrmAnalyticsFacadeService {
         flatObject,
       );
 
-      return requiredFieldNames.every((fieldName) =>
-        isDefined(fieldIdByName[fieldName]),
-      );
+      return Object.entries(requiredFields).every(([fieldName, fieldType]) => {
+        const fieldMetadataId = fieldIdByName[fieldName];
+
+        return (
+          isDefined(fieldMetadataId) &&
+          findFlatEntityByIdInFlatEntityMaps({
+            flatEntityId: fieldMetadataId,
+            flatEntityMaps: flatFieldMetadataMaps,
+          })?.type === fieldType
+        );
+      });
     };
 
     const flatPerson = findFlatObject(PERSON_OBJECT_NAME);
@@ -222,8 +236,9 @@ export class CrmAnalyticsFacadeService {
       workspaceId,
       stage: {
         status: stageStatus,
+        // Same rule as the timeline writer: a projection cached before the flag existed still logs.
         isAuditLogged:
-          stageStatus === 'OK' && stageField?.isAuditLogged === true,
+          stageStatus === 'OK' && stageField?.isAuditLogged !== false,
         options: computeFieldOptions(stageField, stageStatus),
       },
       positionsAppliedFor: {
@@ -238,17 +253,17 @@ export class CrmAnalyticsFacadeService {
         isCustomObjectUsable(
           findFlatObject(PUBLIC_FORM_SUBMISSION_OBJECT_NAME),
           FORM_SUBMISSION_TABLE_NAME,
-          FORM_SUBMISSION_REQUIRED_FIELD_NAMES,
+          FORM_SUBMISSION_REQUIRED_FIELDS,
         ) &&
         isCustomObjectUsable(
           findFlatObject(PUBLIC_FORM_OBJECT_NAME),
           CRM_FORM_TABLE_NAME,
-          CRM_FORM_REQUIRED_FIELD_NAMES,
+          CRM_FORM_REQUIRED_FIELDS,
         ),
       hasApplicationObject: isCustomObjectUsable(
         findFlatObject(CRM_ANALYTICS_CONFIG.applicationObjectNameSingular),
         APPLICATION_TABLE_NAME,
-        [],
+        {},
       ),
     };
   }
@@ -299,8 +314,30 @@ WHERE t."updatedAt" >= ${updatedSinceParameter} AND t."happensAt" >= ${happenedS
     return `SELECT s.id, s."personId" AS person_id, s."submittedAt" AS submitted_at
 FROM ${buildQualifiedTableSql(state.workspaceId, FORM_SUBMISSION_TABLE_NAME)} s JOIN ${buildQualifiedTableSql(state.workspaceId, CRM_FORM_TABLE_NAME)} f ON f.id = s."formId"
 LEFT JOIN ${buildQualifiedTableSql(state.workspaceId, PERSON_TABLE_NAME)} p ON p.id = s."personId"
-WHERE s."deletedAt" IS NULL AND f.name IN (${formNamesSql})
+WHERE s."deletedAt" IS NULL AND f."deletedAt" IS NULL AND f.name IN (${formNamesSql})
   AND (s."personId" IS NULL OR p."deletedAt" IS NULL)`;
+  }
+
+  async hasApplicationForm({
+    state,
+    run,
+  }: {
+    state: CrmAnalyticsCrmState;
+    run: CrmAnalyticsSqlRunner;
+  }): Promise<boolean> {
+    if (!state.hasFormSubmissionObject) {
+      return false;
+    }
+
+    const formNamesSql =
+      CRM_ANALYTICS_CONFIG.applicationFormNames.map(escapeLiteral).join(', ');
+
+    const rows = await run(
+      `SELECT EXISTS (SELECT 1 FROM ${buildQualifiedTableSql(state.workspaceId, CRM_FORM_TABLE_NAME)} f WHERE f."deletedAt" IS NULL AND f.name IN (${formNamesSql})) AS has_form`,
+      [],
+    );
+
+    return rows[0]?.has_form === true;
   }
 
   async countImportedApplications({

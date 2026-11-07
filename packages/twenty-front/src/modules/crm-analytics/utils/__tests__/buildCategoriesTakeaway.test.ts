@@ -111,6 +111,22 @@ describe('buildCategoriesTakeaway', () => {
     ).toBe('Robotics is largest; Robotics converts best, 10%.');
   });
 
+  it('names no best group when none has converted', () => {
+    expect(
+      buildCategoriesTakeaway(
+        buildCategories([
+          buildRow({
+            key: 'ROBOTICS',
+            label: 'Robotics',
+            people: 400,
+            overallRate: 0,
+          }),
+          buildRow({ key: 'BUSINESS', label: 'Business', overallRate: 0 }),
+        ]),
+      ),
+    ).toBe('Robotics is largest; no group has converted yet.');
+  });
+
   it('stays neutral about conversion when no rate qualifies', () => {
     expect(
       buildCategoriesTakeaway(

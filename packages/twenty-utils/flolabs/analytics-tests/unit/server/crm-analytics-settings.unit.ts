@@ -58,7 +58,17 @@ describe('CrmAnalyticsSettingsService', () => {
       });
     });
 
-    it.each([['not a date'], [''], [20260801]])(
+    it.each([
+      ['not a date'],
+      [''],
+      [20260801],
+      ['Oct 27'],
+      ['2026'],
+      ['12'],
+      ['10/27'],
+      ['10-27-2026'],
+      ['2026-02-31'],
+    ])(
       'throws on %j rather than silently changing the numbers',
       async (value) => {
         const { service } = buildService({

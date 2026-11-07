@@ -1,10 +1,15 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
+import { useEffect, useState } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { type AnalyticsSyncState } from '@/crm-analytics/types/AnalyticsApi';
+import { dateLocaleState } from '@/localization/states/dateLocaleState';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { beautifyPastDateRelativeToNow } from '~/utils/date-utils';
+
+const RELATIVE_TIME_REFRESH_IN_MS = 60 * 1000;
 
 const StyledSyncLine = styled.span<{ isWarning: boolean }>`
   color: ${({ isWarning }) =>
@@ -21,6 +26,19 @@ type AnalyticsSyncLineProps = {
 };
 
 export const AnalyticsSyncLine = ({ sync }: AnalyticsSyncLineProps) => {
+  const { localeCatalog } = useAtomStateValue(dateLocaleState);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  // Only redraws the age, with no request, so a page left open never overstates how fresh it is.
+  useEffect(() => {
+    const refreshInterval = window.setInterval(
+      () => setCurrentTime(Date.now()),
+      RELATIVE_TIME_REFRESH_IN_MS,
+    );
+
+    return () => window.clearInterval(refreshInterval);
+  }, []);
+
   const hasFailedLastAttempt = sync.lastAttemptStatus === 'FAILED';
   const isWarning = sync.isStale || hasFailedLastAttempt;
 
@@ -34,8 +52,15 @@ export const AnalyticsSyncLine = ({ sync }: AnalyticsSyncLineProps) => {
     );
   }
 
-  const relativeTime = beautifyPastDateRelativeToNow(sync.lastSuccessfulSyncAt);
-  const relativeSyncTime = relativeTime === t`now` ? t`just now` : relativeTime;
+  const relativeTime = beautifyPastDateRelativeToNow(
+    sync.lastSuccessfulSyncAt,
+    localeCatalog,
+  );
+  // A browser clock behind the server's would otherwise read "in 3 minutes".
+  const isFromTheFuture =
+    new Date(sync.lastSuccessfulSyncAt).getTime() > currentTime;
+  const relativeSyncTime =
+    relativeTime === t`now` || isFromTheFuture ? t`just now` : relativeTime;
 
   return (
     <StyledSyncLine isWarning={isWarning}>

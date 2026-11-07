@@ -59,6 +59,13 @@ export const buildAnalyticsReportAnswers = ({
         )
       : null;
 
+  const overallRate = describeAnalyticsRate({
+    rate: report.funnel.overall.rate,
+    soFarRate: report.funnel.overall.soFarRate,
+    eligible: report.funnel.overall.eligible,
+    isUnderMinimum: report.funnel.overall.isUnderMinimum,
+  });
+
   return [
     {
       key: 'new-applications',
@@ -73,13 +80,9 @@ export const buildAnalyticsReportAnswers = ({
     {
       key: 'overall-conversion',
       label: t`Overall conversion`,
-      value: describeAnalyticsRate({
-        rate: report.funnel.overall.rate,
-        soFarRate: report.funnel.overall.soFarRate,
-        eligible: report.funnel.overall.eligible,
-        isUnderMinimum: report.funnel.overall.isUnderMinimum,
-      }).label,
+      value: overallRate.label,
       detail: getOverallDetail(report, formatNumber),
+      isLighter: overallRate.isSmallSample || overallRate.isInProgress,
     },
     {
       key: 'significant-changes',

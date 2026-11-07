@@ -1,4 +1,4 @@
-import { t } from '@lingui/core/macro';
+import { plural, t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
 
 import { ANALYTICS_CHART_COLOR } from '@/crm-analytics/charts/AnalyticsChartColor';
@@ -129,10 +129,12 @@ export const hasAnyStepConversion = ({ rows }: AnalyticsFunnel) =>
 
 export const buildStageOutcomeRows = ({
   rows,
+  minimumSample,
 }: AnalyticsFunnel): AnalyticsHorizontalBarRow[] =>
   getStepRows(rows).map((row) => ({
     key: row.stageKey,
     label: row.label,
+    isSmallSample: row.entered < minimumSample,
     segments:
       row.entered > 0
         ? [
@@ -181,6 +183,13 @@ export const buildStageDurationRows = ({
     const days = isDefined(row.medianDays)
       ? formatNumber(row.medianDays, { decimals: 1 })
       : null;
+    // On the printed value, since 1.04 prints as 1.
+    const daysLabel = isDefined(row.medianDays)
+      ? plural(Math.round(row.medianDays * 10) / 10, {
+          one: `${days} day`,
+          other: `${days} days`,
+        })
+      : undefined;
 
     const getNote = () => {
       if (!isDefined(days)) {
@@ -196,7 +205,7 @@ export const buildStageDurationRows = ({
       segments: isDefined(row.medianDays)
         ? [{ key: 'median', label: t`Median days`, value: row.medianDays }]
         : [],
-      valueLabel: isDefined(days) ? t`${days} days` : undefined,
+      valueLabel: daysLabel,
       tickValue: limitDays,
       isSmallSample,
       tooltip: {
@@ -212,7 +221,15 @@ export const buildStageDurationRows = ({
               ]
             : []),
           ...(isDefined(limitDays)
-            ? [{ label: t`Stage limit`, value: t`${limitDays} days` }]
+            ? [
+                {
+                  label: t`Stage limit`,
+                  value: plural(limitDays, {
+                    one: `${limitDays} day`,
+                    other: `${limitDays} days`,
+                  }),
+                },
+              ]
             : []),
         ],
         note: getNote(),

@@ -91,11 +91,11 @@ const getSmallChartNote = (metric: AnalyticsTrendMetric) => {
     case 'NEW_APPLICATIONS':
       return t`Applications, by submission date. Imported applications have no known date and are left out.`;
     case 'TOTAL_CONTACTS':
-      return t`People, from the last daily count in each period.`;
+      return t`People, from the last daily count in each period. Dates only choose the periods shown, not when people were created.`;
     case 'ACTIVE_PEOPLE':
-      return t`People not signed or exited, from the last daily count in each period.`;
+      return t`People in a mapped stage who have not signed or exited, from the last daily count in each period. Dates only choose the periods shown, not when people were created.`;
     case 'STAGE_COUNT':
-      return t`People in this stage, from the last daily count in each period.`;
+      return t`People in this stage, from the last daily count in each period. Dates only choose the periods shown, not when people were created.`;
     case 'OVERALL_CONVERSION':
       return t`People, by application date. A period has a rate only once all its people have had enough time to reach the end, so the line stops before recent periods.`;
     case 'DROP_OFF':
@@ -117,9 +117,9 @@ const getDateWideningNote = (
     case 'DAY':
       return null;
     case 'WEEK':
-      return t`Dates widen to whole weeks on this tab.`;
+      return t`Dates widen to whole weeks on the charts. Moves use the exact dates.`;
     case 'MONTH':
-      return t`Dates widen to whole months on this tab.`;
+      return t`Dates widen to whole months on the charts. Moves use the exact dates.`;
   }
 };
 
@@ -247,7 +247,12 @@ export const AnalyticsTrendsTab = ({
       programKey: null,
     });
 
+  // The retained payloads belong to the last filter until both queries settle without an error.
   const isNothingToShow =
+    !isDefined(trendsError) &&
+    !isDefined(smallChartsError) &&
+    !isTrendsRefetching &&
+    !isSmallChartsRefetching &&
     isDefined(trends) &&
     isDefined(smallChartBundle) &&
     trends.cohorts.length === 0 &&
@@ -275,9 +280,15 @@ export const AnalyticsTrendsTab = ({
   // Each card dims for its own query, because the track and stage charts run theirs separately.
   const isRefetching = isTrendsRefetching || isSmallChartsRefetching;
 
+  // Retained buckets from the last filter would read as a cut range.
+  const isSmallChartSeriesCurrent =
+    !isSmallChartsRefetching && !isDefined(smallChartsError);
+
   const toolbarNote = [
     getDateWideningNote(period, trendsFilter),
-    getCutRangeNote(smallChartSeries, trendsFilter),
+    isSmallChartSeriesCurrent
+      ? getCutRangeNote(smallChartSeries, trendsFilter)
+      : null,
   ]
     .filter(isDefined)
     .join(' ');
@@ -371,7 +382,7 @@ export const AnalyticsTrendsTab = ({
               leftValue: row.leftInPeriod,
             }))}
             rightLabel={t`Entered`}
-            leftLabel={t`Left`}
+            leftLabel={t`Moved out`}
           />
         </AnalyticsChartCard>
         <AnalyticsChartCard

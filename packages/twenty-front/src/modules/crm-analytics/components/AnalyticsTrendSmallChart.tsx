@@ -107,10 +107,15 @@ export const AnalyticsTrendSmallChart = ({
 
   const windowLength = getAnalyticsWindowLength(points.length, period);
   const hasPrevious = points.some((point) => isDefined(point.previousValue));
+  // An old period with no applicants also has no value, but nobody is waiting on it.
+  const lastPointWithPeople = points.findLast(
+    ({ size }) => isDefined(size) && size > 0,
+  );
   const isRateStoppedEarly =
     isAnalyticsRateMetric(metric) &&
     isDefined(summary) &&
-    !isDefined(points.at(-1)?.value);
+    isDefined(lastPointWithPeople) &&
+    !isDefined(lastPointWithPeople.value);
 
   return (
     <AnalyticsChartCard

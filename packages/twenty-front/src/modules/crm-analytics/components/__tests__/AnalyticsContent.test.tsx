@@ -23,6 +23,7 @@ jest.mock('d3-shape', () => ({
 
     generator.innerRadius = () => generator;
     generator.outerRadius = () => generator;
+    generator.padAngle = () => generator;
 
     return generator;
   },
@@ -296,7 +297,7 @@ describe('AnalyticsContent', () => {
 
       expect(
         await screen.findByText(
-          'The daily count has not run since Nov 6, 2026. Trends and reports may be missing.',
+          'The daily job has not finished cleanly since Nov 6, 2026. Trends and reports may be incomplete.',
         ),
       ).toBeInTheDocument();
     });
@@ -306,7 +307,7 @@ describe('AnalyticsContent', () => {
 
       expect(
         await screen.findByText(
-          'The daily count has not run yet. Trends and reports may be missing.',
+          'The daily job has not finished cleanly yet. Trends and reports may be incomplete.',
         ),
       ).toBeInTheDocument();
     });
@@ -319,7 +320,7 @@ describe('AnalyticsContent', () => {
 
       await screen.findByText(ACTIVE_PEOPLE_FIGURE);
 
-      expect(screen.queryByText(/daily count/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/daily job/)).not.toBeInTheDocument();
     });
   });
 

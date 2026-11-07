@@ -1,5 +1,7 @@
+import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
+import { themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsChartUnknownValue } from '@/crm-analytics/charts/AnalyticsChartUnknownValue';
 import { AnalyticsRateCell } from '@/crm-analytics/components/AnalyticsRateCell';
@@ -15,6 +17,12 @@ import { getAnalyticsBucketDescription } from '@/crm-analytics/utils/getAnalytic
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
 const SERIES_TABLE_MAX_HEIGHT = 448;
+
+const StyledInProgress = styled.span`
+  color: ${themeCssVariables.font.color.tertiary};
+  font-size: ${themeCssVariables.font.size.xs};
+  margin-inline-start: ${themeCssVariables.spacing[2]};
+`;
 
 type AnalyticsSeriesTableColumn = {
   key: string;
@@ -40,11 +48,10 @@ export const AnalyticsSeriesTable = ({
 }: AnalyticsSeriesTableProps) => {
   const { formatNumber } = useNumberFormat();
 
-  const newestFirstBuckets = (columns[0]?.points ?? [])
-    .map(({ bucketStart }) => bucketStart)
-    .toSorted((firstBucket, secondBucket) =>
-      secondBucket.localeCompare(firstBucket),
-    );
+  const newestFirstPoints = (columns[0]?.points ?? []).toSorted(
+    (firstPoint, secondPoint) =>
+      secondPoint.bucketStart.localeCompare(firstPoint.bucketStart),
+  );
 
   const renderValue = (point: AnalyticsTrendPoint | undefined) => {
     if (isAnalyticsRateMetric(metric)) {
@@ -82,10 +89,13 @@ export const AnalyticsSeriesTable = ({
         </tr>
       </thead>
       <tbody>
-        {newestFirstBuckets.map((bucketStart) => (
+        {newestFirstPoints.map(({ bucketStart, isPartial }) => (
           <AnalyticsTable.Row key={bucketStart}>
             <AnalyticsTable.Cell>
               {getAnalyticsBucketDescription(bucketStart, period)}
+              {isPartial && (
+                <StyledInProgress>{t`in progress`}</StyledInProgress>
+              )}
             </AnalyticsTable.Cell>
             {columns.map(({ key, points }) => (
               <AnalyticsTable.Cell key={key} isNumeric>

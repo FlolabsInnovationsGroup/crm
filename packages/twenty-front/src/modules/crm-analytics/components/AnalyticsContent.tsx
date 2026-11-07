@@ -194,7 +194,8 @@ export const AnalyticsContent = () => {
             onReset={resetFilter}
           />
         )}
-        <StyledBody>
+        {/* One scroller serves every tab, so a new tab must not open at the old offset. */}
+        <StyledBody key={activeTabId}>
           {activeTabId === 'overview' && (
             <AnalyticsOverviewTab
               filter={filter}

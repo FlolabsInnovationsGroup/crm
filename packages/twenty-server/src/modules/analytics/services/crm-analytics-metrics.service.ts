@@ -684,7 +684,6 @@ const buildTrendSeries = (
   buckets: CrmAnalyticsTrendBucket[],
   readValue: (bucketStart: string) => TrendValue,
   readPreviousValue: (bucketStart: string) => TrendValue,
-  isRateMetric: boolean,
 ): AnalyticsTrendPoint[] =>
   buckets.map(({ bucketStart, previousBucketStart, isPartial }) => {
     const current = readValue(bucketStart);
@@ -695,7 +694,7 @@ const buildTrendSeries = (
       value: current.value,
       previousValue: previous.value,
       size: current.size,
-      previousSize: isRateMetric ? previous.size : null,
+      previousSize: previous.size,
       isPartial,
     };
   });
@@ -742,13 +741,18 @@ const readRateTrendValue = ({
   };
 };
 
+const resolveProgramTrackKey = (programKey: string): string =>
+  programKey === NONE_CATEGORY_KEY
+    ? NONE_CATEGORY_KEY
+    : (TRACK_KEY_BY_POSITION.get(programKey) ?? UNMAPPED_CATEGORY_KEY);
+
 const resolveSnapshotDimension = (
   filter: CrmAnalyticsPersonFilter,
 ): { dimension: string; dimensionKey: string } | null => {
   // A program inside the chosen track already implies that track.
   const isTrackImplied =
     isDefined(filter.programKey) &&
-    TRACK_KEY_BY_POSITION.get(filter.programKey) === filter.trackKey;
+    resolveProgramTrackKey(filter.programKey) === filter.trackKey;
 
   const dimensions = [
     ...(isDefined(filter.trackKey) && !isTrackImplied
@@ -880,8 +884,15 @@ export class CrmAnalyticsMetricsService {
       [timeZone],
     );
 
-    return {
+    // A renamed form leaves the object in place but matches no row, which would read as
+    // a measured 0 rather than as not available.
+    const hasApplicationForm = await this.facadeService.hasApplicationForm({
       state,
+      run,
+    });
+
+    return {
+      state: { ...state, hasFormSubmissionObject: hasApplicationForm },
       run,
       trackingStart,
       timeZone,
@@ -1184,16 +1195,23 @@ GROUP BY cs.stage_key`,
   }): Promise<AnalyticsMovementRow[]> {
     // No date on scope: movement goes by event date and includes imported people.
     const statement = this.createBaseStatement({ context, personFilter });
-    const localDateSql = `${statement.localDate('t.happened_at')}::date`;
+    const localDateSql = `${statement.localDate('m.happened_at')}::date`;
 
+    // A reconcile row and a late timeline row can record one move, so a repeat of the
+    // stage just entered is not counted again. Stored rows stay as they are.
     const rows = await context.run(
       `${joinCtes(
         statement.withSql,
-        `period_move AS (
-  SELECT t.from_key, t.to_key
+        `key_move AS (
+  SELECT t.from_key, t.to_key, t.happened_at,
+    lag(t.to_key) OVER (PARTITION BY t.person_id ORDER BY t.happened_at) AS previous_to_key
   FROM transition t JOIN scope s ON s.person_id = t.person_id
+  WHERE t.from_key IS DISTINCT FROM t.to_key)`,
+        `period_move AS (
+  SELECT m.from_key, m.to_key
+  FROM key_move m
   WHERE ${localDateSql} >= ${statement.bind(range.from)}::date AND ${localDateSql} <= ${statement.bind(range.to)}::date
-    AND t.from_key IS DISTINCT FROM t.to_key)`,
+    AND m.previous_to_key IS DISTINCT FROM m.to_key)`,
         `entered_total AS (
   SELECT mv.to_key AS stage_key, count(*) AS moved
   FROM period_move mv WHERE mv.to_key IS NOT NULL GROUP BY mv.to_key)`,
@@ -1364,11 +1382,19 @@ LEFT JOIN current_total c ON c.stage_key = k.stage_key`,
     previous: CrmAnalyticsClosedDateRange;
   } {
     const hasDateFilter = isDefined(dateFrom) || isDefined(dateTo);
-    const to = dateTo ?? context.localToday;
     const requestedFrom = hasDateFilter
       ? (dateFrom ??
         computeCrmAnalyticsLocalDate(context.trackingStart, context.timeZone))
       : addCrmAnalyticsLocalDays(context.localToday, -6);
+    const requestedTo = dateTo ?? context.localToday;
+    const hasRangeStarted = requestedFrom <= context.localToday;
+    // A range still running stops at today, so the previous span covers as many days as
+    // have passed. One wholly in the future stays as asked: it has no comparison.
+    const to = !hasRangeStarted
+      ? (dateTo ?? requestedFrom)
+      : requestedTo > context.localToday
+        ? context.localToday
+        : requestedTo;
     const from = requestedFrom > to ? to : requestedFrom;
     const dayCount = countCrmAnalyticsLocalDays(from, to);
 
@@ -1443,12 +1469,19 @@ LEFT JOIN current_total c ON c.stage_key = k.stage_key`,
           (stage) => stage.kind !== 'EXIT' && !stage.isSuccess,
         ),
         newApplications: newApplications.current,
-        newApplicationsPrevious: newApplications.previous,
+        newApplicationsPrevious:
+          newApplicationRanges.current.from > context.localToday
+            ? null
+            : newApplications.previous,
         newApplicationsFrom: newApplicationRanges.current.from,
         newApplicationsTo: newApplicationRanges.current.to,
-        importedApplications: await this.facadeService.countImportedApplications(
-          { state: context.state, run: context.run },
-        ),
+        // A workspace-wide total: under a person filter it would read as that group's.
+        importedApplications: hasPersonFilter(filter)
+          ? null
+          : await this.facadeService.countImportedApplications({
+              state: context.state,
+              run: context.run,
+            }),
         stuckPeople,
         inactivePeople,
         signedPeople: CRM_ANALYTICS_CONFIG.showSignedFigure
@@ -2077,11 +2110,16 @@ GROUP BY cm.parent_key, cm.category_key`,
       case 'TRACK':
         return this.resolveSeriesTrackKeys(filter).map((trackKey) => ({
           groupKey: trackKey,
+          // The line holds only the chosen program, so it carries that name.
           groupLabel: this.buildCategoryLabel({
             state: context.state,
             groupBy: 'TRACK_PROGRAM',
-            parentKey: null,
-            key: trackKey,
+            parentKey:
+              isDefined(filter.programKey) &&
+              filter.programKey !== NONE_CATEGORY_KEY
+                ? trackKey
+                : null,
+            key: filter.programKey ?? trackKey,
           }),
           // A chosen program already narrows further than its track, and adding the track
           // could only turn a snapshot metric unavailable.
@@ -2120,11 +2158,7 @@ GROUP BY cm.parent_key, cm.category_key`,
       return CRM_ANALYTICS_CONFIG.tracks.map((track) => track.trackKey);
     }
 
-    return [
-      programKey === NONE_CATEGORY_KEY
-        ? NONE_CATEGORY_KEY
-        : (TRACK_KEY_BY_POSITION.get(programKey) ?? UNMAPPED_CATEGORY_KEY),
-    ];
+    return [resolveProgramTrackKey(programKey)];
   }
 
   // Ranked as the source bars are, so the lines and the bars name the same sources.
@@ -2305,12 +2339,7 @@ GROUP BY cm.parent_key, cm.category_key`,
         : readValue(bucketStart);
 
     return {
-      series: buildTrendSeries(
-        buckets,
-        readValue,
-        readPreviousValue,
-        isRateMetric,
-      ),
+      series: buildTrendSeries(buckets, readValue, readPreviousValue),
       unavailableReason: null,
     };
   }

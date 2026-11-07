@@ -56,9 +56,15 @@ export const AnalyticsSparkline = ({
   color = ANALYTICS_CHART_COLOR.accent,
 }: AnalyticsSparklineProps) => {
   const { widthRef, width } = useAnalyticsChartWidth();
+  const dataSignature = JSON.stringify([values, marks]);
   const { tooltip, showTooltip, moveTooltip, hideTooltip } =
-    useAnalyticsChartTooltip();
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    useAnalyticsChartTooltip(dataSignature);
+  const [hover, setHover] = useState<{
+    index: number;
+    dataSignature: string;
+  } | null>(null);
+  const hoveredIndex =
+    hover?.dataSignature === dataSignature ? hover.index : null;
 
   const knownValues = values.filter(isDefined);
 
@@ -93,8 +99,12 @@ export const AnalyticsSparkline = ({
 
   const handlePointerMove = (event: PointerEvent<SVGRectElement>) => {
     const box = event.currentTarget.getBoundingClientRect();
+    // Points are drawn inside the edge room, so the hit test has to skip it too.
+    const hitWidth = box.width - EDGE_ROOM_IN_PX * 2;
     const position =
-      box.width > 0 ? (event.clientX - box.left) / box.width : 0;
+      hitWidth > 0
+        ? (event.clientX - box.left - EDGE_ROOM_IN_PX) / hitWidth
+        : 0;
     const nextIndex = Math.max(
       Math.min(Math.round(position * (values.length - 1)), values.length - 1),
       0,
@@ -108,7 +118,7 @@ export const AnalyticsSparkline = ({
 
     const content = marks?.[nextIndex]?.tooltip;
 
-    setHoveredIndex(nextIndex);
+    setHover({ index: nextIndex, dataSignature });
 
     if (isDefined(content)) {
       showTooltip(content, event);
@@ -116,7 +126,7 @@ export const AnalyticsSparkline = ({
   };
 
   const handlePointerLeave = () => {
-    setHoveredIndex(null);
+    setHover(null);
     hideTooltip();
   };
 
