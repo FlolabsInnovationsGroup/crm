@@ -111,7 +111,7 @@ If a workflow cannot be resumed in a new chat, check `git status` in the worktre
 3. **Build what is intended, do not over-engineer, make the tool the team needs.** Critically evaluate scope.
 4. **A good UI and good visual graphs matter.** Use the UI, Apple and dataviz skills for UI work.
 5. **The user makes the decisions.** Give suggestions and ask before decisions, changes and anything irreversible. On 2026-11-07 the user said to start, and later to stop spending time on research and build now, with the suggested defaults as the starting point. Report at the end of each phase. Do not fix or "improve" things that were not asked for, including bugs you notice: report them.
-6. **Use tokens carefully, step by step (the user, 2026-11-07, 19:00):** take the most optimized approach. Run tests, type checks and builds directly with Bash, since only their output costs tokens. Spawn an agent only for real work such as fixing a confirmed bug, with a tight brief, preferably one at a time. No looping workflows. Never more than 6 agents without asking. Be especially careful with development, because this is the live CRM. Never use `isolation: 'worktree'` for agents, since that branches from the wrong commit.
+6. **Do not waste tokens, but do not cut useful work short (the user, 2026-11-07):** "we don't necessarily need to save tokens, just not waste them." Let review, fix and test workflows finish, and do not stop a running agent without asking. Run simple checks directly when an agent adds nothing. Avoid duplicate agents. Complex work can use Opus 5.5 at max effort. Never more than 6 agents without asking. Heavy commands stay one at a time. Be especially careful with development, because this is the live CRM. Never use `isolation: 'worktree'` for agents, since that branches from the wrong commit.
 7. **All work on `analytics_tool`.** Nothing merges to `main` or deploys until the user reviews it. Do not push until the user says so.
 8. **Keep this section updated with all details.**
 
@@ -204,6 +204,6 @@ From the requirements: track contact and application counts by pipeline, track, 
 - 2026-11-07: The user has no production access. Production data is not a build blocker: the page shows real stage values as Unmapped rows once deployed, and timeline behaviour is proven locally.
 - 2026-11-07: The user asked for a workflow that keeps testing, with test files that can be rerun: Opus writes, Haiku or Sonnet run and evaluate.
 - 2026-11-07: The user said seed data must not be merged, and asked for a merge layer and a things-to-do-before-merge file.
-- 2026-11-07, 19:00: The user said to go step by step and not burn tokens. The test loop stops after its first round, reviews stop after one review and one fix, and the main session runs checks directly from now on.
+- 2026-11-07, 19:25: The user objected to stopping the UI review to save tokens: do not waste tokens, but let useful work finish. UI workflow resumed; the reviews and test loop run to their normal end.
 - 2026-11-07: The user said to stop waiting on research and build now. Critic's simplifications adopted: no current-state table, mapping in a constant, 15-minute sync, metrics per request, eight views instead of 13, reports on a page, no polling. Build started before the contract verifier finished.
 <!-- analytics-state:end -->
