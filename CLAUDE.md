@@ -91,7 +91,7 @@ Last updated: 2026-11-07 23:45.
 | SQL proof | Done and rerun on the committed code at the pause: 122 passed, 0 failed, and 9 large-volume checks not run because they are off by default |
 | Type checks, lint, boot test, local run with seed data | Not started. Exact steps in `RESUME.md` section 6 and contract section 9 |
 
-Agents do not commit; the main session commits at phase ends. **Nothing is pushed: the user said to keep it local for now.** The only copy is the D: drive.
+Agents do not commit; the main session commits at phase ends. **Pushed to `origin/analytics_tool` at the user's request on 2026-11-08 at 00:05, at commit `8f6f06d4`, under their name. Anything after that stays local until the user says to push again. Never `main`.** Keep the team's shared repo in mind when writing notes here: they are readable by colleagues.
 
 **The test suite:** run any layer with `node packages/twenty-utils/flolabs/analytics-tests/run-tests.mjs --layer <unit-server, unit-front, integration, seed, dataflow, blackbox, ui, merge-guard, all>`. Results and bugs are in `analytics-work/test-results/` (`latest-<layer>.json`, `history.jsonl`, `bugs.md`). The user wants a workflow that keeps testing, with Opus writing tests and Haiku or Sonnet running and judging them, and data flow graph tests. **Test data stays small: the user said not to make it large, but to reflect every use case.** It never fixes product code: read `bugs.md` between phases and send real bugs to a fix agent. Local only, it refuses non-localhost targets.
 

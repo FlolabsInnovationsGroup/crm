@@ -2,7 +2,7 @@
 
 Paused on 2026-11-07 at about 20:00 Pakistan time because the user had to close the chat. This file says where every workflow stopped and how to restart from that exact point. `CLAUDE.md` holds the full project background and the contract (`docs/analytics/contract.md`) holds the build details. **Read this file first, then the "CRM Analytics tool: project state" section of `CLAUDE.md`.**
 
-Nothing was lost. All code is committed on the local branch `analytics_tool`. Nothing is pushed, because the user said to keep it local.
+Nothing was lost. All code is committed on the local branch `analytics_tool`. It was pushed to `origin/analytics_tool` at the user's request on 2026-11-08 at 00:05, at commit `8f6f06d4`. Anything after that stays local until the user says to push again. Never `main`.
 
 **Latest, 2026-11-07 at 23:45: the user asked for a graph-first redesign. Read `docs/analytics/dashboard-redesign.md` first; sections 2 to 7 below are older.** The test workflows are stopped on purpose. The redesign workflow is `analytics-dashboard-redesign`, run ID `wf_02bed1f5-875`, script at `docs/analytics/resume/workflows/analytics-dashboard-redesign.js`. The PDF report workflow is `analytics-report-pdf`, run ID `wf_3a40b86a-b1f`, script at `docs/analytics/resume/workflows/analytics-report-pdf.js`. **After both finish and the type check is done, run the final step the user asked for: a large code review, with many Opus agents at max effort, of all code changed on this branch against `origin/main`, with findings checked by independent agents before fixing.** If the chat closes first, check their `journal.jsonl` in the session's `subagents/workflows/` folder and `git status`, because agents do not commit.
 
@@ -172,7 +172,7 @@ It runs unattended until the last step. The biggest unknowns are the first type 
 
 ## 9. Snapshot
 
-- **Branch:** `analytics_tool`, based on `origin/main` at `30f3e351`. GitHub has only `caf0f016`, so the only copy of this work is this D: drive.
+- **Branch:** `analytics_tool`, based on `origin/main` at `30f3e351`. GitHub holds it up to `8f6f06d4`; later commits exist only on this D: drive until the user asks for another push.
 - **Commits made at the pause, in order:** server module, page, test suite with merge guard, five integration edits one per file, contract decisions and checklist, then this file and `CLAUDE.md` (subject "Save the resume point for the analytics build").
 - **Worktree:** `D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool`. Dependencies are installed and `twenty-shared` and `twenty-ui` are built, which `git` does not record.
 - **Work folder:** `D:\Coding\Flolabs\crm\.claude\worktrees\analytics-work`, not in git. A copy is committed in `docs/analytics/resume/work-folder-backup/`. If the folder is gone: copy that folder's contents back, then `docs/analytics/contract.md` to `contract.md`, `docs/analytics/research/` to `research/`, and `docs/analytics/requirements.txt` to `spec.txt`. The `bin/yarn` shim points at the worktree's Yarn.
