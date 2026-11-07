@@ -1,0 +1,299 @@
+SOURCE: C:\Users\Ahsan\Downloads\Documents\Data Flow and Technical requirements - CRM Analytics Tool.pdf
+
+--- page 1 ---
+FloLabs CRM Intelligence & Analytics System
+Technical Architecture and Data Flow Specification
+Version: 1.0 | 5th November 2026
+System: crm.flolabsinnovations.com
+Scope: Recruitment pipeline analytics, historical tracking, conversion measurement, and automated
+reporting.
+1. System Objective
+Build a read-only analytics system connected to the existing FloLabs CRM that continuously tracks contact
+distribution, pipeline progression, and conversion rates across application categories.
+The system must:
+• Track current contact counts by pipeline, track, program, and lifecycle stage.
+• Record historical changes in contact status and pipeline progression.
+• Calculate stage-to-stage and overall conversion rates.
+• Identify drop-offs, inactive contacts, and pipeline bottlenecks.
+• Update the dashboard when CRM data changes, with daily reconciliation.
+• Generate automated weekly and monthly performance reports.
+• Preserve historical metrics for trend analysis and comparison.
+Scope limitation: The system will not send applicant emails, modify CRM records, or control recruitment
+workflows.
+
+[USER HIGHLIGHTS ON THIS PAGE] conversion measurement | Build a read-only analytics system connected to the existing FloLabs CRM that continuously tracks contact distribution, pipeline progression, and conversion rates across application categories. | conversion rates across application categories.
+--- page 2 ---
+2. Proposed Data Flow
+                  FLOLABS CRM
+         Contacts | Applications | Stages
+              Forms | Activity Records
+                        |
+            +-----------+-----------+
+            |                       |
+       CRM Webhooks             CRM API
+       Change Events         Initial Data Load
+            |                Daily Reconciliation
+            +-----------+-----------+
+                        |
+                        v
+              DATA INGESTION LAYER
+          Authentication | Validation
+           Deduplication | Retry Queue
+                        |
+                        v
+              DATA PROCESSING LAYER
+            Normalize Categories/Stages
+          Detect Changes | Resolve Records
+                        |
+                        v
+               ANALYTICS DATABASE
+            Current Contact State
+            Stage Transition History
+               Daily Snapshots
+                        |
+                        v
+                ANALYTICS ENGINE
+           Counts | Conversion Rates
+          Drop-offs | Trends | Duration
+                        |
+               +--------+--------+
+               |                 |
+               v                 v
+          DASHBOARD         REPORT GENERATOR
+       Current Metrics      Weekly | Monthly
+       Historical Trends    Scheduled Reports
+Data Flow Sequence
+1. Extract: Retrieve existing CRM records through the API. Receive subsequent record changes through
+webhooks.
+2. Validate: Verify incoming events, required fields, record identifiers, and timestamps.
+3. Normalize: Map CRM categories and lifecycle stages to consistent analytics definitions.
+4. Store: Update current record state and preserve historical stage transitions.
+5. Calculate: Generate contact totals, conversion rates, drop-offs, and performance trends.
+6. Present: Serve metrics through dashboard API endpoints.
+7. Report: Generate weekly and monthly summaries from stored analytics data.
+8. Reconcile: Run a daily API synchronization to identify missed events and correct discrepancies.
+why normalize ???
+Question:if we make antoher database for this we would be using twice 
+the  space it would be duplicated data 1 on the CRM and other on the 
+tool if we dont have any issues with it greate else we can either 
+use db to store only the reports and resutls (historical) and the analytics 
+can be store as long as they are valid after that they might be overriden 
+or removed just a suggestion its a decision for when we make the 
+architecture
+
+[USER HIGHLIGHTS ON THIS PAGE] Authentication | Validation | Normalize Categories/Stages | 3. Normalize: Map CRM categories and lifecycle stages to consistent analytics definitions.
+[USER NOTE ON THIS PAGE] why normalize ???
+[USER NOTE ON THIS PAGE] Question:if we make antoher database for this we would be using twice the  space it would be duplicated data 1 on the CRM and other on the tool if we dont have any issues with it greate else we can either 
+use db to store only the reports and resutls (historical) and the analytics can be store as long as they are valid after that they might be overriden or removed just a suggestion its a decision for when we make the architecture
+--- page 3 ---
+3. Required System Components
+Component
+Responsibility
+CRM Connector
+Read CRM records and receive webhook events
+Ingestion Service
+Validate, deduplicate, and process incoming updates
+Analytics Database
+Store current state, transitions, and daily snapshots
+Metrics Processor
+Calculate counts, conversions, durations, and trends
+Analytics API
+Provide aggregated data to dashboards and reports
+Dashboard
+Display category distributions, funnels, and historical trends
+Report Scheduler
+Generate weekly and monthly reports
+Monitoring
+Detect synchronization failures, stale data, and processing errors
+4. Data Model Requirements
+The analytics database should contain the following logical datasets.
+Dataset
+Required fields
+Applications
+Application ID, contact ID, track, program, source, application date
+Current Pipeline State
+Application ID, current stage, stage entry date, last updated
+Stage History
+Application ID, previous stage, new stage, transition timestamp
+Daily Snapshots
+Snapshot date, category, stage, contact/application count
+Metric Summaries
+Reporting period, category, metric name, metric value
+Sync Logs
+Job ID, execution time, status, processed records, errors
+Data modeling rules:
+• Use stable CRM record IDs as identifiers.
+• Treat contacts and applications separately to prevent duplicate counting when one person submits
+multiple applications.
+• Store all timestamps in UTC and apply a configured reporting timezone.
+• Track pipeline categories and stages using consistent internal identifiers.
+• Preserve corrections and historical changes without overwriting valid transition history.
+• Distinguish primary lifecycle stages from reminder substages to avoid double-counting.
+The exact field mappings must be confirmed against the deployed CRM schema.
+
+--- page 4 ---
+5. Analytics and Calculation Requirements
+A. Contact Distribution
+Count distinct contacts or applications within each category and lifecycle stage.
+Support filtering by track, program, application source, date range, and current status.
+B. Stage Conversion Rate
+Formula:
+Stage Conversion (%) = (Applications reaching next stage / Applications entering previous stage) × 100
+Count each application once per defined transition. Use the same eligible cohort for the numerator and
+denominator.
+C. Overall Conversion Rate
+Formula:
+Overall Conversion (%) = (Applications reaching the final successful stage / Applications entering the
+pipeline) × 100
+The final successful stage, such as enrolled or onboarded, must be confirmed.
+D. Drop-off Rate
+Drop-off (%) = (Eligible applications that do not progress within a defined observation window / Eligible
+applications entering the stage) × 100
+Contacts still within the expected processing period must not automatically be classified as dropped.
+E. Stage Duration
+Measure the elapsed time between entering and leaving each lifecycle stage.
+Use this to calculate average or median processing duration and identify applications exceeding configured
+thresholds.
+F. Historical Trends
+Compare daily, weekly, and monthly values for:
+• Total contacts and new applications.
+• Category and stage distribution.
+• Conversion and drop-off rates.
+• Stage progression and processing duration.
+• Period-over-period changes.
+For conversion reporting, use application-date cohorts so older applications progressing later do not distort
+current-period performance.
+6. Dashboard Requirements
+The dashboard should contain four main sections:
+
+--- page 5 ---
+Section
+Required visualizations
+Pipeline Overview
+Total contacts, new applications, active applications, stage totals
+Category Performance
+Bar charts and tables showing contact distribution and conversions by
+track/program
+Conversion Funnel
+Stage progression, conversion percentages, and drop-off points
+Historical Performance
+Daily, weekly, and monthly trends with period comparisons
+Required controls: Date-range filter, category/track filter, program filter, application source filter, and
+reporting period selector.
+Every dashboard should display its last successful synchronization time.
+7. Synchronization and Reporting
+Where supported, CRM webhooks notify the ingestion service when relevant records are created, updated,
+or deleted.
+The service processes these events and updates the analytics database.
+Daily Reconciliation
+A scheduled synchronization runs once every 24 hours to:
+• Retrieve newly created and modified CRM records.
+• Compare them with stored analytics state.
+• Recover missed updates.
+• Recalculate affected metrics.
+• Record synchronization status and errors.
+Webhook updates provide near-real-time visibility. Daily reconciliation ensures consistency.
+Automated Reports
+Weekly reports:
+• New applications by category.
+• Stage movements and conversion rates.
+• Applications stuck in stages.
+• Significant changes compared with the previous week.
+Monthly reports:
+• Total application volume and category distribution.
+• Conversion performance by track and program.
+• Historical trends and drop-off analysis.
+• Comparison with the previous month.
+Reports should be generated from verified analytics data, not independent calculations.
+
+--- page 6 ---
+8. Technology and Infrastructure
+Layer
+Recommended implementation
+Data Source
+Existing Twenty-based FloLabs CRM
+Integration
+REST/GraphQL API and webhooks
+Backend
+Python FastAPI or TypeScript Node.js
+Database
+PostgreSQL with a separate analytics schema/database
+Processing
+SQL queries and application-level calculations
+Scheduling
+Existing n8n infrastructure or scheduled backend jobs
+Frontend
+Next.js with a charting library
+Hosting
+Existing infrastructure where capacity and isolation permit
+Avoid introducing additional infrastructure unless existing resources cannot meet performance or reliability
+requirements.
+9. Security, Reliability, and Data Quality
+The implementation must satisfy the following:
+• Read-only CRM access: No write, delete, or workflow modification permissions.
+• Authentication: Use a dedicated API credential with minimum required access.
+• Webhook security: Validate signatures and reject unauthorized events.
+• Data minimization: Store only fields required for analytics; avoid copying sensitive form responses
+unnecessarily.
+• Idempotency: Repeated events must not create duplicate transitions or inflated counts.
+• Recovery: Support retries, failed-event logging, and scheduled reconciliation.
+• Consistency checks: Compare stored contact counts against CRM records after synchronization.
+• Access control: Restrict dashboard and report access to authorized team members.
+• Retention: Define retention, deletion, and backup policies before production deployment.
+10. Architecture Dependencies and Decisions
+Before implementation, verify:
+1. CRM schema: Which objects store applications, contacts, tracks, programs, and lifecycle stages?
+2. Historical availability: Does the CRM expose past stage transitions and their timestamps?
+3. Event coverage: Do webhooks reliably report relevant application and stage changes?
+4. Pipeline definitions: What qualifies as entering, progressing through, and successfully completing a
+pipeline?
+5. Counting rules: Are metrics based on unique contacts, applications, or both?
+
+--- page 7 ---
+6. Reporting rules: Which timezone, observation periods, and inactivity thresholds should be used?
+7. Deployment: Can existing PostgreSQL, hosting, and n8n infrastructure safely support the additional
+workload?
+Historical data limitation: If past transitions are unavailable, initialize the system from current CRM state
+and begin recording transitions from deployment onward. Do not manufacture historical conversion metrics
+from current stage counts.
+11. Development Plan
+Phase
+Deliverables
+Completion criteria
+1. Data Audit
+CRM schema mapping, pipeline definitions,
+API and webhook validation
+Required records and events can be
+retrieved reliably
+2. Data Pipeline
+Ingestion, normalization, historical storage,
+daily reconciliation
+CRM totals match stored data; repeated
+events do not duplicate records
+3. Analytics and
+Dashboard
+Calculation engine, analytics endpoints,
+charts, filters
+Metrics are verified against independently
+calculated sample datasets
+4. Reports and
+Monitoring
+Weekly/monthly reporting, error logs,
+synchronization monitoring
+Reports run on schedule; failed jobs are
+detected and recoverable
+12. Final Architectural Recommendation
+Build the FloLabs CRM Intelligence & Analytics System as a separate read-only application integrated with
+the existing CRM through supported APIs and webhooks.
+Use a single PostgreSQL analytics database for current state, historical transitions, and reporting snapshots.
+Use deterministic SQL-based calculations to generate metrics consumed by both the dashboard and
+automated reports.
+This architecture minimizes changes to the existing CRM, reduces maintenance overhead, preserves
+historical information, and allows future dashboard expansion without redesigning the data pipeline.
+Primary success criterion: The system accurately reflects the CRM's current pipeline, retains verifiable stage
+history, and produces consistent daily, weekly, and monthly metrics without manual data extraction.
+Existing References:
+1. Metabase: https://www.metabase.com/product/business-intelligence
+2. Zoho CRM: https://www.zoho.com/crm/reports.html
+3. Twenty CRM: https://twenty.com/product
+4. Zoho Analytics: https://www.zoho.com/analytics/
