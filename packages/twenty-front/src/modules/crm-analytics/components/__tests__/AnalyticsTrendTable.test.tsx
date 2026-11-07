@@ -135,7 +135,7 @@ describe('AnalyticsTrendTable', () => {
       'OVERALL_CONVERSION',
     );
 
-    expect(screen.getByText('n=4')).toBeInTheDocument();
+    expect(screen.getByText('of 4 people')).toBeInTheDocument();
   });
 
   it('mutes a small previous sample and leaves the change empty', () => {
@@ -152,7 +152,7 @@ describe('AnalyticsTrendTable', () => {
     );
 
     expect(screen.getByText('90%')).toBeInTheDocument();
-    expect(screen.getByText('n=3')).toBeInTheDocument();
+    expect(screen.getByText('of 3 people')).toBeInTheDocument();
     expect(screen.queryByText(/points/)).not.toBeInTheDocument();
   });
 

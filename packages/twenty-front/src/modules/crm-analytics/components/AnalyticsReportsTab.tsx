@@ -12,6 +12,7 @@ import { AnalyticsStatePanel } from '@/crm-analytics/components/AnalyticsStatePa
 import { GET_CRM_ANALYTICS_REPORTS } from '@/crm-analytics/graphql/getCrmAnalyticsReports';
 import { useCrmAnalyticsQuery } from '@/crm-analytics/hooks/useCrmAnalyticsQuery';
 import {
+  type AnalyticsFilter,
   type AnalyticsReportListItem,
   type AnalyticsReportPeriodType,
 } from '@/crm-analytics/types/AnalyticsApi';
@@ -170,7 +171,11 @@ const AnalyticsReportGroup = ({
   </StyledGroup>
 );
 
-export const AnalyticsReportsTab = () => {
+type AnalyticsReportsTabProps = {
+  onFilterChange?: (nextFilter: AnalyticsFilter) => void;
+};
+
+export const AnalyticsReportsTab = (_props: AnalyticsReportsTabProps) => {
   const [selectedReportKey, setSelectedReportKey] = useState<string | null>(
     null,
   );

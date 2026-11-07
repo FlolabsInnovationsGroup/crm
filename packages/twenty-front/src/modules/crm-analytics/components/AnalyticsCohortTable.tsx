@@ -12,20 +12,21 @@ import {
   type AnalyticsStageDefinition,
 } from '@/crm-analytics/types/AnalyticsApi';
 import { formatAnalyticsBucketLabel } from '@/crm-analytics/utils/formatAnalyticsBucketLabel';
+import { formatAnalyticsOfPeople } from '@/crm-analytics/utils/formatAnalyticsOfPeople';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
 const COHORT_TABLE_MAX_HEIGHT = 448;
 
 type AnalyticsStageLabel = Pick<AnalyticsStageDefinition, 'stageKey' | 'label'>;
 
-// A fixed slot keeps the rates in one column aligned however wide each n is.
+// A fixed slot keeps the rates in one column aligned however wide each count is.
 const StyledSampleSize = styled.span`
   color: ${themeCssVariables.font.color.tertiary};
   display: inline-block;
   font-size: ${themeCssVariables.font.size.xs};
   font-variant-numeric: tabular-nums;
   margin-inline-start: ${themeCssVariables.spacing[2]};
-  min-width: 7ch;
+  min-width: 14ch;
   text-align: end;
 `;
 
@@ -63,8 +64,6 @@ const AnalyticsCohortStepCell = ({
     );
   }
 
-  const sampleSize = formatNumber(cell.entered);
-
   // A cell still inside its window only has a so far value, even when some people have passed it.
   return (
     <AnalyticsTable.Cell isNumeric>
@@ -75,7 +74,9 @@ const AnalyticsCohortStepCell = ({
         isCompact
       />
       <StyledSampleSize>
-        {cell.entered > 0 ? t`n=${sampleSize}` : null}
+        {cell.entered > 0
+          ? formatAnalyticsOfPeople(cell.entered, formatNumber)
+          : null}
       </StyledSampleSize>
     </AnalyticsTable.Cell>
   );

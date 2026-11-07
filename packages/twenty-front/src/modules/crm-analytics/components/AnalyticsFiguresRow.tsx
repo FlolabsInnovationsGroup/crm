@@ -4,7 +4,13 @@ import { t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
 
+import { AnalyticsChartUnknownValue } from '@/crm-analytics/charts/AnalyticsChartUnknownValue';
+import {
+  AnalyticsSparkline,
+  type AnalyticsSparklineData,
+} from '@/crm-analytics/charts/AnalyticsSparkline';
 import { type AnalyticsOverview } from '@/crm-analytics/types/AnalyticsApi';
+import { type AnalyticsOverallConversionAnswer } from '@/crm-analytics/utils/buildOverallConversionAnswer';
 import { formatAnalyticsSignedNumber } from '@/crm-analytics/utils/formatAnalyticsSignedNumber';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
@@ -69,6 +75,18 @@ const StyledNote = styled.dd`
   margin: 0;
 `;
 
+const StyledLighterValue = styled(StyledValue)`
+  color: ${themeCssVariables.font.color.tertiary};
+`;
+
+// Holds its height while the series loads, so the tile does not jump when the line arrives.
+const StyledSparkline = styled.dd`
+  margin: auto 0 0;
+  min-height: 32px;
+`;
+
+const MINIMUM_SPARKLINE_POINTS = 2;
+
 const formatShortDate = (value: string) =>
   i18n.date(new Date(`${value.slice(0, 10)}T00:00:00.000Z`), {
     month: 'short',
@@ -76,12 +94,43 @@ const formatShortDate = (value: string) =>
     timeZone: 'UTC',
   });
 
+type AnalyticsFigureSparklineProps = {
+  ariaLabel: string;
+  sparkline: AnalyticsSparklineData | undefined;
+};
+
+const AnalyticsFigureSparkline = ({
+  ariaLabel,
+  sparkline,
+}: AnalyticsFigureSparklineProps) => (
+  <StyledSparkline>
+    {isDefined(sparkline) &&
+      sparkline.values.filter(isDefined).length >=
+        MINIMUM_SPARKLINE_POINTS && (
+        <AnalyticsSparkline
+          ariaLabel={ariaLabel}
+          values={sparkline.values}
+          marks={sparkline.marks}
+        />
+      )}
+  </StyledSparkline>
+);
+
 type AnalyticsFiguresRowProps = {
   figures: AnalyticsOverview['figures'];
   hasLimits: boolean;
   showSignedFigure: boolean;
   hasActiveFilter?: boolean;
   unmappedPeople?: number;
+  overallConversion?: AnalyticsOverallConversionAnswer | null;
+  hasOverallConversionError?: boolean;
+  isStatusFiltered?: boolean;
+  sparklines?: {
+    activePeople: AnalyticsSparklineData;
+    newApplications: AnalyticsSparklineData;
+    overallConversion: AnalyticsSparklineData;
+    totalContacts: AnalyticsSparklineData;
+  };
 };
 
 export const AnalyticsFiguresRow = ({
@@ -90,8 +139,17 @@ export const AnalyticsFiguresRow = ({
   showSignedFigure,
   hasActiveFilter = false,
   unmappedPeople = 0,
+  overallConversion,
+  hasOverallConversionError = false,
+  isStatusFiltered = false,
+  sparklines,
 }: AnalyticsFiguresRowProps) => {
   const { formatNumber } = useNumberFormat();
+
+  const overallConversionValue = overallConversion?.value;
+  const overallConversionNote = hasOverallConversionError
+    ? t`This figure could not load`
+    : overallConversion?.detail;
 
   const dateRangeFrom = formatShortDate(figures.newApplicationsFrom);
   const dateRangeTo = formatShortDate(figures.newApplicationsTo);
@@ -123,6 +181,10 @@ export const AnalyticsFiguresRow = ({
             ? t`In the pipeline now, not signed or exited. Leaves out ${formattedUnmappedPeople} with a stage not yet mapped.`
             : t`In the pipeline now, not signed or exited`}
         </StyledNote>
+        <AnalyticsFigureSparkline
+          ariaLabel={t`Active people by week`}
+          sparkline={sparklines?.activePeople}
+        />
       </StyledHeroFigure>
 
       <StyledFigure>
@@ -150,16 +212,35 @@ export const AnalyticsFiguresRow = ({
             {t`${importedApplications} imported, dates unknown`}
           </StyledNote>
         )}
+        <AnalyticsFigureSparkline
+          ariaLabel={t`New applications by week`}
+          sparkline={sparklines?.newApplications}
+        />
       </StyledFigure>
 
       <StyledFigure>
-        <StyledLabel>{t`Total contacts`}</StyledLabel>
-        <StyledValue>{formatNumber(figures.totalContacts)}</StyledValue>
-        <StyledNote>
-          {hasActiveFilter
-            ? t`People matching these filters`
-            : t`Everyone in People, including non-applicants`}
-        </StyledNote>
+        <StyledLabel>{t`Overall conversion`}</StyledLabel>
+        {overallConversion?.isLighter === true ? (
+          <StyledLighterValue>{overallConversionValue}</StyledLighterValue>
+        ) : (
+          <StyledValue>
+            {isDefined(overallConversionValue) ? (
+              overallConversionValue
+            ) : (
+              <AnalyticsChartUnknownValue />
+            )}
+          </StyledValue>
+        )}
+        {isDefined(overallConversionNote) && (
+          <StyledNote>{overallConversionNote}</StyledNote>
+        )}
+        {isStatusFiltered && (
+          <StyledNote>{t`The status filter does not change this rate.`}</StyledNote>
+        )}
+        <AnalyticsFigureSparkline
+          ariaLabel={t`Overall conversion by week of application`}
+          sparkline={sparklines?.overallConversion}
+        />
       </StyledFigure>
 
       <StyledFigure>
@@ -170,6 +251,20 @@ export const AnalyticsFiguresRow = ({
           <StyledUnknownValue>{t`No limits set`}</StyledUnknownValue>
         )}
         <StyledNote>{t`${inactivePeople} inactive`}</StyledNote>
+      </StyledFigure>
+
+      <StyledFigure>
+        <StyledLabel>{t`Total contacts`}</StyledLabel>
+        <StyledValue>{formatNumber(figures.totalContacts)}</StyledValue>
+        <StyledNote>
+          {hasActiveFilter
+            ? t`People matching these filters`
+            : t`Everyone in People, including non-applicants`}
+        </StyledNote>
+        <AnalyticsFigureSparkline
+          ariaLabel={t`Total contacts by week`}
+          sparkline={sparklines?.totalContacts}
+        />
       </StyledFigure>
 
       {showSignedFigure && isDefined(figures.signedPeople) && (

@@ -4,15 +4,11 @@ import { Temporal } from 'temporal-polyfill';
 import { isDefined } from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
 
-import { AnalyticsFiguresRow } from '@/crm-analytics/components/AnalyticsFiguresRow';
-import {
-  AnalyticsSection,
-  AnalyticsTabLayout,
-} from '@/crm-analytics/components/AnalyticsSection';
+import { AnalyticsChartGrid } from '@/crm-analytics/charts/AnalyticsChartGrid';
+import { AnalyticsOverviewCharts } from '@/crm-analytics/components/AnalyticsOverviewCharts';
+import { AnalyticsTabLayout } from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsSkeleton } from '@/crm-analytics/components/AnalyticsSkeleton';
-import { AnalyticsStageTotalsTable } from '@/crm-analytics/components/AnalyticsStageTotalsTable';
 import { AnalyticsStatePanel } from '@/crm-analytics/components/AnalyticsStatePanel';
-import { AnalyticsStuckTable } from '@/crm-analytics/components/AnalyticsStuckTable';
 import { GET_CRM_ANALYTICS_OVERVIEW } from '@/crm-analytics/graphql/getCrmAnalyticsOverview';
 import { useCrmAnalyticsQuery } from '@/crm-analytics/hooks/useCrmAnalyticsQuery';
 import {
@@ -21,17 +17,8 @@ import {
   type AnalyticsOverview,
 } from '@/crm-analytics/types/AnalyticsApi';
 import { buildOverviewTakeaway } from '@/crm-analytics/utils/buildOverviewTakeaway';
-import { countAnalyticsUnmappedPeople } from '@/crm-analytics/utils/countAnalyticsUnmappedPeople';
-import { hasActiveAnalyticsFilter } from '@/crm-analytics/utils/hasActiveAnalyticsFilter';
 import { isAnalyticsPeriodFullyTracked } from '@/crm-analytics/utils/isAnalyticsPeriodFullyTracked';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
-
-const StyledViews = styled.div`
-  align-items: start;
-  display: grid;
-  gap: ${themeCssVariables.spacing[5]};
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
-`;
 
 const StyledLoading = styled.div`
   display: flex;
@@ -57,12 +44,14 @@ const getFiguresWithTrackedPrevious = (overview: AnalyticsOverview) => {
 type AnalyticsOverviewTabProps = {
   filter: AnalyticsFilter;
   meta: AnalyticsMeta;
+  onFilterChange?: (nextFilter: AnalyticsFilter) => void;
   onResetFilter: () => void;
 };
 
 export const AnalyticsOverviewTab = ({
   filter,
   meta,
+  onFilterChange,
   onResetFilter,
 }: AnalyticsOverviewTabProps) => {
   const { formatNumber } = useNumberFormat();
@@ -92,10 +81,10 @@ export const AnalyticsOverviewTab = ({
     return (
       <StyledLoading>
         <AnalyticsSkeleton shape="figures" />
-        <StyledViews>
-          <AnalyticsSkeleton shape="table" />
-          <AnalyticsSkeleton shape="table" columnCount={4} />
-        </StyledViews>
+        <AnalyticsChartGrid>
+          <AnalyticsSkeleton shape="chart" />
+          <AnalyticsSkeleton shape="chart" />
+        </AnalyticsChartGrid>
       </StyledLoading>
     );
   }
@@ -122,27 +111,13 @@ export const AnalyticsOverviewTab = ({
       }
       isRefetching={isRefetching}
     >
-      <AnalyticsFiguresRow
+      <AnalyticsOverviewCharts
+        overview={overview}
         figures={getFiguresWithTrackedPrevious(overview)}
-        hasLimits={overview.stuck.hasLimits}
-        showSignedFigure={meta.showSignedFigure}
-        hasActiveFilter={hasActiveAnalyticsFilter(filter)}
-        unmappedPeople={countAnalyticsUnmappedPeople(overview.stageTotals)}
+        filter={filter}
+        meta={meta}
+        onFilterChange={onFilterChange}
       />
-      <StyledViews>
-        <AnalyticsSection
-          title={t`Where people are now`}
-          note={t`People by current stage. A date filter uses the date they were created.`}
-        >
-          <AnalyticsStageTotalsTable rows={overview.stageTotals} />
-        </AnalyticsSection>
-        <AnalyticsSection
-          title={t`People to follow up`}
-          note={t`Active people past their stage limit. Inactive imported people are counted, not listed.`}
-        >
-          <AnalyticsStuckTable stuck={overview.stuck} />
-        </AnalyticsSection>
-      </StyledViews>
     </AnalyticsTabLayout>
   );
 };

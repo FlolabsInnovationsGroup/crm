@@ -90,9 +90,9 @@ describe('AnalyticsStageLedger', () => {
       'Stage',
       'Reached',
       'To next',
-      'Timed out',
-      'Exited',
-      'Too recent',
+      'Stalled',
+      'Left',
+      'Still in progress',
       'Median days',
     ]);
   });
@@ -159,7 +159,7 @@ describe('AnalyticsStageLedger', () => {
     expect(
       within(getStageRow('New')).getByText('12% so far'),
     ).toBeInTheDocument();
-    expect(within(getStageRow('Contacted')).getByText('n=12')).toBeVisible();
+    expect(within(getStageRow('Contacted')).getByText('of 12 people')).toBeVisible();
     expect(
       within(getStageRow('Attended')).getByText('Not enough data'),
     ).toBeInTheDocument();
@@ -211,7 +211,7 @@ describe('AnalyticsStageLedger', () => {
     );
 
     expect(within(getStageRow('New')).getByText('5.5')).toBeInTheDocument();
-    expect(within(getStageRow('Contacted')).getByText('n=4')).toBeVisible();
+    expect(within(getStageRow('Contacted')).getByText('from 4 finished stays')).toBeVisible();
     expect(
       within(getStageRow('Attended')).getByText('Not enough data'),
     ).toBeInTheDocument();
@@ -248,7 +248,7 @@ describe('AnalyticsStageLedger', () => {
     const overallRow = getStageRow('Overall');
 
     expect(
-      within(overallRow).getByText('No one has passed the 90-day window yet'),
+      within(overallRow).getByText('No one has had 90 days to reach the end yet'),
     ).toBeInTheDocument();
     expect(within(overallRow).getByText('3% so far')).toBeInTheDocument();
   });
@@ -284,7 +284,7 @@ describe('AnalyticsStageLedger', () => {
 
     expect(
       screen.getByText(
-        'Cohort size: 1,000. Tracking started Oct 27, 2026. 12 left out because every stage they had is unmapped. Someone who applies again counts once, and their furthest stage carries over.',
+        'People who applied: 1,000. Tracking started Oct 27, 2026. 12 left out because every stage they had is unmapped. Someone who applies again counts once, and their furthest stage carries over.',
       ),
     ).toBeInTheDocument();
   });

@@ -19,7 +19,7 @@ describe('AnalyticsRateCell', () => {
     render(<AnalyticsRateCell rate={0.4} eligible={12} isUnderMinimum />);
 
     expect(screen.getByText('40%')).toBeInTheDocument();
-    expect(screen.getByText('n=12')).toBeInTheDocument();
+    expect(screen.getByText('of 12 people')).toBeInTheDocument();
   });
 
   it('shows the so far form when the rate is not known yet', () => {

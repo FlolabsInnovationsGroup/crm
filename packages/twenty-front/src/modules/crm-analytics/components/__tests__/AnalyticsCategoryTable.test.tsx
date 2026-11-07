@@ -327,7 +327,7 @@ describe('AnalyticsCategoryTable', () => {
       screen.getByRole('columnheader', { name: 'New to next' }),
     ).toBeInTheDocument();
     expect(within(getTableRow('Business')).getByText('50%')).toBeInTheDocument();
-    expect(within(getTableRow('Robotics')).getByText('n=4')).toBeInTheDocument();
+    expect(within(getTableRow('Robotics')).getByText('of 4 people')).toBeInTheDocument();
     expect(
       within(getTableRow('Design')).getByText('12% so far'),
     ).toBeInTheDocument();

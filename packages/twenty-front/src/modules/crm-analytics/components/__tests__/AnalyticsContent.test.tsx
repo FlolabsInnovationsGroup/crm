@@ -16,6 +16,27 @@ import {
   type AnalyticsOverview,
 } from '@/crm-analytics/types/AnalyticsApi';
 
+// d3-shape ships as ES modules only, which this jest setup does not transform.
+jest.mock('d3-shape', () => ({
+  arc: () => {
+    const generator = () => 'M0,0';
+
+    generator.innerRadius = () => generator;
+    generator.outerRadius = () => generator;
+
+    return generator;
+  },
+  pie: () => {
+    const generator = (slices: unknown[]) => slices.map((data) => ({ data }));
+
+    generator.value = () => generator;
+    generator.sort = () => generator;
+    generator.padAngle = () => generator;
+
+    return generator;
+  },
+}));
+
 const mockToast = jest.fn();
 
 jest.mock('@/apollo/components/ToastOnQueryErrorEffect', () => ({
@@ -339,6 +360,7 @@ describe('AnalyticsContent', () => {
         variables: { filter: CRM_ANALYTICS_DEFAULT_FILTER },
       },
       result: { data: { getCrmAnalyticsFunnel: buildPayload(null) } },
+      maxUsageCount: Number.POSITIVE_INFINITY,
     };
 
     const clickFunnelTabAfter = async (minutes: number) => {

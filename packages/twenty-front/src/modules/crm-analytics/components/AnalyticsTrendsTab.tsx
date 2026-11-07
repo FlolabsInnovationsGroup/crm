@@ -1,59 +1,72 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
-import { useState } from 'react';
 import { Temporal } from 'temporal-polyfill';
 import { isDefined } from 'twenty-shared/utils';
+import { SegmentedControl } from 'twenty-ui/components/input';
 import { themeCssVariables } from 'twenty-ui/theme';
 
+import { AnalyticsChartCard } from '@/crm-analytics/charts/AnalyticsChartCard';
+import { AnalyticsChartGrid } from '@/crm-analytics/charts/AnalyticsChartGrid';
+import { AnalyticsDivergingBarChart } from '@/crm-analytics/charts/AnalyticsDivergingBarChart';
 import { AnalyticsCohortTable } from '@/crm-analytics/components/AnalyticsCohortTable';
 import { AnalyticsMovementTable } from '@/crm-analytics/components/AnalyticsMovementTable';
-import {
-  AnalyticsNotice,
-  AnalyticsSection,
-  AnalyticsTabLayout,
-} from '@/crm-analytics/components/AnalyticsSection';
-import { AnalyticsSkeleton } from '@/crm-analytics/components/AnalyticsSkeleton';
+import { AnalyticsNote } from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsStatePanel } from '@/crm-analytics/components/AnalyticsStatePanel';
-import { AnalyticsTrendChart } from '@/crm-analytics/components/AnalyticsTrendChart';
-import { AnalyticsTrendTable } from '@/crm-analytics/components/AnalyticsTrendTable';
+import { AnalyticsTrendCohortHeatmap } from '@/crm-analytics/components/AnalyticsTrendCohortHeatmap';
+import { AnalyticsTrendSmallChart } from '@/crm-analytics/components/AnalyticsTrendSmallChart';
+import { AnalyticsTrendStageChart } from '@/crm-analytics/components/AnalyticsTrendStageChart';
+import { AnalyticsTrendTrackCharts } from '@/crm-analytics/components/AnalyticsTrendTrackCharts';
 import { GET_CRM_ANALYTICS_TRENDS } from '@/crm-analytics/graphql/getCrmAnalyticsTrends';
 import { useCrmAnalyticsQuery } from '@/crm-analytics/hooks/useCrmAnalyticsQuery';
+import { useCrmAnalyticsSeries } from '@/crm-analytics/hooks/useCrmAnalyticsSeries';
 import {
   type AnalyticsFilter,
   type AnalyticsMeta,
   type AnalyticsPeriod,
-  type AnalyticsStageDefinition,
+  type AnalyticsSeries,
+  type AnalyticsSeriesRequest,
   type AnalyticsTrendMetric,
   type AnalyticsTrends,
 } from '@/crm-analytics/types/AnalyticsApi';
-import { isAnalyticsRateMetric } from '@/crm-analytics/utils/buildTrendChartSeries';
-import { buildTrendsTakeaway } from '@/crm-analytics/utils/buildTrendsTakeaway';
 import { formatAnalyticsBucketLabel } from '@/crm-analytics/utils/formatAnalyticsBucketLabel';
-import { getAnalyticsWindowLength } from '@/crm-analytics/utils/getAnalyticsWindowLength';
-import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
-import { Select } from '@/ui/input/components/Select';
 
-const TREND_METRICS: AnalyticsTrendMetric[] = [
+const SMALL_CHART_METRICS: AnalyticsTrendMetric[] = [
   'NEW_APPLICATIONS',
   'TOTAL_CONTACTS',
   'ACTIVE_PEOPLE',
-  'STAGE_COUNT',
   'OVERALL_CONVERSION',
   'DROP_OFF',
   'MEDIAN_DAYS',
 ];
 
-const StyledControls = styled.div`
+const SMALL_CHART_REQUESTS: AnalyticsSeriesRequest[] = SMALL_CHART_METRICS.map(
+  (metric) => ({ metric, stageKey: null, groupBy: 'NONE' }),
+);
+
+const StyledLayout = styled.div<{ isRefetching: boolean }>`
+  display: flex;
+  flex-direction: column;
+  gap: ${themeCssVariables.spacing[4]};
+  opacity: ${({ isRefetching }) => (isRefetching ? 0.6 : 1)};
+`;
+
+const StyledToolbar = styled.div`
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: ${themeCssVariables.spacing[2]};
+  gap: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[4]};
 `;
 
-const StyledControl = styled.div`
-  width: 184px;
+const StyledSmallCharts = styled.div`
+  display: grid;
+  gap: ${themeCssVariables.spacing[4]};
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
 `;
 
-const getMetricLabel = (metric: AnalyticsTrendMetric) => {
+const getSmallChartTitle = (
+  metric: AnalyticsTrendMetric,
+  dropOffStageLabel: string | undefined,
+) => {
   switch (metric) {
     case 'NEW_APPLICATIONS':
       return t`New applications`;
@@ -66,13 +79,15 @@ const getMetricLabel = (metric: AnalyticsTrendMetric) => {
     case 'OVERALL_CONVERSION':
       return t`Overall conversion`;
     case 'DROP_OFF':
-      return t`Drop-off`;
+      return isDefined(dropOffStageLabel)
+        ? t`Drop-off from ${dropOffStageLabel}`
+        : t`Drop-off rate`;
     case 'MEDIAN_DAYS':
-      return t`Median days in stage`;
+      return t`Median days in a stage`;
   }
 };
 
-const getMetricNote = (metric: AnalyticsTrendMetric) => {
+const getSmallChartNote = (metric: AnalyticsTrendMetric) => {
   switch (metric) {
     case 'NEW_APPLICATIONS':
       return t`Applications, by submission date. Imported applications have no known date and are left out.`;
@@ -83,81 +98,13 @@ const getMetricNote = (metric: AnalyticsTrendMetric) => {
     case 'STAGE_COUNT':
       return t`People in this stage, from the last daily count in each period.`;
     case 'OVERALL_CONVERSION':
+      return t`People, by application date. A period has a rate only once all its people have had enough time to reach the end, so the line stops before recent periods.`;
     case 'DROP_OFF':
-      return t`People, by application date. A period has a rate only once all its people have passed the window.`;
+      return t`The share of people who did not move on from this stage in time, by application date. A period has a rate only once all its people have had enough time.`;
     case 'MEDIAN_DAYS':
-      return t`Completed stays, by the date the stay ended. Open stays are not counted.`;
+      return t`Completed stays in every stage, by the date the stay ended. Open stays are not counted.`;
   }
 };
-
-const getStageOptions = (
-  metric: AnalyticsTrendMetric,
-  stages: AnalyticsStageDefinition[],
-): { value: string | null; label: string }[] => {
-  const toOption = (stage: AnalyticsStageDefinition) => ({
-    value: stage.stageKey,
-    label: stage.label,
-  });
-
-  switch (metric) {
-    case 'STAGE_COUNT':
-      return stages.map(toOption);
-    case 'DROP_OFF':
-      return stages
-        .filter((stage) => isDefined(stage.windowDays))
-        .map(toOption);
-    case 'MEDIAN_DAYS':
-      return [
-        { value: null, label: t`All stages` },
-        ...stages.filter((stage) => isDefined(stage.rank)).map(toOption),
-      ];
-    default:
-      return [];
-  }
-};
-
-const getStageMetricLabel = (
-  metric: AnalyticsTrendMetric,
-  stageLabel: string,
-) => {
-  switch (metric) {
-    case 'STAGE_COUNT':
-      return t`People in ${stageLabel}`;
-    case 'DROP_OFF':
-      return t`Drop-off from ${stageLabel}`;
-    case 'MEDIAN_DAYS':
-      return t`Median days in ${stageLabel}`;
-    default:
-      return getMetricLabel(metric);
-  }
-};
-
-const getTitleByPeriod = (metricLabel: string, period: AnalyticsPeriod) => {
-  switch (period) {
-    case 'DAY':
-      return t`${metricLabel} by day`;
-    case 'WEEK':
-      return t`${metricLabel} by week`;
-    case 'MONTH':
-      return t`${metricLabel} by month`;
-  }
-};
-
-const getTrendTitle = (trends: AnalyticsTrends, meta: AnalyticsMeta) => {
-  const stageLabel = meta.stages.find(
-    (stage) => stage.stageKey === trends.stageKey,
-  )?.label;
-
-  return getTitleByPeriod(
-    isDefined(stageLabel)
-      ? getStageMetricLabel(trends.metric, stageLabel)
-      : getMetricLabel(trends.metric),
-    trends.period,
-  );
-};
-
-const getStatusNote = (hasRates: boolean, { status }: AnalyticsFilter) =>
-  hasRates && status !== 'ALL' ? t`Rates ignore the status filter.` : null;
 
 const getDateWideningNote = (
   period: AnalyticsPeriod,
@@ -188,12 +135,13 @@ const getPeriodStart = (date: Temporal.PlainDate, period: AnalyticsPeriod) => {
   }
 };
 
-// A long range keeps only its latest buckets, so the line can start after the chosen date.
+// A long range keeps only its latest buckets, so the lines can start after the chosen date.
 const getCutRangeNote = (
-  { period, series }: AnalyticsTrends,
-  { dateFrom }: AnalyticsFilter,
+  series: AnalyticsSeries[],
+  { dateFrom, period }: AnalyticsFilter,
 ) => {
-  const firstBucketStart = series[0]?.bucketStart;
+  const points = series.find((line) => line.points.length > 0)?.points ?? [];
+  const firstBucketStart = points[0]?.bucketStart;
 
   if (!isDefined(dateFrom) || !isDefined(firstBucketStart)) {
     return null;
@@ -211,218 +159,251 @@ const getCutRangeNote = (
     return null;
   }
 
-  const periodCount = series.length;
+  const periodCount = points.length;
 
   return t`Showing the latest ${periodCount} periods.`;
 };
 
-const getTrendNote = (trends: AnalyticsTrends, filter: AnalyticsFilter) => {
-  const windowLength = getAnalyticsWindowLength(
-    trends.series.length,
-    trends.period,
-  );
-
-  return [
-    getMetricNote(trends.metric),
-    trends.series.some((point) => isDefined(point.previousValue))
-      ? t`Each period is compared with the one ${windowLength} earlier.`
-      : null,
-    trends.series.at(-1)?.isPartial === true
-      ? t`The latest period is still in progress.`
-      : null,
-    getDateWideningNote(trends.period, filter),
-    getCutRangeNote(trends, filter),
-    getStatusNote(isAnalyticsRateMetric(trends.metric), filter),
-  ]
-    .filter(isDefined)
-    .join(' ');
-};
-
-const getCohortNote = (filter: AnalyticsFilter) =>
-  [
-    t`People, by application date. Each cell is the share who reached the next stage within its window, with n people counted. Muted means still inside the window or a small sample. n/a means not enough data.`,
-    getStatusNote(true, filter),
-  ]
-    .filter(isDefined)
-    .join(' ');
-
-const hasTrendValue = (trends: AnalyticsTrends) =>
-  !isDefined(trends.unavailableReason) &&
-  trends.series.some(
-    (point) => isDefined(point.value) || isDefined(point.previousValue),
-  );
-
-const hasNothingToShow = (trends: AnalyticsTrends) =>
-  !isDefined(trends.unavailableReason) &&
-  !hasTrendValue(trends) &&
-  trends.cohorts.length === 0 &&
-  trends.movement.rows.every(
-    (row) =>
-      row.enteredInPeriod === 0 && row.leftInPeriod === 0 && row.countNow === 0,
-  );
-
 type AnalyticsTrendsTabProps = {
   filter: AnalyticsFilter;
   meta: AnalyticsMeta;
+  onFilterChange?: (nextFilter: AnalyticsFilter) => void;
   onResetFilter: () => void;
 };
 
 export const AnalyticsTrendsTab = ({
   filter,
   meta,
+  onFilterChange,
   onResetFilter,
 }: AnalyticsTrendsTabProps) => {
-  const { formatNumber } = useNumberFormat();
+  // Status is hidden on this tab, so a value picked on another tab must not reach these numbers.
+  const trendsFilter: AnalyticsFilter = { ...filter, status: 'ALL' };
+  const { period } = trendsFilter;
 
-  const [metric, setMetric] = useState<AnalyticsTrendMetric>(
-    meta.fields.hasFormSubmissionObject ? 'NEW_APPLICATIONS' : 'TOTAL_CONTACTS',
-  );
-  const [selectedStageKey, setSelectedStageKey] = useState<string | null>(null);
-
-  const stageOptions = getStageOptions(metric, meta.stages);
-
-  // A stage picked for one metric may not exist on the next, so fall back to the metric's first.
-  const stageKey = stageOptions.some(({ value }) => value === selectedStageKey)
-    ? selectedStageKey
-    : (stageOptions[0]?.value ?? null);
-
+  // Overall conversion gets the longest default window, the only one reaching groups old enough to finish.
   const {
     payload: trends,
-    isFirstLoad,
-    isRefetching,
+    isFirstLoad: isTrendsFirstLoad,
+    isRefetching: isTrendsRefetching,
     isForbidden,
-    error,
-    retry,
+    error: trendsError,
+    retry: retryTrends,
   } = useCrmAnalyticsQuery<AnalyticsTrends>({
     query: GET_CRM_ANALYTICS_TRENDS,
     rootField: 'getCrmAnalyticsTrends',
-    variables: { filter, metric, stageKey },
+    variables: {
+      filter: trendsFilter,
+      metric: 'OVERALL_CONVERSION',
+      stageKey: null,
+    },
   });
 
-  const controls = (
-    <StyledControls>
-      <StyledControl role="group" aria-label={t`Metric`}>
-        <Select<AnalyticsTrendMetric>
-          dropdownId="crm-analytics-trend-metric"
-          selectSizeVariant="small"
-          fullWidth
-          value={metric}
-          options={TREND_METRICS.map((trendMetric) => ({
-            value: trendMetric,
-            label: getMetricLabel(trendMetric),
-          }))}
-          onChange={setMetric}
-        />
-      </StyledControl>
-      {stageOptions.length > 0 && (
-        <StyledControl role="group" aria-label={t`Stage`}>
-          <Select<string | null>
-            dropdownId="crm-analytics-trend-stage"
-            selectSizeVariant="small"
-            fullWidth
-            value={stageKey}
-            options={stageOptions}
-            onChange={setSelectedStageKey}
-          />
-        </StyledControl>
-      )}
-    </StyledControls>
+  const {
+    payload: smallChartBundle,
+    isFirstLoad: isSmallChartsFirstLoad,
+    isRefetching: isSmallChartsRefetching,
+    error: smallChartsError,
+    retry: retrySmallCharts,
+  } = useCrmAnalyticsSeries({
+    filter: trendsFilter,
+    requests: SMALL_CHART_REQUESTS,
+  });
+
+  const periodSelector = (
+    <SegmentedControl<AnalyticsPeriod>
+      aria-label={t`Period`}
+      itemWidth="content"
+      size="sm"
+      value={period}
+      onValueChange={(nextPeriod) =>
+        onFilterChange?.({ ...filter, period: nextPeriod })
+      }
+      options={[
+        { value: 'DAY', label: t`By day` },
+        { value: 'WEEK', label: t`By week` },
+        { value: 'MONTH', label: t`By month` },
+      ]}
+    />
   );
 
   if (isForbidden) {
     return <AnalyticsStatePanel kind="FORBIDDEN" />;
   }
 
-  // The controls stay up so a metric that fails can be swapped for one that works.
-  if (isDefined(error)) {
-    return (
-      <AnalyticsSection title={getMetricLabel(metric)} action={controls}>
-        <AnalyticsStatePanel kind="ERROR" error={error} onRetry={retry} />
-      </AnalyticsSection>
-    );
-  }
-
-  if (isFirstLoad) {
-    return (
-      <AnalyticsSection title={getMetricLabel(metric)} action={controls}>
-        <AnalyticsSkeleton shape="chart" />
-        <AnalyticsSkeleton shape="table" rowCount={6} columnCount={4} />
-      </AnalyticsSection>
-    );
-  }
-
-  if (!isDefined(trends)) {
+  if (trends === null) {
     return <AnalyticsStatePanel kind="DISABLED" />;
   }
 
-  if (hasNothingToShow(trends)) {
+  const smallChartSeries = smallChartBundle?.series ?? [];
+
+  // While a new period loads the old buckets stay on screen, so they keep their own labels.
+  const smallChartPeriod = smallChartBundle?.period ?? period;
+  const cohortPeriod = trends?.period ?? period;
+
+  const handleTrackSelect = (trackKey: string) =>
+    onFilterChange?.({
+      ...filter,
+      trackKey: filter.trackKey === trackKey ? null : trackKey,
+      programKey: null,
+    });
+
+  const isNothingToShow =
+    isDefined(trends) &&
+    isDefined(smallChartBundle) &&
+    trends.cohorts.length === 0 &&
+    trends.movement.rows.every(
+      (row) =>
+        row.enteredInPeriod === 0 &&
+        row.leftInPeriod === 0 &&
+        row.countNow === 0,
+    ) &&
+    smallChartSeries.every(({ points }) =>
+      points.every(
+        (point) => !isDefined(point.value) && !isDefined(point.previousValue),
+      ),
+    );
+
+  if (isNothingToShow) {
     return (
-      <AnalyticsSection title={getMetricLabel(metric)} action={controls}>
+      <StyledLayout isRefetching={false}>
+        <StyledToolbar>{periodSelector}</StyledToolbar>
         <AnalyticsStatePanel kind="EMPTY" onReset={onResetFilter} />
-      </AnalyticsSection>
+      </StyledLayout>
     );
   }
 
-  const trendTitle = getTrendTitle(trends, meta);
+  const isRefetching = isTrendsRefetching || isSmallChartsRefetching;
 
-  const movementFrom = formatAnalyticsBucketLabel({
-    bucketStart: trends.movement.from,
-    period: 'DAY',
-  });
-  const movementTo = formatAnalyticsBucketLabel({
-    bucketStart: trends.movement.to,
-    period: 'DAY',
-  });
+  const toolbarNote = [
+    getDateWideningNote(period, trendsFilter),
+    getCutRangeNote(smallChartSeries, trendsFilter),
+  ]
+    .filter(isDefined)
+    .join(' ');
+
+  const entryStageLabel = meta.stages.find((stage) => stage.rank === 0)?.label;
+
+  const getDropOffStageLabel = () => {
+    const dropOffStageKey = smallChartSeries.find(
+      (series) => series.metric === 'DROP_OFF',
+    )?.stageKey;
+
+    return (
+      meta.stages.find((stage) => stage.stageKey === dropOffStageKey)?.label ??
+      entryStageLabel
+    );
+  };
+
+  const movementRows = trends?.movement.rows ?? [];
+  const hasMovement = movementRows.some(
+    (row) => row.enteredInPeriod > 0 || row.leftInPeriod > 0,
+  );
+
+  const getMovementNote = () => {
+    if (!isDefined(trends)) {
+      return undefined;
+    }
+
+    const movementFrom = formatAnalyticsBucketLabel({
+      bucketStart: trends.movement.from,
+      period: 'DAY',
+    });
+    const movementTo = formatAnalyticsBucketLabel({
+      bucketStart: trends.movement.to,
+      period: 'DAY',
+    });
+
+    return t`Moves into or out of each stage from ${movementFrom} to ${movementTo}, by the date of the move. One person can move more than once.`;
+  };
+
+  const cohortRows = trends?.cohorts ?? [];
 
   return (
-    <AnalyticsTabLayout
-      takeaway={buildTrendsTakeaway({ trends, formatNumber })}
-      isRefetching={isRefetching}
-    >
-      <AnalyticsSection
-        title={trendTitle}
-        note={getTrendNote(trends, filter)}
-        action={controls}
-      >
-        <AnalyticsTrendChart title={trendTitle} trends={trends} />
-        {hasTrendValue(trends) && (
-          <AnalyticsTrendTable
-            points={trends.series}
-            metric={trends.metric}
-            period={trends.period}
-            minimumSample={trends.minimumSample}
+    <StyledLayout aria-busy={isRefetching} isRefetching={isRefetching}>
+      <StyledToolbar>
+        {periodSelector}
+        {toolbarNote.length > 0 && <AnalyticsNote>{toolbarNote}</AnalyticsNote>}
+      </StyledToolbar>
+      <StyledSmallCharts>
+        {SMALL_CHART_METRICS.map((metric) => (
+          <AnalyticsTrendSmallChart
+            key={metric}
+            title={getSmallChartTitle(metric, getDropOffStageLabel())}
+            note={getSmallChartNote(metric)}
+            metric={metric}
+            period={smallChartPeriod}
+            base={smallChartBundle ?? undefined}
+            series={smallChartSeries.find((series) => series.metric === metric)}
+            isLoading={isSmallChartsFirstLoad}
+            error={smallChartsError}
+            onRetry={retrySmallCharts}
           />
-        )}
-      </AnalyticsSection>
-      <AnalyticsSection
-        title={
-          trends.period === 'MONTH'
-            ? t`Conversion by application month`
-            : t`Conversion by application week`
-        }
-        note={getCohortNote(filter)}
-      >
-        {trends.cohorts.length > 0 ? (
-          <AnalyticsCohortTable
-            rows={trends.cohorts}
+        ))}
+      </StyledSmallCharts>
+      <AnalyticsChartGrid>
+        <AnalyticsTrendTrackCharts
+          filter={trendsFilter}
+          meta={meta}
+          onTrackSelect={
+            isDefined(onFilterChange) ? handleTrackSelect : undefined
+          }
+        />
+        <AnalyticsTrendStageChart filter={trendsFilter} stages={meta.stages} />
+        <AnalyticsChartCard
+          title={t`What moved this period?`}
+          note={getMovementNote()}
+          isLoading={isTrendsFirstLoad}
+          error={trendsError}
+          onRetry={retryTrends}
+          isEmpty={!hasMovement}
+          emptyMessage={t`No one changed stage in this period.`}
+          numbers={<AnalyticsMovementTable rows={movementRows} />}
+        >
+          <AnalyticsDivergingBarChart
+            ariaLabel={t`Moves into and out of each stage this period`}
+            rows={movementRows.map((row) => ({
+              key: row.stageKey,
+              label: row.label,
+              rightValue: row.enteredInPeriod,
+              leftValue: row.leftInPeriod,
+            }))}
+            rightLabel={t`Entered`}
+            leftLabel={t`Left`}
+          />
+        </AnalyticsChartCard>
+        <AnalyticsChartCard
+          title={t`Are newer groups converting better?`}
+          note={t`Each row is the people who applied in that period. Each cell is the share who reached the next stage in time. Lighter with stripes says so far, lighter alone is a small group, and a dash means not enough data.`}
+          isFullWidth
+          isLoading={isTrendsFirstLoad}
+          error={trendsError}
+          onRetry={retryTrends}
+          isEmpty={cohortRows.length === 0}
+          emptyMessage={
+            cohortPeriod === 'DAY'
+              ? t`Groups of applicants are compared by week or month. Choose By week or By month.`
+              : t`No one has applied in this range since tracking started.`
+          }
+          numbers={
+            isDefined(trends) ? (
+              <AnalyticsCohortTable
+                rows={cohortRows}
+                stages={meta.stages}
+                period={cohortPeriod}
+                minimumSample={trends.minimumSample}
+              />
+            ) : undefined
+          }
+        >
+          <AnalyticsTrendCohortHeatmap
+            rows={cohortRows}
             stages={meta.stages}
-            period={trends.period}
-            minimumSample={trends.minimumSample}
+            period={cohortPeriod}
+            minimumSample={trends?.minimumSample ?? 0}
           />
-        ) : (
-          <AnalyticsNotice>
-            {trends.period === 'DAY'
-              ? t`Conversion is grouped by week or month. Choose one in the Period filter.`
-              : t`No one has applied in this range since tracking started.`}
-          </AnalyticsNotice>
-        )}
-      </AnalyticsSection>
-      <AnalyticsSection
-        title={t`Stage movement`}
-        note={t`Moves into or out of each stage from ${movementFrom} to ${movementTo}, by the date of the move. Now is the current count.`}
-      >
-        <AnalyticsMovementTable rows={trends.movement.rows} />
-      </AnalyticsSection>
-    </AnalyticsTabLayout>
+        </AnalyticsChartCard>
+      </AnalyticsChartGrid>
+    </StyledLayout>
   );
 };

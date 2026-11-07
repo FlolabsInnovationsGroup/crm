@@ -72,14 +72,14 @@ describe('AnalyticsCohortTable', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
     expect(screen.getByText('Oct 2026')).toBeInTheDocument();
     expect(screen.getByText('42%')).toBeInTheDocument();
-    expect(screen.getAllByText('n=120')).toHaveLength(1);
+    expect(screen.getAllByText('of 120 people')).toHaveLength(1);
   });
 
   it('shows the so far form until a cell is mature', () => {
     renderTable([buildRow({})]);
 
     expect(screen.getByText('12% so far')).toBeInTheDocument();
-    expect(screen.getByText('n=50')).toBeInTheDocument();
+    expect(screen.getByText('of 50 people')).toBeInTheDocument();
     expect(screen.getByText('5% so far')).toBeInTheDocument();
     expect(screen.queryByText('20%')).not.toBeInTheDocument();
   });
@@ -111,17 +111,17 @@ describe('AnalyticsCohortTable', () => {
 
     expect(screen.getAllByText('Not enough data')).not.toHaveLength(0);
     expect(screen.getAllByText('n/a')).not.toHaveLength(0);
-    expect(screen.queryByText('n=0')).not.toBeInTheDocument();
+    expect(screen.queryByText('of 0 people')).not.toBeInTheDocument();
     expect(container).not.toHaveTextContent('0%');
   });
 
-  it('gives a small cohort its n beside the overall rate', () => {
+  it('gives a small group its count beside the overall rate', () => {
     renderTable([
       buildRow({ size: 12, overallRate: 0.5, overallSoFarRate: null }),
     ]);
 
     expect(screen.getByText('50%')).toBeInTheDocument();
-    expect(screen.getByText('n=12')).toBeInTheDocument();
+    expect(screen.getByText('of 12 people')).toBeInTheDocument();
   });
 
   it('lists the newest cohort first', () => {

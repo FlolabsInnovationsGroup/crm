@@ -1,6 +1,6 @@
 import { type ErrorLike } from '@apollo/client';
 import { MockedProvider } from '@apollo/client/testing/react';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createStore, Provider as JotaiProvider } from 'jotai';
 import { type ComponentProps } from 'react';
@@ -14,6 +14,12 @@ import {
 } from '@/crm-analytics/types/AnalyticsApi';
 
 const mockToast = jest.fn();
+const mockDownloadPdf = jest.fn();
+
+jest.mock('@/crm-analytics/report-pdf/downloadAnalyticsReportPdf', () => ({
+  downloadAnalyticsReportPdf: (report: AnalyticsReport) =>
+    mockDownloadPdf(report),
+}));
 
 jest.mock('@/apollo/components/ToastOnQueryErrorEffect', () => ({
   ToastOnQueryErrorEffect: ({ error }: { error?: ErrorLike }) => {
@@ -160,6 +166,7 @@ const renderTab = (mocks: ComponentProps<typeof MockedProvider>['mocks']) =>
 describe('AnalyticsReportsTab', () => {
   beforeEach(() => {
     mockToast.mockClear();
+    mockDownloadPdf.mockReset();
   });
 
   it('lists each period type newest first and opens the newest report', async () => {
@@ -185,7 +192,7 @@ describe('AnalyticsReportsTab', () => {
     expect(reportButtons[1]).not.toHaveAttribute('aria-current');
   });
 
-  it('shows the generated time, the tracking caveat and the shared tables', async () => {
+  it('opens with answers, the notes and a chart for each view', async () => {
     renderTab([listMock([LATEST_WEEK]), reportMock(buildReport(LATEST_WEEK))]);
 
     expect(
@@ -197,14 +204,141 @@ describe('AnalyticsReportsTab', () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        '86 new applications, +12 against the previous period. 1 significant change.',
-      ),
+      screen.getByText('+12 against the previous period').parentElement,
+    ).toHaveTextContent('New applications86');
+    expect(screen.getByText('Significant changes')).toBeInTheDocument();
+    expect(screen.getByText('From new to signed')).toBeInTheDocument();
+    expect(screen.getByText('Conversion at each step')).toBeInTheDocument();
+    expect(
+      screen.getByText('How many people are in each track?'),
     ).toBeInTheDocument();
-    expect(screen.getByText('Stage by stage')).toBeInTheDocument();
-    expect(screen.getByText('Tracks and programs')).toBeInTheDocument();
-    expect(screen.getByText('Stage movement')).toBeInTheDocument();
-    expect(screen.getByText('214')).toBeInTheDocument();
+    expect(screen.getByText('What moved this period?')).toBeInTheDocument();
+    expect(
+      screen.getByText('Who is past their stage limit?'),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps each table behind Show numbers until asked', async () => {
+    const user = userEvent.setup();
+
+    renderTab([listMock([LATEST_WEEK]), reportMock(buildReport(LATEST_WEEK))]);
+
+    const card = await screen.findByRole('region', {
+      name: 'Who is past their stage limit?',
+    });
+
+    expect(
+      screen.queryByRole('table', { name: 'People past their stage limit' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      within(card).getByRole('button', { name: 'Show numbers' }),
+    );
+
+    expect(
+      await screen.findByRole('table', {
+        name: 'People past their stage limit',
+      }),
+    ).toHaveTextContent('214');
+  });
+
+  it('shows a dash, never 0%, for an overall conversion it does not know', async () => {
+    renderTab([listMock([LATEST_WEEK]), reportMock(buildReport(LATEST_WEEK))]);
+
+    const answer = (await screen.findByText('Overall conversion')).parentElement;
+
+    expect(answer).toHaveTextContent('Not enough data');
+    expect(answer).not.toHaveTextContent('0%');
+  });
+
+  it('draws stored history as line charts and leaves them out when absent', async () => {
+    const user = userEvent.setup();
+
+    renderTab([
+      listMock([LATEST_WEEK, EARLIER_WEEK]),
+      reportMock(buildReport(EARLIER_WEEK)),
+      reportMock(
+        buildReport(LATEST_WEEK, {
+          trendSeries: [
+            {
+              metric: 'NEW_APPLICATIONS',
+              stageKey: null,
+              groupKey: null,
+              groupLabel: null,
+              unavailableReason: null,
+              points: [
+                {
+                  bucketStart: '2026-10-26',
+                  value: 86,
+                  previousValue: null,
+                  size: null,
+                  previousSize: null,
+                  isPartial: false,
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    ]);
+
+    expect(
+      await screen.findByText('New applications over time'),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Oct 19 to Oct 25, 2026' }),
+    );
+
+    await screen.findByText('Weekly report, Oct 19 to Oct 25, 2026');
+
+    expect(
+      screen.queryByText('New applications over time'),
+    ).not.toBeInTheDocument();
+  });
+
+  describe('the PDF download', () => {
+    const getDownloadButton = () =>
+      screen.findByRole('button', { name: 'Download PDF' });
+
+    it('downloads the report that is open', async () => {
+      const user = userEvent.setup();
+      const report = buildReport(LATEST_WEEK);
+
+      mockDownloadPdf.mockResolvedValue(undefined);
+
+      renderTab([listMock([LATEST_WEEK]), reportMock(report)]);
+
+      await user.click(await getDownloadButton());
+
+      await waitFor(() =>
+        expect(mockDownloadPdf).toHaveBeenCalledWith(
+          expect.objectContaining({ periodStart: report.periodStart }),
+        ),
+      );
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('says so when it fails, and can be tried again', async () => {
+      const user = userEvent.setup();
+
+      mockDownloadPdf.mockRejectedValueOnce(new Error('No fonts'));
+      mockDownloadPdf.mockResolvedValueOnce(undefined);
+
+      renderTab([listMock([LATEST_WEEK]), reportMock(buildReport(LATEST_WEEK))]);
+
+      await user.click(await getDownloadButton());
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'The PDF could not be made. Please try again.',
+      );
+
+      await user.click(await getDownloadButton());
+
+      await waitFor(() =>
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
+      );
+    });
   });
 
   it('marks only the significant comparison', async () => {
@@ -239,9 +373,9 @@ describe('AnalyticsReportsTab', () => {
         ),
       ]);
 
-      expect(
-        await screen.findByText('86 new applications.'),
-      ).toBeInTheDocument();
+      expect(await screen.findByText('86')).toBeInTheDocument();
+      expect(screen.getByText('No earlier period yet')).toBeInTheDocument();
+      expect(screen.queryByText(/against the previous/)).not.toBeInTheDocument();
       expectNoComparison();
     });
 
@@ -255,9 +389,7 @@ describe('AnalyticsReportsTab', () => {
         ),
       ]);
 
-      expect(
-        await screen.findByText('86 new applications.'),
-      ).toBeInTheDocument();
+      expect(await screen.findByText('86')).toBeInTheDocument();
       expectNoComparison();
     });
 
@@ -274,11 +406,14 @@ describe('AnalyticsReportsTab', () => {
       ]);
 
       expect(
-        await screen.findAllByText(
+        await screen.findByText(
           'There is no earlier period to compare with yet.',
         ),
-      ).toHaveLength(2);
-      expect(screen.queryByText(/significant/)).not.toBeInTheDocument();
+      ).toBeInTheDocument();
+      expect(
+        (await screen.findByText('New applications')).parentElement,
+      ).toHaveTextContent('Not enough data');
+      expect(screen.queryByText(/^Significant change$/)).not.toBeInTheDocument();
     });
   });
 
@@ -346,6 +481,8 @@ describe('AnalyticsReportsTab', () => {
   });
 
   it('reads stage headers from the report, not from today', async () => {
+    const user = userEvent.setup();
+
     renderTab([
       listMock([LATEST_WEEK]),
       reportMock(
@@ -357,7 +494,24 @@ describe('AnalyticsReportsTab', () => {
             peopleInSeveral: 0,
             peopleInSeveralTracks: 0,
             stepStageKeys: ['NEW'],
-            rows: [],
+            rows: [
+              {
+                key: 'ROBOTICS',
+                parentKey: null,
+                label: 'Robotics',
+                isUnmapped: false,
+                people: 1,
+                activePeople: 1,
+                newApplications: 1,
+                cohortSize: 1,
+                overallEligible: 0,
+                overallRate: null,
+                overallSoFarRate: null,
+                stepRates: [
+                  { stageKey: 'NEW', eligible: 0, rate: null, soFarRate: null },
+                ],
+              },
+            ],
           },
           funnel: {
             ...BASE,
@@ -397,8 +551,16 @@ describe('AnalyticsReportsTab', () => {
       ),
     ]);
 
+    const card = await screen.findByRole('region', {
+      name: 'How many people are in each track?',
+    });
+
+    await user.click(
+      within(card).getByRole('button', { name: 'Show numbers' }),
+    );
+
     expect(
-      await screen.findByRole('columnheader', {
+      await within(card).findByRole('columnheader', {
         name: 'New as it was then to next',
       }),
     ).toBeInTheDocument();
@@ -483,7 +645,7 @@ describe('AnalyticsReportsTab', () => {
     await screen.findByText('Weekly report, Oct 26 to Nov 1, 2026');
 
     expect(
-      screen.queryByText('Conversion by application month'),
+      screen.queryByText('Are newer groups converting better?'),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'October 2026' }));
@@ -492,7 +654,7 @@ describe('AnalyticsReportsTab', () => {
       await screen.findByText('Monthly report, October 2026'),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Conversion by application month'),
+      screen.getByText('Are newer groups converting better?'),
     ).toBeInTheDocument();
   });
 

@@ -37,8 +37,8 @@ export const buildOverviewTakeaway = ({
 
   const unmapped = formatNumber(unmappedPeople);
   const unmappedSentence = plural(unmappedPeople, {
-    one: `${unmapped} person has a stage not yet mapped and is not counted as active or stuck.`,
-    other: `${unmapped} people have a stage not yet mapped and are not counted as active or stuck.`,
+    one: `${unmapped} person has a stage not yet mapped and is not counted as active or past their limit.`,
+    other: `${unmapped} people have a stage not yet mapped and are not counted as active or past their limit.`,
   });
 
   return `${activeSentence} ${unmappedSentence}`;

@@ -1,21 +1,30 @@
 import { i18n } from '@lingui/core';
 import { styled } from '@linaria/react';
-import { plural, t } from '@lingui/core/macro';
+import { t } from '@lingui/core/macro';
+import { useState } from 'react';
 import { Temporal } from 'temporal-polyfill';
 import { isDefined } from 'twenty-shared/utils';
 import { InlineBanner } from 'twenty-ui/components/feedback';
+import { IconDownload } from 'twenty-ui/icon';
+import { Button } from 'twenty-ui/primitives/input';
 import { OverflowingTextWithTooltip } from 'twenty-ui/primitives/typography';
 import { themeCssVariables } from 'twenty-ui/theme';
 
+import { AnalyticsAnswerCards } from '@/crm-analytics/charts/AnalyticsAnswerCards';
+import { AnalyticsChartCard } from '@/crm-analytics/charts/AnalyticsChartCard';
+import { ANALYTICS_CHART_COLOR } from '@/crm-analytics/charts/AnalyticsChartColor';
+import { AnalyticsChartGrid } from '@/crm-analytics/charts/AnalyticsChartGrid';
+import { AnalyticsColumnChart } from '@/crm-analytics/charts/AnalyticsColumnChart';
+import { AnalyticsDivergingBarChart } from '@/crm-analytics/charts/AnalyticsDivergingBarChart';
+import { AnalyticsFunnelChart } from '@/crm-analytics/charts/AnalyticsFunnelChart';
+import { AnalyticsHeatmap } from '@/crm-analytics/charts/AnalyticsHeatmap';
+import { AnalyticsHorizontalBarChart } from '@/crm-analytics/charts/AnalyticsHorizontalBarChart';
+import { AnalyticsLineChart } from '@/crm-analytics/charts/AnalyticsLineChart';
 import { AnalyticsCategoryTable } from '@/crm-analytics/components/AnalyticsCategoryTable';
 import { AnalyticsCohortTable } from '@/crm-analytics/components/AnalyticsCohortTable';
 import { AnalyticsMovementTable } from '@/crm-analytics/components/AnalyticsMovementTable';
 import { AnalyticsRateCell } from '@/crm-analytics/components/AnalyticsRateCell';
-import {
-  AnalyticsNotice,
-  AnalyticsSection,
-  AnalyticsTabLayout,
-} from '@/crm-analytics/components/AnalyticsSection';
+import { AnalyticsNotice } from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsSkeleton } from '@/crm-analytics/components/AnalyticsSkeleton';
 import { AnalyticsStageLedger } from '@/crm-analytics/components/AnalyticsStageLedger';
 import { AnalyticsStatePanel } from '@/crm-analytics/components/AnalyticsStatePanel';
@@ -27,8 +36,18 @@ import {
   type AnalyticsReportComparison,
   type AnalyticsReportPeriodType,
 } from '@/crm-analytics/types/AnalyticsApi';
-import { buildCategoriesTakeaway } from '@/crm-analytics/utils/buildCategoriesTakeaway';
-import { buildFunnelTakeaway } from '@/crm-analytics/utils/buildFunnelTakeaway';
+import {
+  buildAnalyticsCategoryPeopleRows,
+  buildAnalyticsCategoryRateRows,
+} from '@/crm-analytics/utils/buildAnalyticsCategoryBarRows';
+import { buildAnalyticsCohortHeatmap } from '@/crm-analytics/utils/buildAnalyticsCohortHeatmap';
+import { buildAnalyticsReportAnswers } from '@/crm-analytics/utils/buildAnalyticsReportAnswers';
+import { buildAnalyticsReportTrendCharts } from '@/crm-analytics/utils/buildAnalyticsReportTrendCharts';
+import {
+  buildFunnelChartSteps,
+  buildStepConversionColumns,
+} from '@/crm-analytics/utils/buildFunnelCharts';
+import { formatAnalyticsRate } from '@/crm-analytics/utils/formatAnalyticsRate';
 import { formatAnalyticsReportPeriod } from '@/crm-analytics/utils/formatAnalyticsReportPeriod';
 import { formatAnalyticsSignedNumber } from '@/crm-analytics/utils/formatAnalyticsSignedNumber';
 import { isAnalyticsPeriodFullyTracked } from '@/crm-analytics/utils/isAnalyticsPeriodFullyTracked';
@@ -37,10 +56,27 @@ import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 const NEW_APPLICATIONS_METRIC_KEY = 'NEW_APPLICATIONS';
 const ENTERED_METRIC_KEY_PREFIX = 'ENTERED_';
 
-const StyledReport = styled.article`
+const StyledReport = styled.article<{ isRefetching: boolean }>`
   display: flex;
   flex-direction: column;
+  gap: ${themeCssVariables.spacing[4]};
+  min-width: 0;
+  opacity: ${({ isRefetching }) => (isRefetching ? 0.6 : 1)};
+`;
+
+const StyledReportHeader = styled.header`
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
   gap: ${themeCssVariables.spacing[2]};
+  justify-content: space-between;
+`;
+
+const StyledReportHeading = styled.div`
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: ${themeCssVariables.spacing[1]};
   min-width: 0;
 `;
 
@@ -51,15 +87,22 @@ const StyledReportTitle = styled.h2`
   margin: 0;
 `;
 
-const StyledPair = styled.div`
-  align-items: start;
-  display: grid;
-  gap: ${themeCssVariables.spacing[5]};
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+const StyledReportNotice = styled.p`
+  color: ${themeCssVariables.font.color.secondary};
+  font-size: ${themeCssVariables.font.size.sm};
+  margin: 0;
 `;
 
-const StyledSentence = styled.p`
-  color: ${themeCssVariables.font.color.primary};
+const StyledDownload = styled.div`
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: ${themeCssVariables.spacing[1]};
+  max-width: 100%;
+`;
+
+const StyledDownloadError = styled.p`
+  color: ${themeCssVariables.font.color.danger};
   font-size: ${themeCssVariables.font.size.sm};
   margin: 0;
 `;
@@ -106,52 +149,6 @@ const getComparisonLabel = (
   )?.label;
 
   return isDefined(stageLabel) ? t`Entered ${stageLabel}` : label;
-};
-
-const buildReportTakeaway = (
-  report: AnalyticsReport,
-  isPreviousPeriodTracked: boolean,
-  formatNumber: (value: number) => string,
-) => {
-  const significantCount = report.comparisons.filter(
-    (comparison) => comparison.isSignificant,
-  ).length;
-  const formattedSignificantCount = formatNumber(significantCount);
-
-  const significantSentence =
-    significantCount === 0
-      ? t`No significant changes.`
-      : plural(significantCount, {
-          one: `${formattedSignificantCount} significant change.`,
-          other: `${formattedSignificantCount} significant changes.`,
-        });
-
-  if (!isDefined(report.newApplications)) {
-    return isPreviousPeriodTracked
-      ? significantSentence
-      : getNoEarlierPeriodText();
-  }
-
-  const newApplicationsCount = formatNumber(report.newApplications);
-  const applicationsPhrase = plural(report.newApplications, {
-    one: `${newApplicationsCount} new application`,
-    other: `${newApplicationsCount} new applications`,
-  });
-
-  if (!isPreviousPeriodTracked) {
-    return t`${applicationsPhrase}.`;
-  }
-
-  if (!isDefined(report.newApplicationsPrevious)) {
-    return t`${applicationsPhrase}. ${significantSentence}`;
-  }
-
-  const change = formatAnalyticsSignedNumber(
-    report.newApplications - report.newApplicationsPrevious,
-    formatNumber,
-  );
-
-  return t`${applicationsPhrase}, ${change} against the previous period. ${significantSentence}`;
 };
 
 type AnalyticsReportCountProps = {
@@ -263,6 +260,51 @@ const AnalyticsReportPastLimitTable = ({
   );
 };
 
+type AnalyticsReportDownloadProps = {
+  report: AnalyticsReport;
+};
+
+const AnalyticsReportDownload = ({ report }: AnalyticsReportDownloadProps) => {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [hasDownloadFailed, setHasDownloadFailed] = useState(false);
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    setHasDownloadFailed(false);
+
+    try {
+      const { downloadAnalyticsReportPdf } = await import(
+        '@/crm-analytics/report-pdf/downloadAnalyticsReportPdf'
+      );
+
+      await downloadAnalyticsReportPdf(report);
+    } catch {
+      setHasDownloadFailed(true);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  return (
+    <StyledDownload>
+      <Button
+        variant="outline"
+        size="sm"
+        loading={isDownloading}
+        startIcon={<IconDownload size={14} />}
+        onClick={handleDownload}
+      >
+        {t`Download PDF`}
+      </Button>
+      {hasDownloadFailed && (
+        <StyledDownloadError role="alert">
+          {t`The PDF could not be made. Please try again.`}
+        </StyledDownloadError>
+      )}
+    </StyledDownload>
+  );
+};
+
 type AnalyticsReportViewProps = {
   periodType: AnalyticsReportPeriodType;
   periodStart: string;
@@ -296,7 +338,7 @@ export const AnalyticsReportView = ({
   }
 
   if (isFirstLoad) {
-    return <AnalyticsSkeleton shape="table" rowCount={6} columnCount={4} />;
+    return <AnalyticsSkeleton shape="chart" />;
   }
 
   if (!isDefined(report)) {
@@ -323,109 +365,248 @@ export const AnalyticsReportView = ({
   const minimumSample = formatNumber(report.minimumSample);
   const isPreviousPeriodTracked = isPreviousReportPeriodTracked(report);
   const isProvisional = report.isProvisional === true;
+  const isBySource = report.categories.groupBy === 'SOURCE';
+  const formatRate = (value: number) => formatAnalyticsRate(value) ?? '';
+
+  const answers = buildAnalyticsReportAnswers({
+    report,
+    isPreviousPeriodTracked,
+    formatNumber,
+  });
+  const peopleRows = buildAnalyticsCategoryPeopleRows(
+    report.categories,
+    formatNumber,
+  );
+  const rateRows = buildAnalyticsCategoryRateRows(
+    report.categories,
+    formatNumber,
+  );
+  const cohortHeatmap = buildAnalyticsCohortHeatmap({
+    cohorts: report.cohorts,
+    stages: report.funnel.rows,
+    period: 'MONTH',
+    minimumSample: report.minimumSample,
+    formatNumber,
+  });
+  const canCompare =
+    isPreviousPeriodTracked && report.comparisons.length > 0;
 
   return (
-    <StyledReport>
-      <StyledReportTitle>
-        {report.periodType === 'MONTH'
-          ? t`Monthly report, ${reportPeriod}`
-          : t`Weekly report, ${reportPeriod}`}
-      </StyledReportTitle>
+    <StyledReport aria-busy={isRefetching} isRefetching={isRefetching}>
+      <StyledReportHeader>
+        <StyledReportHeading>
+          <StyledReportTitle>
+            {report.periodType === 'MONTH'
+              ? t`Monthly report, ${reportPeriod}`
+              : t`Weekly report, ${reportPeriod}`}
+          </StyledReportTitle>
+          <StyledReportNotice>
+            {isProvisional
+              ? t`Generated ${generatedAt}.`
+              : t`Generated ${generatedAt}. It stays as generated; corrections appear in the next report.`}
+          </StyledReportNotice>
+          <StyledReportNotice>
+            {t`Tracking started ${trackingStartedOn}. Imported people count in current totals only, never in rates.`}
+          </StyledReportNotice>
+        </StyledReportHeading>
+        <AnalyticsReportDownload report={report} />
+      </StyledReportHeader>
       {isProvisional && (
         <InlineBanner status="neutral" variant="soft" embedded>
           {t`Built on provisional definitions. It will be rebuilt once they are confirmed.`}
         </InlineBanner>
       )}
-      <AnalyticsTabLayout
-        takeaway={buildReportTakeaway(
-          report,
-          isPreviousPeriodTracked,
-          formatNumber,
+      <AnalyticsAnswerCards cards={answers} />
+      <AnalyticsChartGrid>
+        <AnalyticsChartCard
+          title={t`From new to signed`}
+          note={t`Counts people across all applications since tracking started. People who applied in this period are still in progress, so they are not rated yet.`}
+          isEmpty={report.funnel.rows.length === 0}
+          numbers={<AnalyticsStageLedger funnel={report.funnel} />}
+        >
+          <AnalyticsFunnelChart
+            ariaLabel={t`People reaching each stage, with the percent moving on to the next`}
+            steps={buildFunnelChartSteps({
+              funnel: report.funnel,
+              formatNumber,
+            })}
+            lowestStepKey={report.funnel.lowestStepStageKey}
+          />
+        </AnalyticsChartCard>
+        <AnalyticsChartCard
+          title={t`Conversion at each step`}
+          note={t`The percent of people who moved on within the time allowed. A lighter column is a small sample or still in progress, and a dash means not enough data.`}
+          isEmpty={report.funnel.rows.length < 2}
+        >
+          <AnalyticsColumnChart
+            ariaLabel={t`Percent of people moving on at each step`}
+            columns={buildStepConversionColumns({
+              funnel: report.funnel,
+              formatNumber,
+            })}
+            highlightedColumnKey={report.funnel.lowestStepStageKey}
+            highlightLabel={t`Lowest step`}
+            maxValue={1}
+            formatValue={formatRate}
+          />
+        </AnalyticsChartCard>
+        <AnalyticsChartCard
+          title={
+            isBySource
+              ? t`How many people came from each source?`
+              : t`How many people are in each track?`
+          }
+          note={t`People as of when this report was made. Someone with several positions counts once in each.`}
+          isEmpty={
+            peopleRows.rows.length === 0 && peopleRows.dividedRows.length === 0
+          }
+          numbers={
+            <AnalyticsCategoryTable
+              categories={report.categories}
+              stages={report.funnel.rows}
+            />
+          }
+        >
+          <AnalyticsHorizontalBarChart
+            ariaLabel={
+              isBySource
+                ? t`People by source, active people darker`
+                : t`People by track, active people darker`
+            }
+            rows={peopleRows.rows}
+            dividedRows={peopleRows.dividedRows}
+            dividerLabel={t`No value or not mapped`}
+          />
+        </AnalyticsChartCard>
+        <AnalyticsChartCard
+          title={
+            isBySource
+              ? t`Which source converts best?`
+              : t`Which track converts best?`
+          }
+          note={t`Overall conversion across all applications since tracking started. A lighter bar is a small sample or still in progress, and a dash means not enough data.`}
+          isEmpty={
+            rateRows.rows.length === 0 && rateRows.dividedRows.length === 0
+          }
+        >
+          <AnalyticsHorizontalBarChart
+            ariaLabel={
+              isBySource
+                ? t`Overall conversion by source`
+                : t`Overall conversion by track`
+            }
+            rows={rateRows.rows}
+            dividedRows={rateRows.dividedRows}
+            dividerLabel={t`No value or not mapped`}
+            formatValue={formatRate}
+          />
+        </AnalyticsChartCard>
+        <AnalyticsChartCard
+          title={t`What moved this period?`}
+          note={t`Moves into and out of each stage in this period, by the date they happened.`}
+          isEmpty={report.movement.length === 0}
+          numbers={<AnalyticsMovementTable rows={report.movement} />}
+        >
+          <AnalyticsDivergingBarChart
+            ariaLabel={t`People entering and leaving each stage this period`}
+            rows={report.movement.map((row) => ({
+              key: row.stageKey,
+              label: row.label,
+              rightValue: row.enteredInPeriod,
+              leftValue: row.leftInPeriod,
+            }))}
+            rightLabel={t`Entered`}
+            leftLabel={t`Left`}
+          />
+        </AnalyticsChartCard>
+        <AnalyticsChartCard
+          title={t`Who is past their stage limit?`}
+          note={t`Active people, as of when this report was made.`}
+          isEmpty={!report.stuckByStage.some((row) => row.count > 0)}
+          emptyMessage={t`No one is past their stage limit.`}
+          numbers={<AnalyticsReportPastLimitTable rows={report.stuckByStage} />}
+        >
+          <AnalyticsHorizontalBarChart
+            ariaLabel={t`People past their stage limit, by stage`}
+            rows={report.stuckByStage.map((row) => ({
+              key: row.stageKey,
+              label: row.label,
+              segments: [
+                {
+                  key: 'past-limit',
+                  label: t`Past stage limit`,
+                  value: row.count,
+                  color: ANALYTICS_CHART_COLOR.warning,
+                },
+              ],
+            }))}
+          />
+        </AnalyticsChartCard>
+        {report.cohorts.length > 0 && (
+          <AnalyticsChartCard
+            title={t`Are newer groups converting better?`}
+            note={t`People grouped by the month they applied, up to the end of this period. A striped cell is still in progress, a lighter one is a small sample, and a dash means not enough data.`}
+            isFullWidth
+            numbers={
+              <AnalyticsCohortTable
+                rows={report.cohorts}
+                stages={report.funnel.rows}
+                period="MONTH"
+                minimumSample={report.minimumSample}
+              />
+            }
+          >
+            <AnalyticsHeatmap
+              ariaLabel={t`Conversion at each step for people grouped by the month they applied`}
+              columns={cohortHeatmap.columns}
+              rows={cohortHeatmap.rows}
+              rowHeaderLabel={t`People who applied in`}
+            />
+          </AnalyticsChartCard>
         )}
-        notices={[
-          isProvisional
-            ? t`Generated ${generatedAt}.`
-            : t`Generated ${generatedAt}. It stays as generated; corrections appear in the next report.`,
-          t`Tracking started ${trackingStartedOn}. Imported people count in current totals only, never in rates.`,
-        ]}
-        isRefetching={isRefetching}
-      >
-        <AnalyticsSection
+        {buildAnalyticsReportTrendCharts(report, formatNumber).map((chart) => (
+          <AnalyticsChartCard
+            key={chart.key}
+            title={chart.title}
+            note={chart.note}
+            isEmpty={isDefined(chart.unavailableMessage)}
+            emptyMessage={chart.unavailableMessage ?? undefined}
+          >
+            <AnalyticsLineChart
+              ariaLabel={chart.title}
+              buckets={chart.buckets}
+              series={[
+                {
+                  key: chart.key,
+                  label: chart.seriesLabel,
+                  values: chart.values,
+                  color: ANALYTICS_CHART_COLOR.accent,
+                  ...chart.sample,
+                },
+              ]}
+              previousValues={chart.previousValues}
+              formatValue={chart.formatValue}
+              isRate={chart.isRate}
+            />
+          </AnalyticsChartCard>
+        ))}
+        <AnalyticsChartCard
           title={t`Compared with the previous period`}
           note={
-            isPreviousPeriodTracked
-              ? t`Counts inside each period, by event date. A row is marked when the change is significant and both counts are at least ${minimumSample}.`
+            canCompare
+              ? t`Counts inside each period, by the date they happened. A row is marked when the change is significant and both counts are at least ${minimumSample}.`
               : undefined
           }
+          isFullWidth
+          isEmpty={!canCompare}
+          emptyMessage={getNoEarlierPeriodText()}
         >
-          {isPreviousPeriodTracked && report.comparisons.length > 0 ? (
-            <AnalyticsReportComparisonsTable
-              comparisons={report.comparisons}
-              movement={report.movement}
-            />
-          ) : (
-            <AnalyticsNotice>{getNoEarlierPeriodText()}</AnalyticsNotice>
-          )}
-        </AnalyticsSection>
-        <AnalyticsSection
-          title={t`Stage by stage`}
-          note={t`People, all applications since tracking start. The applications of this period are too recent to rate.`}
-        >
-          <StyledSentence>
-            {buildFunnelTakeaway({ funnel: report.funnel, formatNumber })}
-          </StyledSentence>
-          <AnalyticsStageLedger funnel={report.funnel} />
-        </AnalyticsSection>
-        <AnalyticsSection
-          title={
-            report.categories.groupBy === 'SOURCE'
-              ? t`Sources`
-              : t`Tracks and programs`
-          }
-          note={t`New applications from this period, people as of generation, rates from all applications since tracking start. n/a means not enough data.`}
-        >
-          <StyledSentence>
-            {buildCategoriesTakeaway(report.categories)}
-          </StyledSentence>
-          <AnalyticsCategoryTable
-            categories={report.categories}
-            stages={report.funnel.rows}
+          <AnalyticsReportComparisonsTable
+            comparisons={report.comparisons}
+            movement={report.movement}
           />
-        </AnalyticsSection>
-        <StyledPair>
-          <AnalyticsSection
-            title={t`Stage movement`}
-            note={t`Moves into and out of each stage in this period, by event date. Now is as of generation.`}
-          >
-            <AnalyticsMovementTable rows={report.movement} />
-          </AnalyticsSection>
-          <AnalyticsSection
-            title={t`People past their stage limit`}
-            note={t`Active people, as of generation.`}
-          >
-            {report.stuckByStage.some((row) => row.count > 0) ? (
-              <AnalyticsReportPastLimitTable rows={report.stuckByStage} />
-            ) : (
-              <AnalyticsNotice>
-                {t`No one is past their stage limit.`}
-              </AnalyticsNotice>
-            )}
-          </AnalyticsSection>
-        </StyledPair>
-        {report.cohorts.length > 0 && (
-          <AnalyticsSection
-            title={t`Conversion by application month`}
-            note={t`People, by application month up to the end of this period. Muted means still inside the window or a small sample. n/a means not enough data.`}
-          >
-            <AnalyticsCohortTable
-              rows={report.cohorts}
-              stages={report.funnel.rows}
-              period="MONTH"
-              minimumSample={report.minimumSample}
-            />
-          </AnalyticsSection>
-        )}
-      </AnalyticsTabLayout>
+        </AnalyticsChartCard>
+      </AnalyticsChartGrid>
     </StyledReport>
   );
 };

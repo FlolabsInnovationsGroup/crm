@@ -12,7 +12,7 @@ import {
 } from '@/crm-analytics/types/AnalyticsApi';
 
 const LAUNCH_TAKEAWAY =
-  'Tracking started Oct 27, 2026. Conversion appears once people pass the 90-day window.';
+  'Tracking started Oct 27, 2026. Conversion appears once people have had 90 days to reach the end.';
 
 const buildFunnel = (cohortSize: number): AnalyticsFunnel => ({
   asOf: '2026-11-07T10:00:00.000Z',
@@ -52,6 +52,53 @@ const buildFunnel = (cohortSize: number): AnalyticsFunnel => ({
   lowestStepStageKey: null,
 });
 
+const buildFullFunnel = (): AnalyticsFunnel => {
+  const funnel = buildFunnel(200);
+
+  return {
+    ...funnel,
+    overall: {
+      ...funnel.overall,
+      finalStageKey: 'SIGNED',
+      eligible: 80,
+      reached: 8,
+      rate: 0.1,
+      soFarRate: 0.12,
+      isUnderMinimum: false,
+    },
+    rows: [
+      {
+        ...funnel.rows[0],
+        entered: 200,
+        eligible: 100,
+        reachedNext: 30,
+        timedOut: 50,
+        exited: 20,
+        inWindow: 100,
+        stepRate: 0.3,
+        soFarRate: 0.35,
+        dropOffRate: 0.7,
+        isUnderMinimum: false,
+        medianDays: 6.5,
+        completedStays: 40,
+      },
+      {
+        ...funnel.rows[0],
+        stageKey: 'CONTACTED',
+        label: 'Contacted',
+        entered: 60,
+      },
+      {
+        ...funnel.rows[0],
+        stageKey: 'SIGNED',
+        label: 'Signed',
+        entered: 8,
+      },
+    ],
+    lowestStepStageKey: 'NEW',
+  };
+};
+
 const renderTab = ({
   filter,
   funnel,
@@ -82,7 +129,11 @@ const renderTab = ({
           },
         ]}
       >
-        <AnalyticsFunnelTab filter={filter} onResetFilter={onResetFilter} />
+        <AnalyticsFunnelTab
+          filter={filter}
+          meta={{ stages: [] }}
+          onResetFilter={onResetFilter}
+        />
       </MockedProvider>
     </JotaiProvider>,
   );
@@ -143,14 +194,93 @@ describe('AnalyticsFunnelTab', () => {
     expect(await screen.findByText(LAUNCH_TAKEAWAY)).toBeInTheDocument();
   });
 
-  it('shows the ledger when filtered people are in the cohort', async () => {
+  it('keeps the ledger behind Show numbers when filtered people are in the cohort', async () => {
+    const user = userEvent.setup();
+
     renderTab({
       filter: { ...CRM_ANALYTICS_DEFAULT_FILTER, sourceKey: 'LINKEDIN' },
       funnel: buildFunnel(120),
     });
 
+    await user.click(await screen.findByText('Show numbers'));
+
     expect(
-      await screen.findByRole('table', { name: 'Conversion by stage' }),
+      screen.getByRole('table', { name: 'Conversion by stage' }),
     ).toBeInTheDocument();
+  });
+
+  it('opens with answers and a chart for each question', async () => {
+    renderTab({
+      filter: CRM_ANALYTICS_DEFAULT_FILTER,
+      funnel: buildFullFunnel(),
+    });
+
+    expect(
+      await screen.findByText(
+        'Based on 200 people who applied since tracking started on Oct 27, 2026.',
+      ),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText('10%')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'From New to Contacted. 70 of 100 people did not move on.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('6.5 days', { selector: 'dd' })).toBeInTheDocument();
+
+    [
+      'From new to signed',
+      'Conversion at each step',
+      'What happened to people at each stage?',
+      'How long do people stay?',
+    ].forEach((title) => {
+      expect(screen.getByRole('region', { name: title })).toBeInTheDocument();
+    });
+
+    expect(
+      screen.queryByRole('table', { name: 'Conversion by stage' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('says plainly what is unknown instead of drawing 0%', async () => {
+    const funnel = buildFullFunnel();
+
+    renderTab({
+      filter: CRM_ANALYTICS_DEFAULT_FILTER,
+      funnel: {
+        ...funnel,
+        overall: {
+          ...funnel.overall,
+          eligible: 0,
+          reached: 0,
+          rate: null,
+          soFarRate: 0,
+          isUnderMinimum: true,
+        },
+        rows: funnel.rows.map((row) => ({
+          ...row,
+          eligible: 0,
+          reachedNext: 0,
+          timedOut: 0,
+          exited: 0,
+          inWindow: row.entered,
+          stepRate: null,
+          soFarRate: 0,
+          dropOffRate: null,
+          isUnderMinimum: true,
+          medianDays: null,
+          completedStays: 0,
+        })),
+      },
+    });
+
+    expect(
+      await screen.findByText("No one has passed a stage's window yet."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText('Not enough finished stays yet.'),
+    ).not.toHaveLength(0);
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
   });
 });

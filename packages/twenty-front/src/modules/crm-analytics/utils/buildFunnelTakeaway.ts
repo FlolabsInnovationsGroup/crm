@@ -23,13 +23,13 @@ const buildOverallSentence = ({
       timeZone: funnel.reportingTimeZone,
     });
 
-    return t`Tracking started ${trackingStartedOn}. Conversion appears once people pass the ${windowDays}-day window.`;
+    return t`Tracking started ${trackingStartedOn}. Conversion appears once people have had ${windowDays} days to reach the end.`;
   }
 
   if (overall.isUnderMinimum) {
     const minimumSample = formatNumber(funnel.minimumSample);
 
-    return t`Fewer than ${minimumSample} people have passed the ${windowDays}-day window so far.`;
+    return t`Fewer than ${minimumSample} people have had ${windowDays} days to reach the end so far.`;
   }
 
   const finalLabel = funnel.rows.find(

@@ -82,7 +82,7 @@ describe('buildFunnelTakeaway', () => {
     });
 
     expect(takeaway).toBe(
-      'Tracking started Oct 27, 2026. Conversion appears once people pass the 90-day window.',
+      'Tracking started Oct 27, 2026. Conversion appears once people have had 90 days to reach the end.',
     );
     expect(takeaway).not.toContain('0%');
   });
@@ -105,7 +105,7 @@ describe('buildFunnelTakeaway', () => {
     });
 
     expect(takeaway).toBe(
-      'Fewer than 30 people have passed the 90-day window so far.',
+      'Fewer than 30 people have had 90 days to reach the end so far.',
     );
   });
 

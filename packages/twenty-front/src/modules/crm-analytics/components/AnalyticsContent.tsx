@@ -178,7 +178,7 @@ export const AnalyticsContent = () => {
           tabs={[
             { id: 'overview', title: t`Overview` },
             { id: 'funnel', title: t`Funnel` },
-            { id: 'categories', title: t`Categories` },
+            { id: 'categories', title: t`Tracks & sources` },
             { id: 'trends', title: t`Trends` },
             { id: 'reports', title: t`Reports` },
           ]}
@@ -187,8 +187,9 @@ export const AnalyticsContent = () => {
           <AnalyticsFilterBar
             filter={filter}
             meta={meta}
-            isPeriodEnabled={activeTabId === 'trends'}
-            isStatusEnabled={activeTabId !== 'funnel'}
+            isStatusEnabled={
+              activeTabId === 'overview' || activeTabId === 'categories'
+            }
             onChange={handleFilterChange}
             onReset={resetFilter}
           />
@@ -198,16 +199,23 @@ export const AnalyticsContent = () => {
             <AnalyticsOverviewTab
               filter={filter}
               meta={meta}
+              onFilterChange={handleFilterChange}
               onResetFilter={resetFilter}
             />
           )}
           {activeTabId === 'funnel' && (
-            <AnalyticsFunnelTab filter={filter} onResetFilter={resetFilter} />
+            <AnalyticsFunnelTab
+              filter={filter}
+              meta={meta}
+              onFilterChange={handleFilterChange}
+              onResetFilter={resetFilter}
+            />
           )}
           {activeTabId === 'categories' && (
             <AnalyticsCategoriesTab
               filter={filter}
               meta={meta}
+              onFilterChange={handleFilterChange}
               onResetFilter={resetFilter}
             />
           )}
@@ -215,10 +223,13 @@ export const AnalyticsContent = () => {
             <AnalyticsTrendsTab
               filter={filter}
               meta={meta}
+              onFilterChange={handleFilterChange}
               onResetFilter={resetFilter}
             />
           )}
-          {activeTabId === 'reports' && <AnalyticsReportsTab />}
+          {activeTabId === 'reports' && (
+            <AnalyticsReportsTab onFilterChange={handleFilterChange} />
+          )}
         </StyledBody>
       </TabListRoot>
     </StyledContainer>

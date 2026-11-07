@@ -83,7 +83,7 @@ describe('buildOverviewTakeaway', () => {
         formatNumber,
       }),
     ).toBe(
-      '1,284 active people, 214 past their stage limit. 1,200 people have a stage not yet mapped and are not counted as active or stuck.',
+      '1,284 active people, 214 past their stage limit. 1,200 people have a stage not yet mapped and are not counted as active or past their limit.',
     );
     expect(
       buildOverviewTakeaway({
@@ -94,7 +94,7 @@ describe('buildOverviewTakeaway', () => {
         formatNumber,
       }),
     ).toBe(
-      '1,284 active people. No stage limits are set. 1 person has a stage not yet mapped and is not counted as active or stuck.',
+      '1,284 active people. No stage limits are set. 1 person has a stage not yet mapped and is not counted as active or past their limit.',
     );
   });
 

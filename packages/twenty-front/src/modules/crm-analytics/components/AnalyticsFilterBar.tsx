@@ -2,38 +2,61 @@ import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { type ReactNode, useState } from 'react';
 import { isDefined } from 'twenty-shared/utils';
-import { Button } from 'twenty-ui/primitives/input';
 import { Tooltip } from 'twenty-ui/primitives/surfaces';
 import { themeCssVariables } from 'twenty-ui/theme';
 import { Temporal } from 'temporal-polyfill';
 import { useDebouncedCallback } from 'use-debounce';
 
+import { AnalyticsFilterChips } from '@/crm-analytics/components/AnalyticsFilterChips';
 import {
   type AnalyticsFilter,
   type AnalyticsMeta,
-  type AnalyticsPeriod,
   type AnalyticsStatusFilter,
 } from '@/crm-analytics/types/AnalyticsApi';
-import { hasActiveAnalyticsFilter } from '@/crm-analytics/utils/hasActiveAnalyticsFilter';
+import {
+  type AnalyticsDatePresetKey,
+  findAnalyticsDatePreset,
+  getAnalyticsDatePresetRange,
+} from '@/crm-analytics/utils/getAnalyticsDatePreset';
+import { getAnalyticsFilterChips } from '@/crm-analytics/utils/getAnalyticsFilterChips';
+import {
+  getAnalyticsProgramFilterLabel,
+  getAnalyticsSourceFilterLabel,
+  getAnalyticsStatusFilterLabel,
+  getAnalyticsTrackFilterLabel,
+} from '@/crm-analytics/utils/getAnalyticsFilterLabels';
 import { Select } from '@/ui/input/components/Select';
 import { GenericDropdownContentWidth } from '@/ui/layout/dropdown/constants/GenericDropdownContentWidth';
 
-type AnalyticsDatePreset = 'ALL' | 'LAST_7' | 'LAST_30' | 'LAST_90' | 'CUSTOM';
+type AnalyticsDatePreset = AnalyticsDatePresetKey | 'ALL' | 'CUSTOM';
 
-const DAYS_BY_DATE_PRESET = { LAST_7: 7, LAST_30: 30, LAST_90: 90 } as const;
+const STATUS_OPTIONS: AnalyticsStatusFilter[] = [
+  'ALL',
+  'ACTIVE',
+  'SUCCESS',
+  'EXITED',
+  'UNMAPPED',
+  'NO_STAGE',
+];
 
 const COMPLETE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const DATE_IDLE_COMMIT_DELAY_IN_MS = 600;
 
 const StyledBar = styled.div`
-  align-items: center;
   border-bottom: 1px solid ${themeCssVariables.border.color.light};
+  display: flex;
+  flex-direction: column;
+  gap: ${themeCssVariables.spacing[2]};
+  padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[4]};
+`;
+
+const StyledControls = styled.div`
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   font-size: ${themeCssVariables.font.size.sm};
   gap: ${themeCssVariables.spacing[2]};
-  padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[4]};
 `;
 
 const StyledControl = styled.div`
@@ -99,14 +122,15 @@ const AnalyticsFilterControl = ({
   );
 };
 
-const getPresetRange = (days: number, timeZone: string) => {
-  const today = Temporal.Now.plainDateISO(timeZone);
-
-  return {
-    dateFrom: today.subtract({ days: days - 1 }).toString(),
-    dateTo: today.toString(),
-  };
-};
+// A click on a chart can pick a value the options do not list, and Select would then read as the All option.
+const withSelectedOption = (
+  options: { value: string | null; label: string }[],
+  selectedKey: string | null,
+  getLabel: (key: string) => string,
+) =>
+  isDefined(selectedKey) && !options.some(({ value }) => value === selectedKey)
+    ? [...options, { value: selectedKey, label: getLabel(selectedKey) }]
+    : options;
 
 const getSelectedDatePreset = ({
   filter,
@@ -125,15 +149,7 @@ const getSelectedDatePreset = ({
     return 'CUSTOM';
   }
 
-  const matchingPreset = (
-    Object.keys(DAYS_BY_DATE_PRESET) as (keyof typeof DAYS_BY_DATE_PRESET)[]
-  ).find((preset) => {
-    const range = getPresetRange(DAYS_BY_DATE_PRESET[preset], timeZone);
-
-    return range.dateFrom === filter.dateFrom && range.dateTo === filter.dateTo;
-  });
-
-  return matchingPreset ?? 'CUSTOM';
+  return findAnalyticsDatePreset(filter, timeZone) ?? 'CUSTOM';
 };
 
 const getTrackingStartDate = ({
@@ -210,7 +226,7 @@ const AnalyticsDateInput = ({
 type AnalyticsFilterBarProps = {
   filter: AnalyticsFilter;
   meta: AnalyticsMeta;
-  isPeriodEnabled: boolean;
+  // False where the numbers ignore the status, so a value picked elsewhere is hidden and has no chip.
   isStatusEnabled?: boolean;
   onChange: (filter: AnalyticsFilter) => void;
   onReset: () => void;
@@ -219,7 +235,6 @@ type AnalyticsFilterBarProps = {
 export const AnalyticsFilterBar = ({
   filter,
   meta,
-  isPeriodEnabled,
   isStatusEnabled = true,
   onChange,
   onReset,
@@ -244,16 +259,11 @@ export const AnalyticsFilterBar = ({
       ? null
       : t`The source field on People is missing or has the wrong type.`;
 
-  const periodDisabledReason = isPeriodEnabled
-    ? null
-    : t`Only the Trends tab uses a period.`;
-
-  const statusDisabledReason = isStatusEnabled
-    ? null
-    : t`Rates ignore the status filter, so the Funnel tab does not use it.`;
-
-  const successStageLabel =
-    meta.stages.find((stage) => stage.isSuccess)?.label ?? t`Success`;
+  const chips = getAnalyticsFilterChips({
+    filter,
+    meta,
+    isStatusApplied: isStatusEnabled,
+  });
 
   const programs = isDefined(filter.trackKey)
     ? meta.programs.filter((program) => program.trackKey === filter.trackKey)
@@ -292,7 +302,7 @@ export const AnalyticsFilterBar = ({
 
     onChange({
       ...filter,
-      ...getPresetRange(DAYS_BY_DATE_PRESET[preset], timeZone),
+      ...getAnalyticsDatePresetRange(preset, timeZone),
     });
   };
 
@@ -311,149 +321,141 @@ export const AnalyticsFilterBar = ({
   };
 
   return (
-    <StyledBar role="group" aria-label={t`Filters`}>
-      <AnalyticsFilterControl label={t`Dates`} disabledReason={null}>
-        <Select<AnalyticsDatePreset>
-          dropdownId="crm-analytics-filter-dates"
-          selectSizeVariant="small"
-          fullWidth
-          value={selectedDatePreset}
-          options={[
-            { value: 'ALL', label: t`All dates` },
-            { value: 'LAST_7', label: t`Last 7 days` },
-            { value: 'LAST_30', label: t`Last 30 days` },
-            { value: 'LAST_90', label: t`Last 90 days` },
-            { value: 'CUSTOM', label: t`Custom dates` },
-          ]}
-          onChange={handleDatePresetChange}
-        />
-      </AnalyticsFilterControl>
-      {selectedDatePreset === 'CUSTOM' && (
-        <>
-          <AnalyticsDateInput
-            label={t`From date`}
-            appliedDate={filter.dateFrom}
-            latestDate={filter.dateTo}
-            isDateAllowed={isFromDateAllowed}
-            onCommit={(dateFrom) => onChange({ ...filter, dateFrom })}
+    <StyledBar>
+      <StyledControls role="group" aria-label={t`Filters`}>
+        <AnalyticsFilterControl label={t`Dates`} disabledReason={null}>
+          <Select<AnalyticsDatePreset>
+            dropdownId="crm-analytics-filter-dates"
+            selectSizeVariant="small"
+            fullWidth
+            value={selectedDatePreset}
+            options={[
+              { value: 'ALL', label: t`All dates` },
+              { value: 'LAST_7', label: t`Last 7 days` },
+              { value: 'LAST_30', label: t`Last 30 days` },
+              { value: 'LAST_90', label: t`Last 90 days` },
+              { value: 'CUSTOM', label: t`Custom dates` },
+            ]}
+            onChange={handleDatePresetChange}
           />
-          <AnalyticsDateInput
-            label={t`To date`}
-            appliedDate={filter.dateTo}
-            earliestDate={filter.dateFrom}
-            isDateAllowed={isToDateAllowed}
-            onCommit={(dateTo) => onChange({ ...filter, dateTo })}
+        </AnalyticsFilterControl>
+        {selectedDatePreset === 'CUSTOM' && (
+          <>
+            <AnalyticsDateInput
+              label={t`From date`}
+              appliedDate={filter.dateFrom}
+              latestDate={filter.dateTo}
+              isDateAllowed={isFromDateAllowed}
+              onCommit={(dateFrom) => onChange({ ...filter, dateFrom })}
+            />
+            <AnalyticsDateInput
+              label={t`To date`}
+              appliedDate={filter.dateTo}
+              earliestDate={filter.dateFrom}
+              isDateAllowed={isToDateAllowed}
+              onCommit={(dateTo) => onChange({ ...filter, dateTo })}
+            />
+          </>
+        )}
+        <AnalyticsFilterControl
+          label={t`Track`}
+          disabledReason={positionsDisabledReason}
+        >
+          <Select<string | null>
+            dropdownId="crm-analytics-filter-track"
+            selectSizeVariant="small"
+            fullWidth
+            dropdownWidth={GenericDropdownContentWidth.ExtraLarge}
+            disabled={isDefined(positionsDisabledReason)}
+            value={filter.trackKey}
+            options={withSelectedOption(
+              [
+                { value: null, label: t`All tracks` },
+                ...meta.tracks.map((track) => ({
+                  value: track.key,
+                  label: track.label,
+                })),
+              ],
+              filter.trackKey,
+              (trackKey) => getAnalyticsTrackFilterLabel(trackKey, meta),
+            )}
+            onChange={handleTrackChange}
           />
-        </>
-      )}
-      <AnalyticsFilterControl
-        label={t`Track`}
-        disabledReason={positionsDisabledReason}
-      >
-        <Select<string | null>
-          dropdownId="crm-analytics-filter-track"
-          selectSizeVariant="small"
-          fullWidth
-          dropdownWidth={GenericDropdownContentWidth.ExtraLarge}
-          disabled={isDefined(positionsDisabledReason)}
-          value={filter.trackKey}
-          options={[
-            { value: null, label: t`All tracks` },
-            ...meta.tracks.map((track) => ({
-              value: track.key,
-              label: track.label,
-            })),
-          ]}
-          onChange={handleTrackChange}
+        </AnalyticsFilterControl>
+        <AnalyticsFilterControl
+          label={t`Program`}
+          disabledReason={positionsDisabledReason}
+        >
+          <Select<string | null>
+            dropdownId="crm-analytics-filter-program"
+            selectSizeVariant="small"
+            fullWidth
+            withSearchInput
+            dropdownWidth={GenericDropdownContentWidth.ExtraLarge}
+            disabled={isDefined(positionsDisabledReason)}
+            value={filter.programKey}
+            options={withSelectedOption(
+              [
+                { value: null, label: t`All programs` },
+                ...programs.map((program) => ({
+                  value: program.key,
+                  label: program.label,
+                })),
+              ],
+              filter.programKey,
+              (programKey) => getAnalyticsProgramFilterLabel(programKey, meta),
+            )}
+            onChange={(programKey) => onChange({ ...filter, programKey })}
+          />
+        </AnalyticsFilterControl>
+        <AnalyticsFilterControl
+          label={t`Source`}
+          disabledReason={sourceDisabledReason}
+        >
+          <Select<string | null>
+            dropdownId="crm-analytics-filter-source"
+            selectSizeVariant="small"
+            fullWidth
+            withSearchInput
+            dropdownWidth={GenericDropdownContentWidth.ExtraLarge}
+            disabled={isDefined(sourceDisabledReason)}
+            value={filter.sourceKey}
+            options={withSelectedOption(
+              [
+                { value: null, label: t`All sources` },
+                ...meta.sources.map((source) => ({
+                  value: source.key,
+                  label: source.label,
+                })),
+              ],
+              filter.sourceKey,
+              (sourceKey) => getAnalyticsSourceFilterLabel(sourceKey, meta),
+            )}
+            onChange={(sourceKey) => onChange({ ...filter, sourceKey })}
+          />
+        </AnalyticsFilterControl>
+        {isStatusEnabled && (
+          <AnalyticsFilterControl label={t`Status`} disabledReason={null}>
+            <Select<AnalyticsStatusFilter>
+              dropdownId="crm-analytics-filter-status"
+              selectSizeVariant="small"
+              fullWidth
+              value={filter.status}
+              options={STATUS_OPTIONS.map((status) => ({
+                value: status,
+                label: getAnalyticsStatusFilterLabel(status, meta),
+              }))}
+              onChange={(status) => onChange({ ...filter, status })}
+            />
+          </AnalyticsFilterControl>
+        )}
+      </StyledControls>
+      {chips.length > 0 && (
+        <AnalyticsFilterChips
+          chips={chips}
+          onChange={onChange}
+          onClearAll={onReset}
         />
-      </AnalyticsFilterControl>
-      <AnalyticsFilterControl
-        label={t`Program`}
-        disabledReason={positionsDisabledReason}
-      >
-        <Select<string | null>
-          dropdownId="crm-analytics-filter-program"
-          selectSizeVariant="small"
-          fullWidth
-          withSearchInput
-          dropdownWidth={GenericDropdownContentWidth.ExtraLarge}
-          disabled={isDefined(positionsDisabledReason)}
-          value={filter.programKey}
-          options={[
-            { value: null, label: t`All programs` },
-            ...programs.map((program) => ({
-              value: program.key,
-              label: program.label,
-            })),
-          ]}
-          onChange={(programKey) => onChange({ ...filter, programKey })}
-        />
-      </AnalyticsFilterControl>
-      <AnalyticsFilterControl
-        label={t`Source`}
-        disabledReason={sourceDisabledReason}
-      >
-        <Select<string | null>
-          dropdownId="crm-analytics-filter-source"
-          selectSizeVariant="small"
-          fullWidth
-          withSearchInput
-          dropdownWidth={GenericDropdownContentWidth.ExtraLarge}
-          disabled={isDefined(sourceDisabledReason)}
-          value={filter.sourceKey}
-          options={[
-            { value: null, label: t`All sources` },
-            ...meta.sources.map((source) => ({
-              value: source.key,
-              label: source.label,
-            })),
-          ]}
-          onChange={(sourceKey) => onChange({ ...filter, sourceKey })}
-        />
-      </AnalyticsFilterControl>
-      <AnalyticsFilterControl
-        label={t`Status`}
-        disabledReason={statusDisabledReason}
-      >
-        <Select<AnalyticsStatusFilter>
-          dropdownId="crm-analytics-filter-status"
-          selectSizeVariant="small"
-          fullWidth
-          disabled={isDefined(statusDisabledReason)}
-          value={filter.status}
-          options={[
-            { value: 'ALL', label: t`All statuses` },
-            { value: 'ACTIVE', label: t`Active` },
-            { value: 'SUCCESS', label: successStageLabel },
-            { value: 'EXITED', label: t`Exited` },
-            { value: 'UNMAPPED', label: t`Unmapped` },
-            { value: 'NO_STAGE', label: t`No stage` },
-          ]}
-          onChange={(status) => onChange({ ...filter, status })}
-        />
-      </AnalyticsFilterControl>
-      <AnalyticsFilterControl
-        label={t`Period`}
-        disabledReason={periodDisabledReason}
-      >
-        <Select<AnalyticsPeriod>
-          dropdownId="crm-analytics-filter-period"
-          selectSizeVariant="small"
-          fullWidth
-          disabled={isDefined(periodDisabledReason)}
-          value={filter.period}
-          options={[
-            { value: 'DAY', label: t`By day` },
-            { value: 'WEEK', label: t`By week` },
-            { value: 'MONTH', label: t`By month` },
-          ]}
-          onChange={(period) => onChange({ ...filter, period })}
-        />
-      </AnalyticsFilterControl>
-      {hasActiveAnalyticsFilter(filter) && (
-        <Button variant="link" size="sm" onClick={() => onReset()}>
-          {t`Reset filters`}
-        </Button>
       )}
     </StyledBar>
   );

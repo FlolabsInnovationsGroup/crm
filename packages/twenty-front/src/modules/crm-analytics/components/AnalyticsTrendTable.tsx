@@ -10,10 +10,8 @@ import {
   type AnalyticsTrendMetric,
   type AnalyticsTrendPoint,
 } from '@/crm-analytics/types/AnalyticsApi';
-import {
-  isAnalyticsRateMetric,
-  isAnalyticsRunningCountMetric,
-} from '@/crm-analytics/utils/buildTrendChartSeries';
+import { isAnalyticsRateMetric } from '@/crm-analytics/utils/isAnalyticsRateMetric';
+import { isAnalyticsRunningCountMetric } from '@/crm-analytics/utils/isAnalyticsRunningCountMetric';
 import { formatAnalyticsBucketLabel } from '@/crm-analytics/utils/formatAnalyticsBucketLabel';
 import { formatAnalyticsSignedNumber } from '@/crm-analytics/utils/formatAnalyticsSignedNumber';
 import { getAnalyticsWindowLength } from '@/crm-analytics/utils/getAnalyticsWindowLength';

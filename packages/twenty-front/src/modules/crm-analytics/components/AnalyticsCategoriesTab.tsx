@@ -1,15 +1,14 @@
+import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { type ReactNode, useState } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 import { SegmentedControl } from 'twenty-ui/components/input';
+import { themeCssVariables } from 'twenty-ui/theme';
 
-import { AnalyticsCategoryTable } from '@/crm-analytics/components/AnalyticsCategoryTable';
-import {
-  AnalyticsNotice,
-  AnalyticsSection,
-  AnalyticsTabLayout,
-} from '@/crm-analytics/components/AnalyticsSection';
-import { AnalyticsSkeleton } from '@/crm-analytics/components/AnalyticsSkeleton';
+import { AnalyticsChartCard } from '@/crm-analytics/charts/AnalyticsChartCard';
+import { AnalyticsChartGrid } from '@/crm-analytics/charts/AnalyticsChartGrid';
+import { AnalyticsCategoryCharts } from '@/crm-analytics/components/AnalyticsCategoryCharts';
+import { AnalyticsNotice } from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsStatePanel } from '@/crm-analytics/components/AnalyticsStatePanel';
 import { GET_CRM_ANALYTICS_CATEGORIES } from '@/crm-analytics/graphql/getCrmAnalyticsCategories';
 import { useCrmAnalyticsQuery } from '@/crm-analytics/hooks/useCrmAnalyticsQuery';
@@ -19,26 +18,14 @@ import {
   type AnalyticsFilter,
   type AnalyticsMeta,
   type AnalyticsStageDefinition,
-  type AnalyticsStatusFilter,
 } from '@/crm-analytics/types/AnalyticsApi';
-import { buildCategoriesTakeaway } from '@/crm-analytics/utils/buildCategoriesTakeaway';
 
-const getSectionTitle = (groupBy: AnalyticsCategoryGroupBy) =>
-  groupBy === 'SOURCE' ? t`Sources` : t`Tracks and programs`;
-
-const getSectionNote = (
-  groupBy: AnalyticsCategoryGroupBy,
-  status: AnalyticsStatusFilter,
-) =>
-  [
-    groupBy === 'SOURCE'
-      ? t`People by their current source. New applications by submission date, in the date filter or else the last 7 days. Rates by application date. A date filter leaves out imported people.`
-      : t`People by their current positions, counted once in each. New applications by submission date, in the date filter or else the last 7 days. Rates by application date. A date filter leaves out imported people.`,
-    status === 'ALL' ? null : t`Rates ignore the status filter.`,
-    t`n/a means not enough data.`,
-  ]
-    .filter(isDefined)
-    .join(' ');
+const StyledLayout = styled.div<{ isRefetching: boolean }>`
+  display: flex;
+  flex-direction: column;
+  gap: ${themeCssVariables.spacing[4]};
+  opacity: ${({ isRefetching }) => (isRefetching ? 0.6 : 1)};
+`;
 
 const getFieldNotice = (
   groupBy: AnalyticsCategoryGroupBy,
@@ -60,6 +47,7 @@ type AnalyticsCategoriesViewProps = {
   groupBy: AnalyticsCategoryGroupBy;
   groupSwitch: ReactNode;
   stages: AnalyticsStageDefinition[];
+  onFilterChange?: (nextFilter: AnalyticsFilter) => void;
   onResetFilter: () => void;
 };
 
@@ -69,6 +57,7 @@ const AnalyticsCategoriesView = ({
   groupBy,
   groupSwitch,
   stages,
+  onFilterChange,
   onResetFilter,
 }: AnalyticsCategoriesViewProps) => {
   const {
@@ -90,17 +79,22 @@ const AnalyticsCategoriesView = ({
 
   if (isDefined(error)) {
     return (
-      <AnalyticsSection title={getSectionTitle(groupBy)} action={groupSwitch}>
+      <StyledLayout isRefetching={false}>
+        {groupSwitch}
         <AnalyticsStatePanel kind="ERROR" error={error} onRetry={retry} />
-      </AnalyticsSection>
+      </StyledLayout>
     );
   }
 
   if (isFirstLoad) {
     return (
-      <AnalyticsSection title={getSectionTitle(groupBy)} action={groupSwitch}>
-        <AnalyticsSkeleton shape="table" rowCount={5} columnCount={6} />
-      </AnalyticsSection>
+      <StyledLayout isRefetching={false}>
+        {groupSwitch}
+        <AnalyticsChartGrid>
+          <AnalyticsChartCard title={t`How many people in each?`} isLoading />
+          <AnalyticsChartCard title={t`Which converts best?`} isLoading />
+        </AnalyticsChartGrid>
+      </StyledLayout>
     );
   }
 
@@ -110,63 +104,66 @@ const AnalyticsCategoriesView = ({
 
   if (categories.rows.every((row) => row.people === 0)) {
     return (
-      <AnalyticsSection title={getSectionTitle(groupBy)} action={groupSwitch}>
+      <StyledLayout isRefetching={false}>
+        {groupSwitch}
         <AnalyticsStatePanel kind="EMPTY" onReset={onResetFilter} />
-      </AnalyticsSection>
+      </StyledLayout>
     );
   }
 
   return (
-    <AnalyticsTabLayout
-      takeaway={buildCategoriesTakeaway(categories)}
-      isRefetching={isRefetching}
-    >
-      <AnalyticsSection
-        title={getSectionTitle(categories.groupBy)}
-        note={getSectionNote(categories.groupBy, filter.status)}
-        action={groupSwitch}
-      >
-        <AnalyticsCategoryTable categories={categories} stages={stages} />
-      </AnalyticsSection>
-    </AnalyticsTabLayout>
+    <StyledLayout aria-busy={isRefetching} isRefetching={isRefetching}>
+      {groupSwitch}
+      <AnalyticsCategoryCharts
+        categories={categories}
+        filter={filter}
+        stages={stages}
+        onFilterChange={onFilterChange}
+      />
+    </StyledLayout>
   );
 };
 
 type AnalyticsCategoriesTabProps = {
   filter: AnalyticsFilter;
   meta: AnalyticsMeta;
+  onFilterChange?: (nextFilter: AnalyticsFilter) => void;
   onResetFilter: () => void;
 };
 
 export const AnalyticsCategoriesTab = ({
   filter,
   meta,
+  onFilterChange,
   onResetFilter,
 }: AnalyticsCategoriesTabProps) => {
   const [groupBy, setGroupBy] =
     useState<AnalyticsCategoryGroupBy>('TRACK_PROGRAM');
 
   const groupSwitch = (
-    <SegmentedControl<AnalyticsCategoryGroupBy>
-      aria-label={t`Group by`}
-      itemWidth="content"
-      size="sm"
-      value={groupBy}
-      onValueChange={(nextGroupBy) => setGroupBy(nextGroupBy)}
-      options={[
-        { value: 'TRACK_PROGRAM', label: t`Track and program` },
-        { value: 'SOURCE', label: t`Source` },
-      ]}
-    />
+    <div>
+      <SegmentedControl<AnalyticsCategoryGroupBy>
+        aria-label={t`Group by`}
+        itemWidth="content"
+        size="sm"
+        value={groupBy}
+        onValueChange={(nextGroupBy) => setGroupBy(nextGroupBy)}
+        options={[
+          { value: 'TRACK_PROGRAM', label: t`Tracks and programs` },
+          { value: 'SOURCE', label: t`Sources` },
+        ]}
+      />
+    </div>
   );
 
   const fieldNotice = getFieldNotice(groupBy, meta.fields);
 
   if (isDefined(fieldNotice)) {
     return (
-      <AnalyticsSection title={getSectionTitle(groupBy)} action={groupSwitch}>
+      <StyledLayout isRefetching={false}>
+        {groupSwitch}
         <AnalyticsNotice>{fieldNotice}</AnalyticsNotice>
-      </AnalyticsSection>
+      </StyledLayout>
     );
   }
 
@@ -176,6 +173,7 @@ export const AnalyticsCategoriesTab = ({
       groupBy={groupBy}
       groupSwitch={groupSwitch}
       stages={meta.stages}
+      onFilterChange={onFilterChange}
       onResetFilter={onResetFilter}
     />
   );

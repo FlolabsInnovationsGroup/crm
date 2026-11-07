@@ -1,6 +1,6 @@
 import { i18n } from '@lingui/core';
 import { styled } from '@linaria/react';
-import { t } from '@lingui/core/macro';
+import { plural, t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
 
@@ -159,7 +159,12 @@ const AnalyticsLedgerMedianCell = ({
         {formatNumber(row.medianDays, { decimals: 1 })}
       </StyledDetailValue>
       {isUnderMinimum && (
-        <StyledSampleSize>{t`n=${sampleSize}`}</StyledSampleSize>
+        <StyledSampleSize>
+          {plural(row.completedStays, {
+            one: `from ${sampleSize} finished stay`,
+            other: `from ${sampleSize} finished stays`,
+          })}
+        </StyledSampleSize>
       )}
     </StyledCell>
   );
@@ -190,7 +195,7 @@ export const AnalyticsStageLedger = ({ funnel }: AnalyticsStageLedgerProps) => {
   });
 
   const note = [
-    t`Cohort size: ${cohortSize}. Tracking started ${trackingStartedOn}.`,
+    t`People who applied: ${cohortSize}. Tracking started ${trackingStartedOn}.`,
     funnel.cohortExcludedUnmapped > 0
       ? t`${excludedUnmapped} left out because every stage they had is unmapped.`
       : null,
@@ -232,13 +237,13 @@ export const AnalyticsStageLedger = ({ funnel }: AnalyticsStageLedgerProps) => {
               {t`To next`}
             </StyledToNextHeaderCell>
             <AnalyticsTable.HeaderCell isNumeric>
-              {t`Timed out`}
+              {t`Stalled`}
             </AnalyticsTable.HeaderCell>
             <AnalyticsTable.HeaderCell isNumeric>
-              {t`Exited`}
+              {t`Left`}
             </AnalyticsTable.HeaderCell>
             <AnalyticsTable.HeaderCell isNumeric>
-              {t`Too recent`}
+              {t`Still in progress`}
             </AnalyticsTable.HeaderCell>
             <AnalyticsTable.HeaderCell isNumeric>
               {t`Median days`}
@@ -316,7 +321,7 @@ export const AnalyticsStageLedger = ({ funnel }: AnalyticsStageLedgerProps) => {
                 <StyledOverallDescription>
                   {overall.eligible > 0
                     ? t`${overallReached} of ${overallEligible} reached ${finalStageLabel} within ${overallWindowDays} days`
-                    : t`No one has passed the ${overallWindowDays}-day window yet`}
+                    : t`No one has had ${overallWindowDays} days to reach the end yet`}
                 </StyledOverallDescription>
               </StyledOverallCell>
               <StyledOverallCell isNumeric>

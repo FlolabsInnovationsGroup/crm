@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createStore, Provider as JotaiProvider } from 'jotai';
 import { useState } from 'react';
@@ -56,13 +56,11 @@ const CUSTOM_RANGE_FILTER: AnalyticsFilter = {
 const AnalyticsFilterBarHarness = ({
   initialFilter = CRM_ANALYTICS_DEFAULT_FILTER,
   meta = buildMeta({}),
-  isPeriodEnabled = false,
   isStatusEnabled = true,
   onFilterChange,
 }: {
   initialFilter?: AnalyticsFilter;
   meta?: AnalyticsMeta;
-  isPeriodEnabled?: boolean;
   isStatusEnabled?: boolean;
   onFilterChange?: (filter: AnalyticsFilter) => void;
 }) => {
@@ -74,7 +72,6 @@ const AnalyticsFilterBarHarness = ({
       <AnalyticsFilterBar
         filter={filter}
         meta={meta}
-        isPeriodEnabled={isPeriodEnabled}
         isStatusEnabled={isStatusEnabled}
         onChange={(nextFilter) => {
           setFilter(nextFilter);
@@ -137,45 +134,30 @@ describe('AnalyticsFilterBar', () => {
     expect(screen.queryByText('Finance')).not.toBeInTheDocument();
   });
 
-  it('disables the period outside Trends and gives the reason', async () => {
+  it('never offers a period, which lives on the Trends tab', () => {
+    render(<AnalyticsFilterBarHarness />);
+
+    expect(screen.queryByText('By week')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('group', { name: 'Period' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides the status where it is not applied rather than disabling it', () => {
+    render(<AnalyticsFilterBarHarness isStatusEnabled={false} />);
+
+    expect(screen.queryByText('All statuses')).not.toBeInTheDocument();
+  });
+
+  it('uses plain words for the status options', async () => {
     const user = userEvent.setup();
 
     render(<AnalyticsFilterBarHarness />);
 
-    expect(
-      screen.getByRole('group', {
-        name: 'Period: Only the Trends tab uses a period.',
-      }),
-    ).toHaveAttribute('aria-disabled', 'true');
-
-    await user.click(screen.getByText('By week'));
-
-    expect(screen.queryByText('By day')).not.toBeInTheDocument();
-  });
-
-  it('enables the period on Trends', async () => {
-    const user = userEvent.setup();
-
-    render(<AnalyticsFilterBarHarness isPeriodEnabled />);
-
-    await user.click(screen.getByText('By week'));
-
-    expect(await screen.findByText('By day')).toBeInTheDocument();
-  });
-
-  it('disables the status on Funnel and gives the reason', async () => {
-    const user = userEvent.setup();
-
-    render(<AnalyticsFilterBarHarness isStatusEnabled={false} />);
-
-    expect(
-      screen.getByRole('group', {
-        name: 'Status: Rates ignore the status filter, so the Funnel tab does not use it.',
-      }),
-    ).toHaveAttribute('aria-disabled', 'true');
-
     await user.click(screen.getByText('All statuses'));
 
+    expect(await screen.findByText('Left')).toBeInTheDocument();
+    expect(screen.getByText('Not mapped')).toBeInTheDocument();
     expect(screen.queryByText('Exited')).not.toBeInTheDocument();
   });
 
@@ -249,13 +231,13 @@ describe('AnalyticsFilterBar', () => {
     );
   });
 
-  it('shows two date inputs for a custom range, then hides them on reset', async () => {
+  it('shows two date inputs for a custom range, then hides them on Clear all', async () => {
     const user = userEvent.setup();
 
     render(<AnalyticsFilterBarHarness />);
 
     expect(screen.queryByLabelText('From date')).not.toBeInTheDocument();
-    expect(screen.queryByText('Reset filters')).not.toBeInTheDocument();
+    expect(screen.queryByText('Clear all')).not.toBeInTheDocument();
 
     await user.click(screen.getByText('All dates'));
     await user.click(await screen.findByText('Custom dates'));
@@ -263,10 +245,96 @@ describe('AnalyticsFilterBar', () => {
     expect(await screen.findByLabelText('From date')).toHaveValue('2026-10-27');
     expect(screen.getByLabelText('To date')).toBeInTheDocument();
 
-    await user.click(screen.getByText('Reset filters'));
+    await user.click(screen.getByText('Clear all'));
 
     expect(screen.queryByLabelText('From date')).not.toBeInTheDocument();
     expect(screen.getByText('All dates')).toBeInTheDocument();
+  });
+
+  describe('active filter chips', () => {
+    const ACTIVE_FILTER: AnalyticsFilter = {
+      ...CUSTOM_RANGE_FILTER,
+      trackKey: 'ROBOTICS',
+      programKey: 'SENSOR_INTEGRATION',
+      sourceKey: 'LINKEDIN',
+      status: 'EXITED',
+    };
+
+    it('shows none and no Clear all when nothing is active', () => {
+      render(<AnalyticsFilterBarHarness />);
+
+      expect(
+        screen.queryByRole('group', { name: 'Active filters' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('names each active filter', () => {
+      render(<AnalyticsFilterBarHarness initialFilter={ACTIVE_FILTER} />);
+
+      const chips = within(
+        screen.getByRole('group', { name: 'Active filters' }),
+      );
+
+      expect(chips.getByText('Oct 27, 2026 to Nov 5, 2026')).toBeInTheDocument();
+      expect(chips.getByText('Track: Robotics')).toBeInTheDocument();
+      expect(chips.getByText('Program: Sensor integration')).toBeInTheDocument();
+      expect(chips.getByText('Source: LinkedIn')).toBeInTheDocument();
+      expect(chips.getByText('Status: Left')).toBeInTheDocument();
+    });
+
+    it('removes one filter and keeps the others', async () => {
+      const user = userEvent.setup();
+      const onFilterChange = jest.fn();
+
+      render(
+        <AnalyticsFilterBarHarness
+          initialFilter={ACTIVE_FILTER}
+          onFilterChange={onFilterChange}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole('button', {
+          name: 'Remove filter Source: LinkedIn',
+        }),
+      );
+
+      expect(onFilterChange).toHaveBeenCalledWith({
+        ...ACTIVE_FILTER,
+        sourceKey: null,
+      });
+      expect(screen.queryByText('Source: LinkedIn')).not.toBeInTheDocument();
+      expect(screen.getByText('Track: Robotics')).toBeInTheDocument();
+    });
+
+    it('has no chip for a status the tab does not apply', () => {
+      render(
+        <AnalyticsFilterBarHarness
+          isStatusEnabled={false}
+          initialFilter={{ ...CRM_ANALYTICS_DEFAULT_FILTER, status: 'EXITED' }}
+        />,
+      );
+
+      expect(screen.queryByText('Status: Left')).not.toBeInTheDocument();
+      expect(screen.queryByText('Clear all')).not.toBeInTheDocument();
+    });
+
+    it('names a value from a chart click that the options do not list', () => {
+      render(
+        <AnalyticsFilterBarHarness
+          initialFilter={{
+            ...CRM_ANALYTICS_DEFAULT_FILTER,
+            trackKey: 'NONE',
+            sourceKey: 'Old fair',
+          }}
+        />,
+      );
+
+      expect(screen.getByText('Track: No position')).toBeInTheDocument();
+      expect(screen.getByText('Source: Unmapped: Old fair')).toBeInTheDocument();
+      expect(screen.queryByText('All tracks')).not.toBeInTheDocument();
+      expect(screen.queryByText('All sources')).not.toBeInTheDocument();
+    });
   });
 
   describe('typing a date', () => {

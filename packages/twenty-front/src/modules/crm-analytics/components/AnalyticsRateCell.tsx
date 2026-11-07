@@ -4,6 +4,7 @@ import { isDefined } from 'twenty-shared/utils';
 import { VisuallyHidden } from 'twenty-ui/primitives/accessibility';
 import { themeCssVariables } from 'twenty-ui/theme';
 
+import { formatAnalyticsOfPeople } from '@/crm-analytics/utils/formatAnalyticsOfPeople';
 import { formatAnalyticsRate } from '@/crm-analytics/utils/formatAnalyticsRate';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
@@ -47,13 +48,13 @@ export const AnalyticsRateCell = ({
       return <StyledRate>{formattedRate}</StyledRate>;
     }
 
-    const sampleSize = isDefined(eligible) ? formatNumber(eligible) : null;
-
     return (
       <StyledMutedRate>
         {formattedRate}
-        {isDefined(sampleSize) && (
-          <StyledSampleSize>{t`n=${sampleSize}`}</StyledSampleSize>
+        {isDefined(eligible) && (
+          <StyledSampleSize>
+            {formatAnalyticsOfPeople(eligible, formatNumber)}
+          </StyledSampleSize>
         )}
       </StyledMutedRate>
     );

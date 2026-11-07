@@ -28,8 +28,8 @@ export const AnalyticsSyncLine = ({ sync }: AnalyticsSyncLineProps) => {
     return (
       <StyledSyncLine isWarning={isWarning}>
         {hasFailedLastAttempt
-          ? t`No successful sync yet. The last attempt failed.`
-          : t`No successful sync yet.`}
+          ? t`Not updated yet. The latest update failed.`
+          : t`Not updated yet.`}
       </StyledSyncLine>
     );
   }
@@ -40,8 +40,8 @@ export const AnalyticsSyncLine = ({ sync }: AnalyticsSyncLineProps) => {
   return (
     <StyledSyncLine isWarning={isWarning}>
       {hasFailedLastAttempt
-        ? t`Last successful sync ${relativeSyncTime}. The last attempt failed.`
-        : t`Last successful sync ${relativeSyncTime}.`}
+        ? t`Last updated ${relativeSyncTime}. The latest update failed.`
+        : t`Last updated ${relativeSyncTime}.`}
     </StyledSyncLine>
   );
 };

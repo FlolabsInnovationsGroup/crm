@@ -11,10 +11,10 @@ import { AnalyticsNote } from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsTable } from '@/crm-analytics/components/AnalyticsTable';
 import {
   type AnalyticsCategories,
-  type AnalyticsCategoryGroupBy,
   type AnalyticsCategoryRow,
   type AnalyticsStageDefinition,
 } from '@/crm-analytics/types/AnalyticsApi';
+import { getAnalyticsCategoryLabel } from '@/crm-analytics/utils/getAnalyticsCategoryLabel';
 import { isAnalyticsCatchAllRow } from '@/crm-analytics/utils/isAnalyticsCatchAllRow';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
@@ -27,8 +27,6 @@ const INDENT_BY_LEVEL: Record<AnalyticsCategoryLabelIndent, string> = {
 };
 
 const CATEGORY_TABLE_MAX_HEIGHT = 640;
-const NO_VALUE_CATEGORY_KEY = 'NONE';
-const UNMAPPED_CATEGORY_KEY = 'UNMAPPED';
 
 const StyledPeopleHeaderCell = styled(AnalyticsTable.HeaderCell)`
   min-width: 200px;
@@ -95,32 +93,6 @@ const compareRows = (
   }
 
   return secondRow.people - firstRow.people;
-};
-
-// The server's label for these rows is stored English, so they translate by their stable key.
-const getRowLabel = (
-  row: AnalyticsCategoryRow,
-  groupBy: AnalyticsCategoryGroupBy,
-) => {
-  if (!isDefined(row.parentKey) && row.key === NO_VALUE_CATEGORY_KEY) {
-    return groupBy === 'SOURCE' ? t`No source` : t`No position`;
-  }
-
-  if (
-    groupBy === 'TRACK_PROGRAM' &&
-    !isDefined(row.parentKey) &&
-    row.key === UNMAPPED_CATEGORY_KEY
-  ) {
-    return t`Unmapped`;
-  }
-
-  if (!row.isUnmapped) {
-    return row.label;
-  }
-
-  const rawValue = row.label;
-
-  return t`Unmapped: ${rawValue}`;
 };
 
 type AnalyticsCategoryTableProps = {
@@ -222,7 +194,7 @@ export const AnalyticsCategoryTable = ({
               {t`New applications`}
             </AnalyticsTable.HeaderCell>
             <AnalyticsTable.HeaderCell isNumeric>
-              {t`Cohort`}
+              {t`People who applied`}
             </AnalyticsTable.HeaderCell>
             <AnalyticsTable.HeaderCell isNumeric>
               {t`Overall`}
@@ -263,14 +235,14 @@ export const AnalyticsCategoryTable = ({
                             <IconChevronRight size={16} />
                           )}
                         </StyledChevron>
-                        {getRowLabel(row, groupBy)}
+                        {getAnalyticsCategoryLabel(row, groupBy)}
                       </StyledExpandButton>
                     ) : (
                       <StyledLabel
                         isProgram={isProgram}
                         indent={getLabelIndent(row)}
                       >
-                        {getRowLabel(row, groupBy)}
+                        {getAnalyticsCategoryLabel(row, groupBy)}
                       </StyledLabel>
                     )}
                   </StyledLabelBox>
