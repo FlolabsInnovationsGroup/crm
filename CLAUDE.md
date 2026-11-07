@@ -96,8 +96,6 @@ All new code is uncommitted in the worktree until each workflow finishes. Agents
 
 **Docker Desktop:** started by the main session for the local Postgres and Redis (containers `twenty-dev-db-1`, `twenty-dev-redis-1`). The user wants to close it because of its memory use and asked to be told when: tell them as soon as the SQL proof, integration tests and full end-to-end run no longer need it.
 
-**Agent limit note:** on 2026-11-07 the user said a usage window resets in about 30 minutes with tokens to spare, so extra agents are fine until about 40 minutes after 18:10, then back to the normal limit of 6, or 7 if really needed.
-
 If a workflow cannot be resumed in a new chat, check `git status` in the worktree to see what was written, compare with `docs/analytics/contract.md` section 2, and continue from there.
 
 ### Where everything is
@@ -113,7 +111,7 @@ If a workflow cannot be resumed in a new chat, check `git status` in the worktre
 3. **Build what is intended, do not over-engineer, make the tool the team needs.** Critically evaluate scope.
 4. **A good UI and good visual graphs matter.** Use the UI, Apple and dataviz skills for UI work.
 5. **The user makes the decisions.** Give suggestions and ask before decisions, changes and anything irreversible. On 2026-11-07 the user said to start, and later to stop spending time on research and build now, with the suggested defaults as the starting point. Report at the end of each phase. Do not fix or "improve" things that were not asked for, including bugs you notice: report them.
-6. **Agents:** at most 6 at the same time, counting all workflows and subagents; 7 only if really needed; ask the user before going above that. Agents doing complex work can be Opus 5.5 at max effort (`model: 'opus', effort: 'max'`). Be especially careful with development, because this is the live CRM. Never use `isolation: 'worktree'` for agents, since that branches from the wrong commit.
+6. **Agents:** up to 12 at the same time (the user said on 2026-11-07 "run as many as you want until 12", read as 12 agents). Complex work can use Opus 5.5 at max effort (`model: 'opus', effort: 'max'`). Heavy commands stay one at a time because the machine has 15 GB of RAM. Be especially careful with development, because this is the live CRM. Never use `isolation: 'worktree'` for agents, since that branches from the wrong commit.
 7. **All work on `analytics_tool`.** Nothing merges to `main` or deploys until the user reviews it. Do not push until the user says so.
 8. **Keep this section updated with all details.**
 
