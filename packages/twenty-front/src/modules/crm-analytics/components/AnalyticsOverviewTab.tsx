@@ -1,5 +1,6 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
+import { Temporal } from 'temporal-polyfill';
 import { isDefined } from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
 
@@ -20,6 +21,9 @@ import {
   type AnalyticsOverview,
 } from '@/crm-analytics/types/AnalyticsApi';
 import { buildOverviewTakeaway } from '@/crm-analytics/utils/buildOverviewTakeaway';
+import { countAnalyticsUnmappedPeople } from '@/crm-analytics/utils/countAnalyticsUnmappedPeople';
+import { hasActiveAnalyticsFilter } from '@/crm-analytics/utils/hasActiveAnalyticsFilter';
+import { isAnalyticsPeriodFullyTracked } from '@/crm-analytics/utils/isAnalyticsPeriodFullyTracked';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
 const StyledViews = styled.div`
@@ -34,6 +38,21 @@ const StyledLoading = styled.div`
   flex-direction: column;
   gap: ${themeCssVariables.spacing[5]};
 `;
+
+// The server counts the same span before the range even when it reaches back before tracking.
+const getFiguresWithTrackedPrevious = (overview: AnalyticsOverview) => {
+  const { figures } = overview;
+
+  const rangeStart = Temporal.PlainDate.from(figures.newApplicationsFrom);
+  const dayCount =
+    rangeStart.until(figures.newApplicationsTo, { largestUnit: 'days' }).days +
+    1;
+  const previousStart = rangeStart.subtract({ days: dayCount }).toString();
+
+  return isAnalyticsPeriodFullyTracked(previousStart, overview)
+    ? figures
+    : { ...figures, newApplicationsPrevious: null };
+};
 
 type AnalyticsOverviewTabProps = {
   filter: AnalyticsFilter;
@@ -104,9 +123,11 @@ export const AnalyticsOverviewTab = ({
       isRefetching={isRefetching}
     >
       <AnalyticsFiguresRow
-        figures={overview.figures}
+        figures={getFiguresWithTrackedPrevious(overview)}
         hasLimits={overview.stuck.hasLimits}
         showSignedFigure={meta.showSignedFigure}
+        hasActiveFilter={hasActiveAnalyticsFilter(filter)}
+        unmappedPeople={countAnalyticsUnmappedPeople(overview.stageTotals)}
       />
       <StyledViews>
         <AnalyticsSection

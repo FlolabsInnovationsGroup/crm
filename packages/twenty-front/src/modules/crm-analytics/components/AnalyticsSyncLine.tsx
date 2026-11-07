@@ -13,7 +13,7 @@ const StyledSyncLine = styled.span<{ isWarning: boolean }>`
       : themeCssVariables.font.color.tertiary};
   font-size: ${themeCssVariables.font.size.sm};
   font-weight: ${themeCssVariables.font.weight.regular};
-  white-space: nowrap;
+  text-align: end;
 `;
 
 type AnalyticsSyncLineProps = {
@@ -34,9 +34,8 @@ export const AnalyticsSyncLine = ({ sync }: AnalyticsSyncLineProps) => {
     );
   }
 
-  const relativeSyncTime = beautifyPastDateRelativeToNow(
-    sync.lastSuccessfulSyncAt,
-  );
+  const relativeTime = beautifyPastDateRelativeToNow(sync.lastSuccessfulSyncAt);
+  const relativeSyncTime = relativeTime === t`now` ? t`just now` : relativeTime;
 
   return (
     <StyledSyncLine isWarning={isWarning}>

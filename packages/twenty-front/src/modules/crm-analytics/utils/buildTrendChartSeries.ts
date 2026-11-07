@@ -5,6 +5,7 @@ import {
   type AnalyticsPeriod,
   type AnalyticsTrendMetric,
   type AnalyticsTrendPoint,
+  type AnalyticsTrends,
 } from '@/crm-analytics/types/AnalyticsApi';
 import { getAnalyticsWindowLength } from '@/crm-analytics/utils/getAnalyticsWindowLength';
 
@@ -24,6 +25,18 @@ type BuildTrendChartSeriesArgs = {
 
 export const isAnalyticsRateMetric = (metric: AnalyticsTrendMetric): boolean =>
   metric === 'OVERALL_CONVERSION' || metric === 'DROP_OFF';
+
+// Adds up over its period, so an unfinished or partly tracked one is not comparable. Levels and rates are.
+export const isAnalyticsRunningCountMetric = (
+  metric: AnalyticsTrendMetric,
+): boolean => metric === 'NEW_APPLICATIONS';
+
+export const hasNoKnownAnalyticsRate = ({
+  metric,
+  series,
+}: Pick<AnalyticsTrends, 'metric' | 'series'>): boolean =>
+  isAnalyticsRateMetric(metric) &&
+  series.every((point) => !isDefined(point.value));
 
 // The chart gets rates as 0 to 100; pair it with suffix="%". A null stays null so the line stops.
 export const buildTrendChartSeries = ({

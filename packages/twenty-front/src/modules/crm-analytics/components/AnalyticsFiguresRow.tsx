@@ -5,6 +5,7 @@ import { isDefined } from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { type AnalyticsOverview } from '@/crm-analytics/types/AnalyticsApi';
+import { formatAnalyticsSignedNumber } from '@/crm-analytics/utils/formatAnalyticsSignedNumber';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
 const StyledBand = styled.dl`
@@ -79,12 +80,16 @@ type AnalyticsFiguresRowProps = {
   figures: AnalyticsOverview['figures'];
   hasLimits: boolean;
   showSignedFigure: boolean;
+  hasActiveFilter?: boolean;
+  unmappedPeople?: number;
 };
 
 export const AnalyticsFiguresRow = ({
   figures,
   hasLimits,
   showSignedFigure,
+  hasActiveFilter = false,
+  unmappedPeople = 0,
 }: AnalyticsFiguresRowProps) => {
   const { formatNumber } = useNumberFormat();
 
@@ -98,7 +103,7 @@ export const AnalyticsFiguresRow = ({
       : null;
 
   const formattedChange = isDefined(newApplicationsChange)
-    ? `${newApplicationsChange > 0 ? '+' : ''}${formatNumber(newApplicationsChange)}`
+    ? formatAnalyticsSignedNumber(newApplicationsChange, formatNumber)
     : null;
 
   const importedApplications = isDefined(figures.importedApplications)
@@ -106,13 +111,18 @@ export const AnalyticsFiguresRow = ({
     : null;
 
   const inactivePeople = formatNumber(figures.inactivePeople);
+  const formattedUnmappedPeople = formatNumber(unmappedPeople);
 
   return (
     <StyledBand>
       <StyledHeroFigure>
         <StyledLabel>{t`Active people`}</StyledLabel>
         <StyledHeroValue>{formatNumber(figures.activePeople)}</StyledHeroValue>
-        <StyledNote>{t`In the pipeline now, not signed or exited`}</StyledNote>
+        <StyledNote>
+          {unmappedPeople > 0
+            ? t`In the pipeline now, not signed or exited. Leaves out ${formattedUnmappedPeople} with a stage not yet mapped.`
+            : t`In the pipeline now, not signed or exited`}
+        </StyledNote>
       </StyledHeroFigure>
 
       <StyledFigure>
@@ -146,7 +156,9 @@ export const AnalyticsFiguresRow = ({
         <StyledLabel>{t`Total contacts`}</StyledLabel>
         <StyledValue>{formatNumber(figures.totalContacts)}</StyledValue>
         <StyledNote>
-          {t`Everyone in People, including non-applicants`}
+          {hasActiveFilter
+            ? t`People matching these filters`
+            : t`Everyone in People, including non-applicants`}
         </StyledNote>
       </StyledFigure>
 

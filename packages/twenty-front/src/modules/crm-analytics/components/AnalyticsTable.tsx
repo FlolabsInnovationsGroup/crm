@@ -20,7 +20,16 @@ const StyledTable = styled.table`
   font-size: ${themeCssVariables.font.size.sm};
   width: 100%;
 
-  tbody tr:last-child td {
+  tbody tr:last-child td,
+  tbody tr:last-child th {
+    border-bottom: none;
+  }
+
+  tbody tr[data-group-start='true'] td {
+    border-top: 1px solid ${themeCssVariables.border.color.strong};
+  }
+
+  tbody tr:has(+ tr[data-group-start='true']) td {
     border-bottom: none;
   }
 
@@ -56,6 +65,17 @@ const StyledHeaderCell = styled.th<{ isNumeric?: boolean }>`
   z-index: 1;
 `;
 
+const StyledRowHeaderCell = styled.th`
+  border-bottom: 1px solid ${themeCssVariables.border.color.light};
+  box-sizing: border-box;
+  color: ${themeCssVariables.font.color.primary};
+  font-weight: ${themeCssVariables.font.weight.regular};
+  height: 32px;
+  padding: 0 ${themeCssVariables.spacing[3]};
+  text-align: start;
+  white-space: nowrap;
+`;
+
 const StyledCell = styled.td<{
   isNumeric?: boolean;
   isMuted?: boolean;
@@ -78,29 +98,14 @@ const StyledCell = styled.td<{
   white-space: nowrap;
 `;
 
-const StyledRow = styled.tr<{
-  isInteractive?: boolean;
-  isGroupStart?: boolean;
-}>`
+const StyledRow = styled.tr<{ isInteractive?: boolean }>`
   cursor: ${({ isInteractive }) => (isInteractive ? 'pointer' : 'default')};
 
   &:hover {
     background: ${({ isInteractive }) =>
       isInteractive
         ? themeCssVariables.background.transparent.light
-        : themeCssVariables.background.transparent.lighter};
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${themeCssVariables.color.blue};
-    outline-offset: -2px;
-  }
-
-  td {
-    border-top: ${({ isGroupStart }) =>
-      isGroupStart
-        ? `1px solid ${themeCssVariables.border.color.strong}`
-        : 'none'};
+        : 'transparent'};
   }
 `;
 
@@ -112,7 +117,7 @@ type AnalyticsTableRootProps = {
   children: ReactNode;
 };
 
-// Safari does not focus a scroller by itself, so the box is the tab stop unless every row is one.
+// Safari does not focus a scroller by itself, so the box is the tab stop unless every row has one.
 const AnalyticsTableRoot = ({
   'aria-label': ariaLabel,
   hasFocusableRows = false,
@@ -135,12 +140,10 @@ const AnalyticsTableRoot = ({
   </StyledScrollBox>
 );
 
-// Hairline table for every analytics view. Root owns horizontal scroll, and vertical scroll
-// with a sticky header when maxHeight is set. Write thead and tbody as children, then
-// HeaderCell and Cell with isNumeric for right-aligned tabular numbers.
 export const AnalyticsTable = {
   Root: AnalyticsTableRoot,
   Row: StyledRow,
   HeaderCell: StyledHeaderCell,
+  RowHeaderCell: StyledRowHeaderCell,
   Cell: StyledCell,
 };

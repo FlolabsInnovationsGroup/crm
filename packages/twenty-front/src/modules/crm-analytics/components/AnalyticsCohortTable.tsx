@@ -5,16 +5,18 @@ import { themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsRateCell } from '@/crm-analytics/components/AnalyticsRateCell';
 import { AnalyticsTable } from '@/crm-analytics/components/AnalyticsTable';
-import { formatAnalyticsBucketLabel } from '@/crm-analytics/components/AnalyticsTrendTable';
 import {
   type AnalyticsCohortCell,
   type AnalyticsCohortRow,
   type AnalyticsPeriod,
   type AnalyticsStageDefinition,
 } from '@/crm-analytics/types/AnalyticsApi';
+import { formatAnalyticsBucketLabel } from '@/crm-analytics/utils/formatAnalyticsBucketLabel';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
-const COHORT_TABLE_MAX_HEIGHT = 400;
+const COHORT_TABLE_MAX_HEIGHT = 448;
+
+type AnalyticsStageLabel = Pick<AnalyticsStageDefinition, 'stageKey' | 'label'>;
 
 // A fixed slot keeps the rates in one column aligned however wide each n is.
 const StyledSampleSize = styled.span`
@@ -29,7 +31,7 @@ const StyledSampleSize = styled.span`
 
 const getStepColumns = (
   rows: AnalyticsCohortRow[],
-  stages: AnalyticsStageDefinition[],
+  stages: AnalyticsStageLabel[],
 ) => {
   const stageKeys = new Set(
     rows.flatMap((row) => row.cells.map((cell) => cell.stageKey)),
@@ -56,7 +58,7 @@ const AnalyticsCohortStepCell = ({
   if (!isDefined(cell)) {
     return (
       <AnalyticsTable.Cell isNumeric>
-        <AnalyticsRateCell rate={null} />
+        <AnalyticsRateCell rate={null} isCompact />
       </AnalyticsTable.Cell>
     );
   }
@@ -70,15 +72,18 @@ const AnalyticsCohortStepCell = ({
         rate={cell.isMature && cell.eligible > 0 ? cell.rate : null}
         soFarRate={cell.soFarRate}
         isUnderMinimum={cell.eligible < minimumSample}
+        isCompact
       />
-      <StyledSampleSize>{t`n=${sampleSize}`}</StyledSampleSize>
+      <StyledSampleSize>
+        {cell.entered > 0 ? t`n=${sampleSize}` : null}
+      </StyledSampleSize>
     </AnalyticsTable.Cell>
   );
 };
 
 type AnalyticsCohortTableProps = {
   rows: AnalyticsCohortRow[];
-  stages: AnalyticsStageDefinition[];
+  stages: AnalyticsStageLabel[];
   period: AnalyticsPeriod;
   minimumSample: number;
 };
@@ -146,7 +151,9 @@ export const AnalyticsCohortTable = ({
               <AnalyticsRateCell
                 rate={row.overallRate}
                 soFarRate={row.overallSoFarRate}
+                eligible={row.size}
                 isUnderMinimum={row.size < minimumSample}
+                isCompact
               />
             </AnalyticsTable.Cell>
           </AnalyticsTable.Row>

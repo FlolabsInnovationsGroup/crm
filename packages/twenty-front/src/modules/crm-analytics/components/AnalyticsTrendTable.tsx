@@ -1,4 +1,3 @@
-import { i18n } from '@lingui/core';
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
@@ -11,11 +10,16 @@ import {
   type AnalyticsTrendMetric,
   type AnalyticsTrendPoint,
 } from '@/crm-analytics/types/AnalyticsApi';
-import { isAnalyticsRateMetric } from '@/crm-analytics/utils/buildTrendChartSeries';
+import {
+  isAnalyticsRateMetric,
+  isAnalyticsRunningCountMetric,
+} from '@/crm-analytics/utils/buildTrendChartSeries';
+import { formatAnalyticsBucketLabel } from '@/crm-analytics/utils/formatAnalyticsBucketLabel';
+import { formatAnalyticsSignedNumber } from '@/crm-analytics/utils/formatAnalyticsSignedNumber';
 import { getAnalyticsWindowLength } from '@/crm-analytics/utils/getAnalyticsWindowLength';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
-const TREND_TABLE_MAX_HEIGHT = 320;
+const TREND_TABLE_MAX_HEIGHT = 448;
 
 const StyledInProgress = styled.span`
   color: ${themeCssVariables.font.color.tertiary};
@@ -26,36 +30,6 @@ const StyledInProgress = styled.span`
 const StyledMutedValue = styled.span`
   color: ${themeCssVariables.font.color.tertiary};
 `;
-
-type FormatAnalyticsBucketLabelArgs = {
-  bucketStart: string;
-  period: AnalyticsPeriod;
-  isCompact?: boolean;
-};
-
-// Buckets are local dates in the reporting zone, so they format with no zone shift.
-export const formatAnalyticsBucketLabel = ({
-  bucketStart,
-  period,
-  isCompact = false,
-}: FormatAnalyticsBucketLabelArgs) => {
-  const bucketDate = new Date(`${bucketStart.slice(0, 10)}T00:00:00.000Z`);
-
-  if (period === 'MONTH') {
-    return i18n.date(bucketDate, {
-      month: 'short',
-      year: 'numeric',
-      timeZone: 'UTC',
-    });
-  }
-
-  return i18n.date(bucketDate, {
-    month: 'short',
-    day: 'numeric',
-    year: isCompact ? undefined : 'numeric',
-    timeZone: 'UTC',
-  });
-};
 
 const getPeriodHeader = (period: AnalyticsPeriod) => {
   switch (period) {
@@ -87,21 +61,32 @@ const getValueHeader = (metric: AnalyticsTrendMetric) => {
   }
 };
 
-export const formatAnalyticsSignedNumber = (
-  value: number,
-  formatNumber: (value: number) => string,
-) => (value > 0 ? `+${formatNumber(value)}` : formatNumber(value));
+const isSmallSample = (size: number | null, minimumSample: number) =>
+  isDefined(size) && size < minimumSample;
 
 const getChange = ({
   point,
   metric,
+  minimumSample,
   formatNumber,
 }: {
   point: AnalyticsTrendPoint;
   metric: AnalyticsTrendMetric;
+  minimumSample: number;
   formatNumber: (value: number, options?: { decimals?: number }) => string;
 }) => {
   if (!isDefined(point.value) || !isDefined(point.previousValue)) {
+    return null;
+  }
+
+  if (point.isPartial && isAnalyticsRunningCountMetric(metric)) {
+    return null;
+  }
+
+  if (
+    isSmallSample(point.size, minimumSample) ||
+    isSmallSample(point.previousSize, minimumSample)
+  ) {
     return null;
   }
 
@@ -128,18 +113,28 @@ const getChange = ({
 type AnalyticsTrendValueProps = {
   value: number | null;
   metric: AnalyticsTrendMetric;
-  isUnderMinimum?: boolean;
+  size: number | null;
+  minimumSample: number;
 };
 
 const AnalyticsTrendValue = ({
   value,
   metric,
-  isUnderMinimum = false,
+  size,
+  minimumSample,
 }: AnalyticsTrendValueProps) => {
   const { formatNumber } = useNumberFormat();
 
+  const isUnderMinimum = isSmallSample(size, minimumSample);
+
   if (!isDefined(value) || isAnalyticsRateMetric(metric)) {
-    return <AnalyticsRateCell rate={value} isUnderMinimum={isUnderMinimum} />;
+    return (
+      <AnalyticsRateCell
+        rate={value}
+        eligible={size}
+        isUnderMinimum={isUnderMinimum}
+      />
+    );
   }
 
   const formattedValue = formatNumber(value, {
@@ -221,11 +216,10 @@ export const AnalyticsTrendTable = ({
             </AnalyticsTable.Cell>
             <AnalyticsTable.Cell isNumeric>
               <AnalyticsTrendValue
-                value={point.size === 0 ? null : point.value}
+                value={point.value}
                 metric={metric}
-                isUnderMinimum={
-                  isDefined(point.size) && point.size < minimumSample
-                }
+                size={point.size}
+                minimumSample={minimumSample}
               />
             </AnalyticsTable.Cell>
             {hasPrevious && (
@@ -234,10 +228,12 @@ export const AnalyticsTrendTable = ({
                   <AnalyticsTrendValue
                     value={point.previousValue}
                     metric={metric}
+                    size={point.previousSize}
+                    minimumSample={minimumSample}
                   />
                 </AnalyticsTable.Cell>
                 <AnalyticsTable.Cell isNumeric>
-                  {getChange({ point, metric, formatNumber })}
+                  {getChange({ point, metric, minimumSample, formatNumber })}
                 </AnalyticsTable.Cell>
               </>
             )}

@@ -1,22 +1,21 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { useState } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
 import { isDefined } from 'twenty-shared/utils';
 import { MOBILE_VIEWPORT, themeCssVariables } from 'twenty-ui/theme';
 
-import {
-  AnalyticsReportView,
-  formatAnalyticsReportPeriod,
-} from '@/crm-analytics/components/AnalyticsReportView';
+import { AnalyticsReportView } from '@/crm-analytics/components/AnalyticsReportView';
+import { AnalyticsNotice } from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsSkeleton } from '@/crm-analytics/components/AnalyticsSkeleton';
 import { AnalyticsStatePanel } from '@/crm-analytics/components/AnalyticsStatePanel';
 import { GET_CRM_ANALYTICS_REPORTS } from '@/crm-analytics/graphql/getCrmAnalyticsReports';
 import { useCrmAnalyticsQuery } from '@/crm-analytics/hooks/useCrmAnalyticsQuery';
 import {
-  type AnalyticsMeta,
   type AnalyticsReportListItem,
   type AnalyticsReportPeriodType,
 } from '@/crm-analytics/types/AnalyticsApi';
+import { formatAnalyticsReportPeriod } from '@/crm-analytics/utils/formatAnalyticsReportPeriod';
 import { EmptyState } from '@/ui/feedback/empty-state/components/EmptyState';
 
 const StyledLayout = styled.div`
@@ -171,11 +170,7 @@ const AnalyticsReportGroup = ({
   </StyledGroup>
 );
 
-type AnalyticsReportsTabProps = {
-  meta: AnalyticsMeta;
-};
-
-export const AnalyticsReportsTab = ({ meta }: AnalyticsReportsTabProps) => {
+export const AnalyticsReportsTab = () => {
   const [selectedReportKey, setSelectedReportKey] = useState<string | null>(
     null,
   );
@@ -250,11 +245,19 @@ export const AnalyticsReportsTab = ({ meta }: AnalyticsReportsTabProps) => {
           onSelect={setSelectedReportKey}
         />
       </StyledRail>
-      <AnalyticsReportView
-        periodType={selectedReport.periodType}
-        periodStart={selectedReport.periodStart}
-        stages={meta.stages}
-      />
+      <ErrorBoundary
+        fallback={
+          <AnalyticsNotice>
+            {t`This report cannot be displayed`}
+          </AnalyticsNotice>
+        }
+        resetKeys={[getReportKey(selectedReport)]}
+      >
+        <AnalyticsReportView
+          periodType={selectedReport.periodType}
+          periodStart={selectedReport.periodStart}
+        />
+      </ErrorBoundary>
     </StyledLayout>
   );
 };

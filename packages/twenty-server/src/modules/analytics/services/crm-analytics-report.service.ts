@@ -29,6 +29,8 @@ import { computeCrmAnalyticsSignificantChanges } from 'src/modules/analytics/uti
 
 const STORAGE_EXISTS_SQL = `SELECT to_regclass('analytics.sync_log') IS NOT NULL AS has_storage`;
 
+const REPORT_PAYLOAD_VERSION = 1;
+
 const toInclusiveRange = ({
   periodStart,
   periodEnd,
@@ -104,7 +106,8 @@ WHERE r.workspace_id = $1::uuid AND r.period_type = $2::text AND r.period_start 
   }
 
   // Safe to call repeatedly: only missing periods are built, and the first report
-  // stored for a period stands. Runs on the job connection.
+  // stored for a period stands, unless it was built on provisional definitions that
+  // have since been confirmed. Runs on the job connection.
   async buildMissingReports({
     workspaceId,
     state,
@@ -123,7 +126,8 @@ WHERE r.workspace_id = $1::uuid AND r.period_type = $2::text AND r.period_start 
     });
 
     const existingRows = await run(
-      `SELECT r.period_type, r.period_start::text AS period_start
+      `SELECT r.period_type, r.period_start::text AS period_start,
+  r.payload->>'isProvisional' = 'true' AS is_provisional
 FROM analytics.report r
 WHERE r.workspace_id = $1::uuid`,
       [workspaceId],
@@ -133,10 +137,15 @@ WHERE r.workspace_id = $1::uuid`,
       trackingStartAt: trackingStart,
       now: context.asOf,
       timeZone: context.timeZone,
-      existingPeriods: existingRows.map((row) => ({
-        periodType: String(row.period_type),
-        periodStart: String(row.period_start),
-      })),
+      existingPeriods: existingRows
+        .filter(
+          (row) =>
+            CRM_ANALYTICS_CONFIG.isProvisional || row.is_provisional !== true,
+        )
+        .map((row) => ({
+          periodType: String(row.period_type),
+          periodStart: String(row.period_start),
+        })),
     });
 
     let builtCount = 0;
@@ -145,9 +154,11 @@ WHERE r.workspace_id = $1::uuid`,
       const report = await this.buildReport(context, period);
 
       const insertedRows = await run(
-        `INSERT INTO analytics.report (workspace_id, period_type, period_start, period_end, generated_at, payload)
+        `INSERT INTO analytics.report AS stored_report (workspace_id, period_type, period_start, period_end, generated_at, payload)
 VALUES ($1::uuid, $2::text, $3::date, $4::date, $5::timestamptz, $6::jsonb)
-ON CONFLICT DO NOTHING
+ON CONFLICT (workspace_id, period_type, period_start) DO UPDATE
+SET period_end = EXCLUDED.period_end, generated_at = EXCLUDED.generated_at, payload = EXCLUDED.payload
+WHERE stored_report.payload->>'isProvisional' = 'true' AND EXCLUDED.payload->>'isProvisional' = 'false'
 RETURNING period_start::text AS period_start`,
         [
           workspaceId,
@@ -206,8 +217,12 @@ RETURNING period_start::text AS period_start`,
         row.enteredInPeriod,
       ]),
     );
+    const hasPreviousPeriodStartedBeforeTracking =
+      this.metricsService.hasRangeStartedBeforeTracking(context, previousRange);
 
     return {
+      isProvisional: CRM_ANALYTICS_CONFIG.isProvisional,
+      payloadVersion: REPORT_PAYLOAD_VERSION,
       periodType: period.periodType,
       periodStart: period.periodStart,
       periodEnd: period.periodEnd,
@@ -248,7 +263,9 @@ RETURNING period_start::text AS period_start`,
             metricKey: `ENTERED_${row.stageKey}`,
             label: `Entered ${row.label}`,
             current: row.enteredInPeriod,
-            previous: previousEnteredByStage.get(row.stageKey) ?? 0,
+            previous: hasPreviousPeriodStartedBeforeTracking
+              ? null
+              : (previousEnteredByStage.get(row.stageKey) ?? 0),
           })),
         ],
         minimumSample: CRM_ANALYTICS_CONFIG.minimumSample,

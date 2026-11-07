@@ -1,6 +1,7 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
+import { OverflowingTextWithTooltip } from 'twenty-ui/primitives/typography';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsBarCell } from '@/crm-analytics/components/AnalyticsBarCell';
@@ -12,19 +13,23 @@ const StyledBarHeaderCell = styled(AnalyticsTable.HeaderCell)`
   width: 56%;
 `;
 
-const StyledNestedLabel = styled.span`
+const StyledNestedLabel = styled.div`
   color: ${themeCssVariables.font.color.secondary};
   padding-inline-start: ${themeCssVariables.spacing[4]};
 `;
 
 const getRowLabel = (row: AnalyticsStageTotalRow) => {
-  if (row.rowKind === 'UNMAPPED') {
-    const rawValue = row.label;
+  switch (row.rowKind) {
+    case 'UNMAPPED': {
+      const rawValue = row.label;
 
-    return t`Unmapped: ${rawValue}`;
+      return t`Unmapped: ${rawValue}`;
+    }
+    case 'NO_STAGE':
+      return t`No stage`;
+    default:
+      return row.label;
   }
-
-  return row.label;
 };
 
 const getBarTone = (row: AnalyticsStageTotalRow, largestRowKey?: string) => {
@@ -79,7 +84,7 @@ export const AnalyticsStageTotalsTable = ({
           return (
             <AnalyticsTable.Row
               key={row.rowKey}
-              isGroupStart={
+              data-group-start={
                 row.rowKind !== 'NESTED' &&
                 isDefined(previousTopRow) &&
                 previousTopRow.rowKind !== row.rowKind
@@ -87,9 +92,14 @@ export const AnalyticsStageTotalsTable = ({
             >
               <AnalyticsTable.Cell isTruncated dir="auto">
                 {row.rowKind === 'NESTED' ? (
-                  <StyledNestedLabel>{row.label}</StyledNestedLabel>
+                  <StyledNestedLabel>
+                    <OverflowingTextWithTooltip text={row.label} />
+                  </StyledNestedLabel>
                 ) : (
-                  getRowLabel(row)
+                  <OverflowingTextWithTooltip
+                    text={getRowLabel(row)}
+                    isFocusable={row.rowKind === 'UNMAPPED'}
+                  />
                 )}
               </AnalyticsTable.Cell>
               <AnalyticsTable.Cell>

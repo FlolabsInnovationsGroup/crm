@@ -24,7 +24,7 @@ const StyledTakeaway = styled.p`
   max-width: 88ch;
 `;
 
-const StyledNotice = styled.p`
+const StyledTakeawayNotice = styled.p`
   color: ${themeCssVariables.font.color.secondary};
   font-size: ${themeCssVariables.font.size.sm};
   margin: 0;
@@ -47,9 +47,15 @@ const StyledSectionHeader = styled.div`
 
 const StyledSectionHeading = styled.div`
   display: flex;
+  flex: 1 1 320px;
   flex-direction: column;
   gap: ${themeCssVariables.spacing[1]};
   min-width: 0;
+`;
+
+const StyledSectionAction = styled.div`
+  flex-shrink: 0;
+  max-width: 100%;
 `;
 
 const StyledSectionTitle = styled.h3`
@@ -59,11 +65,26 @@ const StyledSectionTitle = styled.h3`
   margin: 0;
 `;
 
-const StyledSectionNote = styled.p`
-  color: ${themeCssVariables.font.color.tertiary};
+const StyledNote = styled.p`
+  color: ${themeCssVariables.font.color.secondary};
   font-size: ${themeCssVariables.font.size.xs};
+  line-height: ${themeCssVariables.text.lineHeight.lg};
   margin: 0;
+  max-width: 88ch;
 `;
+
+const StyledNotice = styled.p`
+  border: 1px solid ${themeCssVariables.border.color.light};
+  border-radius: ${themeCssVariables.border.radius.md};
+  color: ${themeCssVariables.font.color.secondary};
+  font-size: ${themeCssVariables.font.size.sm};
+  margin: 0;
+  padding: ${themeCssVariables.spacing[4]};
+`;
+
+export const AnalyticsNote = StyledNote;
+
+export const AnalyticsNotice = StyledNotice;
 
 type AnalyticsTabLayoutProps = {
   takeaway: string;
@@ -82,7 +103,7 @@ export const AnalyticsTabLayout = ({
     <StyledIntro>
       <StyledTakeaway role="status">{takeaway}</StyledTakeaway>
       {notices.map((notice) => (
-        <StyledNotice key={notice}>{notice}</StyledNotice>
+        <StyledTakeawayNotice key={notice}>{notice}</StyledTakeawayNotice>
       ))}
     </StyledIntro>
     {children}
@@ -106,9 +127,9 @@ export const AnalyticsSection = ({
     <StyledSectionHeader>
       <StyledSectionHeading>
         <StyledSectionTitle>{title}</StyledSectionTitle>
-        {isDefined(note) && <StyledSectionNote>{note}</StyledSectionNote>}
+        {isDefined(note) && <StyledNote>{note}</StyledNote>}
       </StyledSectionHeading>
-      {action}
+      {isDefined(action) && <StyledSectionAction>{action}</StyledSectionAction>}
     </StyledSectionHeader>
     {children}
   </StyledSection>

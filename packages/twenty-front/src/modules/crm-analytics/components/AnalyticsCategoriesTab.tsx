@@ -1,12 +1,11 @@
-import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { type ReactNode, useState } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 import { SegmentedControl } from 'twenty-ui/components/input';
-import { themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsCategoryTable } from '@/crm-analytics/components/AnalyticsCategoryTable';
 import {
+  AnalyticsNotice,
   AnalyticsSection,
   AnalyticsTabLayout,
 } from '@/crm-analytics/components/AnalyticsSection';
@@ -20,24 +19,26 @@ import {
   type AnalyticsFilter,
   type AnalyticsMeta,
   type AnalyticsStageDefinition,
+  type AnalyticsStatusFilter,
 } from '@/crm-analytics/types/AnalyticsApi';
 import { buildCategoriesTakeaway } from '@/crm-analytics/utils/buildCategoriesTakeaway';
-
-const StyledFieldNotice = styled.p`
-  border: 1px solid ${themeCssVariables.border.color.light};
-  border-radius: ${themeCssVariables.border.radius.md};
-  color: ${themeCssVariables.font.color.secondary};
-  margin: 0;
-  padding: ${themeCssVariables.spacing[4]};
-`;
 
 const getSectionTitle = (groupBy: AnalyticsCategoryGroupBy) =>
   groupBy === 'SOURCE' ? t`Sources` : t`Tracks and programs`;
 
-const getSectionNote = (groupBy: AnalyticsCategoryGroupBy) =>
-  groupBy === 'SOURCE'
-    ? t`People by their current source. New applications by submission date, in the date filter or else the last 7 days. Rates by application date. A date filter leaves out imported people.`
-    : t`People by their current positions, counted once in each. New applications by submission date, in the date filter or else the last 7 days. Rates by application date. A date filter leaves out imported people.`;
+const getSectionNote = (
+  groupBy: AnalyticsCategoryGroupBy,
+  status: AnalyticsStatusFilter,
+) =>
+  [
+    groupBy === 'SOURCE'
+      ? t`People by their current source. New applications by submission date, in the date filter or else the last 7 days. Rates by application date. A date filter leaves out imported people.`
+      : t`People by their current positions, counted once in each. New applications by submission date, in the date filter or else the last 7 days. Rates by application date. A date filter leaves out imported people.`,
+    status === 'ALL' ? null : t`Rates ignore the status filter.`,
+    t`n/a means not enough data.`,
+  ]
+    .filter(isDefined)
+    .join(' ');
 
 const getFieldNotice = (
   groupBy: AnalyticsCategoryGroupBy,
@@ -122,7 +123,7 @@ const AnalyticsCategoriesView = ({
     >
       <AnalyticsSection
         title={getSectionTitle(categories.groupBy)}
-        note={getSectionNote(categories.groupBy)}
+        note={getSectionNote(categories.groupBy, filter.status)}
         action={groupSwitch}
       >
         <AnalyticsCategoryTable categories={categories} stages={stages} />
@@ -164,7 +165,7 @@ export const AnalyticsCategoriesTab = ({
   if (isDefined(fieldNotice)) {
     return (
       <AnalyticsSection title={getSectionTitle(groupBy)} action={groupSwitch}>
-        <StyledFieldNotice>{fieldNotice}</StyledFieldNotice>
+        <AnalyticsNotice>{fieldNotice}</AnalyticsNotice>
       </AnalyticsSection>
     );
   }

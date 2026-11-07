@@ -1,6 +1,7 @@
 import { plural, t } from '@lingui/core/macro';
 
 import { type AnalyticsOverview } from '@/crm-analytics/types/AnalyticsApi';
+import { countAnalyticsUnmappedPeople } from '@/crm-analytics/utils/countAnalyticsUnmappedPeople';
 
 type BuildOverviewTakeawayArgs = {
   overview: AnalyticsOverview;
@@ -22,12 +23,23 @@ export const buildOverviewTakeaway = ({
     one: `${active} active person`,
     other: `${active} active people`,
   });
-
-  if (!overview.stuck.hasLimits) {
-    return t`${activeSentencePart}. No stage limits are set.`;
-  }
-
   const stuck = formatNumber(stuckPeople);
 
-  return t`${activeSentencePart}, ${stuck} past their stage limit.`;
+  const activeSentence = overview.stuck.hasLimits
+    ? t`${activeSentencePart}, ${stuck} past their stage limit.`
+    : t`${activeSentencePart}. No stage limits are set.`;
+
+  const unmappedPeople = countAnalyticsUnmappedPeople(overview.stageTotals);
+
+  if (unmappedPeople === 0) {
+    return activeSentence;
+  }
+
+  const unmapped = formatNumber(unmappedPeople);
+  const unmappedSentence = plural(unmappedPeople, {
+    one: `${unmapped} person has a stage not yet mapped and is not counted as active or stuck.`,
+    other: `${unmapped} people have a stage not yet mapped and are not counted as active or stuck.`,
+  });
+
+  return `${activeSentence} ${unmappedSentence}`;
 };

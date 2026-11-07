@@ -4,6 +4,7 @@ import { isDefined } from 'twenty-shared/utils';
 import {
   type AnalyticsPeriod,
   type AnalyticsReportPeriodType,
+  type AnalyticsTrendMetric,
 } from 'src/modules/analytics/types/analytics-api.type';
 
 export type CrmAnalyticsReportPeriod = {
@@ -28,7 +29,18 @@ const DEFAULT_TREND_BUCKET_COUNTS: Record<AnalyticsPeriod, number> = {
   MONTH: 12,
 };
 
+// Twelve weeks are shorter than the overall window, so no bucket would ever be old enough.
+const OVERALL_CONVERSION_WEEK_BUCKET_COUNT = 26;
+
 const REPORT_PERIOD_TYPES: AnalyticsReportPeriodType[] = ['WEEK', 'MONTH'];
+
+const computeDefaultTrendBucketCount = (
+  period: AnalyticsPeriod,
+  metric: AnalyticsTrendMetric | undefined,
+): number =>
+  metric === 'OVERALL_CONVERSION' && period === 'WEEK'
+    ? OVERALL_CONVERSION_WEEK_BUCKET_COUNT
+    : DEFAULT_TREND_BUCKET_COUNTS[period];
 
 const buildPeriodDuration = (period: AnalyticsPeriod, count: number) => {
   switch (period) {
@@ -99,11 +111,13 @@ export const computeCrmAnalyticsTrendBuckets = ({
   dateTo,
   period,
   localToday,
+  metric,
 }: {
   dateFrom: string | null;
   dateTo: string | null;
   period: AnalyticsPeriod;
   localToday: string;
+  metric?: AnalyticsTrendMetric;
 }): CrmAnalyticsTrendBucket[] => {
   const lastDate = isDefined(dateTo) && dateTo < localToday ? dateTo : localToday;
   const lastBucketStart = computeCrmAnalyticsPeriodStart(lastDate, period);
@@ -112,7 +126,7 @@ export const computeCrmAnalyticsTrendBuckets = ({
     : addCrmAnalyticsPeriods(
         lastBucketStart,
         period,
-        1 - DEFAULT_TREND_BUCKET_COUNTS[period],
+        1 - computeDefaultTrendBucketCount(period, metric),
       );
 
   const bucketStarts: string[] = [];

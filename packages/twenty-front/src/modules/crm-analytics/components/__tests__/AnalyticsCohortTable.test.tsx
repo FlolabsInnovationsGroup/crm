@@ -110,7 +110,18 @@ describe('AnalyticsCohortTable', () => {
     ]);
 
     expect(screen.getAllByText('Not enough data')).not.toHaveLength(0);
+    expect(screen.getAllByText('n/a')).not.toHaveLength(0);
+    expect(screen.queryByText('n=0')).not.toBeInTheDocument();
     expect(container).not.toHaveTextContent('0%');
+  });
+
+  it('gives a small cohort its n beside the overall rate', () => {
+    renderTable([
+      buildRow({ size: 12, overallRate: 0.5, overallSoFarRate: null }),
+    ]);
+
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('n=12')).toBeInTheDocument();
   });
 
   it('lists the newest cohort first', () => {

@@ -284,7 +284,7 @@ describe('AnalyticsStageLedger', () => {
 
     expect(
       screen.getByText(
-        'Cohort size: 1,000, counted from Oct 27, 2026. 12 left out because every stage they had is unmapped. Someone who applies again counts once, and their furthest stage carries over.',
+        'Cohort size: 1,000. Tracking started Oct 27, 2026. 12 left out because every stage they had is unmapped. Someone who applies again counts once, and their furthest stage carries over.',
       ),
     ).toBeInTheDocument();
   });

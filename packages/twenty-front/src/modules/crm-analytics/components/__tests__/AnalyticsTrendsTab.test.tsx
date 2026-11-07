@@ -9,6 +9,7 @@ import { AnalyticsTrendsTab } from '@/crm-analytics/components/AnalyticsTrendsTa
 import { CRM_ANALYTICS_DEFAULT_FILTER } from '@/crm-analytics/constants/CrmAnalyticsDefaultFilter';
 import { GET_CRM_ANALYTICS_TRENDS } from '@/crm-analytics/graphql/getCrmAnalyticsTrends';
 import {
+  type AnalyticsFilter,
   type AnalyticsMeta,
   type AnalyticsTrends,
 } from '@/crm-analytics/types/AnalyticsApi';
@@ -77,7 +78,7 @@ const META = {
 
 const buildTrends = (overrides: Partial<AnalyticsTrends>): AnalyticsTrends => ({
   asOf: '2026-11-07T10:00:00.000Z',
-  trackingStartedAt: '2026-10-27T00:00:00.000Z',
+  trackingStartedAt: '2026-09-01T00:00:00.000Z',
   reportingTimeZone: 'UTC',
   minimumSample: 30,
   metric: 'NEW_APPLICATIONS',
@@ -90,6 +91,7 @@ const buildTrends = (overrides: Partial<AnalyticsTrends>): AnalyticsTrends => ({
       value: 74,
       previousValue: 60,
       size: null,
+      previousSize: null,
       isPartial: false,
     },
     {
@@ -97,6 +99,7 @@ const buildTrends = (overrides: Partial<AnalyticsTrends>): AnalyticsTrends => ({
       value: 86,
       previousValue: 52,
       size: null,
+      previousSize: null,
       isPartial: true,
     },
   ],
@@ -184,18 +187,31 @@ const errorMock = (code: string) => ({
 const renderTab = (
   mocks: ComponentProps<typeof MockedProvider>['mocks'],
   onResetFilter: () => void = jest.fn(),
+  filter: AnalyticsFilter = CRM_ANALYTICS_DEFAULT_FILTER,
 ) =>
   render(
     <JotaiProvider store={createStore()}>
       <MockedProvider mocks={mocks}>
         <AnalyticsTrendsTab
-          filter={CRM_ANALYTICS_DEFAULT_FILTER}
+          filter={filter}
           meta={META}
           onResetFilter={onResetFilter}
         />
       </MockedProvider>
     </JotaiProvider>,
   );
+
+const filteredTrendsMock = (
+  filter: AnalyticsFilter,
+  trends: AnalyticsTrends,
+) => ({
+  request: {
+    query: GET_CRM_ANALYTICS_TRENDS,
+    variables: { filter, metric: 'NEW_APPLICATIONS', stageKey: null },
+  },
+  result: trendsMock(trends).result,
+  maxUsageCount: Number.POSITIVE_INFINITY,
+});
 
 describe('AnalyticsTrendsTab', () => {
   beforeEach(() => {
@@ -215,7 +231,7 @@ describe('AnalyticsTrendsTab', () => {
 
     expect(
       await screen.findByText(
-        '86 new applications in this week, +12 against the previous one.',
+        '86 new applications so far in this week; the previous one had 74.',
       ),
     ).toBeInTheDocument();
     expect(
@@ -251,6 +267,120 @@ describe('AnalyticsTrendsTab', () => {
       screen.queryByRole('table', { name: 'Values for each period' }),
     ).not.toBeInTheDocument();
     expect(screen.getByText('Stage movement')).toBeInTheDocument();
+  });
+
+  it('gives a plain reason when twelve weeks of a rate have no value, and keeps the table', async () => {
+    const twelveWeeksStillInsideTheWindow = Array.from(
+      { length: 12 },
+      (_, index) => ({
+        bucketStart: `2026-08-${String(10 + index).padStart(2, '0')}`,
+        value: null,
+        previousValue: 0.25,
+        size: 40,
+        previousSize: 40,
+        isPartial: false,
+      }),
+    );
+
+    renderTab([
+      trendsMock(
+        buildTrends({
+          metric: 'OVERALL_CONVERSION',
+          series: twelveWeeksStillInsideTheWindow,
+        }),
+      ),
+    ]);
+
+    expect(
+      await screen.findByText(
+        'No period in this view has fully passed the window yet.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Tracking started Sep 1, 2026. No period here has a rate to draw. Try By month or a longer date range.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByText('Line chart')).not.toBeInTheDocument();
+
+    const valuesTable = screen.getByRole('table', {
+      name: 'Values for each period',
+    });
+
+    expect(within(valuesTable).getAllByText('Not enough data')).toHaveLength(12);
+    expect(within(valuesTable).getAllByText('25%')).toHaveLength(12);
+  });
+
+  it('says nothing about dates or status without those filters', async () => {
+    renderTab([trendsMock(buildTrends({}))]);
+
+    await screen.findByText('New applications by week');
+
+    expect(screen.queryByText(/Dates widen/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Rates ignore/)).not.toBeInTheDocument();
+  });
+
+  it('says dates widen to whole periods, and when a long range was cut', async () => {
+    const filter: AnalyticsFilter = {
+      ...CRM_ANALYTICS_DEFAULT_FILTER,
+      dateFrom: '2026-01-14',
+      dateTo: '2026-11-07',
+    };
+
+    renderTab(
+      [filteredTrendsMock(filter, buildTrends({}))],
+      jest.fn(),
+      filter,
+    );
+
+    expect(
+      await screen.findByText(
+        /Dates widen to whole weeks on this tab\. Showing the latest 2 periods\./,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('does not call a range cut when it starts in the first bucket', async () => {
+    const filter: AnalyticsFilter = {
+      ...CRM_ANALYTICS_DEFAULT_FILTER,
+      dateFrom: '2026-10-28',
+      dateTo: '2026-11-07',
+    };
+
+    renderTab(
+      [filteredTrendsMock(filter, buildTrends({}))],
+      jest.fn(),
+      filter,
+    );
+
+    expect(await screen.findByText(/Dates widen/)).toBeInTheDocument();
+    expect(screen.queryByText(/Showing the latest/)).not.toBeInTheDocument();
+  });
+
+  it('says rates ignore the status filter on the cohort table', async () => {
+    const filter: AnalyticsFilter = {
+      ...CRM_ANALYTICS_DEFAULT_FILTER,
+      status: 'ACTIVE',
+    };
+
+    renderTab(
+      [filteredTrendsMock(filter, buildTrends({}))],
+      jest.fn(),
+      filter,
+    );
+
+    expect(
+      await screen.findByText(/Rates ignore the status filter\./),
+    ).toBeInTheDocument();
+  });
+
+  it('calls the movement numbers moves, not people', async () => {
+    renderTab([trendsMock(buildTrends({}))]);
+
+    expect(
+      await screen.findByText(/^Moves into or out of each stage from/),
+    ).toBeInTheDocument();
   });
 
   it('has no stage control on a metric that does not use one', async () => {

@@ -6,6 +6,10 @@ import { themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsBarCell } from '@/crm-analytics/components/AnalyticsBarCell';
 import { AnalyticsRateCell } from '@/crm-analytics/components/AnalyticsRateCell';
+import {
+  AnalyticsNote,
+  AnalyticsNotice,
+} from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsTable } from '@/crm-analytics/components/AnalyticsTable';
 import {
   type AnalyticsFunnel,
@@ -23,6 +27,12 @@ const StyledToNextHeaderCell = styled(AnalyticsTable.HeaderCell)`
 `;
 
 const StyledCell = styled(AnalyticsTable.Cell)`
+  border-bottom-color: ${themeCssVariables.border.color.medium};
+  font-size: ${themeCssVariables.font.size.md};
+  height: 40px;
+`;
+
+const StyledStageCell = styled(AnalyticsTable.RowHeaderCell)`
   border-bottom-color: ${themeCssVariables.border.color.medium};
   font-size: ${themeCssVariables.font.size.md};
   height: 40px;
@@ -70,7 +80,7 @@ const StyledDetailValue = styled.span<{ isMuted: boolean }>`
 `;
 
 const StyledSampleSize = styled.span`
-  color: ${themeCssVariables.font.color.light};
+  color: ${themeCssVariables.font.color.tertiary};
   font-size: ${themeCssVariables.font.size.xs};
   margin-inline-start: ${themeCssVariables.spacing[1]};
 `;
@@ -82,25 +92,16 @@ const StyledOverallCell = styled(StyledCell)`
   font-weight: ${themeCssVariables.font.weight.medium};
 `;
 
+const StyledOverallStageCell = styled(StyledStageCell)`
+  background: ${themeCssVariables.background.secondary};
+  border-bottom: none;
+  border-top: 1px solid ${themeCssVariables.border.color.strong};
+  font-weight: ${themeCssVariables.font.weight.medium};
+`;
+
 const StyledOverallDescription = styled.span`
   color: ${themeCssVariables.font.color.secondary};
   font-weight: ${themeCssVariables.font.weight.regular};
-`;
-
-const StyledLaunchState = styled.p`
-  border: 1px solid ${themeCssVariables.border.color.light};
-  border-radius: ${themeCssVariables.border.radius.md};
-  color: ${themeCssVariables.font.color.secondary};
-  margin: 0;
-  padding: ${themeCssVariables.spacing[4]};
-`;
-
-const StyledNote = styled.p`
-  color: ${themeCssVariables.font.color.secondary};
-  font-size: ${themeCssVariables.font.size.xs};
-  line-height: ${themeCssVariables.text.lineHeight.lg};
-  margin: 0;
-  max-width: 88ch;
 `;
 
 type AnalyticsLedgerCountCellProps = {
@@ -189,7 +190,7 @@ export const AnalyticsStageLedger = ({ funnel }: AnalyticsStageLedgerProps) => {
   });
 
   const note = [
-    t`Cohort size: ${cohortSize}, counted from ${trackingStartedOn}.`,
+    t`Cohort size: ${cohortSize}. Tracking started ${trackingStartedOn}.`,
     funnel.cohortExcludedUnmapped > 0
       ? t`${excludedUnmapped} left out because every stage they had is unmapped.`
       : null,
@@ -201,10 +202,10 @@ export const AnalyticsStageLedger = ({ funnel }: AnalyticsStageLedgerProps) => {
   if (funnel.cohortSize === 0) {
     return (
       <>
-        <StyledLaunchState>
+        <AnalyticsNotice>
           {t`No one in this view has entered the funnel yet. The Overview tab shows where people are now.`}
-        </StyledLaunchState>
-        <StyledNote>{note}</StyledNote>
+        </AnalyticsNotice>
+        <AnalyticsNote>{note}</AnalyticsNote>
       </>
     );
   }
@@ -252,9 +253,9 @@ export const AnalyticsStageLedger = ({ funnel }: AnalyticsStageLedgerProps) => {
 
             return (
               <tr key={row.stageKey}>
-                <StyledCell role="rowheader" dir="auto">
+                <StyledStageCell scope="row" dir="auto">
                   {row.label}
-                </StyledCell>
+                </StyledStageCell>
                 <StyledCell>
                   <AnalyticsBarCell
                     value={row.entered}
@@ -308,9 +309,9 @@ export const AnalyticsStageLedger = ({ funnel }: AnalyticsStageLedgerProps) => {
         {isDefined(finalStageLabel) && (
           <tfoot>
             <tr>
-              <StyledOverallCell role="rowheader">
+              <StyledOverallStageCell scope="row">
                 {t`Overall`}
-              </StyledOverallCell>
+              </StyledOverallStageCell>
               <StyledOverallCell>
                 <StyledOverallDescription>
                   {overall.eligible > 0
@@ -331,7 +332,7 @@ export const AnalyticsStageLedger = ({ funnel }: AnalyticsStageLedgerProps) => {
           </tfoot>
         )}
       </AnalyticsTable.Root>
-      <StyledNote>{note}</StyledNote>
+      <AnalyticsNote>{note}</AnalyticsNote>
     </>
   );
 };

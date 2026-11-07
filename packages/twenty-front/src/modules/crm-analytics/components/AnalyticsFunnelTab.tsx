@@ -14,7 +14,6 @@ import {
   type AnalyticsFilter,
   type AnalyticsFunnel,
   type AnalyticsFunnelRow,
-  type AnalyticsMeta,
 } from '@/crm-analytics/types/AnalyticsApi';
 import { buildFunnelTakeaway } from '@/crm-analytics/utils/buildFunnelTakeaway';
 import { hasActiveAnalyticsFilter } from '@/crm-analytics/utils/hasActiveAnalyticsFilter';
@@ -36,7 +35,6 @@ const getLedgerNote = (rows: AnalyticsFunnelRow[]) => {
 
 type AnalyticsFunnelTabProps = {
   filter: AnalyticsFilter;
-  meta: AnalyticsMeta;
   onResetFilter: () => void;
 };
 
@@ -45,6 +43,9 @@ export const AnalyticsFunnelTab = ({
   onResetFilter,
 }: AnalyticsFunnelTabProps) => {
   const { formatNumber } = useNumberFormat();
+
+  // Status is disabled on this tab, so a value picked on another tab must not reach the rates.
+  const funnelFilter: AnalyticsFilter = { ...filter, status: 'ALL' };
 
   const {
     payload: funnel,
@@ -56,7 +57,7 @@ export const AnalyticsFunnelTab = ({
   } = useCrmAnalyticsQuery<AnalyticsFunnel>({
     query: GET_CRM_ANALYTICS_FUNNEL,
     rootField: 'getCrmAnalyticsFunnel',
-    variables: { filter },
+    variables: { filter: funnelFilter },
   });
 
   if (isForbidden) {
@@ -75,9 +76,10 @@ export const AnalyticsFunnelTab = ({
     return <AnalyticsStatePanel kind="DISABLED" />;
   }
 
-  // The server always lists every stage, so an empty view shows as an empty cohort.
-  if (funnel.cohortSize === 0 && hasActiveAnalyticsFilter(filter)) {
-    return <AnalyticsStatePanel kind="EMPTY" onReset={onResetFilter} />;
+  // The server always lists every stage, so an empty view shows as an empty cohort. A filter
+  // can match only imported people, who are never in a cohort, so this cannot say nobody matched.
+  if (funnel.cohortSize === 0 && hasActiveAnalyticsFilter(funnelFilter)) {
+    return <AnalyticsStatePanel kind="EMPTY_FUNNEL" onReset={onResetFilter} />;
   }
 
   return (

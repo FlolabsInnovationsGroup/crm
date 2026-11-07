@@ -53,6 +53,7 @@ const buildPoint = (
   value,
   previousValue,
   size: null,
+  previousSize: null,
   isPartial: false,
 });
 
@@ -154,8 +155,24 @@ describe('AnalyticsTrendChart', () => {
     expect(props.id).toBe(CRM_ANALYTICS_CHART_INSTANCE_ID);
     expect(props.colorMode).toBe('automaticPalette');
     expect(props.enableArea).toBe(false);
-    expect(props.showLegend).toBe(true);
     expect(props.showGrid).toBe(true);
+  });
+
+  it('has no legend for a single line', async () => {
+    const props = await renderChartAndGetProps({ series: TWO_BUCKETS });
+
+    expect(props.showLegend).toBe(false);
+  });
+
+  it('has a legend to tell two lines apart', async () => {
+    const props = await renderChartAndGetProps({
+      series: [
+        buildPoint('2026-10-26', 74, 60),
+        buildPoint('2026-11-02', 86, 52),
+      ],
+    });
+
+    expect(props.showLegend).toBe(true);
   });
 
   it('passes rates as 0 to 100 with a percent suffix', async () => {
@@ -252,10 +269,14 @@ describe('AnalyticsTrendChart', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 
-  it('explains an empty rate line with the tracking start', () => {
+  it('explains a rate line with no two neighbouring periods', () => {
     renderChart({
       metric: 'OVERALL_CONVERSION',
-      series: [buildPoint('2026-10-26', null), buildPoint('2026-11-02', null)],
+      series: [
+        buildPoint('2026-10-19', 0.3),
+        buildPoint('2026-10-26', null),
+        buildPoint('2026-11-02', 0.4),
+      ],
     });
 
     expect(
@@ -263,5 +284,60 @@ describe('AnalyticsTrendChart', () => {
         'Tracking started Oct 27, 2026. The line needs two periods in a row whose people have passed the window.',
       ),
     ).toBeInTheDocument();
+  });
+
+  describe('a rate with no known period', () => {
+    const TWELVE_WEEKS_OF_PREVIOUS_VALUES_ONLY = Array.from(
+      { length: 12 },
+      (_, index) =>
+        buildPoint(
+          `2026-08-${String(10 + index).padStart(2, '0')}`,
+          null,
+          0.3,
+        ),
+    );
+
+    it('offers another view and never draws the gray line alone', () => {
+      renderChart({
+        metric: 'OVERALL_CONVERSION',
+        series: TWELVE_WEEKS_OF_PREVIOUS_VALUES_ONLY,
+      });
+
+      expect(
+        screen.getByText(
+          'Tracking started Oct 27, 2026. No period here has a rate to draw. Try By month or a longer date range.',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('img')).not.toBeInTheDocument();
+      expect(mockLineChartRender).not.toHaveBeenCalled();
+    });
+
+    it('does not offer By month when already by month', () => {
+      renderChart({
+        metric: 'OVERALL_CONVERSION',
+        period: 'MONTH',
+        series: TWELVE_WEEKS_OF_PREVIOUS_VALUES_ONLY,
+      });
+
+      expect(
+        screen.getByText(
+          'Tracking started Oct 27, 2026. No period here has a rate to draw. Try a longer date range.',
+        ),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('does not draw a count whose only line is the gray one', () => {
+    renderChart({
+      series: [
+        buildPoint('2026-10-26', null, 60),
+        buildPoint('2026-11-02', 86, 52),
+      ],
+    });
+
+    expect(
+      screen.getByText('Not enough points to draw a line yet.'),
+    ).toBeInTheDocument();
+    expect(mockLineChartRender).not.toHaveBeenCalled();
   });
 });

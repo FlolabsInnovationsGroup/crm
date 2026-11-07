@@ -17,10 +17,14 @@ import { AnalyticsTrendsTab } from '@/crm-analytics/components/AnalyticsTrendsTa
 import { CRM_ANALYTICS_DEFAULT_FILTER } from '@/crm-analytics/constants/CrmAnalyticsDefaultFilter';
 import { CRM_ANALYTICS_TAB_LIST_INSTANCE_ID } from '@/crm-analytics/constants/CrmAnalyticsTabListInstanceId';
 import { useCrmAnalyticsMeta } from '@/crm-analytics/hooks/useCrmAnalyticsMeta';
+import { type AnalyticsFilter } from '@/crm-analytics/types/AnalyticsApi';
+import { getAnalyticsDailyCountWarning } from '@/crm-analytics/utils/getAnalyticsDailyCountWarning';
 import { TabList } from '@/ui/layout/tab-list/components/TabList';
 import { TabListRoot } from '@/ui/layout/tab-list/components/TabListRoot';
 import { activeTabIdComponentState } from '@/ui/layout/tab-list/states/activeTabIdComponentState';
 import { useAtomComponentStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateValue';
+
+const META_REFRESH_AFTER_IN_MS = 5 * 60 * 1000;
 
 const StyledContainer = styled.div`
   display: flex;
@@ -64,12 +68,15 @@ export const AnalyticsContent = () => {
 
   if (isFirstLoad) {
     return (
-      <StyledBody>
-        <StyledLoading>
-          <AnalyticsSkeleton shape="figures" />
-          <AnalyticsSkeleton shape="table" />
-        </StyledLoading>
-      </StyledBody>
+      <StyledContainer>
+        <AnalyticsSkeleton shape="controls" />
+        <StyledBody>
+          <StyledLoading>
+            <AnalyticsSkeleton shape="figures" />
+            <AnalyticsSkeleton shape="table" />
+          </StyledLoading>
+        </StyledBody>
+      </StyledContainer>
     );
   }
 
@@ -78,7 +85,9 @@ export const AnalyticsContent = () => {
   }
 
   if (isDefined(error) && !isDefined(meta)) {
-    return <AnalyticsStatePanel kind="ERROR" error={error} onRetry={retry} />;
+    return (
+      <AnalyticsStatePanel kind="PAGE_ERROR" error={error} onRetry={retry} />
+    );
   }
 
   if (!isDefined(meta) || meta.state === 'DISABLED') {
@@ -93,15 +102,32 @@ export const AnalyticsContent = () => {
     return <AnalyticsStatePanel kind="NEVER_SYNCED" />;
   }
 
+  // The sync line and warnings come from meta, and a page left open should not keep showing old ones.
+  // Page reads are limited per server, so a tab or filter click only asks again once meta is old.
+  const refreshOldMeta = () => {
+    if (Date.now() - new Date(meta.asOf).getTime() > META_REFRESH_AFTER_IN_MS) {
+      retry();
+    }
+  };
+
+  const handleFilterChange = (nextFilter: AnalyticsFilter) => {
+    setFilter(nextFilter);
+    refreshOldMeta();
+  };
+
   const resetFilter = () =>
-    setFilter({
+    handleFilterChange({
       ...CRM_ANALYTICS_DEFAULT_FILTER,
       period: filter.period,
     });
 
   const isStageRecordingOff = !meta.fields.isStageAuditLogged;
+  const dailyCountWarning = getAnalyticsDailyCountWarning(meta);
   const hasBanner =
-    meta.sync.isStale || isStageRecordingOff || meta.isProvisional;
+    meta.sync.isStale ||
+    isStageRecordingOff ||
+    isDefined(dailyCountWarning) ||
+    meta.isProvisional;
 
   return (
     <StyledContainer>
@@ -127,6 +153,16 @@ export const AnalyticsContent = () => {
               {t`Stage changes are not being recorded on the timeline.`}
             </InlineBanner>
           )}
+          {isDefined(dailyCountWarning) && (
+            <InlineBanner
+              status="warning"
+              variant="soft"
+              embedded
+              icon={<IconAlertTriangle aria-hidden="true" />}
+            >
+              {dailyCountWarning}
+            </InlineBanner>
+          )}
           {meta.isProvisional && (
             <InlineBanner status="neutral" variant="soft" embedded>
               {t`Definitions are provisional until recruiting confirms them.`}
@@ -138,6 +174,7 @@ export const AnalyticsContent = () => {
         <StyledTabList
           aria-label={t`Analytics views`}
           componentInstanceId={CRM_ANALYTICS_TAB_LIST_INSTANCE_ID}
+          onChangeTab={refreshOldMeta}
           tabs={[
             { id: 'overview', title: t`Overview` },
             { id: 'funnel', title: t`Funnel` },
@@ -146,12 +183,13 @@ export const AnalyticsContent = () => {
             { id: 'reports', title: t`Reports` },
           ]}
         />
-        {activeTabId !== 'reports' && (
+        {isDefined(activeTabId) && activeTabId !== 'reports' && (
           <AnalyticsFilterBar
             filter={filter}
             meta={meta}
             isPeriodEnabled={activeTabId === 'trends'}
-            onChange={setFilter}
+            isStatusEnabled={activeTabId !== 'funnel'}
+            onChange={handleFilterChange}
             onReset={resetFilter}
           />
         )}
@@ -164,11 +202,7 @@ export const AnalyticsContent = () => {
             />
           )}
           {activeTabId === 'funnel' && (
-            <AnalyticsFunnelTab
-              filter={filter}
-              meta={meta}
-              onResetFilter={resetFilter}
-            />
+            <AnalyticsFunnelTab filter={filter} onResetFilter={resetFilter} />
           )}
           {activeTabId === 'categories' && (
             <AnalyticsCategoriesTab
@@ -184,7 +218,7 @@ export const AnalyticsContent = () => {
               onResetFilter={resetFilter}
             />
           )}
-          {activeTabId === 'reports' && <AnalyticsReportsTab meta={meta} />}
+          {activeTabId === 'reports' && <AnalyticsReportsTab />}
         </StyledBody>
       </TabListRoot>
     </StyledContainer>

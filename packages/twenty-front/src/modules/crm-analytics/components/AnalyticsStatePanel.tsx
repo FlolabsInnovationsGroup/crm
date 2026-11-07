@@ -26,7 +26,9 @@ type AnalyticsStatePanelKind =
   | 'NO_STAGE_FIELD'
   | 'NEVER_SYNCED'
   | 'EMPTY'
-  | 'ERROR';
+  | 'EMPTY_FUNNEL'
+  | 'ERROR'
+  | 'PAGE_ERROR';
 
 type AnalyticsStatePanelProps = {
   kind: AnalyticsStatePanelKind;
@@ -35,7 +37,9 @@ type AnalyticsStatePanelProps = {
   onReset?: () => void;
 };
 
-const getMessage = (kind: Exclude<AnalyticsStatePanelKind, 'ERROR'>) => {
+const getMessage = (
+  kind: Exclude<AnalyticsStatePanelKind, 'ERROR' | 'PAGE_ERROR'>,
+) => {
   switch (kind) {
     case 'FORBIDDEN':
       return t`You do not have access to analytics. Ask an admin.`;
@@ -47,6 +51,8 @@ const getMessage = (kind: Exclude<AnalyticsStatePanelKind, 'ERROR'>) => {
       return t`The first sync has not finished.`;
     case 'EMPTY':
       return t`No people match these filters`;
+    case 'EMPTY_FUNNEL':
+      return t`No one matching these filters has entered the funnel yet`;
   }
 };
 
@@ -56,16 +62,24 @@ export const AnalyticsStatePanel = ({
   onRetry,
   onReset,
 }: AnalyticsStatePanelProps) => {
-  if (kind === 'ERROR') {
+  if (kind === 'ERROR' || kind === 'PAGE_ERROR') {
     return (
       <StyledPanel>
         <ToastOnQueryErrorEffect error={error} />
         <ErrorState.Root>
           <ErrorState.Content>
-            <ErrorState.Title>{t`This view could not load`}</ErrorState.Title>
-            <ErrorState.Description>
-              {t`The other tabs may still work.`}
-            </ErrorState.Description>
+            {kind === 'PAGE_ERROR' ? (
+              <ErrorState.Title>{t`Analytics could not load`}</ErrorState.Title>
+            ) : (
+              <>
+                <ErrorState.Title>
+                  {t`This view could not load`}
+                </ErrorState.Title>
+                <ErrorState.Description>
+                  {t`The other tabs may still work.`}
+                </ErrorState.Description>
+              </>
+            )}
           </ErrorState.Content>
           {isDefined(onRetry) && (
             <Button
@@ -87,12 +101,18 @@ export const AnalyticsStatePanel = ({
       <EmptyState.Root>
         <EmptyState.Content>
           <EmptyState.Title>{getMessage(kind)}</EmptyState.Title>
+          {kind === 'EMPTY_FUNNEL' && (
+            <EmptyState.Description>
+              {t`Imported people are not in the funnel, so a filter can match them and still leave this empty. The Overview tab shows them.`}
+            </EmptyState.Description>
+          )}
         </EmptyState.Content>
-        {kind === 'EMPTY' && isDefined(onReset) && (
-          <Button variant="outline" size="sm" onClick={() => onReset()}>
-            {t`Reset filters`}
-          </Button>
-        )}
+        {(kind === 'EMPTY' || kind === 'EMPTY_FUNNEL') &&
+          isDefined(onReset) && (
+            <Button variant="outline" size="sm" onClick={() => onReset()}>
+              {t`Reset filters`}
+            </Button>
+          )}
       </EmptyState.Root>
     </StyledPanel>
   );

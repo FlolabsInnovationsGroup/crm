@@ -3,16 +3,17 @@ import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { lazy, Suspense } from 'react';
 import { isDefined } from 'twenty-shared/utils';
-import { themeCssVariables } from 'twenty-ui/theme';
 
+import { AnalyticsNotice } from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsSkeleton } from '@/crm-analytics/components/AnalyticsSkeleton';
-import { formatAnalyticsBucketLabel } from '@/crm-analytics/components/AnalyticsTrendTable';
 import { CRM_ANALYTICS_CHART_INSTANCE_ID } from '@/crm-analytics/constants/CrmAnalyticsChartInstanceId';
 import { type AnalyticsTrends } from '@/crm-analytics/types/AnalyticsApi';
 import {
   buildTrendChartSeries,
+  hasNoKnownAnalyticsRate,
   isAnalyticsRateMetric,
 } from '@/crm-analytics/utils/buildTrendChartSeries';
+import { formatAnalyticsBucketLabel } from '@/crm-analytics/utils/formatAnalyticsBucketLabel';
 import { PageLayoutEditModeProviderContext } from '@/page-layout/contexts/PageLayoutEditModeContext';
 import { PageLayoutComponentInstanceContext } from '@/page-layout/states/contexts/PageLayoutComponentInstanceContext';
 import { WidgetComponentInstanceContext } from '@/page-layout/widgets/states/contexts/WidgetComponentInstanceContext';
@@ -33,18 +34,12 @@ const StyledChartBox = styled.div`
   width: 100%;
 `;
 
-const StyledMessage = styled.p`
+const StyledMessage = styled(AnalyticsNotice)`
   align-items: center;
-  border: 1px solid ${themeCssVariables.border.color.light};
-  border-radius: ${themeCssVariables.border.radius.md};
   box-sizing: border-box;
-  color: ${themeCssVariables.font.color.secondary};
   display: flex;
-  font-size: ${themeCssVariables.font.size.sm};
   justify-content: center;
-  margin: 0;
   min-height: 120px;
-  padding: ${themeCssVariables.spacing[4]};
   text-align: center;
 `;
 
@@ -70,6 +65,12 @@ const getNoLineText = (trends: AnalyticsTrends) => {
     dateStyle: 'medium',
     timeZone: trends.reportingTimeZone,
   });
+
+  if (hasNoKnownAnalyticsRate(trends)) {
+    return trends.period === 'MONTH'
+      ? t`Tracking started ${trackingStartedOn}. No period here has a rate to draw. Try a longer date range.`
+      : t`Tracking started ${trackingStartedOn}. No period here has a rate to draw. Try By month or a longer date range.`;
+  }
 
   return t`Tracking started ${trackingStartedOn}. The line needs two periods in a row whose people have passed the window.`;
 };
@@ -102,8 +103,10 @@ export const AnalyticsTrendChart = ({
   });
 
   // The chart draws no point marks, so a value with no neighbour would leave an empty plot.
-  const hasLineToDraw = series.some(({ data }) =>
-    data.some(({ y }, index) => isDefined(y) && isDefined(data[index - 1]?.y)),
+  // Only the current values count: a gray line alone would sit under a legend entry for a missing blue one.
+  const hasLineToDraw = points.some(
+    ({ value }, index) =>
+      isDefined(value) && isDefined(points[index - 1]?.value),
   );
 
   if (!hasLineToDraw) {
@@ -142,7 +145,7 @@ export const AnalyticsTrendChart = ({
                 id={CRM_ANALYTICS_CHART_INSTANCE_ID}
                 colorMode="automaticPalette"
                 data={paintOrderSeries}
-                showLegend
+                showLegend={series.length > 1}
                 showGrid
                 enableArea={false}
                 suffix={isRateMetric ? '%' : undefined}

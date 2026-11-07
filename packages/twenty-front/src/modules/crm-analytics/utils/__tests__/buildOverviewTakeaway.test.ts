@@ -8,11 +8,13 @@ const buildOverview = ({
   stuckPeople = 214,
   totalContacts = 42975,
   hasLimits = true,
+  stageTotals = [],
 }: {
   activePeople?: number;
   stuckPeople?: number;
   totalContacts?: number;
   hasLimits?: boolean;
+  stageTotals?: AnalyticsOverview['stageTotals'];
 }): AnalyticsOverview => ({
   asOf: '2026-11-07T10:00:00.000Z',
   trackingStartedAt: '2026-10-27T00:00:00.000Z',
@@ -31,7 +33,7 @@ const buildOverview = ({
     inactivePeople: 3810,
     signedPeople: null,
   },
-  stageTotals: [],
+  stageTotals,
   stuck: { rows: [], total: stuckPeople, hasLimits },
 });
 
@@ -58,6 +60,42 @@ describe('buildOverviewTakeaway', () => {
         formatNumber,
       }),
     ).toBe('1,284 active people. No stage limits are set.');
+  });
+
+  it('says who is left out when a stage is not mapped', () => {
+    const buildUnmappedRow = (rawStage: string, count: number) => ({
+      rowKey: `UNMAPPED:${rawStage}`,
+      label: rawStage,
+      rowKind: 'UNMAPPED' as const,
+      parentStageKey: null,
+      count,
+      pastLimitCount: null,
+    });
+
+    expect(
+      buildOverviewTakeaway({
+        overview: buildOverview({
+          stageTotals: [
+            buildUnmappedRow('LEGACY', 1000),
+            buildUnmappedRow('OLD', 200),
+          ],
+        }),
+        formatNumber,
+      }),
+    ).toBe(
+      '1,284 active people, 214 past their stage limit. 1,200 people have a stage not yet mapped and are not counted as active or stuck.',
+    );
+    expect(
+      buildOverviewTakeaway({
+        overview: buildOverview({
+          hasLimits: false,
+          stageTotals: [buildUnmappedRow('OLD', 1)],
+        }),
+        formatNumber,
+      }),
+    ).toBe(
+      '1,284 active people. No stage limits are set. 1 person has a stage not yet mapped and is not counted as active or stuck.',
+    );
   });
 
   it('falls back to a neutral sentence without people', () => {

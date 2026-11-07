@@ -48,21 +48,40 @@ describe('AnalyticsStuckTable', () => {
     });
   });
 
-  it('opens the person on Enter', async () => {
-    const user = userEvent.setup();
+  it.each(['{Enter}', ' '])(
+    'opens the person once from the keyboard with %j',
+    async (key) => {
+      const user = userEvent.setup();
 
+      render(
+        <AnalyticsStuckTable
+          stuck={{ rows: [buildRow({})], total: 1, hasLimits: true }}
+        />,
+      );
+
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Ada Lovelace' })).toHaveFocus();
+
+      await user.keyboard(key);
+
+      expect(mockOpenRecordInSidePanel).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('names a person with no name so the row can still be read', () => {
     render(
       <AnalyticsStuckTable
-        stuck={{ rows: [buildRow({})], total: 1, hasLimits: true }}
+        stuck={{
+          rows: [buildRow({ displayName: '' })],
+          total: 1,
+          hasLimits: true,
+        }}
       />,
     );
 
-    await user.tab();
-    expect(screen.getByRole('row', { name: /Ada Lovelace/ })).toHaveFocus();
-
-    await user.keyboard('{Enter}');
-
-    expect(mockOpenRecordInSidePanel).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole('button', { name: 'Unnamed person' }),
+    ).toBeInTheDocument();
   });
 
   it('shows the at least form for a lower bound', () => {

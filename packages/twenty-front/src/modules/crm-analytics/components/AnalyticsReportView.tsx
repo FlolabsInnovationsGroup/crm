@@ -1,7 +1,10 @@
 import { i18n } from '@lingui/core';
 import { styled } from '@linaria/react';
 import { plural, t } from '@lingui/core/macro';
+import { Temporal } from 'temporal-polyfill';
 import { isDefined } from 'twenty-shared/utils';
+import { InlineBanner } from 'twenty-ui/components/feedback';
+import { OverflowingTextWithTooltip } from 'twenty-ui/primitives/typography';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsCategoryTable } from '@/crm-analytics/components/AnalyticsCategoryTable';
@@ -9,6 +12,7 @@ import { AnalyticsCohortTable } from '@/crm-analytics/components/AnalyticsCohort
 import { AnalyticsMovementTable } from '@/crm-analytics/components/AnalyticsMovementTable';
 import { AnalyticsRateCell } from '@/crm-analytics/components/AnalyticsRateCell';
 import {
+  AnalyticsNotice,
   AnalyticsSection,
   AnalyticsTabLayout,
 } from '@/crm-analytics/components/AnalyticsSection';
@@ -16,21 +20,22 @@ import { AnalyticsSkeleton } from '@/crm-analytics/components/AnalyticsSkeleton'
 import { AnalyticsStageLedger } from '@/crm-analytics/components/AnalyticsStageLedger';
 import { AnalyticsStatePanel } from '@/crm-analytics/components/AnalyticsStatePanel';
 import { AnalyticsTable } from '@/crm-analytics/components/AnalyticsTable';
-import { formatAnalyticsSignedNumber } from '@/crm-analytics/components/AnalyticsTrendTable';
 import { GET_CRM_ANALYTICS_REPORT } from '@/crm-analytics/graphql/getCrmAnalyticsReport';
 import { useCrmAnalyticsQuery } from '@/crm-analytics/hooks/useCrmAnalyticsQuery';
 import {
   type AnalyticsReport,
   type AnalyticsReportComparison,
-  type AnalyticsReportListItem,
   type AnalyticsReportPeriodType,
-  type AnalyticsStageDefinition,
 } from '@/crm-analytics/types/AnalyticsApi';
 import { buildCategoriesTakeaway } from '@/crm-analytics/utils/buildCategoriesTakeaway';
 import { buildFunnelTakeaway } from '@/crm-analytics/utils/buildFunnelTakeaway';
+import { formatAnalyticsReportPeriod } from '@/crm-analytics/utils/formatAnalyticsReportPeriod';
+import { formatAnalyticsSignedNumber } from '@/crm-analytics/utils/formatAnalyticsSignedNumber';
+import { isAnalyticsPeriodFullyTracked } from '@/crm-analytics/utils/isAnalyticsPeriodFullyTracked';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
-const MILLISECONDS_PER_DAY = 86_400_000;
+const NEW_APPLICATIONS_METRIC_KEY = 'NEW_APPLICATIONS';
+const ENTERED_METRIC_KEY_PREFIX = 'ENTERED_';
 
 const StyledReport = styled.article`
   display: flex;
@@ -59,15 +64,6 @@ const StyledSentence = styled.p`
   margin: 0;
 `;
 
-const StyledNotice = styled.p`
-  border: 1px solid ${themeCssVariables.border.color.light};
-  border-radius: ${themeCssVariables.border.radius.md};
-  color: ${themeCssVariables.font.color.secondary};
-  font-size: ${themeCssVariables.font.size.sm};
-  margin: 0;
-  padding: ${themeCssVariables.spacing[4]};
-`;
-
 const StyledSignificantMark = styled.span`
   align-items: center;
   color: ${themeCssVariables.font.color.secondary};
@@ -84,40 +80,37 @@ const StyledSignificantDot = styled.span`
   width: 6px;
 `;
 
-const toReportDate = (value: string) =>
-  new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
+// Stored reports stay as generated, and the first of each type compared itself with untracked days.
+const isPreviousReportPeriodTracked = (report: AnalyticsReport) => {
+  const previousStart = Temporal.PlainDate.from(
+    report.periodStart.slice(0, 10),
+  ).subtract(report.periodType === 'MONTH' ? { months: 1 } : { weeks: 1 });
 
-// periodEnd is exclusive, so a week has to step back a day to read Monday to Sunday.
-export const formatAnalyticsReportPeriod = ({
-  periodType,
-  periodStart,
-  periodEnd,
-}: AnalyticsReportListItem) => {
-  const startDate = toReportDate(periodStart);
+  return isAnalyticsPeriodFullyTracked(previousStart.toString(), report);
+};
 
-  if (periodType === 'MONTH') {
-    return i18n.date(startDate, {
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'UTC',
-    });
+const getNoEarlierPeriodText = () =>
+  t`There is no earlier period to compare with yet.`;
+
+// The stored label is frozen English, so known measures translate by key and fall back to it.
+const getComparisonLabel = (
+  { metricKey, label }: AnalyticsReportComparison,
+  movement: AnalyticsReport['movement'],
+) => {
+  if (metricKey === NEW_APPLICATIONS_METRIC_KEY) {
+    return t`New applications`;
   }
 
-  const dateRangeFrom = i18n.date(startDate, {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
-  const dateRangeTo = i18n.date(
-    new Date(toReportDate(periodEnd).getTime() - MILLISECONDS_PER_DAY),
-    { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' },
-  );
+  const stageLabel = movement.find(
+    ({ stageKey }) => `${ENTERED_METRIC_KEY_PREFIX}${stageKey}` === metricKey,
+  )?.label;
 
-  return t`${dateRangeFrom} to ${dateRangeTo}`;
+  return isDefined(stageLabel) ? t`Entered ${stageLabel}` : label;
 };
 
 const buildReportTakeaway = (
   report: AnalyticsReport,
+  isPreviousPeriodTracked: boolean,
   formatNumber: (value: number) => string,
 ) => {
   const significantCount = report.comparisons.filter(
@@ -134,7 +127,9 @@ const buildReportTakeaway = (
         });
 
   if (!isDefined(report.newApplications)) {
-    return significantSentence;
+    return isPreviousPeriodTracked
+      ? significantSentence
+      : getNoEarlierPeriodText();
   }
 
   const newApplicationsCount = formatNumber(report.newApplications);
@@ -142,6 +137,10 @@ const buildReportTakeaway = (
     one: `${newApplicationsCount} new application`,
     other: `${newApplicationsCount} new applications`,
   });
+
+  if (!isPreviousPeriodTracked) {
+    return t`${applicationsPhrase}.`;
+  }
 
   if (!isDefined(report.newApplicationsPrevious)) {
     return t`${applicationsPhrase}. ${significantSentence}`;
@@ -171,10 +170,12 @@ const AnalyticsReportCount = ({ value }: AnalyticsReportCountProps) => {
 
 type AnalyticsReportComparisonsTableProps = {
   comparisons: AnalyticsReportComparison[];
+  movement: AnalyticsReport['movement'];
 };
 
 const AnalyticsReportComparisonsTable = ({
   comparisons,
+  movement,
 }: AnalyticsReportComparisonsTableProps) => {
   const { formatNumber } = useNumberFormat();
 
@@ -198,7 +199,7 @@ const AnalyticsReportComparisonsTable = ({
         {comparisons.map((comparison) => (
           <AnalyticsTable.Row key={comparison.metricKey}>
             <AnalyticsTable.Cell dir="auto">
-              {comparison.label}
+              {getComparisonLabel(comparison, movement)}
               {comparison.isSignificant && (
                 <StyledSignificantMark>
                   <StyledSignificantDot aria-hidden="true" />
@@ -250,7 +251,7 @@ const AnalyticsReportPastLimitTable = ({
         {rows.map((row) => (
           <AnalyticsTable.Row key={row.stageKey}>
             <AnalyticsTable.Cell isTruncated dir="auto">
-              {row.label}
+              <OverflowingTextWithTooltip text={row.label} />
             </AnalyticsTable.Cell>
             <AnalyticsTable.Cell isNumeric>
               {formatNumber(row.count)}
@@ -265,13 +266,11 @@ const AnalyticsReportPastLimitTable = ({
 type AnalyticsReportViewProps = {
   periodType: AnalyticsReportPeriodType;
   periodStart: string;
-  stages: AnalyticsStageDefinition[];
 };
 
 export const AnalyticsReportView = ({
   periodType,
   periodStart,
-  stages,
 }: AnalyticsReportViewProps) => {
   const { formatNumber } = useNumberFormat();
 
@@ -301,7 +300,9 @@ export const AnalyticsReportView = ({
   }
 
   if (!isDefined(report)) {
-    return <StyledNotice>{t`This report could not be found.`}</StyledNotice>;
+    return (
+      <AnalyticsNotice>{t`This report could not be found.`}</AnalyticsNotice>
+    );
   }
 
   const reportPeriod = formatAnalyticsReportPeriod(report);
@@ -320,6 +321,8 @@ export const AnalyticsReportView = ({
     timeZone: report.reportingTimeZone,
   });
   const minimumSample = formatNumber(report.minimumSample);
+  const isPreviousPeriodTracked = isPreviousReportPeriodTracked(report);
+  const isProvisional = report.isProvisional === true;
 
   return (
     <StyledReport>
@@ -328,24 +331,40 @@ export const AnalyticsReportView = ({
           ? t`Monthly report, ${reportPeriod}`
           : t`Weekly report, ${reportPeriod}`}
       </StyledReportTitle>
+      {isProvisional && (
+        <InlineBanner status="neutral" variant="soft" embedded>
+          {t`Built on provisional definitions. It will be rebuilt once they are confirmed.`}
+        </InlineBanner>
+      )}
       <AnalyticsTabLayout
-        takeaway={buildReportTakeaway(report, formatNumber)}
+        takeaway={buildReportTakeaway(
+          report,
+          isPreviousPeriodTracked,
+          formatNumber,
+        )}
         notices={[
-          t`Generated ${generatedAt}. It stays as generated; corrections appear in the next report.`,
+          isProvisional
+            ? t`Generated ${generatedAt}.`
+            : t`Generated ${generatedAt}. It stays as generated; corrections appear in the next report.`,
           t`Tracking started ${trackingStartedOn}. Imported people count in current totals only, never in rates.`,
         ]}
         isRefetching={isRefetching}
       >
         <AnalyticsSection
           title={t`Compared with the previous period`}
-          note={t`Counts inside each period, by event date. A row is marked when the change is significant and both counts are at least ${minimumSample}.`}
+          note={
+            isPreviousPeriodTracked
+              ? t`Counts inside each period, by event date. A row is marked when the change is significant and both counts are at least ${minimumSample}.`
+              : undefined
+          }
         >
-          {report.comparisons.length > 0 ? (
-            <AnalyticsReportComparisonsTable comparisons={report.comparisons} />
+          {isPreviousPeriodTracked && report.comparisons.length > 0 ? (
+            <AnalyticsReportComparisonsTable
+              comparisons={report.comparisons}
+              movement={report.movement}
+            />
           ) : (
-            <StyledNotice>
-              {t`There is no earlier period to compare with yet.`}
-            </StyledNotice>
+            <AnalyticsNotice>{getNoEarlierPeriodText()}</AnalyticsNotice>
           )}
         </AnalyticsSection>
         <AnalyticsSection
@@ -363,20 +382,20 @@ export const AnalyticsReportView = ({
               ? t`Sources`
               : t`Tracks and programs`
           }
-          note={t`New applications from this period, people as of generation, rates from all applications since tracking start.`}
+          note={t`New applications from this period, people as of generation, rates from all applications since tracking start. n/a means not enough data.`}
         >
           <StyledSentence>
             {buildCategoriesTakeaway(report.categories)}
           </StyledSentence>
           <AnalyticsCategoryTable
             categories={report.categories}
-            stages={stages}
+            stages={report.funnel.rows}
           />
         </AnalyticsSection>
         <StyledPair>
           <AnalyticsSection
             title={t`Stage movement`}
-            note={t`Entered and left in this period, by event date. Now is as of generation.`}
+            note={t`Moves into and out of each stage in this period, by event date. Now is as of generation.`}
           >
             <AnalyticsMovementTable rows={report.movement} />
           </AnalyticsSection>
@@ -387,20 +406,20 @@ export const AnalyticsReportView = ({
             {report.stuckByStage.some((row) => row.count > 0) ? (
               <AnalyticsReportPastLimitTable rows={report.stuckByStage} />
             ) : (
-              <StyledNotice>
+              <AnalyticsNotice>
                 {t`No one is past their stage limit.`}
-              </StyledNotice>
+              </AnalyticsNotice>
             )}
           </AnalyticsSection>
         </StyledPair>
         {report.cohorts.length > 0 && (
           <AnalyticsSection
             title={t`Conversion by application month`}
-            note={t`People, by application month up to the end of this period. Muted means still inside the window or a small sample.`}
+            note={t`People, by application month up to the end of this period. Muted means still inside the window or a small sample. n/a means not enough data.`}
           >
             <AnalyticsCohortTable
               rows={report.cohorts}
-              stages={stages}
+              stages={report.funnel.rows}
               period="MONTH"
               minimumSample={report.minimumSample}
             />

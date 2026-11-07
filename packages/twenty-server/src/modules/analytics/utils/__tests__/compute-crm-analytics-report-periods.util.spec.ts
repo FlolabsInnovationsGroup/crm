@@ -268,6 +268,36 @@ describe('computeCrmAnalyticsTrendBuckets', () => {
     expect(computeBuckets('MONTH')[0].bucketStart).toBe('2025-12-01');
   });
 
+  it('gives only overall conversion by week a longer default', () => {
+    const computeMetricBuckets = (
+      metric: 'OVERALL_CONVERSION' | 'DROP_OFF',
+      period: 'WEEK' | 'MONTH',
+      dateFrom: string | null = null,
+    ) =>
+      computeCrmAnalyticsTrendBuckets({
+        dateFrom,
+        dateTo: null,
+        period,
+        localToday: LOCAL_TODAY,
+        metric,
+      });
+
+    const overallByWeek = computeMetricBuckets('OVERALL_CONVERSION', 'WEEK');
+
+    expect(overallByWeek).toHaveLength(26);
+    expect(overallByWeek[0].bucketStart).toBe('2026-05-11');
+    expect(overallByWeek[25].bucketStart).toBe('2026-11-02');
+    expect(overallByWeek[25].previousBucketStart).toBe('2026-05-04');
+
+    expect(computeMetricBuckets('DROP_OFF', 'WEEK')).toHaveLength(12);
+    expect(computeMetricBuckets('OVERALL_CONVERSION', 'MONTH')).toHaveLength(
+      12,
+    );
+    expect(
+      computeMetricBuckets('OVERALL_CONVERSION', 'WEEK', '2026-10-26'),
+    ).toHaveLength(2);
+  });
+
   it('pairs each bucket with the one the same count of buckets before', () => {
     const buckets = computeBuckets('WEEK');
 

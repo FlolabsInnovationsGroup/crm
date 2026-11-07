@@ -28,6 +28,21 @@ describe('AnalyticsRateCell', () => {
     expect(screen.getByText('12% so far')).toBeInTheDocument();
   });
 
+  it('can shorten the unknown form for a dense grid, with the full phrase kept', () => {
+    render(<AnalyticsRateCell rate={null} isCompact />);
+
+    expect(screen.getByText('n/a')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('Not enough data')).toBeInTheDocument();
+    expect(screen.getByTitle('Not enough data')).toBeInTheDocument();
+  });
+
+  it('keeps the so far form in a dense grid', () => {
+    render(<AnalyticsRateCell rate={null} soFarRate={0.12} isCompact />);
+
+    expect(screen.getByText('12% so far')).toBeInTheDocument();
+    expect(screen.queryByText('n/a')).not.toBeInTheDocument();
+  });
+
   it('never shows 0% for something unknown', () => {
     const { rerender, container } = render(<AnalyticsRateCell rate={null} />);
 

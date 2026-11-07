@@ -6,6 +6,7 @@ import { Button } from 'twenty-ui/primitives/input';
 import { Tooltip } from 'twenty-ui/primitives/surfaces';
 import { themeCssVariables } from 'twenty-ui/theme';
 import { Temporal } from 'temporal-polyfill';
+import { useDebouncedCallback } from 'use-debounce';
 
 import {
   type AnalyticsFilter,
@@ -15,12 +16,15 @@ import {
 } from '@/crm-analytics/types/AnalyticsApi';
 import { hasActiveAnalyticsFilter } from '@/crm-analytics/utils/hasActiveAnalyticsFilter';
 import { Select } from '@/ui/input/components/Select';
+import { GenericDropdownContentWidth } from '@/ui/layout/dropdown/constants/GenericDropdownContentWidth';
 
 type AnalyticsDatePreset = 'ALL' | 'LAST_7' | 'LAST_30' | 'LAST_90' | 'CUSTOM';
 
 const DAYS_BY_DATE_PRESET = { LAST_7: 7, LAST_30: 30, LAST_90: 90 } as const;
 
 const COMPLETE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const DATE_IDLE_COMMIT_DELAY_IN_MS = 600;
 
 const StyledBar = styled.div`
   align-items: center;
@@ -55,10 +59,6 @@ const StyledDateInput = styled.input`
   height: ${themeCssVariables.spacing[6]};
   padding: 0 ${themeCssVariables.spacing[1]};
 
-  .dark & {
-    color-scheme: dark;
-  }
-
   &:focus-visible {
     border-color: ${themeCssVariables.color.blue};
     outline: none;
@@ -78,7 +78,11 @@ const AnalyticsFilterControl = ({
   children,
 }: AnalyticsFilterControlProps) => {
   if (!isDefined(disabledReason)) {
-    return <StyledControl>{children}</StyledControl>;
+    return (
+      <StyledControl role="group" aria-label={label}>
+        {children}
+      </StyledControl>
+    );
   }
 
   return (
@@ -149,7 +153,8 @@ type AnalyticsDateInputProps = {
   onCommit: (date: string) => void;
 };
 
-// Typing a year passes through complete dates such as 0202-10-15, so nothing applies until the person is done.
+// Typing a year passes through complete dates such as 0202-10-15, so nothing applies on the keystroke.
+// A pick from the native calendar keeps focus and never blurs, so a pause applies it as well.
 const AnalyticsDateInput = ({
   label,
   appliedDate,
@@ -160,7 +165,16 @@ const AnalyticsDateInput = ({
 }: AnalyticsDateInputProps) => {
   const [draftDate, setDraftDate] = useState<string | null>(null);
 
+  const commitAfterIdle = useDebouncedCallback((date: string) => {
+    if (date !== appliedDate && isDateAllowed(date)) {
+      onCommit(date);
+      setDraftDate(null);
+    }
+  }, DATE_IDLE_COMMIT_DELAY_IN_MS);
+
   const commitDraft = () => {
+    commitAfterIdle.cancel();
+
     if (
       isDefined(draftDate) &&
       draftDate !== appliedDate &&
@@ -179,7 +193,10 @@ const AnalyticsDateInput = ({
       value={draftDate ?? appliedDate ?? ''}
       min={earliestDate ?? undefined}
       max={latestDate ?? undefined}
-      onChange={(event) => setDraftDate(event.target.value)}
+      onChange={(event) => {
+        setDraftDate(event.target.value);
+        commitAfterIdle(event.target.value);
+      }}
       onBlur={commitDraft}
       onKeyDown={(event) => {
         if (event.key === 'Enter') {
@@ -194,6 +211,7 @@ type AnalyticsFilterBarProps = {
   filter: AnalyticsFilter;
   meta: AnalyticsMeta;
   isPeriodEnabled: boolean;
+  isStatusEnabled?: boolean;
   onChange: (filter: AnalyticsFilter) => void;
   onReset: () => void;
 };
@@ -202,6 +220,7 @@ export const AnalyticsFilterBar = ({
   filter,
   meta,
   isPeriodEnabled,
+  isStatusEnabled = true,
   onChange,
   onReset,
 }: AnalyticsFilterBarProps) => {
@@ -228,6 +247,13 @@ export const AnalyticsFilterBar = ({
   const periodDisabledReason = isPeriodEnabled
     ? null
     : t`Only the Trends tab uses a period.`;
+
+  const statusDisabledReason = isStatusEnabled
+    ? null
+    : t`Rates ignore the status filter, so the Funnel tab does not use it.`;
+
+  const successStageLabel =
+    meta.stages.find((stage) => stage.isSuccess)?.label ?? t`Success`;
 
   const programs = isDefined(filter.trackKey)
     ? meta.programs.filter((program) => program.trackKey === filter.trackKey)
@@ -328,6 +354,7 @@ export const AnalyticsFilterBar = ({
           dropdownId="crm-analytics-filter-track"
           selectSizeVariant="small"
           fullWidth
+          dropdownWidth={GenericDropdownContentWidth.ExtraLarge}
           disabled={isDefined(positionsDisabledReason)}
           value={filter.trackKey}
           options={[
@@ -349,6 +376,7 @@ export const AnalyticsFilterBar = ({
           selectSizeVariant="small"
           fullWidth
           withSearchInput
+          dropdownWidth={GenericDropdownContentWidth.ExtraLarge}
           disabled={isDefined(positionsDisabledReason)}
           value={filter.programKey}
           options={[
@@ -370,6 +398,7 @@ export const AnalyticsFilterBar = ({
           selectSizeVariant="small"
           fullWidth
           withSearchInput
+          dropdownWidth={GenericDropdownContentWidth.ExtraLarge}
           disabled={isDefined(sourceDisabledReason)}
           value={filter.sourceKey}
           options={[
@@ -382,16 +411,20 @@ export const AnalyticsFilterBar = ({
           onChange={(sourceKey) => onChange({ ...filter, sourceKey })}
         />
       </AnalyticsFilterControl>
-      <AnalyticsFilterControl label={t`Status`} disabledReason={null}>
+      <AnalyticsFilterControl
+        label={t`Status`}
+        disabledReason={statusDisabledReason}
+      >
         <Select<AnalyticsStatusFilter>
           dropdownId="crm-analytics-filter-status"
           selectSizeVariant="small"
           fullWidth
+          disabled={isDefined(statusDisabledReason)}
           value={filter.status}
           options={[
             { value: 'ALL', label: t`All statuses` },
             { value: 'ACTIVE', label: t`Active` },
-            { value: 'SUCCESS', label: t`Signed` },
+            { value: 'SUCCESS', label: successStageLabel },
             { value: 'EXITED', label: t`Exited` },
             { value: 'UNMAPPED', label: t`Unmapped` },
             { value: 'NO_STAGE', label: t`No stage` },

@@ -6,8 +6,15 @@ import {
   type AnalyticsTrendPoint,
   type AnalyticsTrends,
 } from '@/crm-analytics/types/AnalyticsApi';
-import { isAnalyticsRateMetric } from '@/crm-analytics/utils/buildTrendChartSeries';
+import {
+  hasNoKnownAnalyticsRate,
+  isAnalyticsRateMetric,
+  isAnalyticsRunningCountMetric,
+} from '@/crm-analytics/utils/buildTrendChartSeries';
+import { formatAnalyticsBucketLabel } from '@/crm-analytics/utils/formatAnalyticsBucketLabel';
 import { formatAnalyticsRate } from '@/crm-analytics/utils/formatAnalyticsRate';
+import { formatAnalyticsSignedNumber } from '@/crm-analytics/utils/formatAnalyticsSignedNumber';
+import { isAnalyticsPeriodFullyTracked } from '@/crm-analytics/utils/isAnalyticsPeriodFullyTracked';
 
 type BuildTrendsTakeawayArgs = {
   trends: AnalyticsTrends;
@@ -20,22 +27,10 @@ const MEDIAN_DAYS_DECIMALS = 1;
 
 const roundMedianDays = (days: number) => Math.round(days * 10) / 10;
 
-const getSignedNumber = (
-  value: number,
-  formatNumber: (value: number) => string,
-) => {
-  // Rounding a small fall gives -0, which number formatting prints with its sign.
-  if (value === 0) {
-    return formatNumber(0);
-  }
-
-  return value > 0 ? `+${formatNumber(value)}` : formatNumber(value);
-};
-
 const getCurrentPeriodPhrase = (period: AnalyticsPeriod) => {
   switch (period) {
     case 'DAY':
-      return t`in this day`;
+      return t`today`;
     case 'WEEK':
       return t`in this week`;
     case 'MONTH':
@@ -46,13 +41,39 @@ const getCurrentPeriodPhrase = (period: AnalyticsPeriod) => {
 const getLatestCompletePeriodPhrase = (period: AnalyticsPeriod) => {
   switch (period) {
     case 'DAY':
-      return t`in the latest complete day`;
+      return t`on the latest complete day`;
     case 'WEEK':
       return t`in the latest complete week`;
     case 'MONTH':
       return t`in the latest complete month`;
   }
 };
+
+const getNamedPeriodPhrase = (bucketStart: string, trends: AnalyticsTrends) => {
+  const label = formatAnalyticsBucketLabel({
+    bucketStart,
+    period: trends.period,
+  });
+  const isByApplicationDate = isAnalyticsRateMetric(trends.metric);
+
+  switch (trends.period) {
+    case 'DAY':
+      return isByApplicationDate
+        ? t`for people who applied on ${label}`
+        : t`on ${label}`;
+    case 'WEEK':
+      return isByApplicationDate
+        ? t`for people who applied in the week of ${label}`
+        : t`in the week of ${label}`;
+    case 'MONTH':
+      return isByApplicationDate
+        ? t`for people who applied in ${label}`
+        : t`in ${label}`;
+  }
+};
+
+const getPrecedingPeriodPhrase = (period: AnalyticsPeriod) =>
+  period === 'DAY' ? t`the day before` : t`the previous one`;
 
 const isMeasuredBySample = (trends: AnalyticsTrends) =>
   isAnalyticsRateMetric(trends.metric) || trends.metric === 'MEDIAN_DAYS';
@@ -65,6 +86,14 @@ const isMeasuredPoint = (
   isDefined(point.value) &&
   (!isMeasuredBySample(trends) ||
     (isDefined(point.size) && point.size >= trends.minimumSample));
+
+const isComparablePoint = (
+  point: AnalyticsTrendPoint | undefined,
+  trends: AnalyticsTrends,
+): point is MeasuredTrendPoint =>
+  isMeasuredPoint(point, trends) &&
+  (!isAnalyticsRunningCountMetric(trends.metric) ||
+    isAnalyticsPeriodFullyTracked(point.bucketStart, trends));
 
 const formatValue = ({
   value,
@@ -119,14 +148,17 @@ const formatDelta = ({
   formatNumber,
 }: BuildTrendsTakeawayArgs & { value: number }) => {
   if (isAnalyticsRateMetric(trends.metric)) {
-    const points = getSignedNumber(Math.round(value * 100), formatNumber);
+    const points = formatAnalyticsSignedNumber(
+      Math.round(value * 100),
+      formatNumber,
+    );
 
     return t`${points} points`;
   }
 
   if (trends.metric === 'MEDIAN_DAYS') {
     const roundedDays = roundMedianDays(value);
-    const days = getSignedNumber(roundedDays, (days) =>
+    const days = formatAnalyticsSignedNumber(roundedDays, (days) =>
       formatNumber(days, { decimals: MEDIAN_DAYS_DECIMALS }),
     );
 
@@ -136,18 +168,26 @@ const formatDelta = ({
     });
   }
 
-  return getSignedNumber(value, formatNumber);
+  return formatAnalyticsSignedNumber(value, formatNumber);
 };
 
 export const buildTrendsTakeaway = ({
   trends,
   formatNumber,
 }: BuildTrendsTakeawayArgs): string => {
+  if (isDefined(trends.unavailableReason)) {
+    return t`No figures for this view yet.`;
+  }
+
+  if (hasNoKnownAnalyticsRate(trends)) {
+    return t`No period in this view has fully passed the window yet.`;
+  }
+
   const latestPoint = trends.series.findLast(
     (point): point is MeasuredTrendPoint => isMeasuredPoint(point, trends),
   );
 
-  if (isDefined(trends.unavailableReason) || !isDefined(latestPoint)) {
+  if (!isDefined(latestPoint)) {
     return t`No figures for this view yet.`;
   }
 
@@ -157,15 +197,36 @@ export const buildTrendsTakeaway = ({
     formatNumber,
   });
 
+  // Rates skip buckets still inside their window, so the last measured one can be months old.
+  const isBucketBeforeCurrent =
+    trends.series.at(-1)?.isPartial === true &&
+    trends.series.at(-2) === latestPoint;
+
   const periodPhrase = latestPoint.isPartial
     ? getCurrentPeriodPhrase(trends.period)
-    : getLatestCompletePeriodPhrase(trends.period);
+    : isBucketBeforeCurrent
+      ? getLatestCompletePeriodPhrase(trends.period)
+      : getNamedPeriodPhrase(latestPoint.bucketStart, trends);
+
+  const precedingPhrase = getPrecedingPeriodPhrase(trends.period);
+
+  const isCountSoFar =
+    latestPoint.isPartial && isAnalyticsRunningCountMetric(trends.metric);
 
   // A point's previousValue is one whole window back, not the bucket before it.
   const precedingPoint = trends.series[trends.series.indexOf(latestPoint) - 1];
 
-  if (!isMeasuredPoint(precedingPoint, trends)) {
-    return t`${value} ${periodPhrase}.`;
+  if (!isComparablePoint(precedingPoint, trends)) {
+    return isCountSoFar
+      ? t`${value} so far ${periodPhrase}.`
+      : t`${value} ${periodPhrase}.`;
+  }
+
+  // Subtracting a finished period from a running count would read as a fall every Monday.
+  if (isCountSoFar) {
+    const precedingCount = formatNumber(precedingPoint.value);
+
+    return t`${value} so far ${periodPhrase}; ${precedingPhrase} had ${precedingCount}.`;
   }
 
   const delta = formatDelta({
@@ -174,5 +235,5 @@ export const buildTrendsTakeaway = ({
     formatNumber,
   });
 
-  return t`${value} ${periodPhrase}, ${delta} against the previous one.`;
+  return t`${value} ${periodPhrase}, ${delta} against ${precedingPhrase}.`;
 };

@@ -1,10 +1,15 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
-import { type KeyboardEvent } from 'react';
+import { isNonEmptyString } from '@sniptt/guards';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
+import { OverflowingTextWithTooltip } from 'twenty-ui/primitives/typography';
 import { themeCssVariables } from 'twenty-ui/theme';
 
+import {
+  AnalyticsNote,
+  AnalyticsNotice,
+} from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsTable } from '@/crm-analytics/components/AnalyticsTable';
 import { type AnalyticsOverview } from '@/crm-analytics/types/AnalyticsApi';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
@@ -12,19 +17,22 @@ import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSide
 
 const STUCK_TABLE_MAX_HEIGHT = 480;
 
-const StyledHint = styled.p`
-  color: ${themeCssVariables.font.color.tertiary};
-  font-size: ${themeCssVariables.font.size.xs};
-  margin: 0;
-`;
+const StyledPersonButton = styled.button`
+  background: none;
+  border: none;
+  border-radius: ${themeCssVariables.border.radius.xs};
+  color: inherit;
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  padding: 0;
+  text-align: start;
+  width: 100%;
 
-const StyledEmpty = styled.p`
-  border: 1px solid ${themeCssVariables.border.color.light};
-  border-radius: ${themeCssVariables.border.radius.md};
-  color: ${themeCssVariables.font.color.tertiary};
-  font-size: ${themeCssVariables.font.size.sm};
-  margin: 0;
-  padding: ${themeCssVariables.spacing[3]};
+  &:focus-visible {
+    outline: 2px solid ${themeCssVariables.color.blue};
+    outline-offset: -2px;
+  }
 `;
 
 type AnalyticsStuckTableProps = {
@@ -37,11 +45,11 @@ export const AnalyticsStuckTable = ({ stuck }: AnalyticsStuckTableProps) => {
 
   if (stuck.rows.length === 0) {
     return (
-      <StyledEmpty>
+      <AnalyticsNotice>
         {stuck.hasLimits
           ? t`No one is past their stage limit.`
           : t`No active people to list.`}
-      </StyledEmpty>
+      </AnalyticsNotice>
     );
   }
 
@@ -51,24 +59,15 @@ export const AnalyticsStuckTable = ({ stuck }: AnalyticsStuckTableProps) => {
       objectNameSingular: CoreObjectNameSingular.Person,
     });
 
-  const handleRowKeyDown = (
-    event: KeyboardEvent<HTMLTableRowElement>,
-    personId: string,
-  ) => {
-    if (event.key === 'Enter') {
-      openPerson(personId);
-    }
-  };
-
   const shownCount = formatNumber(stuck.rows.length);
   const totalCount = formatNumber(stuck.total);
 
   return (
     <>
       {!stuck.hasLimits && (
-        <StyledHint>
+        <AnalyticsNote>
           {t`No stage limits are set, so this list is sorted by days in stage.`}
-        </StyledHint>
+        </AnalyticsNote>
       )}
       <AnalyticsTable.Root
         aria-label={t`People to follow up`}
@@ -90,20 +89,24 @@ export const AnalyticsStuckTable = ({ stuck }: AnalyticsStuckTableProps) => {
         <tbody>
           {stuck.rows.map((row) => {
             const daysInStage = formatNumber(row.daysInStage);
+            const hasName = isNonEmptyString(row.displayName);
 
             return (
+              // The row takes the click for its whole width; the button adds the keyboard and the role.
               <AnalyticsTable.Row
                 key={row.personId}
                 isInteractive
-                tabIndex={0}
                 onClick={() => openPerson(row.personId)}
-                onKeyDown={(event) => handleRowKeyDown(event, row.personId)}
               >
-                <AnalyticsTable.Cell isTruncated dir="auto">
-                  {row.displayName}
+                <AnalyticsTable.Cell isTruncated isMuted={!hasName} dir="auto">
+                  <StyledPersonButton type="button">
+                    <OverflowingTextWithTooltip
+                      text={hasName ? row.displayName : t`Unnamed person`}
+                    />
+                  </StyledPersonButton>
                 </AnalyticsTable.Cell>
                 <AnalyticsTable.Cell isTruncated dir="auto">
-                  {row.stageLabel}
+                  <OverflowingTextWithTooltip text={row.stageLabel} />
                 </AnalyticsTable.Cell>
                 <AnalyticsTable.Cell isNumeric>
                   {row.isLowerBound ? t`at least ${daysInStage}` : daysInStage}
@@ -119,7 +122,9 @@ export const AnalyticsStuckTable = ({ stuck }: AnalyticsStuckTableProps) => {
         </tbody>
       </AnalyticsTable.Root>
       {stuck.rows.length < stuck.total && (
-        <StyledHint>{t`Showing ${shownCount} of ${totalCount}`}</StyledHint>
+        <AnalyticsNote>
+          {t`Showing ${shownCount} of ${totalCount}`}
+        </AnalyticsNote>
       )}
     </>
   );

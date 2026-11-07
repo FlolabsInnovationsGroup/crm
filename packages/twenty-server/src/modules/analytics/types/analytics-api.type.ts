@@ -175,6 +175,7 @@ export type AnalyticsTrendPoint = {
   value: number | null;
   previousValue: number | null;
   size: number | null;
+  previousSize: number | null;
   isPartial: boolean;
 };
 
@@ -229,6 +230,8 @@ export type AnalyticsReportComparison = {
 };
 
 export type AnalyticsReport = AnalyticsReportListItem & AnalyticsBase & {
+  isProvisional?: boolean;
+  payloadVersion?: number;
   newApplications: number | null;
   newApplicationsPrevious: number | null;
   categories: AnalyticsCategories;

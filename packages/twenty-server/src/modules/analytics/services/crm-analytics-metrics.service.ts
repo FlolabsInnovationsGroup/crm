@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { isNonEmptyString } from '@sniptt/guards';
-import { isDefined } from 'twenty-shared/utils';
+import { isDefined, isNonEmptyArray } from 'twenty-shared/utils';
 
 import {
   CRM_ANALYTICS_CONFIG,
@@ -321,6 +321,12 @@ const hasPersonFilter = (filter: CrmAnalyticsPersonFilter): boolean =>
   isDefined(filter.sourceKey) ||
   filter.status !== 'ALL';
 
+// Rates on only the people still active, or only those signed, read near 0% or 100%,
+// so the cohort behind a rate never narrows by status.
+const withoutStatusFilter = (
+  filter: CrmAnalyticsPersonFilter,
+): CrmAnalyticsPersonFilter => ({ ...filter, status: 'ALL' });
+
 const buildBucketSql = (
   statement: SqlStatement,
   period: AnalyticsPeriod,
@@ -453,21 +459,42 @@ stage_age AS (
 const STUCK_CONDITION_SQL =
   'NOT a.is_inactive AND a.days_in_stage > a.limit_days';
 
-const buildCategoryMemberCtes = (
-  groupBy: AnalyticsCategoryGroupBy,
-): string => {
+const buildCategoryMemberCtes = ({
+  statement,
+  groupBy,
+  personFilter,
+}: {
+  statement: SqlStatement;
+  groupBy: AnalyticsCategoryGroupBy;
+  personFilter: CrmAnalyticsPersonFilter;
+}): string => {
   if (groupBy === 'SOURCE') {
     return `category_member AS (
   SELECT s.person_id, COALESCE(NULLIF(s.source, ''), '${NONE_CATEGORY_KEY}') AS category_key, NULL::text AS parent_key
   FROM scope s)`;
   }
 
+  const trackKeySql = `COALESCE(pm.track_key, '${UNMAPPED_CATEGORY_KEY}')`;
+  // Scope keeps anyone with one matching position, so their other positions stop here;
+  // otherwise the rows would list tracks and programs outside the filter.
+  const positionConditions = [
+    ...(isDefined(personFilter.trackKey)
+      ? [`${trackKeySql} = ${statement.bind(personFilter.trackKey)}::text`]
+      : []),
+    ...(isDefined(personFilter.programKey)
+      ? [
+          `position_row.position_value = ${statement.bind(personFilter.programKey)}::text`,
+        ]
+      : []),
+  ];
+
   return `person_position AS (
   SELECT DISTINCT s.person_id, position_row.position_value AS position_key,
-    COALESCE(pm.track_key, '${UNMAPPED_CATEGORY_KEY}') AS track_key
+    ${trackKeySql} AS track_key
   FROM scope s
   CROSS JOIN LATERAL unnest(s.positions) AS position_row (position_value)
-  LEFT JOIN position_map pm ON pm.raw_position = position_row.position_value),
+  LEFT JOIN position_map pm ON pm.raw_position = position_row.position_value
+  WHERE ${isNonEmptyArray(positionConditions) ? positionConditions.join(' AND ') : 'TRUE'}),
 category_member AS (
   SELECT pp.person_id, pp.position_key AS category_key, pp.track_key AS parent_key
   FROM person_position pp
@@ -627,18 +654,27 @@ const buildCohortRow = (
 const buildTrendSeries = (
   buckets: CrmAnalyticsTrendBucket[],
   readValue: (bucketStart: string) => TrendValue,
+  isRateMetric: boolean,
 ): AnalyticsTrendPoint[] =>
   buckets.map(({ bucketStart, previousBucketStart, isPartial }) => {
     const current = readValue(bucketStart);
+    const previous = readValue(previousBucketStart);
 
     return {
       bucketStart,
       value: current.value,
-      previousValue: readValue(previousBucketStart).value,
+      previousValue: previous.value,
       size: current.size,
+      previousSize: isRateMetric ? previous.size : null,
       isPartial,
     };
   });
+
+const computeLastBucketDay = (
+  { bucketStart }: CrmAnalyticsTrendBucket,
+  period: AnalyticsPeriod,
+): string =>
+  addCrmAnalyticsLocalDays(addCrmAnalyticsPeriods(bucketStart, period, 1), -1);
 
 // A rate waits until everyone in the bucket is past the window, so the line stops
 // instead of dipping towards 0 while the newest people are still in progress.
@@ -811,6 +847,18 @@ export class CrmAnalyticsMetricsService {
     };
   }
 
+  // Imported applications have no dates and stage moves are read only from tracking
+  // start, so a period that starts before it has no known total, whatever rows it holds.
+  hasRangeStartedBeforeTracking(
+    context: CrmAnalyticsQueryContext,
+    { from }: CrmAnalyticsClosedDateRange,
+  ): boolean {
+    return (
+      from <
+      computeCrmAnalyticsLocalDate(context.trackingStart, context.timeZone)
+    );
+  }
+
   async computeNewApplications({
     context,
     personFilter,
@@ -843,7 +891,9 @@ FROM submission sub${this.buildSubmissionScopeJoinSql(personFilter)}`,
 
     return {
       current: toCount(rows[0]?.current_count),
-      previous: toCount(rows[0]?.previous_count),
+      previous: this.hasRangeStartedBeforeTracking(context, previousRange)
+        ? null
+        : toCount(rows[0]?.previous_count),
     };
   }
 
@@ -866,7 +916,7 @@ FROM submission sub${this.buildSubmissionScopeJoinSql(personFilter)}`,
 
     const durationStatement = this.createBaseStatement({
       context,
-      personFilter,
+      personFilter: withoutStatusFilter(personFilter),
       cohortDateRange,
     });
     const durationRows = await context.run(
@@ -898,7 +948,7 @@ GROUP BY cs.stage_key`,
       cohortSize: group.entered,
       cohortExcludedUnmapped: await this.countCohortExcludedUnmapped({
         context,
-        personFilter,
+        personFilter: withoutStatusFilter(personFilter),
         cohortDateRange,
       }),
       overall: {
@@ -931,8 +981,6 @@ GROUP BY cs.stage_key`,
     submissionRange: CrmAnalyticsClosedDateRange;
     cohortDateRange: CrmAnalyticsDateRange;
   }): Promise<AnalyticsCategories> {
-    const memberCtes = buildCategoryMemberCtes(groupBy);
-
     const peopleStatement = this.createBaseStatement({
       context,
       personFilter,
@@ -944,7 +992,14 @@ GROUP BY cs.stage_key`,
       's.current_key',
     );
     const peopleRows = await context.run(
-      `${joinCtes(peopleStatement.withSql, memberCtes)}
+      `${joinCtes(
+        peopleStatement.withSql,
+        buildCategoryMemberCtes({
+          statement: peopleStatement,
+          groupBy,
+          personFilter,
+        }),
+      )}
 SELECT cm.parent_key, cm.category_key, count(*)::int AS people,
   count(*) FILTER (WHERE ${activeConditionSql})::int AS active_people
 FROM category_member cm JOIN scope s ON s.person_id = cm.person_id
@@ -961,14 +1016,15 @@ GROUP BY cm.parent_key, cm.category_key`,
     const newApplicationCounts = await this.readCategoryNewApplications({
       context,
       personFilter,
-      memberCtes,
+      groupBy,
       submissionRange,
     });
     const funnelGroups = await this.readFunnelGroups({
       context,
       personFilter,
       cohortDateRange,
-      extraCtes: memberCtes,
+      buildExtraCtes: (statement) =>
+        buildCategoryMemberCtes({ statement, groupBy, personFilter }),
       buildGroupSql: () =>
         `SELECT cm.person_id, ${CATEGORY_GROUP_KEY_SQL} AS group_key FROM category_member cm`,
     });
@@ -1613,20 +1669,21 @@ WHERE COALESCE(s.raw_stage, '') <> '' AND s.current_key IS NULL AND mm.person_id
     context,
     personFilter,
     cohortDateRange,
-    extraCtes = '',
+    buildExtraCtes,
     buildGroupSql,
   }: {
     context: CrmAnalyticsQueryContext;
     personFilter: CrmAnalyticsPersonFilter;
     cohortDateRange: CrmAnalyticsDateRange;
-    extraCtes?: string;
+    buildExtraCtes?: (statement: SqlStatement) => string;
     buildGroupSql: (statement: SqlStatement) => string;
   }): Promise<Map<string, FunnelGroup>> {
     const statement = this.createBaseStatement({
       context,
-      personFilter,
+      personFilter: withoutStatusFilter(personFilter),
       cohortDateRange,
     });
+    const extraCtes = buildExtraCtes?.(statement) ?? '';
     const funnelCtes = buildFunnelCtes({
       groupSql: buildGroupSql(statement),
       overallWindowParameter: statement.bind(
@@ -1676,7 +1733,7 @@ ${FUNNEL_SELECT_SQL}`,
       groupBy === 'SOURCE'
         ? `${statement.withSql}
 SELECT (SELECT count(*) FROM scope)::int AS distinct_people, 0 AS people_in_several, 0 AS people_in_several_tracks`
-        : `${joinCtes(statement.withSql, buildCategoryMemberCtes(groupBy))}
+        : `${joinCtes(statement.withSql, buildCategoryMemberCtes({ statement, groupBy, personFilter }))}
 SELECT (SELECT count(*) FROM scope)::int AS distinct_people,
   (SELECT count(*) FROM (
       SELECT pp.person_id FROM person_position pp GROUP BY pp.person_id HAVING count(*) >= 2) several)::int AS people_in_several,
@@ -1695,12 +1752,12 @@ SELECT (SELECT count(*) FROM scope)::int AS distinct_people,
   private async readCategoryNewApplications({
     context,
     personFilter,
-    memberCtes,
+    groupBy,
     submissionRange,
   }: {
     context: CrmAnalyticsQueryContext;
     personFilter: CrmAnalyticsPersonFilter;
-    memberCtes: string;
+    groupBy: AnalyticsCategoryGroupBy;
     submissionRange: CrmAnalyticsClosedDateRange;
   }): Promise<Map<string, number> | null> {
     const submissionRelationSql =
@@ -1714,7 +1771,11 @@ SELECT (SELECT count(*) FROM scope)::int AS distinct_people,
     const localDateSql = `${statement.localDate('sub.submitted_at')}::date`;
 
     const rows = await context.run(
-      `${joinCtes(statement.withSql, memberCtes, `submission AS (${submissionRelationSql})`)}
+      `${joinCtes(
+        statement.withSql,
+        buildCategoryMemberCtes({ statement, groupBy, personFilter }),
+        `submission AS (${submissionRelationSql})`,
+      )}
 SELECT cm.parent_key, cm.category_key, count(*)::int AS new_applications
 FROM submission sub JOIN category_member cm ON cm.person_id = sub.person_id
 WHERE ${localDateSql} >= ${statement.bind(submissionRange.from)}::date AND ${localDateSql} <= ${statement.bind(submissionRange.to)}::date
@@ -1815,7 +1876,7 @@ GROUP BY cm.parent_key, cm.category_key`,
       period: filter.period,
       unavailableReason,
       series,
-      cohorts: await this.computeTrendCohorts(context, filter),
+      cohorts: await this.computeTrendCohorts(context, filter, metric),
       movement: {
         ...movementRange,
         rows: await this.computeMovement({
@@ -1831,32 +1892,34 @@ GROUP BY cm.parent_key, cm.category_key`,
   private async computeTrendCohorts(
     context: CrmAnalyticsQueryContext,
     filter: AnalyticsFilter,
+    metric: AnalyticsTrendMetric,
   ): Promise<AnalyticsCohortRow[]> {
     if (filter.period === 'DAY') {
       return [];
     }
 
-    const firstBucketStart = computeCrmAnalyticsTrendBuckets({
+    const buckets = computeCrmAnalyticsTrendBuckets({
       dateFrom: filter.dateFrom,
       dateTo: filter.dateTo,
       period: filter.period,
       localToday: context.localToday,
-    })[0]?.bucketStart;
+      metric,
+    });
+    const firstBucket = buckets[0];
+    const lastBucket = buckets[buckets.length - 1];
 
-    if (!isDefined(firstBucketStart)) {
+    if (!isDefined(firstBucket) || !isDefined(lastBucket)) {
       return [];
     }
 
+    // The series' whole periods, so a week means the same people in the line and the table.
     return this.computeCohorts({
       context,
       personFilter: filter,
       period: filter.period,
       cohortDateRange: {
-        from:
-          isDefined(filter.dateFrom) && filter.dateFrom > firstBucketStart
-            ? filter.dateFrom
-            : firstBucketStart,
-        to: filter.dateTo,
+        from: firstBucket.bucketStart,
+        to: computeLastBucketDay(lastBucket, filter.period),
       },
     });
   }
@@ -1932,6 +1995,7 @@ GROUP BY cm.parent_key, cm.category_key`,
       dateTo: filter.dateTo,
       period: filter.period,
       localToday: context.localToday,
+      metric,
     });
     const firstBucket = buckets[0];
     const lastBucket = buckets[buckets.length - 1];
@@ -1943,10 +2007,7 @@ GROUP BY cm.parent_key, cm.category_key`,
     // Covers the previous buckets too, up to the last day of the last bucket.
     const range: CrmAnalyticsClosedDateRange = {
       from: firstBucket.previousBucketStart,
-      to: addCrmAnalyticsLocalDays(
-        addCrmAnalyticsPeriods(lastBucket.bucketStart, filter.period, 1),
-        -1,
-      ),
+      to: computeLastBucketDay(lastBucket, filter.period),
     };
 
     const readValue = await this.readTrendValues({
@@ -1959,7 +2020,7 @@ GROUP BY cm.parent_key, cm.category_key`,
     });
 
     return {
-      series: buildTrendSeries(buckets, readValue),
+      series: buildTrendSeries(buckets, readValue, isRateMetric),
       unavailableReason: null,
     };
   }
@@ -1986,9 +2047,17 @@ GROUP BY cm.parent_key, cm.category_key`,
           filter,
           range,
         });
+        const firstTrackedBucketStart = computeCrmAnalyticsPeriodStart(
+          computeCrmAnalyticsLocalDate(context.trackingStart, context.timeZone),
+          filter.period,
+        );
 
+        // A bucket wholly before tracking start has no known total, however many rows it holds.
         return (bucketStart) => ({
-          value: counts.get(bucketStart) ?? 0,
+          value:
+            bucketStart < firstTrackedBucketStart
+              ? null
+              : (counts.get(bucketStart) ?? 0),
           size: null,
         });
       }

@@ -1,22 +1,21 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { useState } from 'react';
+import { Temporal } from 'temporal-polyfill';
 import { isDefined } from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsCohortTable } from '@/crm-analytics/components/AnalyticsCohortTable';
 import { AnalyticsMovementTable } from '@/crm-analytics/components/AnalyticsMovementTable';
 import {
+  AnalyticsNotice,
   AnalyticsSection,
   AnalyticsTabLayout,
 } from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsSkeleton } from '@/crm-analytics/components/AnalyticsSkeleton';
 import { AnalyticsStatePanel } from '@/crm-analytics/components/AnalyticsStatePanel';
 import { AnalyticsTrendChart } from '@/crm-analytics/components/AnalyticsTrendChart';
-import {
-  AnalyticsTrendTable,
-  formatAnalyticsBucketLabel,
-} from '@/crm-analytics/components/AnalyticsTrendTable';
+import { AnalyticsTrendTable } from '@/crm-analytics/components/AnalyticsTrendTable';
 import { GET_CRM_ANALYTICS_TRENDS } from '@/crm-analytics/graphql/getCrmAnalyticsTrends';
 import { useCrmAnalyticsQuery } from '@/crm-analytics/hooks/useCrmAnalyticsQuery';
 import {
@@ -27,7 +26,9 @@ import {
   type AnalyticsTrendMetric,
   type AnalyticsTrends,
 } from '@/crm-analytics/types/AnalyticsApi';
+import { isAnalyticsRateMetric } from '@/crm-analytics/utils/buildTrendChartSeries';
 import { buildTrendsTakeaway } from '@/crm-analytics/utils/buildTrendsTakeaway';
+import { formatAnalyticsBucketLabel } from '@/crm-analytics/utils/formatAnalyticsBucketLabel';
 import { getAnalyticsWindowLength } from '@/crm-analytics/utils/getAnalyticsWindowLength';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 import { Select } from '@/ui/input/components/Select';
@@ -50,15 +51,6 @@ const StyledControls = styled.div`
 
 const StyledControl = styled.div`
   width: 184px;
-`;
-
-const StyledNotice = styled.p`
-  border: 1px solid ${themeCssVariables.border.color.light};
-  border-radius: ${themeCssVariables.border.radius.md};
-  color: ${themeCssVariables.font.color.secondary};
-  font-size: ${themeCssVariables.font.size.sm};
-  margin: 0;
-  padding: ${themeCssVariables.spacing[4]};
 `;
 
 const getMetricLabel = (metric: AnalyticsTrendMetric) => {
@@ -92,7 +84,7 @@ const getMetricNote = (metric: AnalyticsTrendMetric) => {
       return t`People in this stage, from the last daily count in each period.`;
     case 'OVERALL_CONVERSION':
     case 'DROP_OFF':
-      return t`People, by application date. A period appears once its people have passed the window, so the line stops before recent periods.`;
+      return t`People, by application date. A period has a rate only once all its people have passed the window.`;
     case 'MEDIAN_DAYS':
       return t`Completed stays, by the date the stay ended. Open stays are not counted.`;
   }
@@ -164,7 +156,67 @@ const getTrendTitle = (trends: AnalyticsTrends, meta: AnalyticsMeta) => {
   );
 };
 
-const getTrendNote = (trends: AnalyticsTrends) => {
+const getStatusNote = (hasRates: boolean, { status }: AnalyticsFilter) =>
+  hasRates && status !== 'ALL' ? t`Rates ignore the status filter.` : null;
+
+const getDateWideningNote = (
+  period: AnalyticsPeriod,
+  { dateFrom, dateTo }: AnalyticsFilter,
+) => {
+  if (!isDefined(dateFrom) && !isDefined(dateTo)) {
+    return null;
+  }
+
+  switch (period) {
+    case 'DAY':
+      return null;
+    case 'WEEK':
+      return t`Dates widen to whole weeks on this tab.`;
+    case 'MONTH':
+      return t`Dates widen to whole months on this tab.`;
+  }
+};
+
+const getPeriodStart = (date: Temporal.PlainDate, period: AnalyticsPeriod) => {
+  switch (period) {
+    case 'DAY':
+      return date;
+    case 'WEEK':
+      return date.subtract({ days: date.dayOfWeek - 1 });
+    case 'MONTH':
+      return date.with({ day: 1 });
+  }
+};
+
+// A long range keeps only its latest buckets, so the line can start after the chosen date.
+const getCutRangeNote = (
+  { period, series }: AnalyticsTrends,
+  { dateFrom }: AnalyticsFilter,
+) => {
+  const firstBucketStart = series[0]?.bucketStart;
+
+  if (!isDefined(dateFrom) || !isDefined(firstBucketStart)) {
+    return null;
+  }
+
+  const requestedStart = getPeriodStart(
+    Temporal.PlainDate.from(dateFrom),
+    period,
+  );
+
+  if (
+    Temporal.PlainDate.compare(firstBucketStart.slice(0, 10), requestedStart) <=
+    0
+  ) {
+    return null;
+  }
+
+  const periodCount = series.length;
+
+  return t`Showing the latest ${periodCount} periods.`;
+};
+
+const getTrendNote = (trends: AnalyticsTrends, filter: AnalyticsFilter) => {
   const windowLength = getAnalyticsWindowLength(
     trends.series.length,
     trends.period,
@@ -178,10 +230,21 @@ const getTrendNote = (trends: AnalyticsTrends) => {
     trends.series.at(-1)?.isPartial === true
       ? t`The latest period is still in progress.`
       : null,
+    getDateWideningNote(trends.period, filter),
+    getCutRangeNote(trends, filter),
+    getStatusNote(isAnalyticsRateMetric(trends.metric), filter),
   ]
     .filter(isDefined)
     .join(' ');
 };
+
+const getCohortNote = (filter: AnalyticsFilter) =>
+  [
+    t`People, by application date. Each cell is the share who reached the next stage within its window, with n people counted. Muted means still inside the window or a small sample. n/a means not enough data.`,
+    getStatusNote(true, filter),
+  ]
+    .filter(isDefined)
+    .join(' ');
 
 const hasTrendValue = (trends: AnalyticsTrends) =>
   !isDefined(trends.unavailableReason) &&
@@ -318,7 +381,7 @@ export const AnalyticsTrendsTab = ({
     >
       <AnalyticsSection
         title={trendTitle}
-        note={getTrendNote(trends)}
+        note={getTrendNote(trends, filter)}
         action={controls}
       >
         <AnalyticsTrendChart title={trendTitle} trends={trends} />
@@ -337,7 +400,7 @@ export const AnalyticsTrendsTab = ({
             ? t`Conversion by application month`
             : t`Conversion by application week`
         }
-        note={t`People, by application date. Each cell is the share who reached the next stage within its window, with n people counted. Muted means still inside the window or a small sample.`}
+        note={getCohortNote(filter)}
       >
         {trends.cohorts.length > 0 ? (
           <AnalyticsCohortTable
@@ -347,16 +410,16 @@ export const AnalyticsTrendsTab = ({
             minimumSample={trends.minimumSample}
           />
         ) : (
-          <StyledNotice>
+          <AnalyticsNotice>
             {trends.period === 'DAY'
               ? t`Conversion is grouped by week or month. Choose one in the Period filter.`
               : t`No one has applied in this range since tracking started.`}
-          </StyledNotice>
+          </AnalyticsNotice>
         )}
       </AnalyticsSection>
       <AnalyticsSection
         title={t`Stage movement`}
-        note={t`People who entered or left each stage from ${movementFrom} to ${movementTo}, by the date they moved. Now is the current count.`}
+        note={t`Moves into or out of each stage from ${movementFrom} to ${movementTo}, by the date of the move. Now is the current count.`}
       >
         <AnalyticsMovementTable rows={trends.movement.rows} />
       </AnalyticsSection>

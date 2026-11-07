@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createStore, Provider as JotaiProvider } from 'jotai';
 import { useState } from 'react';
@@ -57,11 +57,13 @@ const AnalyticsFilterBarHarness = ({
   initialFilter = CRM_ANALYTICS_DEFAULT_FILTER,
   meta = buildMeta({}),
   isPeriodEnabled = false,
+  isStatusEnabled = true,
   onFilterChange,
 }: {
   initialFilter?: AnalyticsFilter;
   meta?: AnalyticsMeta;
   isPeriodEnabled?: boolean;
+  isStatusEnabled?: boolean;
   onFilterChange?: (filter: AnalyticsFilter) => void;
 }) => {
   const [filter, setFilter] = useState(initialFilter);
@@ -73,6 +75,7 @@ const AnalyticsFilterBarHarness = ({
         filter={filter}
         meta={meta}
         isPeriodEnabled={isPeriodEnabled}
+        isStatusEnabled={isStatusEnabled}
         onChange={(nextFilter) => {
           setFilter(nextFilter);
           onFilterChange?.(nextFilter);
@@ -160,6 +163,59 @@ describe('AnalyticsFilterBar', () => {
     expect(await screen.findByText('By day')).toBeInTheDocument();
   });
 
+  it('disables the status on Funnel and gives the reason', async () => {
+    const user = userEvent.setup();
+
+    render(<AnalyticsFilterBarHarness isStatusEnabled={false} />);
+
+    expect(
+      screen.getByRole('group', {
+        name: 'Status: Rates ignore the status filter, so the Funnel tab does not use it.',
+      }),
+    ).toHaveAttribute('aria-disabled', 'true');
+
+    await user.click(screen.getByText('All statuses'));
+
+    expect(screen.queryByText('Exited')).not.toBeInTheDocument();
+  });
+
+  it('names every enabled filter for assistive technology', () => {
+    render(<AnalyticsFilterBarHarness />);
+
+    ['Dates', 'Track', 'Program', 'Source', 'Status'].forEach((label) => {
+      expect(
+        screen.getByRole('group', { name: label }),
+      ).not.toHaveAttribute('aria-disabled');
+    });
+  });
+
+  it('names the success status after the success stage', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <AnalyticsFilterBarHarness
+        meta={{
+          ...buildMeta({}),
+          stages: [
+            {
+              stageKey: 'SIGNED',
+              label: 'Agreement signed',
+              kind: 'MAIN',
+              rank: 8,
+              limitDays: null,
+              windowDays: null,
+              isSuccess: true,
+            },
+          ],
+        }}
+      />,
+    );
+
+    await user.click(screen.getByText('All statuses'));
+
+    expect(await screen.findByText('Agreement signed')).toBeInTheDocument();
+  });
+
   it('disables track and program when the positions field is missing', () => {
     render(
       <AnalyticsFilterBarHarness
@@ -240,7 +296,7 @@ describe('AnalyticsFilterBar', () => {
       return input;
     };
 
-    it('applies only once the field is left', async () => {
+    it('waits while typing, then applies at once when the field is left', async () => {
       const user = userEvent.setup();
       const { onFilterChange } = renderCustomRange();
 
@@ -312,6 +368,111 @@ describe('AnalyticsFilterBar', () => {
 
       expect(onFilterChange).not.toHaveBeenCalled();
       expect(input).toHaveValue('2026-10-27');
+    });
+  });
+
+  // A calendar pick fires change and leaves focus in the input, so nothing blurs.
+  describe('picking a date from the calendar', () => {
+    const IDLE_DELAY_IN_MS = 600;
+
+    const renderCustomRange = () => {
+      const onFilterChange = jest.fn();
+
+      const { unmount } = render(
+        <AnalyticsFilterBarHarness
+          initialFilter={CUSTOM_RANGE_FILTER}
+          onFilterChange={onFilterChange}
+        />,
+      );
+
+      return { onFilterChange, unmount };
+    };
+
+    const pickDate = (label: string, date: string) => {
+      const input = screen.getByLabelText(label);
+
+      fireEvent.change(input, { target: { value: date } });
+
+      return input;
+    };
+
+    const waitFor = (milliseconds: number) =>
+      act(() => {
+        jest.advanceTimersByTime(milliseconds);
+      });
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('applies after a short idle, with no blur', () => {
+      const { onFilterChange } = renderCustomRange();
+
+      const input = pickDate('From date', '2026-10-30');
+
+      waitFor(IDLE_DELAY_IN_MS - 1);
+
+      expect(onFilterChange).not.toHaveBeenCalled();
+
+      waitFor(1);
+
+      expect(onFilterChange).toHaveBeenCalledTimes(1);
+      expect(onFilterChange).toHaveBeenCalledWith({
+        ...CUSTOM_RANGE_FILTER,
+        dateFrom: '2026-10-30',
+      });
+      expect(input).toHaveValue('2026-10-30');
+    });
+
+    it('applies only the last of several quick picks', () => {
+      const { onFilterChange } = renderCustomRange();
+
+      pickDate('From date', '2026-10-28');
+      waitFor(IDLE_DELAY_IN_MS - 1);
+      pickDate('From date', '2026-10-30');
+      waitFor(IDLE_DELAY_IN_MS);
+
+      expect(onFilterChange).toHaveBeenCalledTimes(1);
+      expect(onFilterChange).toHaveBeenCalledWith({
+        ...CUSTOM_RANGE_FILTER,
+        dateFrom: '2026-10-30',
+      });
+    });
+
+    it('does not apply a second time after Enter', () => {
+      const { onFilterChange } = renderCustomRange();
+
+      const input = pickDate('To date', '2026-11-03');
+
+      fireEvent.keyDown(input, { key: 'Enter' });
+      waitFor(IDLE_DELAY_IN_MS);
+
+      expect(onFilterChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('holds back a year before tracking started and a reversed range', () => {
+      const { onFilterChange } = renderCustomRange();
+
+      pickDate('From date', '0202-10-15');
+      waitFor(IDLE_DELAY_IN_MS);
+      pickDate('To date', '2026-10-01');
+      waitFor(IDLE_DELAY_IN_MS);
+
+      expect(onFilterChange).not.toHaveBeenCalled();
+    });
+
+    it('drops a pending pick when the field goes away', () => {
+      const { onFilterChange, unmount } = renderCustomRange();
+
+      pickDate('From date', '2026-10-30');
+      unmount();
+      waitFor(IDLE_DELAY_IN_MS);
+
+      expect(onFilterChange).not.toHaveBeenCalled();
     });
   });
 });

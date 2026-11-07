@@ -13,6 +13,7 @@ const buildPoint = (
   value: 86,
   previousValue: 74,
   size: null,
+  previousSize: null,
   isPartial: false,
   ...overrides,
 });
@@ -62,6 +63,33 @@ describe('AnalyticsTrendTable', () => {
     expect(screen.getByText('in progress')).toBeInTheDocument();
   });
 
+  it('shows no change for a running count still in progress', () => {
+    renderTable([
+      buildPoint({ bucketStart: '2026-10-26', value: 74, previousValue: 60 }),
+      buildPoint({
+        bucketStart: '2026-11-02',
+        value: 2,
+        previousValue: 52,
+        isPartial: true,
+      }),
+    ]);
+
+    const [, inProgressRow, finishedRow] = screen.getAllByRole('row');
+
+    expect(within(inProgressRow).getByText('52')).toBeInTheDocument();
+    expect(within(inProgressRow).queryByText('-50')).not.toBeInTheDocument();
+    expect(within(finishedRow).getByText('+14')).toBeInTheDocument();
+  });
+
+  it('keeps the change on a level still in progress', () => {
+    renderTable(
+      [buildPoint({ value: 86, previousValue: 74, isPartial: true })],
+      'TOTAL_CONTACTS',
+    );
+
+    expect(screen.getByText('+12')).toBeInTheDocument();
+  });
+
   it('has no previous or change column in the first period', () => {
     renderTable([buildPoint({ previousValue: null })]);
 
@@ -99,6 +127,74 @@ describe('AnalyticsTrendTable', () => {
     expect(screen.getByText('40%')).toBeInTheDocument();
     expect(screen.getByText('+10 points')).toBeInTheDocument();
     expect(screen.getByText('120')).toBeInTheDocument();
+  });
+
+  it('shows the sample beside a rate under the minimum', () => {
+    renderTable(
+      [buildPoint({ value: 0.5, previousValue: null, size: 4 })],
+      'OVERALL_CONVERSION',
+    );
+
+    expect(screen.getByText('n=4')).toBeInTheDocument();
+  });
+
+  it('mutes a small previous sample and leaves the change empty', () => {
+    renderTable(
+      [
+        buildPoint({
+          value: 0.4,
+          previousValue: 0.9,
+          size: 120,
+          previousSize: 3,
+        }),
+      ],
+      'OVERALL_CONVERSION',
+    );
+
+    expect(screen.getByText('90%')).toBeInTheDocument();
+    expect(screen.getByText('n=3')).toBeInTheDocument();
+    expect(screen.queryByText(/points/)).not.toBeInTheDocument();
+  });
+
+  it('leaves the change empty when the current sample is small', () => {
+    renderTable(
+      [
+        buildPoint({
+          value: 4.5,
+          previousValue: 3,
+          size: 4,
+          previousSize: 90,
+        }),
+      ],
+      'MEDIAN_DAYS',
+    );
+
+    expect(screen.getByText('4.5')).toBeInTheDocument();
+    expect(screen.queryByText('+1.5')).not.toBeInTheDocument();
+  });
+
+  it('compares as before when the server has not sent a previous sample', () => {
+    const { previousSize: _previousSize, ...pointFromOlderServer } = buildPoint({
+      value: 0.4,
+      previousValue: 0.3,
+      size: 120,
+    });
+
+    renderTable(
+      [pointFromOlderServer as AnalyticsTrendPoint],
+      'OVERALL_CONVERSION',
+    );
+
+    expect(screen.getByText('+10 points')).toBeInTheDocument();
+  });
+
+  it('prints no sign on a change that rounds to zero', () => {
+    renderTable(
+      [buildPoint({ value: 0.3, previousValue: 0.301, size: 120 })],
+      'OVERALL_CONVERSION',
+    );
+
+    expect(screen.getByText('0 points')).toBeInTheDocument();
   });
 
   it('keeps one decimal on median days', () => {

@@ -1,12 +1,14 @@
 import { type ErrorLike } from '@apollo/client';
 import { MockedProvider } from '@apollo/client/testing/react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createStore, Provider as JotaiProvider } from 'jotai';
 import { type ComponentProps } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 
 import { AnalyticsContent } from '@/crm-analytics/components/AnalyticsContent';
 import { CRM_ANALYTICS_DEFAULT_FILTER } from '@/crm-analytics/constants/CrmAnalyticsDefaultFilter';
+import { GET_CRM_ANALYTICS_FUNNEL } from '@/crm-analytics/graphql/getCrmAnalyticsFunnel';
 import { GET_CRM_ANALYTICS_META } from '@/crm-analytics/graphql/getCrmAnalyticsMeta';
 import { GET_CRM_ANALYTICS_OVERVIEW } from '@/crm-analytics/graphql/getCrmAnalyticsOverview';
 import {
@@ -168,10 +170,14 @@ describe('AnalyticsContent', () => {
     expect(mockToast).not.toHaveBeenCalled();
   });
 
-  it('shows retry and a toast on another error', async () => {
+  it('shows retry and a toast on another error, without talking about tabs', async () => {
     renderContent([metaErrorMock('INTERNAL_SERVER_ERROR')]);
 
-    expect(await screen.findByText('Retry')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Analytics could not load'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.queryByText(/other tabs/)).not.toBeInTheDocument();
     expect(mockToast).toHaveBeenCalled();
   });
 
@@ -245,6 +251,135 @@ describe('AnalyticsContent', () => {
         'Stage changes are not being recorded on the timeline.',
       ),
     ).toBeInTheDocument();
+  });
+
+  describe('the daily count', () => {
+    const buildMetaWithLastDailyRun = (lastReconciliationAt: string | null) =>
+      buildMeta({
+        sync: {
+          lastSuccessfulSyncAt: '2026-11-07T09:50:00.000Z',
+          lastReconciliationAt,
+          lastAttemptAt: '2026-11-07T09:50:00.000Z',
+          lastAttemptStatus: 'OK',
+          isStale: false,
+          restoredInLastReconciliation: null,
+        },
+      });
+
+    it('warns when it has not run for over a day', async () => {
+      renderContent([
+        metaMock(buildMetaWithLastDailyRun('2026-11-06T02:30:00.000Z')),
+        OVERVIEW_MOCK,
+      ]);
+
+      expect(
+        await screen.findByText(
+          'The daily count has not run since Nov 6, 2026. Trends and reports may be missing.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('warns when it has never run', async () => {
+      renderContent([metaMock(buildMetaWithLastDailyRun(null)), OVERVIEW_MOCK]);
+
+      expect(
+        await screen.findByText(
+          'The daily count has not run yet. Trends and reports may be missing.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('says nothing while it runs on time', async () => {
+      renderContent([
+        metaMock(buildMetaWithLastDailyRun('2026-11-07T02:30:00.000Z')),
+        OVERVIEW_MOCK,
+      ]);
+
+      await screen.findByText(ACTIVE_PEOPLE_FIGURE);
+
+      expect(screen.queryByText(/daily count/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('reading the sync state again on a tab change', () => {
+    const STALE_BANNER =
+      'No successful sync in the last hour. Numbers may be out of date.';
+
+    const META_READ_AT = '2026-11-07T10:00:00.000Z';
+
+    const META_MOCKS = [
+      {
+        request: { query: GET_CRM_ANALYTICS_META },
+        result: { data: { getCrmAnalyticsMeta: buildPayload(buildMeta({})) } },
+      },
+      {
+        request: { query: GET_CRM_ANALYTICS_META },
+        result: {
+          data: {
+            getCrmAnalyticsMeta: buildPayload(
+              buildMeta({
+                sync: {
+                  lastSuccessfulSyncAt: '2026-11-07T07:00:00.000Z',
+                  lastReconciliationAt: null,
+                  lastAttemptAt: '2026-11-07T09:50:00.000Z',
+                  lastAttemptStatus: 'FAILED',
+                  isStale: true,
+                  restoredInLastReconciliation: null,
+                },
+              }),
+            ),
+          },
+        },
+      },
+    ];
+
+    const FUNNEL_MOCK = {
+      request: {
+        query: GET_CRM_ANALYTICS_FUNNEL,
+        variables: { filter: CRM_ANALYTICS_DEFAULT_FILTER },
+      },
+      result: { data: { getCrmAnalyticsFunnel: buildPayload(null) } },
+    };
+
+    const clickFunnelTabAfter = async (minutes: number) => {
+      const user = userEvent.setup();
+      const dateNow = jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(new Date(META_READ_AT).getTime());
+
+      renderContent([...META_MOCKS, OVERVIEW_MOCK, FUNNEL_MOCK]);
+
+      await screen.findByText(ACTIVE_PEOPLE_FIGURE);
+
+      expect(screen.queryByText(STALE_BANNER)).not.toBeInTheDocument();
+
+      dateNow.mockReturnValue(
+        new Date(META_READ_AT).getTime() + minutes * 60 * 1000,
+      );
+
+      // The tab list also renders a hidden copy of each tab to measure it.
+      await user.click(screen.getAllByText('Funnel').at(-1) as HTMLElement);
+
+      return dateNow;
+    };
+
+    it('asks the server once what it has is old', async () => {
+      const dateNow = await clickFunnelTabAfter(6);
+
+      expect(await screen.findByText(STALE_BANNER)).toBeInTheDocument();
+
+      dateNow.mockRestore();
+    });
+
+    it('leaves the server alone while what it has is recent', async () => {
+      const dateNow = await clickFunnelTabAfter(4);
+
+      await screen.findByText('Analytics is switched off.');
+
+      expect(screen.queryByText(STALE_BANNER)).not.toBeInTheDocument();
+
+      dateNow.mockRestore();
+    });
   });
 
   it('shows the provisional notice', async () => {

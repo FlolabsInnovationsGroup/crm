@@ -15,6 +15,11 @@ describe('formatAnalyticsRate', () => {
     expect(formatAnalyticsRate(0.004)).toBe('0.4%');
   });
 
+  it('keeps one decimal just under 100% so a rate does not read as everyone', () => {
+    expect(formatAnalyticsRate(0.992)).toBe('99.2%');
+    expect(formatAnalyticsRate(0.9996)).toBe('99.9%');
+  });
+
   it('returns null for anything unknown', () => {
     expect(formatAnalyticsRate(null)).toBeNull();
     expect(formatAnalyticsRate(undefined)).toBeNull();

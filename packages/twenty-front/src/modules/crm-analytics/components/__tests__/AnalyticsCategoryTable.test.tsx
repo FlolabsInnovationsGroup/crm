@@ -196,6 +196,68 @@ describe('AnalyticsCategoryTable', () => {
     expect(screen.getByText('Unmapped: LEGACY_INTERN')).toBeInTheDocument();
   });
 
+  it.each([
+    ['TRACK_PROGRAM', 'NONE', 'No position'],
+    ['TRACK_PROGRAM', 'UNMAPPED', 'Unmapped'],
+    ['SOURCE', 'NONE', 'No source'],
+  ] as const)(
+    'labels the %s row %s by its key, not the stored text',
+    (groupBy, key, expectedLabel) => {
+      render(
+        <AnalyticsCategoryTable
+          categories={buildCategories({
+            groupBy,
+            rows: [buildRow({ key, label: 'Stored server text' })],
+          })}
+          stages={STAGES}
+        />,
+      );
+
+      expect(screen.getByText(expectedLabel)).toBeInTheDocument();
+      expect(screen.queryByText('Stored server text')).not.toBeInTheDocument();
+    },
+  );
+
+  it('keeps a raw unknown source readable', () => {
+    render(
+      <AnalyticsCategoryTable
+        categories={buildCategories({
+          groupBy: 'SOURCE',
+          rows: [
+            buildRow({ key: 'TikTok', label: 'TikTok', isUnmapped: true }),
+          ],
+        })}
+        stages={STAGES}
+      />,
+    );
+
+    expect(screen.getByText('Unmapped: TikTok')).toBeInTheDocument();
+  });
+
+  it('shows n/a in the grid and keeps the full phrase for screen readers', () => {
+    render(
+      <AnalyticsCategoryTable
+        categories={buildCategories({
+          rows: [
+            buildRow({
+              key: 'BUSINESS',
+              label: 'Business',
+              overallEligible: 0,
+              overallRate: null,
+            }),
+          ],
+        })}
+        stages={STAGES}
+      />,
+    );
+
+    const row = getTableRow('Business');
+
+    expect(within(row).getByText('n/a')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(row).getByText('Not enough data')).toBeInTheDocument();
+    expect(within(row).getByTitle('Not enough data')).toBeInTheDocument();
+  });
+
   it('keeps a program visible when its track is not in the payload', () => {
     render(
       <AnalyticsCategoryTable

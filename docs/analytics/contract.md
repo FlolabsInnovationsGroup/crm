@@ -725,6 +725,7 @@ export type AnalyticsTrendPoint = {
   value: number | null;
   previousValue: number | null;
   size: number | null;
+  previousSize: number | null;
   isPartial: boolean;
 };
 
@@ -779,6 +780,8 @@ export type AnalyticsReportComparison = {
 };
 
 export type AnalyticsReport = AnalyticsReportListItem & AnalyticsBase & {
+  isProvisional?: boolean;
+  payloadVersion?: number;
   newApplications: number | null;
   newApplicationsPrevious: number | null;
   categories: AnalyticsCategories;
@@ -1109,3 +1112,9 @@ Testing found places where this contract was silent or disagreed with itself. Th
 - **Cohort table window:** rows are cut to the same window as the trend line, 12 weeks by default.
 - **Median days:** rounded to one decimal before leaving the server.
 - **Stuck limit:** compares whole days, matching what the table shows, so 14 days and 6 hours is not over a 14 day limit until day 15. Funnel windows still compare exact times.
+- **Status filter:** it never narrows the cohort behind a rate, because rates computed only on people who are still active mislead. The server ignores status for funnel rows, category rates, cohort tables and rate trends. The page disables Status on Funnel with a reason, as it does for Period, and says so where other rates show. Counts such as totals and the stuck list still follow it.
+- **Track and program filters on Categories:** rows are limited to the chosen track or program, and the takeaway only names rows that are shown.
+- **Reports built on provisional definitions:** the payload carries `isProvisional` and `payloadVersion`, and the page marks them. Once `isProvisional` goes false in the config, those rows count as missing and are rebuilt. This is the only exception to frozen reports.
+- **Page reads:** at most 2 run at once per server process. Others wait briefly, then get a clear busy error, and a read stops once it has run for about 15 seconds in total. This protects the CRM's shared connection pool.
+- **Comparisons before tracking:** a previous value is null, never 0, when the previous period starts before tracking start.
+- **Overall conversion by week:** the default window grows to 26 weeks, so it can include weeks old enough to count.

@@ -3,13 +3,15 @@ import { plural, t } from '@lingui/core/macro';
 import { useState } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 import { IconChevronDown, IconChevronRight } from 'twenty-ui/icon';
-import { themeCssVariables } from 'twenty-ui/theme';
+import { MOBILE_VIEWPORT, themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsBarCell } from '@/crm-analytics/components/AnalyticsBarCell';
 import { AnalyticsRateCell } from '@/crm-analytics/components/AnalyticsRateCell';
+import { AnalyticsNote } from '@/crm-analytics/components/AnalyticsSection';
 import { AnalyticsTable } from '@/crm-analytics/components/AnalyticsTable';
 import {
   type AnalyticsCategories,
+  type AnalyticsCategoryGroupBy,
   type AnalyticsCategoryRow,
   type AnalyticsStageDefinition,
 } from '@/crm-analytics/types/AnalyticsApi';
@@ -25,6 +27,7 @@ const INDENT_BY_LEVEL: Record<AnalyticsCategoryLabelIndent, string> = {
 };
 
 const CATEGORY_TABLE_MAX_HEIGHT = 640;
+const NO_VALUE_CATEGORY_KEY = 'NONE';
 const UNMAPPED_CATEGORY_KEY = 'UNMAPPED';
 
 const StyledPeopleHeaderCell = styled(AnalyticsTable.HeaderCell)`
@@ -38,6 +41,10 @@ const StyledLabelBox = styled.div`
   min-width: 220px;
   padding-block: ${themeCssVariables.spacing[1]};
   white-space: normal;
+
+  @media (max-width: ${MOBILE_VIEWPORT}px) {
+    min-width: 120px;
+  }
 `;
 
 const StyledLabel = styled.span<{
@@ -79,13 +86,6 @@ const StyledChevron = styled.span`
   flex-shrink: 0;
 `;
 
-const StyledNote = styled.p`
-  color: ${themeCssVariables.font.color.secondary};
-  font-size: ${themeCssVariables.font.size.xs};
-  line-height: ${themeCssVariables.text.lineHeight.lg};
-  margin: 0;
-`;
-
 const compareRows = (
   firstRow: AnalyticsCategoryRow,
   secondRow: AnalyticsCategoryRow,
@@ -97,8 +97,24 @@ const compareRows = (
   return secondRow.people - firstRow.people;
 };
 
-const getRowLabel = (row: AnalyticsCategoryRow) => {
-  if (!row.isUnmapped || row.key === UNMAPPED_CATEGORY_KEY) {
+// The server's label for these rows is stored English, so they translate by their stable key.
+const getRowLabel = (
+  row: AnalyticsCategoryRow,
+  groupBy: AnalyticsCategoryGroupBy,
+) => {
+  if (!isDefined(row.parentKey) && row.key === NO_VALUE_CATEGORY_KEY) {
+    return groupBy === 'SOURCE' ? t`No source` : t`No position`;
+  }
+
+  if (
+    groupBy === 'TRACK_PROGRAM' &&
+    !isDefined(row.parentKey) &&
+    row.key === UNMAPPED_CATEGORY_KEY
+  ) {
+    return t`Unmapped`;
+  }
+
+  if (!row.isUnmapped) {
     return row.label;
   }
 
@@ -109,7 +125,7 @@ const getRowLabel = (row: AnalyticsCategoryRow) => {
 
 type AnalyticsCategoryTableProps = {
   categories: AnalyticsCategories;
-  stages: AnalyticsStageDefinition[];
+  stages: Pick<AnalyticsStageDefinition, 'stageKey' | 'label'>[];
 };
 
 export const AnalyticsCategoryTable = ({
@@ -247,14 +263,14 @@ export const AnalyticsCategoryTable = ({
                             <IconChevronRight size={16} />
                           )}
                         </StyledChevron>
-                        {getRowLabel(row)}
+                        {getRowLabel(row, groupBy)}
                       </StyledExpandButton>
                     ) : (
                       <StyledLabel
                         isProgram={isProgram}
                         indent={getLabelIndent(row)}
                       >
-                        {getRowLabel(row)}
+                        {getRowLabel(row, groupBy)}
                       </StyledLabel>
                     )}
                   </StyledLabelBox>
@@ -286,6 +302,7 @@ export const AnalyticsCategoryTable = ({
                     soFarRate={row.overallSoFarRate}
                     eligible={row.overallEligible}
                     isUnderMinimum={row.overallEligible < minimumSample}
+                    isCompact
                   />
                 </AnalyticsTable.Cell>
                 {stepStageKeys.map((stageKey) => {
@@ -303,6 +320,7 @@ export const AnalyticsCategoryTable = ({
                           isDefined(stepRate) &&
                           stepRate.eligible < minimumSample
                         }
+                        isCompact
                       />
                     </AnalyticsTable.Cell>
                   );
@@ -313,12 +331,12 @@ export const AnalyticsCategoryTable = ({
         </tbody>
       </AnalyticsTable.Root>
       {peopleInSeveralRows > 0 && (
-        <StyledNote>
+        <AnalyticsNote>
           {plural(peopleInSeveralRows, {
             one: `${formattedPeopleInSeveralRows} person counts in several rows; rows do not add up to ${distinctPeople}.`,
             other: `${formattedPeopleInSeveralRows} people count in several rows; rows do not add up to ${distinctPeople}.`,
           })}
-        </StyledNote>
+        </AnalyticsNote>
       )}
     </>
   );

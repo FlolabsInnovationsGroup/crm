@@ -3,8 +3,33 @@ import { t } from '@lingui/core/macro';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { SkeletonLine } from '@/ui/feedback/skeleton/components/SkeletonLine';
+import { TAB_LIST_HEIGHT } from '@/ui/layout/tab-list/constants/TabListHeight';
 
-const FIGURE_COUNT = 4;
+const FIGURE_COUNT = 3;
+const TAB_COUNT = 5;
+const FILTER_COUNT = 6;
+
+const StyledControlsRow = styled.div`
+  align-items: center;
+  border-bottom: 1px solid ${themeCssVariables.border.color.light};
+  box-sizing: border-box;
+  display: flex;
+  gap: ${themeCssVariables.spacing[4]};
+  overflow: hidden;
+  padding: 0 ${themeCssVariables.spacing[4]};
+`;
+
+const StyledTabsRow = styled(StyledControlsRow)`
+  height: ${TAB_LIST_HEIGHT};
+`;
+
+// Holds a small select plus the filter bar's padding and border, so the row keeps its height.
+const StyledFiltersRow = styled(StyledControlsRow)`
+  gap: ${themeCssVariables.spacing[2]};
+  min-height: calc(
+    ${themeCssVariables.spacing[6]} + ${themeCssVariables.spacing[4]} + 1px
+  );
+`;
 
 const StyledFigures = styled.div`
   background: ${themeCssVariables.border.color.light};
@@ -55,7 +80,7 @@ const StyledChart = styled.div`
 `;
 
 type AnalyticsSkeletonProps = {
-  shape: 'figures' | 'table' | 'chart';
+  shape: 'controls' | 'figures' | 'table' | 'chart';
   rowCount?: number;
   columnCount?: number;
 };
@@ -66,6 +91,23 @@ export const AnalyticsSkeleton = ({
   rowCount = 8,
   columnCount = 3,
 }: AnalyticsSkeletonProps) => {
+  if (shape === 'controls') {
+    return (
+      <div role="status" aria-label={t`Loading`}>
+        <StyledTabsRow>
+          {Array.from({ length: TAB_COUNT }, (_, index) => (
+            <SkeletonLine key={index} width={64} height={12} />
+          ))}
+        </StyledTabsRow>
+        <StyledFiltersRow>
+          {Array.from({ length: FILTER_COUNT }, (_, index) => (
+            <SkeletonLine key={index} width={112} height={24} />
+          ))}
+        </StyledFiltersRow>
+      </div>
+    );
+  }
+
   if (shape === 'chart') {
     return (
       <StyledChart role="status" aria-label={t`Loading`}>

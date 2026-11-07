@@ -9,7 +9,6 @@ import { GET_CRM_ANALYTICS_FUNNEL } from '@/crm-analytics/graphql/getCrmAnalytic
 import {
   type AnalyticsFilter,
   type AnalyticsFunnel,
-  type AnalyticsMeta,
 } from '@/crm-analytics/types/AnalyticsApi';
 
 const LAUNCH_TAKEAWAY =
@@ -67,7 +66,10 @@ const renderTab = ({
       <MockedProvider
         mocks={[
           {
-            request: { query: GET_CRM_ANALYTICS_FUNNEL, variables: { filter } },
+            request: {
+              query: GET_CRM_ANALYTICS_FUNNEL,
+              variables: { filter: { ...filter, status: 'ALL' } },
+            },
             result: {
               data: {
                 getCrmAnalyticsFunnel: {
@@ -80,17 +82,13 @@ const renderTab = ({
           },
         ]}
       >
-        <AnalyticsFunnelTab
-          filter={filter}
-          meta={{} as AnalyticsMeta}
-          onResetFilter={onResetFilter}
-        />
+        <AnalyticsFunnelTab filter={filter} onResetFilter={onResetFilter} />
       </MockedProvider>
     </JotaiProvider>,
   );
 
 describe('AnalyticsFunnelTab', () => {
-  it('blames the filters and offers a reset when they match nobody', async () => {
+  it('blames neither time nor the filters alone when a filtered cohort is empty', async () => {
     const user = userEvent.setup();
     const onResetFilter = jest.fn();
 
@@ -101,8 +99,11 @@ describe('AnalyticsFunnelTab', () => {
     });
 
     expect(
-      await screen.findByText('No people match these filters'),
+      await screen.findByText(
+        'No one matching these filters has entered the funnel yet',
+      ),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Imported people are not in the funnel/)).toBeVisible();
     expect(screen.queryByText(LAUNCH_TAKEAWAY)).not.toBeInTheDocument();
 
     await user.click(screen.getByText('Reset filters'));
@@ -118,8 +119,19 @@ describe('AnalyticsFunnelTab', () => {
 
     expect(await screen.findByText(LAUNCH_TAKEAWAY)).toBeInTheDocument();
     expect(
-      screen.queryByText('No people match these filters'),
+      screen.queryByText(
+        'No one matching these filters has entered the funnel yet',
+      ),
     ).not.toBeInTheDocument();
+  });
+
+  it('never applies a status picked on another tab', async () => {
+    renderTab({
+      filter: { ...CRM_ANALYTICS_DEFAULT_FILTER, status: 'SUCCESS' },
+      funnel: buildFunnel(0),
+    });
+
+    expect(await screen.findByText(LAUNCH_TAKEAWAY)).toBeInTheDocument();
   });
 
   it('does not count the period as a filter', async () => {

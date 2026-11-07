@@ -1,3 +1,4 @@
+import { CRM_ANALYTICS_CONFIG } from 'src/modules/analytics/constants/crm-analytics-config.constant';
 import { CrmAnalyticsFacadeService } from 'src/modules/analytics/facade/crm-analytics-facade.service';
 import { type CrmAnalyticsDatabaseService } from 'src/modules/analytics/services/crm-analytics-database.service';
 import { CrmAnalyticsMetricsService } from 'src/modules/analytics/services/crm-analytics-metrics.service';
@@ -12,6 +13,10 @@ import {
   type CrmAnalyticsCrmState,
   type CrmAnalyticsSqlRunner,
 } from 'src/modules/analytics/types/crm-analytics-crm-state.type';
+import {
+  addCrmAnalyticsLocalDays,
+  addCrmAnalyticsPeriods,
+} from 'src/modules/analytics/utils/compute-crm-analytics-report-periods.util';
 
 const WORKSPACE_ID = '20202020-0000-4000-8000-000000000001';
 const TRACKING_START = '2026-08-01T00:00:00.000Z';
@@ -58,11 +63,13 @@ const setup = ({
   isDisabled = false,
   hasStorage = true,
   state = buildState(),
+  trackingStart = TRACKING_START,
 }: {
   answers?: SqlAnswer[];
   isDisabled?: boolean;
   hasStorage?: boolean;
   state?: CrmAnalyticsCrmState;
+  trackingStart?: string;
 } = {}) => {
   const statements: RecordedStatement[] = [];
 
@@ -103,7 +110,7 @@ const setup = ({
   } as unknown as CrmAnalyticsDatabaseService;
   const settingsService = {
     isDisabled: jest.fn(async () => isDisabled),
-    getTrackingStart: jest.fn(async () => TRACKING_START),
+    getTrackingStart: jest.fn(async () => trackingStart),
   } as unknown as CrmAnalyticsSettingsService;
 
   const metricsService = new CrmAnalyticsMetricsService(
@@ -795,6 +802,61 @@ describe('CrmAnalyticsMetricsService', () => {
       ).toEqual(expect.arrayContaining(['2026-10-01', '2026-10-10']));
     });
 
+    it.each<[string, string | null, string]>([
+      ['starts at tracking start', '2026-08-01', '2026-08-07'],
+      ['has no start, so starts at tracking start', null, '2026-08-07'],
+      ['starts before tracking start', '2026-07-20', '2026-08-07'],
+      [
+        'has a span before that only partly follows tracking start',
+        '2026-08-02',
+        '2026-08-08',
+      ],
+    ])(
+      'has no earlier new applications to compare with when the range %s',
+      async (_description, dateFrom, dateTo) => {
+        const {
+          overview: { figures },
+        } = await readOverview({ ...DEFAULT_FILTER, dateFrom, dateTo });
+
+        expect(figures.newApplications).toBe(4);
+        expect(figures.newApplicationsPrevious).toBeNull();
+      },
+    );
+
+    it('keeps the count when the span before starts at tracking start', async () => {
+      const {
+        overview: { figures },
+      } = await readOverview({
+        ...DEFAULT_FILTER,
+        dateFrom: '2026-08-08',
+        dateTo: '2026-08-14',
+      });
+
+      expect(figures.newApplicationsPrevious).toBe(2);
+    });
+
+    it('judges the span before by the local date of tracking start', async () => {
+      // Tracking starts at midnight UTC on August 1, still July 31 in New York.
+      const replacedTimeZone = jest.replaceProperty(
+        CRM_ANALYTICS_CONFIG,
+        'reportingTimeZone',
+        'America/New_York',
+      );
+
+      try {
+        const readPrevious = async (dateFrom: string, dateTo: string) =>
+          (await readOverview({ ...DEFAULT_FILTER, dateFrom, dateTo })).overview
+            .figures.newApplicationsPrevious;
+
+        await expect(readPrevious('2026-08-07', '2026-08-13')).resolves.toBe(2);
+        await expect(
+          readPrevious('2026-08-06', '2026-08-12'),
+        ).resolves.toBeNull();
+      } finally {
+        replacedTimeZone.restore();
+      }
+    });
+
     it('joins submissions to scope only with a person filter', async () => {
       const { statements: unfiltered } = await readOverview();
       const { statements: filtered } = await readOverview({
@@ -1172,6 +1234,183 @@ describe('CrmAnalyticsMetricsService', () => {
         statements.find(({ sql }) => /overall_total a/.test(sql))?.sql,
       ).toContain('s.created_at >= $2 AND (s.created_at AT TIME ZONE');
     });
+
+    describe('track and program filters', () => {
+      const CATEGORY_STATEMENTS = [
+        CATEGORY_PEOPLE,
+        CATEGORY_OVERLAP,
+        CATEGORY_NEW_APPLICATIONS,
+        /category_member[\s\S]*overall_total a/,
+      ];
+
+      const readPositionConditions = async (
+        filter: Partial<AnalyticsFilter>,
+      ) => {
+        const { statements } = await readCategories({
+          filter: { ...DEFAULT_FILTER, ...filter },
+        });
+
+        return CATEGORY_STATEMENTS.map((pattern) => {
+          const statement = statements.find(({ sql }) => pattern.test(sql));
+
+          return {
+            condition: statement?.sql.match(
+              /person_position AS \([\s\S]*?WHERE ([^\n]*)\),\ncategory_member/,
+            )?.[1],
+            parameters: statement?.parameters,
+          };
+        });
+      };
+
+      it('keeps every position with neither filter', async () => {
+        (await readPositionConditions({})).forEach(({ condition }) =>
+          expect(condition).toBe('TRUE'),
+        );
+      });
+
+      it('limits people, overlap, new applications and funnel groups to the track', async () => {
+        (await readPositionConditions({ trackKey: 'ROBOTICS' })).forEach(
+          ({ condition, parameters }) => {
+            expect(condition).toMatch(
+              /^COALESCE\(pm\.track_key, 'UNMAPPED'\) = \$\d+::text$/,
+            );
+            expect(parameters).toContain('ROBOTICS');
+          },
+        );
+      });
+
+      it('limits people, overlap, new applications and funnel groups to the program', async () => {
+        (
+          await readPositionConditions({ programKey: 'FINANCE_INTERN' })
+        ).forEach(({ condition, parameters }) => {
+          expect(condition).toMatch(
+            /^position_row\.position_value = \$\d+::text$/,
+          );
+          expect(parameters).toContain('FINANCE_INTERN');
+        });
+      });
+
+      it('applies both together', async () => {
+        (
+          await readPositionConditions({
+            trackKey: 'BUSINESS',
+            programKey: 'FINANCE_INTERN',
+          })
+        ).forEach(({ condition }) =>
+          expect(condition).toMatch(
+            /^COALESCE\(pm\.track_key, 'UNMAPPED'\) = \$\d+::text AND position_row\.position_value = \$\d+::text$/,
+          ),
+        );
+      });
+
+      it('leaves source rows to the people filter alone', async () => {
+        const { statements } = await readCategories({
+          groupBy: 'SOURCE',
+          filter: { ...DEFAULT_FILTER, trackKey: 'ROBOTICS' },
+        });
+
+        expect(
+          statements.some(({ sql }) => sql.includes('person_position')),
+        ).toBe(false);
+      });
+    });
+  });
+
+  describe('status filter', () => {
+    const RATE_STATEMENTS =
+      /overall_total a|GROUP BY cs\.stage_key|excluded_count/;
+
+    const readRateStatements = async (filter: AnalyticsFilter) => {
+      const { metricsService, statements } = setup();
+
+      await metricsService.getFunnel({ workspaceId: WORKSPACE_ID, filter });
+      await metricsService.getCategories({
+        workspaceId: WORKSPACE_ID,
+        filter,
+        groupBy: 'TRACK_PROGRAM',
+      });
+
+      for (const metric of ['OVERALL_CONVERSION', 'DROP_OFF'] as const) {
+        await metricsService.getTrends({
+          workspaceId: WORKSPACE_ID,
+          filter,
+          metric,
+          stageKey: null,
+        });
+      }
+
+      return statements.filter(({ sql }) => RATE_STATEMENTS.test(sql));
+    };
+
+    it.each<AnalyticsFilter['status']>([
+      'ACTIVE',
+      'SUCCESS',
+      'EXITED',
+      'UNMAPPED',
+      'NO_STAGE',
+    ])(
+      'reads funnel rows, category rates, cohorts and rate trends as if unfiltered under %s',
+      async (status) => {
+        const unfiltered = await readRateStatements(DEFAULT_FILTER);
+
+        // Funnel, durations, excluded, category groups, and two trends with their cohorts.
+        expect(unfiltered).toHaveLength(8);
+        await expect(
+          readRateStatements({ ...DEFAULT_FILTER, status }),
+        ).resolves.toEqual(unfiltered);
+      },
+    );
+
+    it('still narrows counts', async () => {
+      const filter: AnalyticsFilter = { ...DEFAULT_FILTER, status: 'ACTIVE' };
+      const { metricsService, statements } = setup({
+        answers: [
+          [
+            STUCK_ROWS,
+            [
+              {
+                person_id: 'person-1',
+                current_key: 'NEW',
+                stage_entered_at: NOW,
+                days_in_stage: 20,
+                days_over_limit: 6,
+                is_lower_bound: false,
+                total_count: 1,
+              },
+            ],
+          ],
+        ],
+      });
+
+      await metricsService.getOverview({ workspaceId: WORKSPACE_ID, filter });
+      await metricsService.getCategories({
+        workspaceId: WORKSPACE_ID,
+        filter,
+        groupBy: 'TRACK_PROGRAM',
+      });
+      await metricsService.getTrends({
+        workspaceId: WORKSPACE_ID,
+        filter,
+        metric: 'TOTAL_CONTACTS',
+        stageKey: null,
+      });
+
+      [
+        STAGE_COUNTS,
+        CLOCK_TOTALS,
+        STUCK_ROWS,
+        NEW_APPLICATION_TOTALS,
+        CATEGORY_PEOPLE,
+        CATEGORY_OVERLAP,
+        CATEGORY_NEW_APPLICATIONS,
+        MOVEMENT,
+        SNAPSHOT_BUCKETS,
+      ].forEach((pattern) =>
+        expect(statements.find(({ sql }) => pattern.test(sql))?.sql).toContain(
+          `m.kind IN ('MAIN', 'OTHER')`,
+        ),
+      );
+    });
   });
 
   describe('trends', () => {
@@ -1181,14 +1420,16 @@ describe('CrmAnalyticsMetricsService', () => {
       metric,
       stageKey = null,
       state,
+      trackingStart,
     }: {
       answers?: SqlAnswer[];
       filter?: AnalyticsFilter;
       metric: Parameters<CrmAnalyticsMetricsService['getTrends']>[0]['metric'];
       stageKey?: string | null;
       state?: CrmAnalyticsCrmState;
+      trackingStart?: string;
     }) => {
-      const context = setup({ answers, state });
+      const context = setup({ answers, state, trackingStart });
       const trends = await context.metricsService.getTrends({
         workspaceId: WORKSPACE_ID,
         filter,
@@ -1203,7 +1444,7 @@ describe('CrmAnalyticsMetricsService', () => {
       return { trends, statements: context.statements };
     };
 
-    it('pairs new applications with the buckets before, counting empties as 0', async () => {
+    it('pairs new applications with the buckets before, counting tracked empties as 0', async () => {
       const { trends, statements } = await readTrends({
         metric: 'NEW_APPLICATIONS',
         answers: [
@@ -1223,18 +1464,103 @@ describe('CrmAnalyticsMetricsService', () => {
         value: 3,
         previousValue: 1,
         size: null,
+        previousSize: null,
         isPartial: true,
+      });
+      expect(trends.series[10]).toEqual({
+        bucketStart: '2026-10-26',
+        value: 0,
+        previousValue: 0,
+        size: null,
+        previousSize: null,
+        isPartial: false,
       });
       expect(trends.series[0]).toEqual({
         bucketStart: '2026-08-17',
         value: 0,
-        previousValue: 0,
+        previousValue: null,
         size: null,
+        previousSize: null,
         isPartial: false,
       });
       expect(
         statements.find(({ sql }) => SUBMISSION_BUCKETS.test(sql))?.parameters,
       ).toEqual(expect.arrayContaining(['week', '2026-05-25', '2026-11-08']));
+    });
+
+    it('has no earlier new applications to compare with at launch', async () => {
+      const { trends } = await readTrends({
+        metric: 'NEW_APPLICATIONS',
+        trackingStart: '2026-10-27T00:00:00.000Z',
+        answers: [
+          [
+            SUBMISSION_BUCKETS,
+            [{ bucket_start: '2026-11-02', bucket_value: 3 }],
+          ],
+        ],
+      });
+
+      expect(trends.series.map(({ value }) => value)).toEqual([
+        ...new Array<null>(10).fill(null),
+        0,
+        3,
+      ]);
+      expect(trends.series.map(({ previousValue }) => previousValue)).toEqual(
+        new Array<null>(12).fill(null),
+      );
+    });
+
+    it.each<[AnalyticsFilter['period'], string, string]>([
+      ['DAY', '2026-07-31', '2026-08-01'],
+      ['WEEK', '2026-07-20', '2026-08-02'],
+      ['MONTH', '2026-07-01', '2026-08-31'],
+    ])(
+      'leaves a %s bucket that ends before tracking start unknown, even with dated rows',
+      async (period, dateFrom, dateTo) => {
+        const { trends } = await readTrends({
+          metric: 'NEW_APPLICATIONS',
+          filter: { ...DEFAULT_FILTER, period, dateFrom, dateTo },
+          answers: [
+            [SUBMISSION_BUCKETS, [{ bucket_start: dateFrom, bucket_value: 2 }]],
+          ],
+        });
+
+        expect(trends.series.map(({ value }) => value)).toEqual([null, 0]);
+        expect(trends.series.map(({ previousValue }) => previousValue)).toEqual(
+          [null, null],
+        );
+      },
+    );
+
+    it('judges the new applications cut-off by the local date of tracking start', async () => {
+      // Tracking starts at midnight UTC on August 1, still July 31 in New York.
+      const replacedTimeZone = jest.replaceProperty(
+        CRM_ANALYTICS_CONFIG,
+        'reportingTimeZone',
+        'America/New_York',
+      );
+
+      try {
+        const { trends } = await readTrends({
+          metric: 'NEW_APPLICATIONS',
+          filter: {
+            ...DEFAULT_FILTER,
+            period: 'MONTH',
+            dateFrom: '2026-06-01',
+            dateTo: '2026-07-31',
+          },
+          answers: [
+            [
+              SUBMISSION_BUCKETS,
+              [{ bucket_start: '2026-07-01', bucket_value: 2 }],
+            ],
+          ],
+        });
+
+        expect(trends.series.map(({ value }) => value)).toEqual([null, 2]);
+      } finally {
+        replacedTimeZone.restore();
+      }
     });
 
     it('says why new applications are missing without the form objects', async () => {
@@ -1263,6 +1589,7 @@ describe('CrmAnalyticsMetricsService', () => {
 
       expect(trends.series[11].value).toBe(500);
       expect(trends.series[11].previousValue).toBeNull();
+      expect(trends.series[11].previousSize).toBeNull();
       expect(trends.series[0].value).toBeNull();
     });
 
@@ -1375,17 +1702,144 @@ describe('CrmAnalyticsMetricsService', () => {
           answers: COHORT_ANSWERS,
         });
 
-        expect(trends.series[0]).toMatchObject({
-          bucketStart: '2026-08-17',
-          value: 0.2,
-          size: 10,
-        });
-        expect(trends.series[11]).toMatchObject({
+        expect(
+          trends.series.find(({ bucketStart }) => bucketStart === '2026-08-17'),
+        ).toMatchObject({ value: 0.2, size: 10 });
+        expect(trends.series.at(-1)).toMatchObject({
           bucketStart: '2026-11-02',
           value: null,
           size: 10,
         });
         expect(trends.series[5]).toMatchObject({ value: null, size: 0 });
+      });
+
+      it('widens overall conversion by week to 26 weeks, so aged data has a value', async () => {
+        // Mature as the SQL judges it: everyone in the bucket is past the overall window.
+        const agedBuckets = Array.from({ length: 52 }, (_unused, weeksBack) => {
+          const bucketStart = addCrmAnalyticsPeriods(
+            '2026-11-02',
+            'WEEK',
+            -weeksBack,
+          );
+          const lastWindowEnd = addCrmAnalyticsLocalDays(
+            bucketStart,
+            7 + CRM_ANALYTICS_CONFIG.overallWindowDays,
+          );
+
+          return buildBucket(
+            bucketStart,
+            {
+              entered: 10,
+              eligible: lastWindowEnd <= LOCAL_TODAY ? 10 : 9,
+              reached: 2,
+            },
+            { entered: 10, eligible: 10, reached_next: 6 },
+          );
+        });
+
+        const { trends } = await readTrends({
+          metric: 'OVERALL_CONVERSION',
+          trackingStart: '2026-01-01T00:00:00.000Z',
+          answers: [[/date_trunc[\s\S]*overall_total a/, agedBuckets]],
+        });
+
+        expect(trends.series).toHaveLength(26);
+        expect(trends.series[0].bucketStart).toBe('2026-05-11');
+        expect(trends.series.some(({ value }) => value !== null)).toBe(true);
+        expect(trends.series.slice(-12).map(({ value }) => value)).toEqual(
+          new Array<null>(12).fill(null),
+        );
+      });
+
+      it('keeps every other weekly default at 12 weeks', async () => {
+        for (const metric of [
+          'NEW_APPLICATIONS',
+          'TOTAL_CONTACTS',
+          'ACTIVE_PEOPLE',
+          'STAGE_COUNT',
+          'DROP_OFF',
+          'MEDIAN_DAYS',
+        ] as const) {
+          const { trends } = await readTrends({ metric });
+
+          expect(trends.series).toHaveLength(12);
+        }
+
+        const { trends: monthly } = await readTrends({
+          metric: 'OVERALL_CONVERSION',
+          filter: { ...DEFAULT_FILTER, period: 'MONTH' },
+        });
+
+        expect(monthly.series).toHaveLength(12);
+      });
+
+      it('gives the sample behind a previous rate', async () => {
+        const { trends } = await readTrends({
+          metric: 'DROP_OFF',
+          answers: [
+            [
+              /date_trunc[\s\S]*overall_total a/,
+              [
+                buildBucket(
+                  '2026-08-10',
+                  { entered: 7, eligible: 7, reached: 1 },
+                  { entered: 7, eligible: 7, reached_next: 3 },
+                ),
+                buildBucket(
+                  '2026-11-02',
+                  { entered: 10, eligible: 10, reached: 2 },
+                  { entered: 10, eligible: 10, reached_next: 6 },
+                ),
+              ],
+            ],
+          ],
+        });
+
+        expect(trends.series[11]).toMatchObject({
+          bucketStart: '2026-11-02',
+          size: 10,
+          previousValue: 4 / 7,
+          previousSize: 7,
+        });
+        expect(trends.series[0]).toMatchObject({
+          previousValue: null,
+          previousSize: 0,
+        });
+      });
+
+      it('cuts cohorts to the whole periods of the series', async () => {
+        const readCohortParameters = async (
+          metric: 'TOTAL_CONTACTS' | 'OVERALL_CONVERSION',
+          filter: Partial<AnalyticsFilter> = {},
+        ) => {
+          const { statements } = await readTrends({
+            metric,
+            filter: { ...DEFAULT_FILTER, ...filter },
+          });
+
+          return statements.filter(({ sql }) => STEP.test(sql)).at(-1)
+            ?.parameters;
+        };
+
+        const filteredParameters = await readCohortParameters(
+          'TOTAL_CONTACTS',
+          { dateFrom: '2026-10-28', dateTo: '2026-11-03' },
+        );
+
+        expect(filteredParameters).toEqual(
+          expect.arrayContaining(['2026-10-26', '2026-11-08']),
+        );
+        expect(filteredParameters).not.toContain('2026-10-28');
+        expect(filteredParameters).not.toContain('2026-11-03');
+
+        await expect(readCohortParameters('TOTAL_CONTACTS')).resolves.toEqual(
+          expect.arrayContaining(['2026-08-17', '2026-11-08']),
+        );
+        await expect(
+          readCohortParameters('OVERALL_CONVERSION'),
+        ).resolves.toEqual(
+          expect.arrayContaining(['2026-05-11', '2026-11-08']),
+        );
       });
 
       it('gives drop-off for the entry stage unless told otherwise', async () => {
@@ -1472,7 +1926,11 @@ describe('CrmAnalyticsMetricsService', () => {
       });
 
       expect(trends.stageKey).toBe('CONTACTED');
-      expect(trends.series[11]).toMatchObject({ value: 3.1, size: 8 });
+      expect(trends.series[11]).toMatchObject({
+        value: 3.1,
+        size: 8,
+        previousSize: null,
+      });
       expect(trends.series[0]).toMatchObject({ value: null, size: 0 });
       expect(
         statements.find(({ sql }) => MEDIAN_BUCKETS.test(sql))?.parameters,
@@ -1669,14 +2127,18 @@ describe('CrmAnalyticsMetricsService', () => {
       const hostileValue = `x'; DROP TABLE person; --`;
       const { metricsService, statements } = setup();
 
-      await metricsService.getOverview({
+      const filter = {
+        ...DEFAULT_FILTER,
+        trackKey: hostileValue,
+        programKey: hostileValue,
+        sourceKey: hostileValue,
+      };
+
+      await metricsService.getOverview({ workspaceId: WORKSPACE_ID, filter });
+      await metricsService.getCategories({
         workspaceId: WORKSPACE_ID,
-        filter: {
-          ...DEFAULT_FILTER,
-          trackKey: hostileValue,
-          programKey: hostileValue,
-          sourceKey: hostileValue,
-        },
+        filter,
+        groupBy: 'TRACK_PROGRAM',
       });
 
       expect(statements.length).toBeGreaterThan(1);
@@ -1724,16 +2186,16 @@ describe('CrmAnalyticsReportService', () => {
   ];
 
   const INSERT_REPORT = /INSERT INTO analytics\.report/;
-  const EXISTING_REPORTS =
-    /SELECT r\.period_type, r\.period_start::text AS period_start\s+FROM analytics\.report/;
+  const EXISTING_REPORTS = /AS is_provisional\s+FROM analytics\.report/;
 
-  const setupBuild = (answers: SqlAnswer[] = []) => {
+  const setupBuild = (answers: SqlAnswer[] = [], trackingStart?: string) => {
     const context = setup({
       answers: [
         ...answers,
         [INSERT_REPORT, [{ period_start: 'inserted' }]],
         ...REPORT_ANSWERS,
       ],
+      trackingStart,
     });
 
     return {
@@ -1797,7 +2259,102 @@ describe('CrmAnalyticsReportService', () => {
 
     expect(inserted).toHaveLength(8);
     expect(inserted[0].parameters[2]).toBe('2026-08-10');
-    expect(inserted[0].sql).toContain('ON CONFLICT DO NOTHING');
+  });
+
+  describe('reports built on provisional definitions', () => {
+    const STORED_REPORTS: SqlAnswer = [
+      EXISTING_REPORTS,
+      [
+        {
+          period_type: 'WEEK',
+          period_start: '2026-08-03',
+          is_provisional: true,
+        },
+        {
+          period_type: 'WEEK',
+          period_start: '2026-08-10',
+          is_provisional: false,
+        },
+        {
+          period_type: 'WEEK',
+          period_start: '2026-08-17',
+          is_provisional: null,
+        },
+      ],
+    ];
+
+    const buildWithProvisionalFlag = async (isProvisional: boolean) => {
+      const replacedFlag = jest.replaceProperty(
+        CRM_ANALYTICS_CONFIG,
+        'isProvisional',
+        isProvisional,
+      );
+
+      try {
+        const { reportService, run, insertedReports } = setupBuild([
+          STORED_REPORTS,
+        ]);
+        const builtCount = await reportService.buildMissingReports({
+          workspaceId: WORKSPACE_ID,
+          state: buildState(),
+          run,
+        });
+
+        return { builtCount, inserted: insertedReports() };
+      } finally {
+        replacedFlag.restore();
+      }
+    };
+
+    const listBuiltWeeks = (inserted: { parameters: unknown[] }[]): unknown[] =>
+      inserted
+        .filter(({ parameters }) => parameters[1] === 'WEEK')
+        .map(({ parameters }) => parameters[2]);
+
+    it('leaves stored reports frozen while the definitions are provisional', async () => {
+      const { inserted } = await buildWithProvisionalFlag(true);
+
+      expect(inserted).toHaveLength(8);
+      expect(listBuiltWeeks(inserted)).not.toContain('2026-08-03');
+      expect(inserted[0].report).toMatchObject({
+        isProvisional: true,
+        payloadVersion: 1,
+      });
+    });
+
+    it('rebuilds only provisional reports once confirmed, oldest first and within the cap', async () => {
+      const { builtCount, inserted } = await buildWithProvisionalFlag(false);
+
+      expect(builtCount).toBe(8);
+      expect(inserted).toHaveLength(8);
+      expect(listBuiltWeeks(inserted)[0]).toBe('2026-08-03');
+      expect(listBuiltWeeks(inserted)).not.toContain('2026-08-10');
+      expect(listBuiltWeeks(inserted)).not.toContain('2026-08-17');
+      expect(inserted[0].report).toMatchObject({
+        isProvisional: false,
+        payloadVersion: 1,
+      });
+    });
+
+    it('overwrites a stored row only when a confirmed report replaces a provisional one', async () => {
+      const { reportService, run, statements } = setupBuild();
+
+      await reportService.buildMissingReports({
+        workspaceId: WORKSPACE_ID,
+        state: buildState(),
+        run,
+      });
+
+      const insertSql =
+        statements.find(({ sql }) => INSERT_REPORT.test(sql))?.sql ?? '';
+
+      expect(insertSql).toContain(
+        'ON CONFLICT (workspace_id, period_type, period_start) DO UPDATE',
+      );
+      expect(insertSql).toContain(
+        `WHERE stored_report.payload->>'isProvisional' = 'true' AND EXCLUDED.payload->>'isProvisional' = 'false'`,
+      );
+    });
   });
 
   it('stores counts only, on the same shape as the page, with cohorts on months', async () => {
@@ -1823,8 +2380,9 @@ describe('CrmAnalyticsReportService', () => {
       reportingTimeZone: 'UTC',
       minimumSample: 30,
       newApplications: 40,
-      newApplicationsPrevious: 30,
+      newApplicationsPrevious: null,
     });
+    expect(reports[1].report.newApplicationsPrevious).toBe(30);
     expect(week.cohorts).toEqual([]);
     expect(week.funnel.rows[0].stepRate).toBe(0.4);
     expect(week.categories.groupBy).toBe('TRACK_PROGRAM');
@@ -1849,7 +2407,8 @@ describe('CrmAnalyticsReportService', () => {
       run,
     });
 
-    const { comparisons } = insertedReports()[0].report;
+    // The first week's previous period starts before tracking.
+    const { comparisons } = insertedReports()[1].report;
 
     expect(comparisons[0]).toEqual({
       metricKey: 'NEW_APPLICATIONS',
@@ -1866,6 +2425,82 @@ describe('CrmAnalyticsReportService', () => {
       isSignificant: false,
     });
   });
+
+  it.each<[string, string, AnalyticsReport['periodType'], string, string]>([
+    [
+      'a Monday',
+      '2026-08-03T00:00:00.000Z',
+      'WEEK',
+      '2026-08-03',
+      '2026-08-10',
+    ],
+    [
+      'the first of a month',
+      '2026-08-01T00:00:00.000Z',
+      'MONTH',
+      '2026-08-01',
+      '2026-08-10',
+    ],
+    [
+      'a Wednesday, leaving the previous period only partly tracked',
+      '2026-08-05T00:00:00.000Z',
+      'WEEK',
+      '2026-08-10',
+      '2026-08-17',
+    ],
+  ])(
+    'has no previous period to compare with when tracking starts on %s',
+    async (
+      _description,
+      trackingStart,
+      periodType,
+      periodStart,
+      comparableWeekStart,
+    ) => {
+      const { reportService, run, insertedReports } = setupBuild(
+        [],
+        trackingStart,
+      );
+
+      await reportService.buildMissingReports({
+        workspaceId: WORKSPACE_ID,
+        state: buildState(),
+        run,
+      });
+
+      const reportOf = (type: AnalyticsReport['periodType'], start: string) =>
+        insertedReports().find(
+          ({ report }) =>
+            report.periodType === type && report.periodStart === start,
+        )?.report;
+
+      const firstReport = reportOf(periodType, periodStart);
+
+      expect(firstReport?.newApplications).toBe(40);
+      expect(firstReport?.newApplicationsPrevious).toBeNull();
+      expect(firstReport?.comparisons[0]).toEqual({
+        metricKey: 'NEW_APPLICATIONS',
+        label: 'New applications',
+        current: 40,
+        previous: null,
+        isSignificant: false,
+      });
+      expect(firstReport?.comparisons.length).toBeGreaterThan(1);
+      expect(
+        firstReport?.comparisons.every(
+          ({ previous, isSignificant }) => previous === null && !isSignificant,
+        ),
+      ).toBe(true);
+
+      const comparableReport = reportOf('WEEK', comparableWeekStart);
+
+      expect(comparableReport?.newApplicationsPrevious).toBe(30);
+      expect(comparableReport?.comparisons[1]).toMatchObject({
+        metricKey: 'ENTERED_NEW',
+        previous: 40,
+      });
+    },
+  );
 
   it('uses the period for events and everything up to its end for rates', async () => {
     const { reportService, run, statements } = setupBuild();

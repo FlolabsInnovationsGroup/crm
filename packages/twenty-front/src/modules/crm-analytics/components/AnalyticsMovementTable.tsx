@@ -1,4 +1,5 @@
 import { t } from '@lingui/core/macro';
+import { OverflowingTextWithTooltip } from 'twenty-ui/primitives/typography';
 
 import { AnalyticsTable } from '@/crm-analytics/components/AnalyticsTable';
 import { type AnalyticsMovementRow } from '@/crm-analytics/types/AnalyticsApi';
@@ -33,7 +34,7 @@ export const AnalyticsMovementTable = ({
         {rows.map((row) => (
           <AnalyticsTable.Row key={row.stageKey}>
             <AnalyticsTable.Cell isTruncated dir="auto">
-              {row.label}
+              <OverflowingTextWithTooltip text={row.label} />
             </AnalyticsTable.Cell>
             <AnalyticsTable.Cell isNumeric>
               {formatNumber(row.enteredInPeriod)}

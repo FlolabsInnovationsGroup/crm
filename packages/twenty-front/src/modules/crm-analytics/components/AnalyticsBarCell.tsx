@@ -49,7 +49,6 @@ type AnalyticsBarCellProps = {
   tone?: AnalyticsBarTone;
 };
 
-// Renders inside a table cell: a bar scaled to maxValue with the number as text beside it.
 export const AnalyticsBarCell = ({
   value,
   maxValue,

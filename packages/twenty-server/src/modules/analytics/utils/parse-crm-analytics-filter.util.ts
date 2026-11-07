@@ -15,6 +15,8 @@ import {
 
 const MAXIMUM_VALUE_LENGTH = 200;
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+// Far older dates pass as real here, but Postgres rejects them or their previous period.
+const MINIMUM_LOCAL_DATE = '2000-01-01';
 
 const STATUS_FILTERS: AnalyticsStatusFilter[] = [
   'ALL',
@@ -89,7 +91,7 @@ export const parseCrmAnalyticsLocalDate = (
   value: string,
   name: string,
 ): string => {
-  if (!isRealLocalDate(value)) {
+  if (!isRealLocalDate(value) || value < MINIMUM_LOCAL_DATE) {
     throw new UserInputError(`Invalid analytics ${name}`);
   }
 

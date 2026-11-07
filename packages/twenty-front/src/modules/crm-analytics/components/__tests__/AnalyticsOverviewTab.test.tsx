@@ -35,7 +35,7 @@ const buildOverview = (
   overrides: Partial<AnalyticsOverview>,
 ): AnalyticsOverview => ({
   asOf: '2026-11-07T10:00:00.000Z',
-  trackingStartedAt: '2026-10-27T00:00:00.000Z',
+  trackingStartedAt: '2026-10-25T00:00:00.000Z',
   reportingTimeZone: 'UTC',
   minimumSample: 30,
   importedExcludedByDate: 0,
@@ -140,7 +140,12 @@ describe('AnalyticsOverviewTab', () => {
 
     expect(
       await screen.findByText(
-        '1,284 active people, 214 past their stage limit.',
+        '1,284 active people, 214 past their stage limit. 3 people have a stage not yet mapped and are not counted as active or stuck.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'In the pipeline now, not signed or exited. Leaves out 3 with a stage not yet mapped.',
       ),
     ).toBeInTheDocument();
     expect(screen.getByText('1,284')).toBeInTheDocument();
@@ -156,11 +161,110 @@ describe('AnalyticsOverviewTab', () => {
     expect(screen.getByText('New reminder')).toBeInTheDocument();
   });
 
+  describe('when the previous period starts before tracking', () => {
+    it('hides the change on the default last 7 days', async () => {
+      renderTab([
+        overviewMock(
+          buildOverview({ trackingStartedAt: '2026-10-26T00:00:00.000Z' }),
+        ),
+      ]);
+
+      expect(await screen.findByText('86')).toBeInTheDocument();
+      expect(
+        screen.queryByText(/against the previous period/),
+      ).not.toBeInTheDocument();
+    });
+
+    it('hides the change on a custom range starting at tracking start', async () => {
+      const overview = buildOverview({
+        trackingStartedAt: '2026-10-27T00:00:00.000Z',
+      });
+
+      renderTab([
+        overviewMock({
+          ...overview,
+          figures: {
+            ...overview.figures,
+            newApplicationsFrom: '2026-10-27',
+            newApplicationsTo: '2026-11-07',
+          },
+        }),
+      ]);
+
+      expect(await screen.findByText('Oct 27 to Nov 7')).toBeInTheDocument();
+      expect(
+        screen.queryByText(/against the previous period/),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it('always shows an unmapped stage with its raw value', async () => {
     renderTab([overviewMock(buildOverview({}))]);
 
     expect(
       await screen.findByText('Unmapped: LEGACY_TEST'),
+    ).toBeInTheDocument();
+  });
+
+  it('labels a row of people with no stage in the page language', async () => {
+    renderTab([
+      overviewMock(
+        buildOverview({
+          stageTotals: [
+            {
+              rowKey: 'NO_STAGE',
+              label: 'Stored server text',
+              rowKind: 'NO_STAGE',
+              parentStageKey: null,
+              count: 7,
+              pastLimitCount: null,
+            },
+          ],
+        }),
+      ),
+    ]);
+
+    expect(await screen.findByText('No stage')).toBeInTheDocument();
+    expect(screen.queryByText('Stored server text')).not.toBeInTheDocument();
+  });
+
+  it('says everyone without a filter and matching people with one', async () => {
+    const filteredRequest = {
+      query: GET_CRM_ANALYTICS_OVERVIEW,
+      variables: {
+        filter: { ...CRM_ANALYTICS_DEFAULT_FILTER, sourceKey: 'LINKEDIN' },
+      },
+    };
+
+    const { unmount } = renderTab([overviewMock(buildOverview({}))]);
+
+    expect(
+      await screen.findByText('Everyone in People, including non-applicants'),
+    ).toBeInTheDocument();
+
+    unmount();
+
+    render(
+      <JotaiProvider store={createStore()}>
+        <MockedProvider
+          mocks={[
+            {
+              request: filteredRequest,
+              result: overviewMock(buildOverview({})).result,
+            },
+          ]}
+        >
+          <AnalyticsOverviewTab
+            filter={filteredRequest.variables.filter}
+            meta={META}
+            onResetFilter={jest.fn()}
+          />
+        </MockedProvider>
+      </JotaiProvider>,
+    );
+
+    expect(
+      await screen.findByText('People matching these filters'),
     ).toBeInTheDocument();
   });
 

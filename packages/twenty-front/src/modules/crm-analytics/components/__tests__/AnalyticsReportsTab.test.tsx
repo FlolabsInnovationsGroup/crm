@@ -9,7 +9,6 @@ import { AnalyticsReportsTab } from '@/crm-analytics/components/AnalyticsReports
 import { GET_CRM_ANALYTICS_REPORT } from '@/crm-analytics/graphql/getCrmAnalyticsReport';
 import { GET_CRM_ANALYTICS_REPORTS } from '@/crm-analytics/graphql/getCrmAnalyticsReports';
 import {
-  type AnalyticsMeta,
   type AnalyticsReport,
   type AnalyticsReportListItem,
 } from '@/crm-analytics/types/AnalyticsApi';
@@ -25,8 +24,6 @@ jest.mock('@/apollo/components/ToastOnQueryErrorEffect', () => ({
     return null;
   },
 }));
-
-const META = { stages: [] as AnalyticsMeta['stages'] } as AnalyticsMeta;
 
 const LATEST_WEEK: AnalyticsReportListItem = {
   periodType: 'WEEK',
@@ -51,7 +48,7 @@ const LATEST_MONTH: AnalyticsReportListItem = {
 
 const BASE = {
   asOf: '2026-11-02T02:30:00.000Z',
-  trackingStartedAt: '2026-10-27T00:00:00.000Z',
+  trackingStartedAt: '2026-08-01T00:00:00.000Z',
   reportingTimeZone: 'UTC',
   minimumSample: 30,
 };
@@ -155,7 +152,7 @@ const renderTab = (mocks: ComponentProps<typeof MockedProvider>['mocks']) =>
   render(
     <JotaiProvider store={createStore()}>
       <MockedProvider mocks={mocks}>
-        <AnalyticsReportsTab meta={META} />
+        <AnalyticsReportsTab />
       </MockedProvider>
     </JotaiProvider>,
   );
@@ -196,7 +193,7 @@ describe('AnalyticsReportsTab', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Tracking started Oct 27, 2026. Imported people count in current totals only, never in rates.',
+        'Tracking started Aug 1, 2026. Imported people count in current totals only, never in rates.',
       ),
     ).toBeInTheDocument();
     expect(
@@ -217,6 +214,249 @@ describe('AnalyticsReportsTab', () => {
 
     expect(significantRow).toHaveTextContent('Significant change');
     expect(screen.getAllByText('Significant change')).toHaveLength(1);
+  });
+
+  describe('the first report, whose previous period starts before tracking', () => {
+    const expectNoComparison = () => {
+      expect(
+        screen.getByText('There is no earlier period to compare with yet.'),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('table', {
+          name: 'Compared with the previous period',
+        }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText('Significant change')).not.toBeInTheDocument();
+    };
+
+    it('shows a weekly report with no comparison and no significant count', async () => {
+      renderTab([
+        listMock([LATEST_WEEK]),
+        reportMock(
+          buildReport(LATEST_WEEK, {
+            trackingStartedAt: '2026-10-26T00:00:00.000Z',
+          }),
+        ),
+      ]);
+
+      expect(
+        await screen.findByText('86 new applications.'),
+      ).toBeInTheDocument();
+      expectNoComparison();
+    });
+
+    it('shows a monthly report with a few tracked days before it the same way', async () => {
+      renderTab([
+        listMock([LATEST_MONTH]),
+        reportMock(
+          buildReport(LATEST_MONTH, {
+            trackingStartedAt: '2026-09-26T00:00:00.000Z',
+          }),
+        ),
+      ]);
+
+      expect(
+        await screen.findByText('86 new applications.'),
+      ).toBeInTheDocument();
+      expectNoComparison();
+    });
+
+    it('says only that when new applications are not known either', async () => {
+      renderTab([
+        listMock([LATEST_WEEK]),
+        reportMock(
+          buildReport(LATEST_WEEK, {
+            trackingStartedAt: '2026-10-26T00:00:00.000Z',
+            newApplications: null,
+            newApplicationsPrevious: null,
+          }),
+        ),
+      ]);
+
+      expect(
+        await screen.findAllByText(
+          'There is no earlier period to compare with yet.',
+        ),
+      ).toHaveLength(2);
+      expect(screen.queryByText(/significant/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('marks a report built on provisional definitions', async () => {
+    renderTab([
+      listMock([LATEST_WEEK]),
+      reportMock(buildReport(LATEST_WEEK, { isProvisional: true })),
+    ]);
+
+    expect(
+      await screen.findByText(
+        'Built on provisional definitions. It will be rebuilt once they are confirmed.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/stays as generated/)).not.toBeInTheDocument();
+  });
+
+  it('has no provisional marker on a confirmed report or one from before the field', async () => {
+    renderTab([listMock([LATEST_WEEK]), reportMock(buildReport(LATEST_WEEK))]);
+
+    expect(await screen.findByText(/stays as generated/)).toBeInTheDocument();
+    expect(screen.queryByText(/provisional/)).not.toBeInTheDocument();
+  });
+
+  it('translates known measures by key and keeps the stored label for others', async () => {
+    renderTab([
+      listMock([LATEST_WEEK]),
+      reportMock(
+        buildReport(LATEST_WEEK, {
+          comparisons: [
+            {
+              metricKey: 'NEW_APPLICATIONS',
+              label: 'Stored applications text',
+              current: 86,
+              previous: 40,
+              isSignificant: false,
+            },
+            {
+              metricKey: 'ENTERED_NEW',
+              label: 'Stored stage text',
+              current: 31,
+              previous: 30,
+              isSignificant: false,
+            },
+            {
+              metricKey: 'SOMETHING_NEWER',
+              label: 'Stored newer text',
+              current: 1,
+              previous: 2,
+              isSignificant: false,
+            },
+          ],
+        }),
+      ),
+    ]);
+
+    const table = await screen.findByRole('table', {
+      name: 'Compared with the previous period',
+    });
+
+    expect(within(table).getByText('New applications')).toBeInTheDocument();
+    expect(within(table).getByText('Entered New')).toBeInTheDocument();
+    expect(within(table).getByText('Stored newer text')).toBeInTheDocument();
+    expect(within(table).queryByText(/^Stored applications/)).toBeNull();
+  });
+
+  it('reads stage headers from the report, not from today', async () => {
+    renderTab([
+      listMock([LATEST_WEEK]),
+      reportMock(
+        buildReport(LATEST_WEEK, {
+          categories: {
+            ...BASE,
+            groupBy: 'TRACK_PROGRAM',
+            distinctPeople: 0,
+            peopleInSeveral: 0,
+            peopleInSeveralTracks: 0,
+            stepStageKeys: ['NEW'],
+            rows: [],
+          },
+          funnel: {
+            ...BASE,
+            cohortSize: 1,
+            cohortExcludedUnmapped: 0,
+            overall: {
+              finalStageKey: null,
+              windowDays: 90,
+              eligible: 0,
+              reached: 0,
+              rate: null,
+              soFarRate: null,
+              isUnderMinimum: true,
+            },
+            rows: [
+              {
+                stageKey: 'NEW',
+                label: 'New as it was then',
+                windowDays: 14,
+                entered: 1,
+                eligible: 0,
+                reachedNext: 0,
+                timedOut: 0,
+                exited: 0,
+                inWindow: 1,
+                stepRate: null,
+                soFarRate: null,
+                dropOffRate: null,
+                isUnderMinimum: true,
+                medianDays: null,
+                completedStays: 0,
+              },
+            ],
+            lowestStepStageKey: null,
+          },
+        }),
+      ),
+    ]);
+
+    expect(
+      await screen.findByRole('columnheader', {
+        name: 'New as it was then to next',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  describe('an old report the page can no longer read', () => {
+    let consoleError: jest.SpyInstance;
+
+    beforeEach(() => {
+      consoleError = jest.spyOn(console, 'error').mockImplementation(jest.fn());
+    });
+
+    afterEach(() => {
+      consoleError.mockRestore();
+    });
+
+    it('stays inside the viewer, and the other reports still open', async () => {
+      const user = userEvent.setup();
+      const { comparisons: _comparisons, ...reportWithoutComparisons } =
+        buildReport(LATEST_WEEK);
+
+      renderTab([
+        listMock([LATEST_WEEK, EARLIER_WEEK]),
+        reportMock(reportWithoutComparisons as AnalyticsReport),
+        reportMock(buildReport(EARLIER_WEEK)),
+      ]);
+
+      expect(
+        await screen.findByText('This report cannot be displayed'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('navigation', { name: 'Reports' }),
+      ).toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole('button', { name: 'Oct 19 to Oct 25, 2026' }),
+      );
+
+      expect(
+        await screen.findByText('Weekly report, Oct 19 to Oct 25, 2026'),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText('This report cannot be displayed'),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it('compares with a previous period that starts the day tracking started', async () => {
+    renderTab([
+      listMock([LATEST_WEEK]),
+      reportMock(
+        buildReport(LATEST_WEEK, {
+          trackingStartedAt: '2026-10-19T00:00:00.000Z',
+        }),
+      ),
+    ]);
+
+    expect(await screen.findByText('+46')).toBeInTheDocument();
   });
 
   it('opens the report that is picked, with its cohorts when it has them', async () => {
