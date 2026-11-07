@@ -1,0 +1,23 @@
+import { formatAnalyticsRate } from '@/crm-analytics/utils/formatAnalyticsRate';
+
+describe('formatAnalyticsRate', () => {
+  it('turns fractions into whole percents', () => {
+    expect(formatAnalyticsRate(0.4)).toBe('40%');
+    expect(formatAnalyticsRate(1 / 3)).toBe('33%');
+    expect(formatAnalyticsRate(1)).toBe('100%');
+  });
+
+  it('keeps a measured zero', () => {
+    expect(formatAnalyticsRate(0)).toBe('0%');
+  });
+
+  it('keeps one decimal below 1% so a small rate does not read as zero', () => {
+    expect(formatAnalyticsRate(0.004)).toBe('0.4%');
+  });
+
+  it('returns null for anything unknown', () => {
+    expect(formatAnalyticsRate(null)).toBeNull();
+    expect(formatAnalyticsRate(undefined)).toBeNull();
+    expect(formatAnalyticsRate(Number.NaN)).toBeNull();
+  });
+});
