@@ -764,6 +764,28 @@ export type AnalyticsTrends = AnalyticsBase & {
   movement: { from: string; to: string; rows: AnalyticsMovementRow[] };
 };
 
+export type AnalyticsSeriesGroupBy = 'NONE' | 'TRACK' | 'SOURCE' | 'STAGE';
+
+export type AnalyticsSeriesRequest = {
+  metric: AnalyticsTrendMetric;
+  stageKey: string | null;
+  groupBy: AnalyticsSeriesGroupBy;
+};
+
+export type AnalyticsSeries = {
+  metric: AnalyticsTrendMetric;
+  stageKey: string | null;
+  groupKey: string | null;
+  groupLabel: string | null;
+  unavailableReason: AnalyticsTrends['unavailableReason'];
+  points: AnalyticsTrendPoint[];
+};
+
+export type AnalyticsSeriesBundle = AnalyticsBase & {
+  period: AnalyticsPeriod;
+  series: AnalyticsSeries[];
+};
+
 export type AnalyticsReportListItem = {
   periodType: AnalyticsReportPeriodType;
   periodStart: string;
@@ -790,8 +812,17 @@ export type AnalyticsReport = AnalyticsReportListItem & AnalyticsBase & {
   stuckByStage: { stageKey: string; label: string; count: number }[];
   comparisons: AnalyticsReportComparison[];
   cohorts: AnalyticsCohortRow[];
+  trendSeries?: AnalyticsSeries[];
 };
 ```
+
+`trendSeries` is frozen when the report is built: `NEW_APPLICATIONS`, `TOTAL_CONTACTS`, `OVERALL_CONVERSION`, `DROP_OFF` (entry step) and `MEDIAN_DAYS` (all stages), at the report's period type, with the default bucket count, ending with the report's own period. Reports stored before this field have none, and the view leaves those charts out. A series the CRM cannot provide is stored with its `unavailableReason`; one whose query fails is logged and left out of that report for good.
+
+A report built late, as a backfill or a provisional rebuild does, holds the same buckets as one built on time, and a rate counts only windows closed by the end of the report's period, so its line stops in the same place. Contact totals come from stored snapshots and match exactly. These cannot be reproduced exactly, because they read the data as it is at build time:
+
+- Rates and medians use the stage mapping, windows and overall window in the config at build time, not those of the period.
+- People deleted since the period are gone from rates and medians, and a deleted person's applications are gone from new applications.
+- Stage moves restored later by reconcile count in rates at the time they say they happened.
 
 ## 8. UI
 
