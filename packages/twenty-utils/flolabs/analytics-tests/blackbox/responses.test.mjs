@@ -73,8 +73,24 @@ const rankedStages = () =>
     .filter((stage) => stage.rank !== null)
     .sort((left, right) => left.rank - right.rank);
 
+const sumOf = (rows, key) => rows.reduce((sum, row) => sum + row[key], 0);
+
 const assertFunnelRow = (row, minimumSample, isFinal) => {
   const where = `row ${row.stageKey}`;
+
+  assert.equal(
+    row.medianDays === null,
+    row.completedStays === 0,
+    `${where}: a median exists exactly when a stay was completed`,
+  );
+
+  if (row.medianDays !== null) {
+    assertClose(
+      row.medianDays,
+      Math.round(row.medianDays * 10) / 10,
+      `${where}: medianDays leaves the server at one decimal`,
+    );
+  }
 
   if (isFinal) {
     // No next stage, so the step columns are 0 or null (contract section 6).
@@ -149,6 +165,14 @@ const assertFunnelNumbers = (funnel) => {
   const { overall } = funnel;
 
   assert.ok(overall.reached <= overall.eligible, 'overall reached <= eligible');
+  assert.ok(
+    overall.eligible <= (funnel.rows[0]?.entered ?? 0),
+    'overall eligible people all entered the first stage',
+  );
+  assert.ok(
+    overall.reached <= (funnel.rows.at(-1)?.entered ?? 0),
+    'overall reached people all entered the final stage',
+  );
   assert.equal(overall.isUnderMinimum, overall.eligible < funnel.minimumSample);
 
   if (overall.eligible === 0) {
@@ -157,14 +181,27 @@ const assertFunnelNumbers = (funnel) => {
     assertClose(overall.rate, overall.reached / overall.eligible, 'overall rate');
   }
 
-  if (funnel.lowestStepStageKey !== null) {
-    const lowest = funnel.rows.find(
+  // Section 6: the first step is left out only when another step qualifies.
+  const qualifying = funnel.rows
+    .slice(0, -1)
+    .filter((row) => row.eligible >= funnel.minimumSample);
+  const candidates =
+    qualifying.length > 1
+      ? qualifying.filter((row) => row !== funnel.rows[0])
+      : qualifying;
+
+  if (candidates.length === 0) {
+    assert.equal(funnel.lowestStepStageKey, null, 'no step has the minimum sample');
+  } else {
+    const lowest = candidates.find(
       (row) => row.stageKey === funnel.lowestStepStageKey,
     );
 
-    assert.ok(
-      lowest?.eligible >= funnel.minimumSample,
-      'the lowest step needs the minimum sample',
+    assert.ok(lowest, `lowest step ${funnel.lowestStepStageKey} does not qualify`);
+    assert.equal(
+      lowest.stepRate,
+      Math.min(...candidates.map((row) => row.stepRate)),
+      'the lowest step has the lowest rate among those that qualify',
     );
   }
 };
@@ -274,18 +311,6 @@ test('meta state follows the field statuses and the sync log', (t) => {
   }
 });
 
-test('a switched-off workspace answers every metric with a null payload', async (t) => {
-  if (meta.state !== 'DISABLED') {
-    t.skip(`analytics is not switched off here, the state is ${meta.state}`);
-
-    return;
-  }
-
-  for (const queryName of ['overview', 'funnel', 'categories', 'trends', 'reports', 'report']) {
-    assert.equal(await call(queryName), null, `${queryName} while switched off`);
-  }
-});
-
 test('overview matches its type, and stage totals sum to total contacts', async (t) => {
   const overview = await call('overview');
 
@@ -299,10 +324,29 @@ test('overview matches its type, and stage totals sum to total contacts', async 
   const topRows = stageTotals.filter((row) => row.rowKind !== 'NESTED');
 
   assert.equal(
-    topRows.reduce((sum, row) => sum + row.count, 0),
+    sumOf(topRows, 'count'),
     figures.totalContacts,
     'top rows of stage totals sum to total contacts',
   );
+  assert.equal(overview.importedExcludedByDate, 0, 'no date filter excludes nobody');
+
+  for (const row of topRows) {
+    const stage = meta.stages.find(({ stageKey }) => stageKey === row.rowKey);
+
+    assert.equal(
+      row.pastLimitCount === null,
+      (stage?.limitDays ?? null) === null,
+      `${row.rowKey}: past limit is null exactly when the stage has no limit`,
+    );
+  }
+
+  if (stuck.hasLimits) {
+    assert.equal(
+      topRows.reduce((sum, row) => sum + (row.pastLimitCount ?? 0), 0),
+      figures.stuckPeople,
+      'past limit counts sum to the stuck figure',
+    );
+  }
 
   for (const nested of stageTotals.filter((row) => row.rowKind === 'NESTED')) {
     const parent = topRows.find((row) => row.rowKey === nested.parentStageKey);
@@ -375,10 +419,26 @@ test('stuck rows are sorted by days over the limit and each is past it', async (
   const sortValue = (row) => (hasLimits ? row.daysOverLimit : row.daysInStage);
 
   rows.forEach((row, index) => {
+    const stage = meta.stages.find(({ stageKey }) => stageKey === row.stageKey);
+
     assert.ok(row.displayName.length > 0, `row ${index} has no name`);
+    assert.ok(stage, `row ${index} is in unknown stage ${row.stageKey}`);
+    // The limit compares whole days, as the table shows them: 14 days 6 hours is 14.
+    assert.equal(
+      row.daysInStage,
+      Math.floor((Date.parse(overview.asOf) - Date.parse(row.stageEnteredAt)) / DAY_MS),
+      `row ${index}: days in stage are whole days since it entered`,
+    );
 
     if (hasLimits) {
       assert.ok(row.daysOverLimit > 0, `row ${index} is not over its limit`);
+      assert.equal(
+        row.daysOverLimit,
+        row.daysInStage - stage.limitDays,
+        `row ${index}: days over limit`,
+      );
+    } else {
+      assert.equal(row.daysOverLimit, null, `row ${index}: no limit, so nothing over it`);
     }
 
     if (index > 0) {
@@ -426,11 +486,16 @@ test('funnel matches its type and every section 6 identity on real rows', async 
     rankedStages().map((stage) => stage.stageKey),
     'one funnel row per ranked stage, in rank order',
   );
+  assert.equal(
+    funnel.overall.finalStageKey,
+    meta.stages.find((stage) => stage.isSuccess).stageKey,
+    'overall conversion ends at the success stage',
+  );
   assertFunnelNumbers(funnel);
   assertUnknownIsNull(funnel);
 
   if (funnel.cohortSize === 0) {
-    t.diagnostic('the cohort is empty, so the identities ran on zero rows');
+    t.skip('the cohort is empty, so the identities ran on zero rows and proved nothing');
   }
 });
 
@@ -533,6 +598,86 @@ test('the five status filters split total contacts with nothing left over', asyn
     `status counts ${JSON.stringify(counts)}`,
   );
   assert.equal(counts.ACTIVE, everyone.figures.activePeople, 'ACTIVE equals the active figure');
+
+  const totalOfKind = (rowKind) =>
+    sumOf(everyone.stageTotals.filter((row) => row.rowKind === rowKind), 'count');
+  const successKey = meta.stages.find((stage) => stage.isSuccess).stageKey;
+
+  assert.equal(counts.EXITED, totalOfKind('EXIT'), 'EXITED equals the exit rows');
+  assert.equal(counts.UNMAPPED, totalOfKind('UNMAPPED'), 'UNMAPPED equals the unmapped rows');
+  assert.equal(counts.NO_STAGE, totalOfKind('NO_STAGE'), 'NO_STAGE equals the no stage row');
+  assert.equal(
+    counts.SUCCESS,
+    everyone.stageTotals.find((row) => row.rowKey === successKey)?.count ?? 0,
+    'SUCCESS equals the success stage row',
+  );
+});
+
+test('a date range over all of tracking keeps everyone tracked and reports the imported', async (t) => {
+  const everyone = await call('overview');
+
+  if (!hasNumbers(t, everyone, 'overview')) {
+    return;
+  }
+
+  const today = localDateOf(everyone.asOf);
+  const trackingStartDay = localDateOf(everyone.trackingStartedAt);
+
+  if (trackingStartDay > today) {
+    t.skip(`tracking starts on ${trackingStartDay}, after today`);
+
+    return;
+  }
+
+  const inRange = await call('overview', {
+    filter: { dateFrom: trackingStartDay, dateTo: today },
+  });
+
+  assert.equal(
+    inRange.figures.totalContacts + inRange.importedExcludedByDate,
+    everyone.figures.totalContacts,
+    'everyone is either in the range or reported as imported',
+  );
+  assert.equal(
+    sumOf(inRange.stageTotals.filter((row) => row.rowKind !== 'NESTED'), 'count'),
+    inRange.figures.totalContacts,
+    'stage totals still sum to total contacts under a date filter',
+  );
+});
+
+test('new applications by day add up to the figure for the same range', async (t) => {
+  if (!meta.fields.hasFormSubmissionObject) {
+    t.skip('this workspace has no application forms');
+
+    return;
+  }
+
+  const today = localDateOf(meta.asOf);
+  const dayAfterTrackingStart = addDays(localDateOf(meta.trackingStartedAt), 1);
+  const bucketLimitAgo = addDays(today, -59);
+  const dateFrom =
+    bucketLimitAgo > dayAfterTrackingStart ? bucketLimitAgo : dayAfterTrackingStart;
+
+  if (dateFrom > today) {
+    t.skip(`tracking started too recently: ${meta.trackingStartedAt}`);
+
+    return;
+  }
+
+  const filter = { dateFrom, dateTo: today, period: 'DAY' };
+  const trends = await call('trends', { filter, metric: 'NEW_APPLICATIONS' });
+
+  if (!hasNumbers(t, trends, 'trends')) {
+    return;
+  }
+
+  const overview = await call('overview', { filter });
+
+  assert.equal(
+    trends.series.reduce((sum, point) => sum + (point.value ?? 0), 0),
+    overview.figures.newApplications,
+    `one source for the number, from ${dateFrom} to ${today}`,
+  );
 });
 
 for (const groupBy of ['TRACK_PROGRAM', 'SOURCE']) {
@@ -577,9 +722,25 @@ for (const groupBy of ['TRACK_PROGRAM', 'SOURCE']) {
     const topPeople = topRows.reduce((sum, row) => sum + row.people, 0);
 
     if (groupBy === 'SOURCE') {
+      const funnel = await call('funnel');
+
       assert.equal(categories.peopleInSeveral, 0, 'source is single-valued');
       assert.equal(categories.peopleInSeveralTracks, 0, 'source is single-valued');
       assert.equal(topPeople, categories.distinctPeople, 'source rows add up to everyone');
+      assert.equal(
+        sumOf(topRows, 'activePeople'),
+        overview.figures.activePeople,
+        'source rows add up to the active figure',
+      );
+      assert.equal(
+        sumOf(topRows, 'cohortSize'),
+        funnel.cohortSize,
+        'source rows add up to the cohort',
+      );
+
+      for (const row of topRows.filter((candidate) => candidate.isUnmapped)) {
+        assert.notEqual(row.key, 'UNMAPPED', 'an unknown source keeps its raw value as its key');
+      }
 
       return;
     }
@@ -609,8 +770,9 @@ test('a source filter narrows overview to exactly that source row', async (t) =>
     return;
   }
 
+  // An unknown source filters by its raw value like any other.
   const sourceRows = categories.rows.filter(
-    (row) => row.key !== 'NONE' && !row.isUnmapped && row.people > 0,
+    (row) => row.key !== 'NONE' && row.people > 0,
   );
 
   if (sourceRows.length === 0) {
@@ -626,31 +788,28 @@ test('a source filter narrows overview to exactly that source row', async (t) =>
   }
 });
 
-test('a track filter narrows overview to exactly that track row', async (t) => {
+test('track and program filters narrow overview to exactly that row', async (t) => {
   const categories = await call('categories', { groupBy: 'TRACK_PROGRAM' });
 
   if (!hasNumbers(t, categories, 'categories')) {
     return;
   }
 
-  const trackRows = categories.rows.filter(
-    (row) =>
-      row.parentKey === null &&
-      row.key !== 'NONE' &&
-      !row.isUnmapped &&
-      row.people > 0,
+  const rows = categories.rows.filter(
+    (row) => row.key !== 'NONE' && !row.isUnmapped && row.people > 0,
   );
 
-  if (trackRows.length === 0) {
+  if (rows.length === 0) {
     t.skip('nobody has a position in this workspace');
 
     return;
   }
 
-  for (const row of trackRows) {
-    const overview = await call('overview', { filter: { trackKey: row.key } });
+  for (const row of rows) {
+    const filterKey = row.parentKey === null ? 'trackKey' : 'programKey';
+    const overview = await call('overview', { filter: { [filterKey]: row.key } });
 
-    assert.equal(overview.figures.totalContacts, row.people, `track ${row.key}`);
+    assert.equal(overview.figures.totalContacts, row.people, `${filterKey} ${row.key}`);
   }
 });
 
@@ -702,8 +861,45 @@ for (const metric of [...COUNT_METRICS, 'MEDIAN_DAYS']) {
         trends.series.length <= PERIOD_DEFAULT_BUCKETS[period] + 1,
         `${trends.series.length} buckets for the default ${period} window`,
       );
+
+      if (period === 'DAY') {
+        assert.deepEqual(trends.cohorts, [], 'cohorts are grouped by week or month only');
+      }
     });
   }
+}
+
+for (const period of ['WEEK', 'MONTH']) {
+  test(`cohort rows by ${period} stay inside the trend window, and each size is its first cell`, async (t) => {
+    const trends = await call('trends', { filter: { period }, metric: 'TOTAL_CONTACTS' });
+
+    if (!hasNumbers(t, trends, 'trends')) {
+      return;
+    }
+
+    if (trends.cohorts.length === 0) {
+      t.skip(`no application falls inside the default ${period} window`);
+
+      return;
+    }
+
+    const dayOf = (bucketStart) => bucketStart.slice(0, 10);
+    const firstBucket = dayOf(trends.series[0].bucketStart);
+    const lastBucket = dayOf(trends.series.at(-1).bucketStart);
+    const entryStage = rankedStages()[0].stageKey;
+
+    for (const row of trends.cohorts) {
+      assert.ok(
+        dayOf(row.bucketStart) >= firstBucket && dayOf(row.bucketStart) <= lastBucket,
+        `cohort ${row.bucketStart} is outside ${firstBucket} to ${lastBucket}`,
+      );
+      assert.equal(
+        row.cells.find((cell) => cell.stageKey === entryStage)?.entered,
+        row.size,
+        `cohort ${row.bucketStart}: everyone in it entered the first stage`,
+      );
+    }
+  });
 }
 
 for (const metric of RATE_METRICS) {

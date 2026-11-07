@@ -3,6 +3,7 @@
 // so no setting can aim a test at a machine other than this one. See README.md.
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 const PROOF_DATABASE_PATTERN = /^analytics_proof(_[a-z0-9]+)?$/;
+const LOCAL_CRM_DATABASE = 'default';
 
 class RefusedTargetError extends Error {}
 
@@ -50,6 +51,35 @@ const assertProofDatabaseName = (name) => {
   return name;
 };
 
+// The live and boot layers open the CRM's own database, on this machine only. Nothing else
+// in the suite may, and this is the one name they accept.
+const assertLocalCrmDatabaseName = (name) => {
+  if (name !== LOCAL_CRM_DATABASE) {
+    throw new RefusedTargetError(
+      `Refused: CRM database "${name}". The live layer only opens the local "${LOCAL_CRM_DATABASE}" database.`,
+    );
+  }
+
+  return name;
+};
+
+// Reads a server .env, whose hosts decide where a booted server and worker connect.
+const assertLocalConnectionUrl = (value, settingName) => {
+  let url;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new RefusedTargetError(
+      `Refused: ${settingName} is not a URL: "${value}".`,
+    );
+  }
+
+  assertLocalDatabaseHost(url.hostname);
+
+  return value;
+};
+
 // For addresses a page may load by itself. Chromium always resolves *.localhost to this
 // machine, and the CRM's multi-workspace mode serves workspaces from such subdomains.
 const isLocalBrowserUrl = (value) => {
@@ -69,5 +99,7 @@ module.exports = {
   assertLocalUrl,
   assertLocalDatabaseHost,
   assertProofDatabaseName,
+  assertLocalCrmDatabaseName,
+  assertLocalConnectionUrl,
   isLocalBrowserUrl,
 };

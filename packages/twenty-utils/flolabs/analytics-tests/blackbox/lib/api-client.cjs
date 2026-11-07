@@ -5,6 +5,7 @@ const { assertLocalUrl } = require('../../lib/local-only.cjs');
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const PREREQUISITE_TIMEOUT_MS = 5_000;
+const API_KEY_LIFETIME_MS = 60 * 60 * 1000;
 
 const SEED_PASSWORD = 'tim@apple.dev';
 const ADMIN_EMAIL = 'tim@apple.dev';
@@ -150,6 +151,118 @@ const getPermissionFlags = async (token) => {
   return body?.data?.currentUser?.currentUserWorkspace?.permissionFlags ?? [];
 };
 
+// A real key on a role that may read everything, so only the rule against keys can refuse
+// it. The caller revokes it. Gives the reason when this workspace cannot make one.
+const createApiKey = async (token) => {
+  const askMetadata = async (query, variables) => {
+    const { body } = await postGraphql({ path: '/metadata', token, query, variables });
+
+    return body;
+  };
+  const describeProblem = (body) => body?.errors?.[0]?.message ?? 'no data in the response';
+  const expiresAt = new Date(Date.now() + API_KEY_LIFETIME_MS).toISOString();
+
+  const roles = await askMetadata('query { getApiKeyRoles { id canAccessAllTools } }');
+  const roleId = roles?.data?.getApiKeyRoles?.find(
+    ({ canAccessAllTools }) => canAccessAllTools,
+  )?.id;
+
+  if (roleId === undefined) {
+    return { problem: `no key role with every tool: ${describeProblem(roles)}` };
+  }
+
+  const created = await askMetadata(
+    'mutation ($input: CreateApiKeyInput!) { createApiKey(input: $input) { id } }',
+    { input: { name: 'analytics-tests', expiresAt, roleId } },
+  );
+  const id = created?.data?.createApiKey?.id;
+
+  if (id === undefined) {
+    return { problem: `createApiKey: ${describeProblem(created)}` };
+  }
+
+  const generated = await askMetadata(
+    'mutation ($apiKeyId: UUID!, $expiresAt: String!) { generateApiKeyToken(apiKeyId: $apiKeyId, expiresAt: $expiresAt) { token } }',
+    { apiKeyId: id, expiresAt },
+  );
+
+  return {
+    problem: `generateApiKeyToken: ${describeProblem(generated)}`,
+    token: generated?.data?.generateApiKeyToken?.token,
+    revoke: () =>
+      askMetadata(
+        'mutation ($input: RevokeApiKeyInput!) { revokeApiKey(input: $input) { id } }',
+        { input: { id } },
+      ),
+  };
+};
+
+// A seed member on a role with no EXPORT_CSV, the way contract P10 asks, put back afterwards.
+// So this does not depend on which seed is loaded. Gives the reason when it cannot.
+const withLimitedRole = async (adminToken, email, work) => {
+  const askMetadata = async (query, variables) => {
+    const { body } = await postGraphql({
+      path: '/metadata',
+      token: adminToken,
+      query,
+      variables,
+    });
+
+    if (body?.errors?.length > 0 || body?.data === undefined) {
+      throw new Error(body?.errors?.[0]?.message ?? 'no data in the response');
+    }
+
+    return body.data;
+  };
+  const { getRoles } = await askMetadata(
+    'query { getRoles { id workspaceMembers { id userEmail } } }',
+  );
+  const currentRole = getRoles.find(({ workspaceMembers }) =>
+    workspaceMembers.some(({ userEmail }) => userEmail === email),
+  );
+
+  if (currentRole === undefined) {
+    return { problem: `no role holds ${email}, so it is not in this workspace` };
+  }
+
+  const memberId = currentRole.workspaceMembers.find(
+    ({ userEmail }) => userEmail === email,
+  ).id;
+  const { createOneRole } = await askMetadata(
+    'mutation ($input: CreateRoleInput!) { createOneRole(createRoleInput: $input) { id } }',
+    {
+      input: {
+        label: `Analytics tests no export ${Date.now()}`,
+        canUpdateAllSettings: false,
+        canAccessAllTools: false,
+        canReadAllObjectRecords: true,
+        canUpdateAllObjectRecords: false,
+        canSoftDeleteAllObjectRecords: false,
+        canDestroyAllObjectRecords: false,
+        canBeAssignedToUsers: true,
+        canBeAssignedToAgents: false,
+        canBeAssignedToApiKeys: false,
+      },
+    },
+  );
+  const assignRole = (roleId) =>
+    askMetadata(
+      'mutation ($workspaceMemberId: UUID!, $roleId: UUID!) { updateWorkspaceMemberRole(workspaceMemberId: $workspaceMemberId, roleId: $roleId) { id } }',
+      { workspaceMemberId: memberId, roleId },
+    );
+
+  await assignRole(createOneRole.id);
+
+  try {
+    return { value: await work() };
+  } finally {
+    await assignRole(currentRole.id);
+    await askMetadata('mutation ($roleId: UUID!) { deleteOneRole(roleId: $roleId) }', {
+      roleId: createOneRole.id,
+    });
+  }
+};
+
 const ANALYTICS_QUERIES = {
   meta: {
     field: 'getCrmAnalyticsMeta',
@@ -268,6 +381,7 @@ const checkFront = async () => {
 
 module.exports = {
   ADMIN_EMAIL,
+  ANALYTICS_QUERIES,
   SEED_PASSWORD,
   LoginRefusedError,
   getApiUrl,
@@ -275,6 +389,8 @@ module.exports = {
   postGraphql,
   login,
   getPermissionFlags,
+  createApiKey,
+  withLimitedRole,
   callAnalytics,
   checkAnalyticsApi,
   checkFront,

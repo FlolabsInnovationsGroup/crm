@@ -1,4 +1,9 @@
 import { type ExceptionHandlerService } from 'src/engine/core-modules/exception-handler/exception-handler.service';
+import {
+  MessageQueue,
+  PROCESS_METADATA,
+  PROCESSOR_METADATA,
+} from 'src/engine/core-modules/message-queue/message-queue.constants';
 import { type MessageQueueService } from 'src/engine/core-modules/message-queue/services/message-queue.service';
 import { CrmAnalyticsRunCommand } from 'src/modules/analytics/crons/commands/crm-analytics-run.command';
 import { CrmAnalyticsCronCommand } from 'src/modules/analytics/crons/commands/crm-analytics.cron.command';
@@ -110,6 +115,27 @@ describe('CrmAnalyticsDailyCronJob', () => {
     expect(exceptionHandler.captureExceptions).toHaveBeenCalledWith(
       [queueError],
       { workspace: { id: 'workspace-2' } },
+    );
+  });
+});
+
+// The worker finds jobs through these decorators. A job on the wrong queue, or under a name
+// nobody enqueues, compiles and boots and then simply never runs.
+describe('how the worker finds each job', () => {
+  it.each([
+    [CrmAnalyticsSyncCronJob, MessageQueue.cronQueue],
+    [CrmAnalyticsDailyCronJob, MessageQueue.cronQueue],
+    [CrmAnalyticsWorkspaceSyncJob, MessageQueue.workspaceQueue],
+    [CrmAnalyticsWorkspaceDailyJob, MessageQueue.workspaceQueue],
+  ])('%p runs on its queue under its own class name', (jobClass, queueName) => {
+    expect(Reflect.getMetadata(PROCESSOR_METADATA, jobClass)).toEqual(
+      expect.objectContaining({ queueName }),
+    );
+
+    const handle = jobClass.prototype.handle;
+
+    expect(Reflect.getMetadata(PROCESS_METADATA, handle)).toEqual(
+      expect.objectContaining({ jobName: jobClass.name }),
     );
   });
 });

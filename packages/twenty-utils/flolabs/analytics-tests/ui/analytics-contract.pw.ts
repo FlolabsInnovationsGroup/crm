@@ -3,7 +3,6 @@
 // string below is quoted from the contract, or from the sample in its section 9.
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import fs from 'node:fs';
-import path from 'node:path';
 
 import {
   FORBIDDEN_ANSWER,
@@ -27,6 +26,8 @@ import {
   expectNoZeroPercent,
   openAnalytics,
   pageText,
+  rowCells,
+  saveInBothSchemes,
   sidebarPeopleLink,
   tableRow,
 } from './lib/page-helpers';
@@ -160,7 +161,7 @@ test('funnel ledger holds the hand-calculated sample and the one lowest step', a
     const row = tableRow(ledger, name);
 
     for (const [index, text] of cells.entries()) {
-      await expect(row.getByRole('cell').nth(index + 1)).toContainText(text);
+      await expect(rowCells(row).nth(index + 1)).toContainText(text);
     }
   };
 
@@ -257,6 +258,7 @@ test('categories: note, expanding tracks, unmapped rows, rate forms, source swit
   const sourceTable = page.getByRole('table').filter({ hasText: 'Linked network' });
 
   await expect(tableRow(sourceTable, 'Linked network')).toContainText('70');
+  await expect(tableRow(sourceTable, 'Unmapped: LEGACY_SOURCE')).toContainText('4');
   await expect(page.getByText(/count in several rows/)).toHaveCount(0);
   expect(
     calls.some(
@@ -311,7 +313,8 @@ test('trends: line with a gap and a gray previous line, bucket, cohort and movem
   await answerAnalyticsQueries(page, { people });
   await openAnalytics(page, 'Trends');
 
-  await expect(page.getByText(/^52 in this week, .+ against the previous one\.$/)).toBeVisible();
+  // The partial week is the latest value. The week before it has none, so no comparison.
+  await expect(page.getByText('52 new applications in this week.', { exact: true })).toBeVisible();
 
   const bucketTable = page.getByRole('table').filter({ hasText: '38' }).first();
   const nullBucket = tableRow(bucketTable, '38');
@@ -509,8 +512,12 @@ test('filters narrow the numbers, the program list follows the track, and reset 
   await page.getByRole('button', { name: 'Reset filters' }).first().click();
 
   await chooseOption(page, 'All dates', 'Custom dates');
+  // A typed date applies once the person is done with it, on Enter or on leaving the field.
   await page.getByLabel('From date').fill('2026-09-01');
+  await page.getByLabel('From date').press('Enter');
+  await expect.poll(() => calls.at(-1)?.variables.filter?.dateFrom).toBe('2026-09-01');
   await page.getByLabel('To date').fill('2026-09-30');
+  await page.getByLabel('To date').press('Enter');
   await expect(page.getByText('104', { exact: true })).toBeVisible();
   await expect(
     page.getByText('700 imported people have no known application date and are not shown.'),
@@ -882,18 +889,6 @@ const readBackgroundLuminance = async (page: Page) => {
   return opaque === undefined || opaque === null
     ? null
     : (0.2126 * opaque[0] + 0.7152 * opaque[1] + 0.0722 * opaque[2]) / 255;
-};
-
-const saveInBothSchemes = async (page: Page, name: string) => {
-  for (const colorScheme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme });
-    await page.waitForTimeout(300);
-    await page.screenshot({
-      path: path.join(SCREENSHOTS_DIR, `${colorScheme}-${name}.png`),
-    });
-  }
-
-  await page.emulateMedia({ colorScheme: 'light' });
 };
 
 test('screenshots of every tab and page state, in light and dark', async ({ page }) => {

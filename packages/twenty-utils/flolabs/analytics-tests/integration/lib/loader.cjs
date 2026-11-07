@@ -8,6 +8,8 @@ const Module = require('node:module');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { applyMutant } = require('../../mutation/apply-mutant.cjs');
+
 const ANALYTICS_SRC = 'src/modules/analytics/';
 const PURE_SRC =
   /(\/(utils?|constants?|types?|enums?)\/)|(\.(util|utils|constant|constants|const|type|types|enum)$)/;
@@ -54,7 +56,8 @@ const installLoader = (repoRoot) => {
   };
 
   Module._extensions['.ts'] = (module, filename) => {
-    const { code } = esbuild.transformSync(fs.readFileSync(filename, 'utf8'), {
+    const source = applyMutant(fs.readFileSync(filename, 'utf8'), filename);
+    const { code } = esbuild.transformSync(source, {
       loader: 'ts',
       format: 'cjs',
       target: 'node20',

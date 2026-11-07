@@ -337,7 +337,9 @@ const SOURCE_CATEGORIES = () => ({
   stepStageKeys: ['NEW', 'CONTACTED'],
   rows: [
     categoryRow('LINKEDIN', 'Linked network', null, 70),
-    categoryRow('REFERRAL', 'Referral network', null, 30),
+    categoryRow('REFERRAL', 'Referral network', null, 26),
+    // An unknown source keeps its raw value as its key (contract, decisions from testing).
+    categoryRow('LEGACY_SOURCE', 'LEGACY_SOURCE', null, 4, { isUnmapped: true }),
   ],
 });
 

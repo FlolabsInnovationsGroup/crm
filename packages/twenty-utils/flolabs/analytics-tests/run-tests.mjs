@@ -15,6 +15,16 @@ const {
   checkFront,
 } = require('./blackbox/lib/api-client.cjs');
 const { checkPostgres } = require('./integration/lib/db.cjs');
+const {
+  computeExitCode,
+  describeAllStatus,
+  describeFinishedLayer,
+} = require('./lib/layer-status.cjs');
+const { checkBootPrerequisites } = require('./boot/lib/boot-prerequisites.cjs');
+const {
+  assertLiveTargetsAreLocal,
+  checkLiveStack,
+} = require('./live/lib/local-crm.cjs');
 
 const SUITE_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SUITE_ROOT, '..', '..', '..', '..');
@@ -192,16 +202,8 @@ const readJsonOrNull = (filePath) => {
 };
 
 const finishedLayer = ({ passed, failures, skippedTests }) => {
-  const hasFailures = failures.length > 0;
-  const hasPasses = passed > 0;
-
   return {
-    status: hasFailures ? 'FAILED' : hasPasses ? 'PASSED' : 'SKIPPED',
-    reason: hasFailures
-      ? `${failures.length} failed`
-      : hasPasses
-        ? null
-        : (skippedTests[0]?.reason ?? 'No test ran.'),
+    ...describeFinishedLayer({ passed, failures, skippedTests }),
     passed,
     failed: failures.length,
     skipped: skippedTests.length,
@@ -313,6 +315,53 @@ const runUnitLayer = async ({
     roots: [productRoot, suiteRoot].filter((root) => fs.existsSync(root)),
     selector,
     deadline,
+  });
+};
+
+const runNodeTests = async ({ layer, folder, deadline }) => {
+  const outputFile = path.join(RESULTS_ROOT, `.${layer}.json`);
+  const reporterPath = path.join(SUITE_ROOT, 'lib/node-test-reporter.mjs');
+
+  fs.rmSync(outputFile, { force: true });
+
+  const outcome = await runChild({
+    layer,
+    deadline,
+    args: [
+      '--test',
+      '--test-concurrency=1',
+      `--test-reporter=${pathToImportable(reporterPath)}`,
+      `--test-reporter-destination=${outputFile}`,
+      ...(ONLY_PATTERN ? [`--test-name-pattern=${ONLY_PATTERN}`] : []),
+      ...listFiles(path.join(SUITE_ROOT, folder), /\.test\.mjs$/),
+    ],
+    env: { ANALYTICS_TEST_RESULTS_DIR: RESULTS_ROOT },
+  });
+  const problem = processProblem(outcome, layer);
+
+  if (problem !== null) {
+    return problem;
+  }
+
+  const report = readJsonOrNull(outputFile);
+
+  fs.rmSync(outputFile, { force: true });
+
+  if (report === null) {
+    return failedLayer(
+      `${layer} layer`,
+      `The test runner wrote no results (exit ${outcome.exitCode}). ${readLogTail(outcome.logPath)}`,
+    );
+  }
+
+  return finishedLayer({
+    passed: report.tests.filter((test) => test.status === 'passed').length,
+    failures: report.tests
+      .filter((test) => test.status === 'failed')
+      .map((test) => ({ test: test.name, message: clip(test.message) })),
+    skippedTests: report.tests
+      .filter((test) => test.status === 'skipped')
+      .map((test) => ({ test: test.name, reason: test.reason })),
   });
 };
 
@@ -490,53 +539,29 @@ const LAYERS = {
   blackbox: async (deadline) => {
     const apiProblem = await checkAnalyticsApi();
 
-    if (apiProblem !== null) {
-      return skippedLayer(apiProblem);
-    }
+    return apiProblem === null
+      ? runNodeTests({ layer: 'blackbox', folder: 'blackbox', deadline })
+      : skippedLayer(apiProblem);
+  },
 
-    const outputFile = path.join(RESULTS_ROOT, '.blackbox.json');
-    const reporterPath = path.join(SUITE_ROOT, 'lib/node-test-reporter.mjs');
+  live: async (deadline) => {
+    assertLiveTargetsAreLocal();
 
-    fs.rmSync(outputFile, { force: true });
+    const problem = (await checkAnalyticsApi()) ?? (await checkLiveStack());
 
-    const outcome = await runChild({
-      layer: 'blackbox',
-      deadline,
-      args: [
-        '--test',
-        '--test-concurrency=1',
-        `--test-reporter=${pathToImportable(reporterPath)}`,
-        `--test-reporter-destination=${outputFile}`,
-        ...(ONLY_PATTERN ? [`--test-name-pattern=${ONLY_PATTERN}`] : []),
-        ...listFiles(path.join(SUITE_ROOT, 'blackbox'), /\.test\.mjs$/),
-      ],
-    });
-    const problem = processProblem(outcome, 'blackbox');
+    return problem === null
+      ? runNodeTests({ layer: 'live', folder: 'live', deadline })
+      : skippedLayer(problem);
+  },
 
-    if (problem !== null) {
-      return problem;
-    }
+  boot: async (deadline) => {
+    assertLiveTargetsAreLocal();
 
-    const report = readJsonOrNull(outputFile);
+    const problem = await checkBootPrerequisites();
 
-    fs.rmSync(outputFile, { force: true });
-
-    if (report === null) {
-      return failedLayer(
-        'blackbox layer',
-        `The test runner wrote no results (exit ${outcome.exitCode}). ${readLogTail(outcome.logPath)}`,
-      );
-    }
-
-    return finishedLayer({
-      passed: report.tests.filter((test) => test.status === 'passed').length,
-      failures: report.tests
-        .filter((test) => test.status === 'failed')
-        .map((test) => ({ test: test.name, message: clip(test.message) })),
-      skippedTests: report.tests
-        .filter((test) => test.status === 'skipped')
-        .map((test) => ({ test: test.name, reason: test.reason })),
-    });
+    return problem === null
+      ? runNodeTests({ layer: 'boot', folder: 'boot', deadline })
+      : skippedLayer(problem);
   },
 
   ui: async (deadline) => {
@@ -801,13 +826,21 @@ const appendHistory = (entry) => {
   );
 };
 
-const printReport = ({ layer, status, passed, failed, skipped, durationMs, reason, failures }) => {
+const printReport = ({ layer, status, passed, failed, skipped, durationMs, reason, failures, skippedTests }) => {
   console.log(
     `${layer.padEnd(12)} ${status.padEnd(8)} passed ${passed}, failed ${failed}, skipped ${skipped}, ${Math.round(durationMs / 1000)} s`,
   );
 
-  if (status === 'SKIPPED' && reason) {
+  if ((status === 'SKIPPED' || status === 'PARTIAL') && reason) {
     console.log(`  reason: ${reason}`);
+  }
+
+  const distinctReasons = [
+    ...new Set((skippedTests ?? []).map((test) => test.reason)),
+  ];
+
+  for (const skipReason of distinctReasons.slice(0, PRINTED_FAILURES_LIMIT)) {
+    console.log(`  not run: ${skipReason}`);
   }
 
   for (const { test, message } of failures.slice(0, PRINTED_FAILURES_LIMIT)) {
@@ -820,6 +853,9 @@ const printReport = ({ layer, status, passed, failed, skipped, durationMs, reaso
     );
   }
 };
+
+const IS_STRICT =
+  process.argv.includes('--strict') || process.env.ANALYTICS_TEST_STRICT === '1';
 
 const parseLayerArgument = (argv) => {
   const inlineIndex = argv.findIndex((argument) =>
@@ -866,7 +902,7 @@ const main = async () => {
 
     appendHistory({ layer: layerName, timestamp: report.timestamp, ...summarize(report) });
     printReport(report);
-    process.exitCode = report.failed > 0 ? 1 : 0;
+    process.exitCode = computeExitCode([report.status], IS_STRICT);
 
     return;
   }
@@ -888,7 +924,7 @@ const main = async () => {
     layer: 'all',
     timestamp: new Date(startedAt).toISOString(),
     durationMs: Date.now() - startedAt,
-    status: failed > 0 ? 'FAILED' : total('passed') > 0 ? 'PASSED' : 'SKIPPED',
+    status: describeAllStatus(reports),
     passed: total('passed'),
     failed,
     skipped: total('skipped'),
@@ -907,7 +943,10 @@ const main = async () => {
     ...summarize(allReport),
     layers: allReport.layers,
   });
-  process.exitCode = failed > 0 ? 1 : 0;
+  process.exitCode = computeExitCode(
+    reports.map((report) => report.status),
+    IS_STRICT,
+  );
 };
 
 await main();

@@ -8,8 +8,11 @@ const {
   ADMIN_EMAIL,
   LoginRefusedError,
   callAnalytics,
+  createApiKey,
   getPermissionFlags,
   login,
+  postGraphql,
+  withLimitedRole,
 } = require('./lib/api-client.cjs');
 
 const ALL_QUERIES = [
@@ -22,12 +25,7 @@ const ALL_QUERIES = [
   'report',
 ];
 
-// A full dev seed gives Phil the Guest role and Scott an impersonate-only role, neither
-// with EXPORT_CSV. A light seed makes them members, so the flag is read, not assumed.
-const LIMITED_USER_CANDIDATES = [
-  'phil.schiler@apple.dev',
-  'scott.forstall@apple.dev',
-];
+const LIMITED_USER = 'phil.schiler@apple.dev';
 
 const adminToken = await login(ADMIN_EMAIL);
 
@@ -82,51 +80,131 @@ for (const queryName of ALL_QUERIES) {
   });
 }
 
-const findUserWithoutExportFlag = async () => {
-  for (const email of LIMITED_USER_CANDIDATES) {
-    let token;
-
-    try {
-      token = await login(email);
-    } catch (error) {
-      if (error instanceof LoginRefusedError) {
-        continue;
-      }
-
-      throw error;
-    }
-
+test('a role without EXPORT_CSV gets FORBIDDEN from every query', async (t) => {
+  const outcome = await withLimitedRole(adminToken, LIMITED_USER, async () => {
+    const token = await login(LIMITED_USER);
     const flags = await getPermissionFlags(token);
 
-    if (!flags.includes('EXPORT_CSV')) {
-      return { email, token };
+    assert.ok(!flags.includes('EXPORT_CSV'), `the role still has it: ${flags}`);
+
+    for (const queryName of ALL_QUERIES) {
+      assertRefusedWithoutData(
+        await callAnalytics(queryName, {}, token),
+        `${queryName} as ${LIMITED_USER}`,
+        ['FORBIDDEN'],
+      );
     }
+  });
+
+  if (outcome.problem !== undefined) {
+    t.skip(`The local CRM has no such user: ${outcome.problem}`);
+  }
+});
+
+test('an API key is refused, even on a role that could read analytics', async (t) => {
+  const apiKey = await createApiKey(adminToken);
+
+  if (apiKey.token === undefined) {
+    t.skip(`The seed user cannot make an API key here: ${apiKey.problem}`);
+
+    return;
   }
 
-  return null;
+  try {
+    const people = await postGraphql({
+      path: '/graphql',
+      token: apiKey.token,
+      query: 'query { people(first: 1) { edges { node { id } } } }',
+    });
+
+    assert.deepEqual(people.body?.errors ?? [], [], 'the key does not work at all');
+
+    for (const queryName of ALL_QUERIES) {
+      assertRefusedWithoutData(
+        await callAnalytics(queryName, {}, apiKey.token),
+        `${queryName} with an API key`,
+        ['FORBIDDEN'],
+      );
+    }
+  } finally {
+    await apiKey.revoke();
+  }
+});
+
+// Alone, introspection on /graphql reads the workspace schema, which has no core fields.
+// A core field beside it makes the request read the core schema.
+const API_SURFACE_QUERY = `query {
+  getCrmAnalyticsMeta { payload }
+  __schema {
+    queryType { fields { name args { name } } }
+    mutationType { fields { name } }
+    types { name fields { name } inputFields { name type { kind name } } }
+  }
+}`;
+
+const SECTION_7_QUERIES = {
+  getCrmAnalyticsMeta: [],
+  getCrmAnalyticsOverview: ['filter'],
+  getCrmAnalyticsFunnel: ['filter'],
+  getCrmAnalyticsCategories: ['filter', 'groupBy'],
+  getCrmAnalyticsTrends: ['filter', 'metric', 'stageKey'],
+  getCrmAnalyticsReports: [],
+  getCrmAnalyticsReport: ['periodStart', 'periodType'],
 };
 
-const limitedUser = await findUserWithoutExportFlag();
-
-for (const queryName of ALL_QUERIES) {
-  test(`${queryName}: a role without EXPORT_CSV gets FORBIDDEN`, async (t) => {
-    if (limitedUser === null) {
-      t.skip(
-        `No seed user without EXPORT_CSV among ${LIMITED_USER_CANDIDATES.join(', ')}. Use the full dev seed, not --light.`,
-      );
-
-      return;
-    }
-
-    const result = await callAnalytics(queryName, {}, limitedUser.token);
-
-    assertRefusedWithoutData(
-      result,
-      `${queryName} as ${limitedUser.email}`,
-      ['FORBIDDEN'],
-    );
+test('the API is the seven queries of section 7, with no mutation and only two new types', async (t) => {
+  const { body } = await postGraphql({
+    path: '/graphql',
+    token: adminToken,
+    query: API_SURFACE_QUERY,
   });
-}
+  const schema = body?.data?.__schema;
+
+  if (schema === undefined) {
+    t.skip(`Introspection is not available here: ${body?.errors?.[0]?.message}`);
+
+    return;
+  }
+
+  const namesAnalytics = ({ name }) => /crm_?analytics/i.test(name);
+
+  assert.deepEqual(
+    Object.fromEntries(
+      schema.queryType.fields
+        .filter(namesAnalytics)
+        .map(({ name, args }) => [name, args.map((argument) => argument.name).sort()]),
+    ),
+    SECTION_7_QUERIES,
+  );
+  assert.deepEqual(
+    (schema.mutationType?.fields ?? []).filter(namesAnalytics),
+    [],
+    'analytics never writes through the API',
+  );
+
+  const analyticsTypes = schema.types.filter(namesAnalytics);
+
+  assert.deepEqual(
+    analyticsTypes.map(({ name }) => name).sort(),
+    ['CrmAnalyticsFilterInput', 'CrmAnalyticsPayload'],
+  );
+  assert.deepEqual(
+    analyticsTypes
+      .find(({ name }) => name === 'CrmAnalyticsPayload')
+      .fields.map(({ name }) => name),
+    ['payload'],
+  );
+  assert.deepEqual(
+    analyticsTypes
+      .find(({ name }) => name === 'CrmAnalyticsFilterInput')
+      .inputFields.map(({ name, type }) => `${name}: ${type.kind} ${type.name}`)
+      .sort(),
+    ['dateFrom', 'dateTo', 'period', 'programKey', 'sourceKey', 'status', 'trackKey'].map(
+      (name) => `${name}: SCALAR String`,
+    ),
+    'every filter field is a nullable string, checked by the server',
+  );
+});
 
 const TOO_LONG = 'x'.repeat(201);
 

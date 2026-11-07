@@ -64,6 +64,15 @@ const nullable = (inner) => (value, path, errors) => {
   }
 };
 
+// A key the contract marks with ?: it may be absent, but never of the wrong type.
+const optional = (inner) => {
+  const validate = (value, path, errors) => inner(value, path, errors);
+
+  validate.isOptional = true;
+
+  return validate;
+};
+
 const arrayOf = (inner) => (value, path, errors) => {
   if (!Array.isArray(value)) {
     errors.push(`${path}: expected an array, got ${show(value)}`);
@@ -83,7 +92,9 @@ const object = (shape) => (value, path, errors) => {
 
   for (const key of Object.keys(shape)) {
     if (!(key in value)) {
-      errors.push(`${path}.${key}: missing`);
+      if (!shape[key].isOptional) {
+        errors.push(`${path}.${key}: missing`);
+      }
     } else {
       shape[key](value[key], `${path}.${key}`, errors);
     }
@@ -303,6 +314,7 @@ const TRENDS = object({
       value: nullable(number),
       previousValue: nullable(number),
       size: nullable(count),
+      previousSize: nullable(count),
       isPartial: boolean,
     }),
   ),
@@ -322,6 +334,8 @@ const REPORT_LIST = arrayOf(object(REPORT_LIST_ITEM_SHAPE));
 const REPORT = object({
   ...REPORT_LIST_ITEM_SHAPE,
   ...BASE,
+  isProvisional: optional(boolean),
+  payloadVersion: optional(count),
   newApplications: nullable(count),
   newApplicationsPrevious: nullable(count),
   categories: CATEGORIES,

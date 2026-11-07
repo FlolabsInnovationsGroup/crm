@@ -52,16 +52,17 @@ The tool is built on guessed stage values. Until these are done, the page shows 
 
 Run from the worktree. Each must pass on the final code.
 
-- [ ] **All test layers pass:**
+- [ ] **All test layers pass, with nothing skipped.** `--strict` fails on a check that could not run, because it has proved nothing:
   ```bash
-  node packages/twenty-utils/flolabs/analytics-tests/run-tests.mjs --layer all
+  node packages/twenty-utils/flolabs/analytics-tests/run-tests.mjs --layer all --strict
   ```
+- [ ] **The tests still catch mistakes:** `mutation/run.mjs` for `unit-server`, `unit-front` and `dataflow`, no survivors. See the suite's README.
 - [ ] **`analytics-work/test-results/bugs.md`** has no open real bugs.
 - [ ] **Type checks:** run `npx tsgo -p tsconfig.json --noEmit` directly in `packages/twenty-server`, then in `packages/twenty-front`, one at a time. Do not rely on `nx typecheck`, whose cache can give a stale pass.
 - [ ] **Lint:** `npx nx lint:diff-with-main twenty-server`, then `twenty-front`.
-- [ ] **Boot test:** server and worker start with no new errors, since a bad provider would stop the whole CRM.
-- [ ] **Local end-to-end:** contract section 9, timeline checks T1 to T11 and pipeline checks P1 to P12.
-- [ ] **CRM regression:** People list, person page, Team inbox, Notifications and Forms still work.
+- [ ] **Boot test:** server and worker start with no new errors, since a bad provider would stop the whole CRM. Automated in the `boot` layer. Rebuild the server first, or it says the build is older than the source.
+- [ ] **Local end-to-end:** contract section 9, timeline checks T1 to T11 and pipeline checks P1 to P12. T1 to T11, P5, P6 and P10 are automated in the `live`, `blackbox` and `ui` layers. Read `test-results/timeline-observations.json` for T7, T8, T10 and T11, which ask what happens rather than state an answer.
+- [ ] **CRM regression:** People list, person page, Team inbox, Notifications and Forms still work. Automated in `ui/crm-regression.pw.ts`.
 - [ ] **UI screenshots:** every tab and state, light and dark, plus a keyboard-only pass.
 
 ## 5. Branch and commits

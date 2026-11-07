@@ -1,7 +1,10 @@
 import { expect, type ConsoleMessage, type Locator, type Page } from '@playwright/test';
+import path from 'node:path';
 
 import { SEED_PASSWORD } from '../../blackbox/lib/api-client.cjs';
 import { isLocalBrowserUrl } from '../../lib/local-only.cjs';
+
+import { SCREENSHOTS_DIR } from './paths';
 
 export const TAB_NAMES = [
   'Overview',
@@ -83,6 +86,33 @@ export const chooseOption = async (
 
 export const tableRow = (table: Locator, text: string | RegExp): Locator =>
   table.getByRole('row').filter({ hasText: text });
+
+// In column order. A row header is not a cell to a screen reader, and the ledger has one.
+export const rowCells = (row: Locator): Locator =>
+  row.getByRole('cell').or(row.getByRole('rowheader'));
+
+// The value right under a figure's label, so a number elsewhere cannot satisfy a check.
+export const figureValue = (page: Page, label: string): Locator =>
+  page
+    .getByRole('term')
+    .filter({ hasText: new RegExp(`^${label}$`) })
+    .locator('xpath=following-sibling::dd[1]');
+
+// Playwright's default locale, which the page's number format follows.
+export const formatCount = (count: number): string =>
+  count.toLocaleString('en-US');
+
+export const saveInBothSchemes = async (page: Page, name: string) => {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.waitForTimeout(300);
+    await page.screenshot({
+      path: path.join(SCREENSHOTS_DIR, `${colorScheme}-${name}.png`),
+    });
+  }
+
+  await page.emulateMedia({ colorScheme: 'light' });
+};
 
 export const pageText = (page: Page): Promise<string> =>
   page.locator('body').innerText();
