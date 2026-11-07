@@ -83,7 +83,7 @@ Last updated: 2026-11-07, backend and UI workflows running.
 The code being written is uncommitted in the worktree until each workflow finishes. Agents do not commit; the main session commits at phase ends. **Nothing is pushed: the user said on 2026-11-07 to keep it local for now.**
 
 **Next steps:**
-1. Waiting on the user for `docs/analytics/production-audit.sql` results. **Stop rule:** if it shows no stage rows on the timeline, or `isAuditLogged` false for `stage`, stop work on metrics and ask the user.
+1. **The user has no production access** (said 2026-11-07) and must not be asked to run anything there. `docs/analytics/production-audit.sql` is for whoever does have access, to be run later. Until then, prove the timeline behaviour locally (contract section 9, T1 to T11) and keep the page's provisional banner. **Stop rule:** if the audit eventually shows no stage rows on the timeline, or `isAuditLogged` false for `stage`, stop work on metrics and ask the user.
 2. When backend and UI finish, read their results, commit each area on `analytics_tool`, then run the integration workflow with a writer and a separate reviewer.
 3. Typecheck and lint, server then front, never together: `npx tsgo -p tsconfig.json --noEmit` in the package directly, `npx nx lint:diff-with-main <pkg>`. Boot-test server and worker.
 4. Ask the user to start Docker Desktop and close apps, then run the local end-to-end plan in contract section 9, including the timeline checks and the hand-calculated sample. Take screenshots of all tabs and states, light and dark.
@@ -166,7 +166,7 @@ From the requirements: track contact and application counts by pipeline, track, 
 | Tracking start | 2026-10-27, the day after the import | User, after audit |
 
 ### Waiting on the user or recruiting (contract section 11 has exact wording)
-1. Run the read-only `docs/analytics/production-audit.sql` on production and send the result: stage counts and options, sample timeline rows, timeline size, people by day, field audit flags, positions, sources, Applications fields, form submissions. Asked on 2026-11-07.
+1. Someone with production access (not the user) runs the read-only `docs/analytics/production-audit.sql` and sends the result: stage counts and options, sample timeline rows, timeline size, people by day, field audit flags, positions, sources, Applications fields, form submissions. The stage list can also come from the CRM's Settings, Data model, People, Stage, for anyone with an admin login.
 2. For the `Stage` options that script returns: mark each main, reminder or exit, plus entry and success stages.
 3. Should follow-up forms move someone back to `INTERESTED`?
 4. Check the 39-position, 5-track table.
@@ -191,5 +191,6 @@ From the requirements: track contact and application counts by pipeline, track, 
 - 2026-11-07: All project details to be kept in `CLAUDE.md` and updated regularly. Saved state stays local, not pushed.
 - 2026-11-07: Agent limit settled at 6 at a time, 7 if really needed, ask before more. Complex work can use Opus 5.5 at max effort. Develop with extra care because it is the CRM.
 - 2026-11-07: Verifier fixes adopted: merged timeline rows append instead of overwrite (requirement R2), snapshot and consistency check run in one statement, reports' comparisons use counts only, `countPrevious` removed, phase gates added (code on defaults, sign-off in order).
+- 2026-11-07: The user has no production access. Production data is not a build blocker: the page shows real stage values as Unmapped rows once deployed, and timeline behaviour is proven locally.
 - 2026-11-07: The user said to stop waiting on research and build now. Critic's simplifications adopted: no current-state table, mapping in a constant, 15-minute sync, metrics per request, eight views instead of 13, reports on a page, no polling. Build started before the contract verifier finished.
 <!-- analytics-state:end -->
