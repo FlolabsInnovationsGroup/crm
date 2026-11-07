@@ -55,6 +55,7 @@ const AnalyticsTrendTrackLines = ({
   const {
     payload: bundle,
     isFirstLoad,
+    isRefetching,
     error,
     retry,
   } = useCrmAnalyticsSeries({ filter, requests: TRACK_LINE_REQUESTS });
@@ -92,6 +93,7 @@ const AnalyticsTrendTrackLines = ({
         title={getCardTitle(metric)}
         note={getCardNote(metric)}
         isLoading={isFirstLoad}
+        isRefetching={isRefetching}
         error={error}
         onRetry={retry}
         isEmpty={!hasValue}

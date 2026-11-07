@@ -339,6 +339,29 @@ describe('AnalyticsReportsTab', () => {
         expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
       );
     });
+
+    it('does not carry a failure over to another report', async () => {
+      const user = userEvent.setup();
+
+      mockDownloadPdf.mockRejectedValueOnce(new Error('No fonts'));
+
+      renderTab([
+        listMock([LATEST_WEEK, LATEST_MONTH]),
+        reportMock(buildReport(LATEST_WEEK)),
+        reportMock(buildReport(LATEST_MONTH)),
+      ]);
+
+      await user.click(await getDownloadButton());
+
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'October 2026' }));
+
+      expect(
+        await screen.findByText('Monthly report, October 2026'),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
   });
 
   it('marks only the significant comparison', async () => {

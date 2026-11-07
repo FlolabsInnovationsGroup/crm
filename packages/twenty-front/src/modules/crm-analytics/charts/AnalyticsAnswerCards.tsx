@@ -11,6 +11,8 @@ export type AnalyticsAnswerCard = {
   label: string;
   // Already formatted. Null shows a dash, never a made-up number.
   value: string | null;
+  // A small group or still in progress.
+  isLighter?: boolean;
   detail?: string | null;
 };
 
@@ -38,8 +40,11 @@ const StyledLabel = styled.dt`
   font-weight: ${themeCssVariables.font.weight.medium};
 `;
 
-const StyledValue = styled.dd`
-  color: ${themeCssVariables.font.color.primary};
+const StyledValue = styled.dd<{ isLighter: boolean }>`
+  color: ${({ isLighter }) =>
+    isLighter
+      ? themeCssVariables.font.color.tertiary
+      : themeCssVariables.font.color.primary};
   font-size: ${themeCssVariables.font.size.xxl};
   font-weight: ${themeCssVariables.font.weight.semiBold};
   letter-spacing: -0.01em;
@@ -64,7 +69,7 @@ export const AnalyticsAnswerCards = ({ cards }: AnalyticsAnswerCardsProps) => (
     {cards.slice(0, MAXIMUM_ANSWER_CARDS).map((card) => (
       <StyledCard key={card.key}>
         <StyledLabel>{card.label}</StyledLabel>
-        <StyledValue>
+        <StyledValue isLighter={card.isLighter === true}>
           {isDefined(card.value) ? (
             card.value
           ) : (

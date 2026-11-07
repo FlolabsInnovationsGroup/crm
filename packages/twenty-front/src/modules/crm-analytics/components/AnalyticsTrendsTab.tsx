@@ -43,11 +43,10 @@ const SMALL_CHART_REQUESTS: AnalyticsSeriesRequest[] = SMALL_CHART_METRICS.map(
   (metric) => ({ metric, stageKey: null, groupBy: 'NONE' }),
 );
 
-const StyledLayout = styled.div<{ isRefetching: boolean }>`
+const StyledLayout = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${themeCssVariables.spacing[4]};
-  opacity: ${({ isRefetching }) => (isRefetching ? 0.6 : 1)};
 `;
 
 const StyledToolbar = styled.div`
@@ -266,13 +265,14 @@ export const AnalyticsTrendsTab = ({
 
   if (isNothingToShow) {
     return (
-      <StyledLayout isRefetching={false}>
+      <StyledLayout>
         <StyledToolbar>{periodSelector}</StyledToolbar>
         <AnalyticsStatePanel kind="EMPTY" onReset={onResetFilter} />
       </StyledLayout>
     );
   }
 
+  // Each card dims for its own query, because the track and stage charts run theirs separately.
   const isRefetching = isTrendsRefetching || isSmallChartsRefetching;
 
   const toolbarNote = [
@@ -320,7 +320,7 @@ export const AnalyticsTrendsTab = ({
   const cohortRows = trends?.cohorts ?? [];
 
   return (
-    <StyledLayout aria-busy={isRefetching} isRefetching={isRefetching}>
+    <StyledLayout aria-busy={isRefetching}>
       <StyledToolbar>
         {periodSelector}
         {toolbarNote.length > 0 && <AnalyticsNote>{toolbarNote}</AnalyticsNote>}
@@ -336,6 +336,7 @@ export const AnalyticsTrendsTab = ({
             base={smallChartBundle ?? undefined}
             series={smallChartSeries.find((series) => series.metric === metric)}
             isLoading={isSmallChartsFirstLoad}
+            isRefetching={isSmallChartsRefetching}
             error={smallChartsError}
             onRetry={retrySmallCharts}
           />
@@ -354,6 +355,7 @@ export const AnalyticsTrendsTab = ({
           title={t`What moved this period?`}
           note={getMovementNote()}
           isLoading={isTrendsFirstLoad}
+          isRefetching={isTrendsRefetching}
           error={trendsError}
           onRetry={retryTrends}
           isEmpty={!hasMovement}
@@ -377,6 +379,7 @@ export const AnalyticsTrendsTab = ({
           note={t`Each row is the people who applied in that period. Each cell is the share who reached the next stage in time. Lighter with stripes says so far, lighter alone is a small group, and a dash means not enough data.`}
           isFullWidth
           isLoading={isTrendsFirstLoad}
+          isRefetching={isTrendsRefetching}
           error={trendsError}
           onRetry={retryTrends}
           isEmpty={cohortRows.length === 0}

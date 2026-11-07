@@ -64,6 +64,7 @@ type AnalyticsTrendSmallChartProps = {
   base?: AnalyticsBase;
   series?: AnalyticsSeries;
   isLoading: boolean;
+  isRefetching: boolean;
   error?: ErrorLike;
   onRetry: () => void;
 };
@@ -76,6 +77,7 @@ export const AnalyticsTrendSmallChart = ({
   base,
   series,
   isLoading,
+  isRefetching,
   error,
   onRetry,
 }: AnalyticsTrendSmallChartProps) => {
@@ -115,6 +117,7 @@ export const AnalyticsTrendSmallChart = ({
       title={title}
       note={note}
       isLoading={isLoading || !isDefined(base)}
+      isRefetching={isRefetching}
       error={error}
       onRetry={onRetry}
       isEmpty={!isDefined(summary)}
@@ -125,7 +128,7 @@ export const AnalyticsTrendSmallChart = ({
             points={points}
             metric={metric}
             period={period}
-            minimumSample={base.minimumSample}
+            base={base}
           />
         ) : undefined
       }

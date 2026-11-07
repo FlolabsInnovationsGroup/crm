@@ -38,6 +38,8 @@ const OVERVIEW_SERIES_REQUESTS: AnalyticsSeriesRequest[] = [
 ];
 
 type AnalyticsOverviewChartsProps = {
+  // The tab dims everything while this runs, and opacity would multiply if a card dimmed too.
+  isOverviewRefetching: boolean;
   overview: AnalyticsOverview;
   figures: AnalyticsOverview['figures'];
   filter: AnalyticsFilter;
@@ -47,6 +49,7 @@ type AnalyticsOverviewChartsProps = {
 
 // Sits behind the tab's guards, so a forbidden or empty page sends none of these queries.
 export const AnalyticsOverviewCharts = ({
+  isOverviewRefetching,
   overview,
   figures,
   filter,
@@ -55,17 +58,21 @@ export const AnalyticsOverviewCharts = ({
 }: AnalyticsOverviewChartsProps) => {
   const { formatNumber } = useNumberFormat();
 
-  const { payload: funnel, error: funnelError } =
-    useCrmAnalyticsQuery<AnalyticsFunnel>({
-      query: GET_CRM_ANALYTICS_FUNNEL,
-      rootField: 'getCrmAnalyticsFunnel',
-      variables: { filter: { ...filter, status: 'ALL' } },
-    });
+  const {
+    payload: funnel,
+    isRefetching: isFunnelRefetching,
+    error: funnelError,
+  } = useCrmAnalyticsQuery<AnalyticsFunnel>({
+    query: GET_CRM_ANALYTICS_FUNNEL,
+    rootField: 'getCrmAnalyticsFunnel',
+    variables: { filter: { ...filter, status: 'ALL' } },
+  });
 
   // The period selector lives on Trends only, so it must not change this tab out of sight.
   const {
     payload: seriesBundle,
     isFirstLoad: isSeriesFirstLoad,
+    isRefetching: isSeriesRefetching,
     error: seriesError,
     retry: retrySeries,
   } = useCrmAnalyticsSeries({
@@ -124,6 +131,9 @@ export const AnalyticsOverviewCharts = ({
         }
         hasOverallConversionError={isDefined(funnelError)}
         isStatusFiltered={filter.status !== 'ALL'}
+        isRefetching={
+          (isFunnelRefetching || isSeriesRefetching) && !isOverviewRefetching
+        }
         sparklines={{
           activePeople: readSparkline('ACTIVE_PEOPLE', t`Active people`),
           newApplications: readSparkline(
@@ -140,11 +150,11 @@ export const AnalyticsOverviewCharts = ({
       <AnalyticsChartGrid>
         <AnalyticsChartCard
           title={t`Where is everyone now?`}
-          note={t`People by current stage. A date filter uses the date they were created.`}
+          note={t`People by current stage. Inactive means imported and not moved since tracking started, so their time in the stage is not known. A date filter uses the date they were created.`}
           numbers={<AnalyticsStageTotalsTable rows={overview.stageTotals} />}
         >
           <AnalyticsHorizontalBarChart
-            ariaLabel={t`People in each stage, past the stage limit or not`}
+            ariaLabel={t`People in each stage: within limit, past limit or inactive`}
             rows={mainRows}
             dividedRows={otherRows}
             dividerLabel={t`Outside the main steps`}
@@ -167,6 +177,7 @@ export const AnalyticsOverviewCharts = ({
           title={t`New applications over time`}
           note={t`Applications by the week they were submitted. Imported applications have no known date and are not shown.`}
           isLoading={isSeriesFirstLoad}
+          isRefetching={isSeriesRefetching && !isOverviewRefetching}
           error={seriesError}
           onRetry={retrySeries}
           isEmpty={
@@ -198,6 +209,7 @@ export const AnalyticsOverviewCharts = ({
           <AnalyticsOverviewCategoryCard
             filter={filter}
             groupBy="TRACK_PROGRAM"
+            isOverviewRefetching={isOverviewRefetching}
             onSelect={isDefined(onFilterChange) ? handleTrackSelect : undefined}
           />
         ) : (
@@ -211,6 +223,7 @@ export const AnalyticsOverviewCharts = ({
           <AnalyticsOverviewCategoryCard
             filter={filter}
             groupBy="SOURCE"
+            isOverviewRefetching={isOverviewRefetching}
             onSelect={
               isDefined(onFilterChange) ? handleSourceSelect : undefined
             }

@@ -94,6 +94,7 @@ describe('buildFunnelAnswerCards', () => {
     });
 
     expect(overall.value).toBe('10%');
+    expect(overall.isLighter).toBe(false);
     expect(overall.detail).toBe(
       '8 of 80 people reached Signed within 90 days.',
     );
@@ -185,6 +186,7 @@ describe('buildFunnelAnswerCards', () => {
     });
 
     expect(overall.value).toBe('12% so far');
+    expect(overall.isLighter).toBe(true);
   });
 });
 

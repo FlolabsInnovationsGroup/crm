@@ -122,6 +122,22 @@ const StyledSoFar = styled.span`
   font-size: ${themeCssVariables.font.size.xxs};
 `;
 
+// A tiny group at 100% must not wash out every reliable cell, so uncertain cells set the top only if nothing else can.
+const getAutomaticScaleTop = (rows: AnalyticsHeatmapRow[]) => {
+  const cells = rows.flatMap((row) => row.cells);
+  const readTop = (shownCells: AnalyticsHeatmapCell[]) =>
+    Math.max(0, ...shownCells.map(({ value }) => value).filter(isDefined));
+
+  const reliableTop = readTop(
+    cells.filter(
+      ({ isInProgress, isSmallSample }) =>
+        isInProgress !== true && isSmallSample !== true,
+    ),
+  );
+
+  return reliableTop > 0 ? reliableTop : readTop(cells);
+};
+
 type AnalyticsHeatmapProps = {
   // One line that says what the chart shows, for screen readers.
   ariaLabel: string;
@@ -129,7 +145,7 @@ type AnalyticsHeatmapProps = {
   rows: AnalyticsHeatmapRow[];
   // Heading over the first column, such as "Track".
   rowHeaderLabel?: string;
-  // The value that gets the darkest color. Defaults to the largest value shown.
+  // The value that gets the darkest color. Defaults to the largest reliable value shown.
   maxValue?: number;
   formatValue?: (value: number) => string;
   onRowClick?: (rowKey: string) => void;
@@ -154,14 +170,7 @@ export const AnalyticsHeatmap = ({
   const formatCellValue =
     formatValue ?? ((value: number) => formatAnalyticsRate(value) ?? '');
 
-  const scaleTop =
-    maxValue ??
-    Math.max(
-      0,
-      ...rows.flatMap(({ cells }) =>
-        cells.map(({ value }) => value).filter(isDefined),
-      ),
-    );
+  const scaleTop = maxValue ?? getAutomaticScaleTop(rows);
 
   const getCellStyle = (cell: AnalyticsHeatmapCell, value: number) => {
     const { fill, text } = getAnalyticsSequentialColor({

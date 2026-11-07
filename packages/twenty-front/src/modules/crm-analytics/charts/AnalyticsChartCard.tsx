@@ -16,7 +16,10 @@ import { themeCssVariables } from 'twenty-ui/theme';
 import { AnalyticsChartNoData } from '@/crm-analytics/charts/AnalyticsChartNoData';
 import { AnalyticsSkeleton } from '@/crm-analytics/components/AnalyticsSkeleton';
 
-const StyledCard = styled.section<{ isFullWidth: boolean }>`
+const StyledCard = styled.section<{
+  isFullWidth: boolean;
+  isRefetching: boolean;
+}>`
   background: ${themeCssVariables.background.primary};
   border: 1px solid ${themeCssVariables.border.color.medium};
   border-radius: ${themeCssVariables.border.radius.md};
@@ -26,6 +29,7 @@ const StyledCard = styled.section<{ isFullWidth: boolean }>`
   gap: ${themeCssVariables.spacing[3]};
   grid-column: ${({ isFullWidth }) => (isFullWidth ? '1 / -1' : 'auto')};
   min-width: 0;
+  opacity: ${({ isRefetching }) => (isRefetching ? 0.6 : 1)};
   padding: ${themeCssVariables.spacing[3]} ${themeCssVariables.spacing[4]};
   position: relative;
 `;
@@ -138,6 +142,8 @@ type AnalyticsChartCardProps = {
   note?: string;
   action?: ReactNode;
   isLoading?: boolean;
+  // Old numbers are still on screen while newer ones load.
+  isRefetching?: boolean;
   error?: ErrorLike;
   onRetry?: () => void;
   isEmpty?: boolean;
@@ -153,6 +159,7 @@ export const AnalyticsChartCard = ({
   note,
   action,
   isLoading = false,
+  isRefetching = false,
   error,
   onRetry,
   isEmpty = false,
@@ -198,9 +205,11 @@ export const AnalyticsChartCard = ({
 
   return (
     <StyledCard
+      aria-busy={isRefetching}
       aria-label={title}
       data-analytics-chart-card
       isFullWidth={isFullWidth}
+      isRefetching={isRefetching}
     >
       <StyledHeader>
         <StyledHeading>

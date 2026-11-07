@@ -29,7 +29,6 @@ const StyledRoot = styled.div`
 const StyledRow = styled.div`
   align-items: stretch;
   border-radius: ${themeCssVariables.border.radius.sm};
-  column-gap: ${themeCssVariables.spacing[2]};
   display: grid;
   font-size: ${themeCssVariables.font.size.sm};
   grid-template-columns: minmax(72px, 28%) minmax(0, 1fr) minmax(0, 1fr);
@@ -50,6 +49,7 @@ const StyledLabel = styled.span`
   min-width: 0;
   overflow: hidden;
   overflow-wrap: anywhere;
+  padding-inline-end: ${themeCssVariables.spacing[2]};
 `;
 
 const StyledLeftSide = styled.div`
@@ -57,14 +57,13 @@ const StyledLeftSide = styled.div`
   display: flex;
   gap: ${themeCssVariables.spacing[1]};
   justify-content: flex-end;
-  margin-inline-end: calc(-1 * ${themeCssVariables.spacing[2]});
   min-width: 0;
 `;
 
-// The left border of every row lines up into the one center line.
+// A shadow draws the center line without taking width, so both sides scale a bar the same.
 const StyledRightSide = styled.div`
   align-items: center;
-  border-inline-start: 1px solid ${themeCssVariables.border.color.strong};
+  box-shadow: -1px 0 0 ${themeCssVariables.border.color.strong};
   display: flex;
   gap: ${themeCssVariables.spacing[1]};
   min-width: 0;

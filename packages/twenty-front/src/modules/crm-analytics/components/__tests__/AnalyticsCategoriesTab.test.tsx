@@ -255,6 +255,59 @@ describe('AnalyticsCategoriesTab', () => {
     });
   });
 
+  it('warns that program bars can overlap under a track filter', async () => {
+    const filter: AnalyticsFilter = {
+      ...CRM_ANALYTICS_DEFAULT_FILTER,
+      trackKey: 'ROBOTICS',
+    };
+
+    renderTab({
+      filter,
+      mocks: [
+        categoriesMock(
+          buildCategories({
+            peopleInSeveral: 5,
+            peopleInSeveralTracks: 0,
+            rows: [ROBOTICS_ROW, SENSOR_ROW],
+          }),
+          'TRACK_PROGRAM',
+          filter,
+        ),
+      ],
+    });
+
+    const card = await findCard('How many people in each?');
+
+    expect(
+      within(card).getByRole('button', {
+        name: /the bars can add up to more than the total/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('offers to clear a filter only on the view that filter belongs to', async () => {
+    const filter: AnalyticsFilter = {
+      ...CRM_ANALYTICS_DEFAULT_FILTER,
+      sourceKey: 'NONE',
+    };
+
+    renderTab({
+      filter,
+      mocks: [
+        categoriesMock(buildCategories(), 'TRACK_PROGRAM', filter),
+      ],
+    });
+
+    const card = await findCard('How many people in each?');
+
+    within(card).getByRole('button', { name: /^No position/ }).focus();
+
+    expect(await screen.findByText('Click to filter the page.')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Click to clear this filter.'),
+    ).not.toBeInTheDocument();
+  });
+
   it('switches to sources and clicking one filters by it', async () => {
     const user = userEvent.setup();
     const onFilterChange = jest.fn();

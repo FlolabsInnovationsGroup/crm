@@ -14,7 +14,7 @@ import { type AnalyticsOverallConversionAnswer } from '@/crm-analytics/utils/bui
 import { formatAnalyticsSignedNumber } from '@/crm-analytics/utils/formatAnalyticsSignedNumber';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
-const StyledBand = styled.dl`
+const StyledBand = styled.dl<{ isRefetching: boolean }>`
   background: ${themeCssVariables.border.color.light};
   border: 1px solid ${themeCssVariables.border.color.light};
   border-radius: ${themeCssVariables.border.radius.md};
@@ -22,6 +22,7 @@ const StyledBand = styled.dl`
   flex-wrap: wrap;
   gap: 1px;
   margin: 0;
+  opacity: ${({ isRefetching }) => (isRefetching ? 0.6 : 1)};
   overflow: hidden;
 `;
 
@@ -125,6 +126,7 @@ type AnalyticsFiguresRowProps = {
   overallConversion?: AnalyticsOverallConversionAnswer | null;
   hasOverallConversionError?: boolean;
   isStatusFiltered?: boolean;
+  isRefetching?: boolean;
   sparklines?: {
     activePeople: AnalyticsSparklineData;
     newApplications: AnalyticsSparklineData;
@@ -142,6 +144,7 @@ export const AnalyticsFiguresRow = ({
   overallConversion,
   hasOverallConversionError = false,
   isStatusFiltered = false,
+  isRefetching = false,
   sparklines,
 }: AnalyticsFiguresRowProps) => {
   const { formatNumber } = useNumberFormat();
@@ -172,7 +175,7 @@ export const AnalyticsFiguresRow = ({
   const formattedUnmappedPeople = formatNumber(unmappedPeople);
 
   return (
-    <StyledBand>
+    <StyledBand aria-busy={isRefetching} isRefetching={isRefetching}>
       <StyledHeroFigure>
         <StyledLabel>{t`Active people`}</StyledLabel>
         <StyledHeroValue>{formatNumber(figures.activePeople)}</StyledHeroValue>

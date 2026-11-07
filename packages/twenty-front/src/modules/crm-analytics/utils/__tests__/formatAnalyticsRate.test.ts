@@ -13,6 +13,7 @@ describe('formatAnalyticsRate', () => {
 
   it('keeps one decimal below 1% so a small rate does not read as zero', () => {
     expect(formatAnalyticsRate(0.004)).toBe('0.4%');
+    expect(formatAnalyticsRate(1 / 2500)).toBe('0.1%');
   });
 
   it('keeps one decimal just under 100% so a rate does not read as everyone', () => {

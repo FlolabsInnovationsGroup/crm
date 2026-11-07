@@ -30,16 +30,29 @@ export const buildStageTotalsChartRows = ({
     row: AnalyticsStageTotalRow,
   ): AnalyticsHorizontalBarRow => {
     const pastLimit = Math.min(row.pastLimitCount ?? 0, row.count);
-    const notPastLimit = row.count - pastLimit;
+    // A response from an older server has no inactive count.
+    const inactive = Math.min(row.inactiveCount ?? 0, row.count - pastLimit);
+    const withinLimit = row.count - pastLimit - inactive;
+
+    const inactiveTooltipRows: AnalyticsChartTooltipRow[] =
+      inactive > 0
+        ? [
+            {
+              label: t`Inactive`,
+              value: formatNumber(inactive),
+              color: ANALYTICS_CHART_COLOR.neutral,
+            },
+          ]
+        : [];
 
     return {
       key: row.rowKey,
       label: getAnalyticsStageTotalLabel(row),
       segments: [
         {
-          key: 'notPastLimit',
-          label: t`Not past limit`,
-          value: notPastLimit,
+          key: 'withinLimit',
+          label: t`Within limit`,
+          value: withinLimit,
           color: ANALYTICS_CHART_COLOR.accent,
         },
         ...(pastLimit > 0
@@ -52,6 +65,16 @@ export const buildStageTotalsChartRows = ({
               },
             ]
           : []),
+        ...(inactive > 0
+          ? [
+              {
+                key: 'inactive',
+                label: t`Inactive`,
+                value: inactive,
+                color: ANALYTICS_CHART_COLOR.neutral,
+              },
+            ]
+          : []),
       ],
       tooltip: {
         title: getAnalyticsStageTotalLabel(row),
@@ -60,8 +83,8 @@ export const buildStageTotalsChartRows = ({
           ...(isDefined(row.pastLimitCount)
             ? [
                 {
-                  label: t`Not past limit`,
-                  value: formatNumber(notPastLimit),
+                  label: t`Within limit`,
+                  value: formatNumber(withinLimit),
                   color: ANALYTICS_CHART_COLOR.accent,
                 },
                 {
@@ -71,6 +94,7 @@ export const buildStageTotalsChartRows = ({
                 },
               ]
             : [{ label: t`People`, value: formatNumber(row.count) }]),
+          ...inactiveTooltipRows,
           ...buildNestedTooltipRows(row.rowKey),
         ],
       },

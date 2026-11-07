@@ -21,13 +21,18 @@ const buildPoint = (
 const renderTable = (
   points: AnalyticsTrendPoint[],
   metric: AnalyticsTrendMetric = 'NEW_APPLICATIONS',
+  trackingStartedAt = '2026-01-01T00:00:00.000Z',
 ) =>
   render(
     <AnalyticsTrendTable
       points={points}
       metric={metric}
       period="WEEK"
-      minimumSample={30}
+      base={{
+        minimumSample: 30,
+        trackingStartedAt,
+        reportingTimeZone: 'UTC',
+      }}
     />,
   );
 
@@ -79,6 +84,43 @@ describe('AnalyticsTrendTable', () => {
     expect(within(inProgressRow).getByText('52')).toBeInTheDocument();
     expect(within(inProgressRow).queryByText('-50')).not.toBeInTheDocument();
     expect(within(finishedRow).getByText('+14')).toBeInTheDocument();
+  });
+
+  it('shows no change for a running count against a partly tracked period', () => {
+    renderTable(
+      [buildPoint({ value: 86, previousValue: 74 })],
+      'NEW_APPLICATIONS',
+      '2026-10-27T00:00:00.000Z',
+    );
+
+    expect(screen.getByText('74')).toBeInTheDocument();
+    expect(screen.queryByText('+12')).not.toBeInTheDocument();
+  });
+
+  it('reaches back the whole window to decide if the period was tracked', () => {
+    renderTable(
+      [
+        buildPoint({ bucketStart: '2026-11-09', value: 74, previousValue: 60 }),
+        buildPoint({ bucketStart: '2026-11-16', value: 86, previousValue: 52 }),
+      ],
+      'NEW_APPLICATIONS',
+      '2026-11-02T00:00:00.000Z',
+    );
+
+    const [, newestRow, olderRow] = screen.getAllByRole('row');
+
+    expect(within(newestRow).getByText('+34')).toBeInTheDocument();
+    expect(within(olderRow).queryByText('+14')).not.toBeInTheDocument();
+  });
+
+  it('keeps the change on a level against a partly tracked period', () => {
+    renderTable(
+      [buildPoint({ value: 86, previousValue: 74 })],
+      'TOTAL_CONTACTS',
+      '2026-10-27T00:00:00.000Z',
+    );
+
+    expect(screen.getByText('+12')).toBeInTheDocument();
   });
 
   it('keeps the change on a level still in progress', () => {

@@ -19,6 +19,7 @@ const MAXIMUM_SOURCE_ROWS = 5;
 type AnalyticsOverviewCategoryCardProps = {
   filter: AnalyticsFilter;
   groupBy: AnalyticsCategoryGroupBy;
+  isOverviewRefetching: boolean;
   onSelect?: (key: string) => void;
 };
 
@@ -26,6 +27,7 @@ type AnalyticsOverviewCategoryCardProps = {
 export const AnalyticsOverviewCategoryCard = ({
   filter,
   groupBy,
+  isOverviewRefetching,
   onSelect,
 }: AnalyticsOverviewCategoryCardProps) => {
   const { formatNumber } = useNumberFormat();
@@ -33,6 +35,7 @@ export const AnalyticsOverviewCategoryCard = ({
   const {
     payload: categories,
     isFirstLoad,
+    isRefetching,
     error,
     retry,
   } = useCrmAnalyticsQuery<AnalyticsCategories>({
@@ -76,6 +79,7 @@ export const AnalyticsOverviewCategoryCard = ({
       title={title}
       note={getNote()}
       isLoading={isFirstLoad}
+      isRefetching={isRefetching && !isOverviewRefetching}
       error={error}
       onRetry={retry}
       isEmpty={!hasPeople}

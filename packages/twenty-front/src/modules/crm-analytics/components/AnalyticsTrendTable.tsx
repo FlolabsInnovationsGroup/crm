@@ -1,11 +1,13 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
+import { Temporal } from 'temporal-polyfill';
 import { isDefined } from 'twenty-shared/utils';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { AnalyticsRateCell } from '@/crm-analytics/components/AnalyticsRateCell';
 import { AnalyticsTable } from '@/crm-analytics/components/AnalyticsTable';
 import {
+  type AnalyticsBase,
   type AnalyticsPeriod,
   type AnalyticsTrendMetric,
   type AnalyticsTrendPoint,
@@ -15,6 +17,7 @@ import { isAnalyticsRunningCountMetric } from '@/crm-analytics/utils/isAnalytics
 import { formatAnalyticsBucketLabel } from '@/crm-analytics/utils/formatAnalyticsBucketLabel';
 import { formatAnalyticsSignedNumber } from '@/crm-analytics/utils/formatAnalyticsSignedNumber';
 import { getAnalyticsWindowLength } from '@/crm-analytics/utils/getAnalyticsWindowLength';
+import { isAnalyticsPeriodFullyTracked } from '@/crm-analytics/utils/isAnalyticsPeriodFullyTracked';
 import { useNumberFormat } from '@/localization/hooks/useNumberFormat';
 
 const TREND_TABLE_MAX_HEIGHT = 448;
@@ -62,28 +65,62 @@ const getValueHeader = (metric: AnalyticsTrendMetric) => {
 const isSmallSample = (size: number | null, minimumSample: number) =>
   isDefined(size) && size < minimumSample;
 
+type AnalyticsTrendTableBase = Pick<
+  AnalyticsBase,
+  'minimumSample' | 'trackingStartedAt' | 'reportingTimeZone'
+>;
+
+// The comparison reaches back by the whole window, as the column header says.
+const getPreviousBucketStart = (
+  bucketStart: string,
+  period: AnalyticsPeriod,
+  bucketCount: number,
+) => {
+  const start = Temporal.PlainDate.from(bucketStart.slice(0, 10));
+
+  switch (period) {
+    case 'DAY':
+      return start.subtract({ days: bucketCount }).toString();
+    case 'WEEK':
+      return start.subtract({ weeks: bucketCount }).toString();
+    case 'MONTH':
+      return start.subtract({ months: bucketCount }).toString();
+  }
+};
+
 const getChange = ({
   point,
   metric,
-  minimumSample,
+  period,
+  bucketCount,
+  base,
   formatNumber,
 }: {
   point: AnalyticsTrendPoint;
   metric: AnalyticsTrendMetric;
-  minimumSample: number;
+  period: AnalyticsPeriod;
+  bucketCount: number;
+  base: AnalyticsTrendTableBase;
   formatNumber: (value: number, options?: { decimals?: number }) => string;
 }) => {
   if (!isDefined(point.value) || !isDefined(point.previousValue)) {
     return null;
   }
 
-  if (point.isPartial && isAnalyticsRunningCountMetric(metric)) {
+  if (
+    isAnalyticsRunningCountMetric(metric) &&
+    (point.isPartial ||
+      !isAnalyticsPeriodFullyTracked(
+        getPreviousBucketStart(point.bucketStart, period, bucketCount),
+        base,
+      ))
+  ) {
     return null;
   }
 
   if (
-    isSmallSample(point.size, minimumSample) ||
-    isSmallSample(point.previousSize, minimumSample)
+    isSmallSample(point.size, base.minimumSample) ||
+    isSmallSample(point.previousSize, base.minimumSample)
   ) {
     return null;
   }
@@ -150,14 +187,14 @@ type AnalyticsTrendTableProps = {
   points: AnalyticsTrendPoint[];
   metric: AnalyticsTrendMetric;
   period: AnalyticsPeriod;
-  minimumSample: number;
+  base: AnalyticsTrendTableBase;
 };
 
 export const AnalyticsTrendTable = ({
   points,
   metric,
   period,
-  minimumSample,
+  base,
 }: AnalyticsTrendTableProps) => {
   const { formatNumber } = useNumberFormat();
 
@@ -217,7 +254,7 @@ export const AnalyticsTrendTable = ({
                 value={point.value}
                 metric={metric}
                 size={point.size}
-                minimumSample={minimumSample}
+                minimumSample={base.minimumSample}
               />
             </AnalyticsTable.Cell>
             {hasPrevious && (
@@ -227,11 +264,18 @@ export const AnalyticsTrendTable = ({
                     value={point.previousValue}
                     metric={metric}
                     size={point.previousSize}
-                    minimumSample={minimumSample}
+                    minimumSample={base.minimumSample}
                   />
                 </AnalyticsTable.Cell>
                 <AnalyticsTable.Cell isNumeric>
-                  {getChange({ point, metric, minimumSample, formatNumber })}
+                  {getChange({
+                    point,
+                    metric,
+                    period,
+                    bucketCount: points.length,
+                    base,
+                    formatNumber,
+                  })}
                 </AnalyticsTable.Cell>
               </>
             )}

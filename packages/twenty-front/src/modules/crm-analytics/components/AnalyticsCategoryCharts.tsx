@@ -66,8 +66,13 @@ export const AnalyticsCategoryCharts = ({
 }: AnalyticsCategoryChartsProps) => {
   const { formatNumber } = useNumberFormat();
 
-  const { groupBy, minimumSample, peopleInSeveralTracks, stepStageKeys } =
-    categories;
+  const {
+    groupBy,
+    minimumSample,
+    peopleInSeveral,
+    peopleInSeveralTracks,
+    stepStageKeys,
+  } = categories;
   const isSourceView = groupBy === 'SOURCE';
 
   const chartRows = getAnalyticsCategoryChartRows(categories, filter);
@@ -113,11 +118,15 @@ export const AnalyticsCategoryCharts = ({
       return null;
     }
 
-    if (
-      row.key === filter.sourceKey ||
-      row.key === filter.trackKey ||
-      row.key === filter.programKey
-    ) {
+    const getSelectedKey = () => {
+      if (isSourceView) {
+        return filter.sourceKey;
+      }
+
+      return isDefined(row.parentKey) ? filter.programKey : filter.trackKey;
+    };
+
+    if (row.key === getSelectedKey()) {
       return t`Click to clear this filter.`;
     }
 
@@ -253,11 +262,17 @@ export const AnalyticsCategoryCharts = ({
     .filter(isDefined)
     .join(' ');
 
+  // Under a track filter the bars are programs, and the server counts only that track's positions.
+  const isShowingPrograms = chartRows.some((row) => isDefined(row.parentKey));
+  const peopleInSeveralBars = isShowingPrograms
+    ? peopleInSeveral
+    : peopleInSeveralTracks;
+
   const peopleNote = [
     isSourceView
       ? t`People by their current source. A date filter leaves out imported people.`
       : t`People by their current positions, counted once in each. A date filter leaves out imported people.`,
-    !isSourceView && peopleInSeveralTracks > 0
+    !isSourceView && peopleInSeveralBars > 0
       ? t`Some people are in several, so the bars can add up to more than the total.`
       : null,
   ]

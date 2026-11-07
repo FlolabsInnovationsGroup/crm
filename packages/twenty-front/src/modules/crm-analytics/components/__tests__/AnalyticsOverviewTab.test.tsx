@@ -95,6 +95,7 @@ const buildOverview = (
       parentStageKey: null,
       count: 900,
       pastLimitCount: 120,
+      inactiveCount: 0,
     },
     {
       rowKey: 'NEW_REMINDER',
@@ -103,6 +104,7 @@ const buildOverview = (
       parentStageKey: 'NEW',
       count: 40,
       pastLimitCount: null,
+      inactiveCount: 0,
     },
     {
       rowKey: 'LEGACY_TEST',
@@ -111,6 +113,7 @@ const buildOverview = (
       parentStageKey: null,
       count: 3,
       pastLimitCount: null,
+      inactiveCount: 0,
     },
   ],
   stuck: { rows: [], total: 0, hasLimits: true },
@@ -559,6 +562,7 @@ describe('AnalyticsOverviewTab', () => {
               parentStageKey: null,
               count: 7,
               pastLimitCount: null,
+              inactiveCount: 0,
             },
           ],
         }),

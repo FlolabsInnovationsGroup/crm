@@ -105,10 +105,10 @@ const buildSlowestStageCard = ({
 export const buildFunnelAnswerCards = (
   args: BuildFunnelAnswerCardsArgs,
 ): AnalyticsAnswerCard[] => {
-  const { value, detail } = buildOverallConversionAnswer(args);
+  const { value, detail, isLighter } = buildOverallConversionAnswer(args);
 
   return [
-    { key: 'overall', label: t`Overall conversion`, value, detail },
+    { key: 'overall', label: t`Overall conversion`, value, detail, isLighter },
     buildBiggestDropCard(args),
     buildSlowestStageCard(args),
   ];

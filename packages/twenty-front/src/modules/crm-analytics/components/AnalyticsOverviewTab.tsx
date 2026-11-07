@@ -112,6 +112,7 @@ export const AnalyticsOverviewTab = ({
       isRefetching={isRefetching}
     >
       <AnalyticsOverviewCharts
+        isOverviewRefetching={isRefetching}
         overview={overview}
         figures={getFiguresWithTrackedPrevious(overview)}
         filter={filter}

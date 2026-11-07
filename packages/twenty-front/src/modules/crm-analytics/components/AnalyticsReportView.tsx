@@ -409,7 +409,10 @@ export const AnalyticsReportView = ({
             {t`Tracking started ${trackingStartedOn}. Imported people count in current totals only, never in rates.`}
           </StyledReportNotice>
         </StyledReportHeading>
-        <AnalyticsReportDownload report={report} />
+        <AnalyticsReportDownload
+          key={`${report.periodType}:${report.periodStart}`}
+          report={report}
+        />
       </StyledReportHeader>
       {isProvisional && (
         <InlineBanner status="neutral" variant="soft" embedded>

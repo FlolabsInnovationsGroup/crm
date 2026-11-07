@@ -171,7 +171,7 @@ export const computeCrmAnalyticsPreviousReportPeriod = ({
   periodEnd: periodStart,
 });
 
-const computeFirstFullLocalDate = (
+export const computeCrmAnalyticsFirstFullLocalDate = (
   trackingStartAt: string,
   timeZone: string,
 ): string => {
@@ -252,7 +252,7 @@ export const computeCrmAnalyticsReportPeriods = ({
   limit?: number;
 }): CrmAnalyticsReportPeriod[] => {
   const localToday = computeCrmAnalyticsLocalDate(now, timeZone);
-  const firstFullLocalDate = computeFirstFullLocalDate(
+  const firstFullLocalDate = computeCrmAnalyticsFirstFullLocalDate(
     trackingStartAt,
     timeZone,
   );

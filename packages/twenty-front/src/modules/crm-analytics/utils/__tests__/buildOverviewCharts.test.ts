@@ -24,6 +24,7 @@ const buildStageRow = (
   parentStageKey: null,
   count,
   pastLimitCount: null,
+  inactiveCount: 0,
   ...overrides,
 });
 
@@ -47,12 +48,57 @@ describe('buildStageTotalsChartRows', () => {
     formatNumber,
   });
 
-  it('splits a main stage into past limit and not past it', () => {
+  it('splits a main stage into within limit and past limit', () => {
     expect(
       mainRows[0].segments.map(({ label, value }) => [label, value]),
     ).toEqual([
-      ['Not past limit', 70],
+      ['Within limit', 70],
       ['Past limit', 30],
+    ]);
+  });
+
+  it('keeps inactive imported people out of within limit', () => {
+    const {
+      mainRows: [stageRow],
+    } = buildStageTotalsChartRows({
+      rows: [
+        buildStageRow('NEW', 'MAIN', 503, {
+          pastLimitCount: 3,
+          inactiveCount: 500,
+        }),
+      ],
+      formatNumber,
+    });
+
+    expect(
+      stageRow.segments.map(({ label, value }) => [label, value]),
+    ).toEqual([
+      ['Within limit', 0],
+      ['Past limit', 3],
+      ['Inactive', 500],
+    ]);
+    expect(
+      stageRow.tooltip?.rows.map(({ label, value }) => [label, value]),
+    ).toEqual([
+      ['Within limit', '0'],
+      ['Past limit', '3'],
+      ['Inactive', '500'],
+    ]);
+  });
+
+  it('shows inactive people on a stage with no limit', () => {
+    const {
+      mainRows: [stageRow],
+    } = buildStageTotalsChartRows({
+      rows: [buildStageRow('SIGNED', 'MAIN', 10, { inactiveCount: 4 })],
+      formatNumber,
+    });
+
+    expect(
+      stageRow.tooltip?.rows.map(({ label, value }) => [label, value]),
+    ).toEqual([
+      ['People', '10'],
+      ['Inactive', '4'],
     ]);
   });
 

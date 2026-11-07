@@ -622,6 +622,7 @@ export type AnalyticsStageTotalRow = {
   parentStageKey: string | null;
   count: number;
   pastLimitCount: number | null;
+  inactiveCount: number;
 };
 
 export type AnalyticsStuckRow = {
@@ -713,6 +714,8 @@ export type AnalyticsCategoryRow = {
 
 export type AnalyticsCategories = AnalyticsBase & {
   groupBy: AnalyticsCategoryGroupBy;
+  newApplicationsFrom?: string;
+  newApplicationsTo?: string;
   distinctPeople: number;
   peopleInSeveral: number;
   peopleInSeveralTracks: number;

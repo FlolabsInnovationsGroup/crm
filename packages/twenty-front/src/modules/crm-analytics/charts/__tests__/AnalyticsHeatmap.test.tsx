@@ -79,6 +79,47 @@ describe('AnalyticsHeatmap', () => {
     expect(screen.getByRole('cell')).toHaveTextContent('12%so far');
   });
 
+  it('keeps a tiny group from washing out the color of reliable cells', () => {
+    const renderCellStyles = (
+      smallGroupCell: { columnKey: string; value: number; isSmallSample: boolean } | null,
+    ) => {
+      const { unmount } = render(
+        <AnalyticsHeatmap
+          ariaLabel="Conversion at every step"
+          columns={COLUMNS.slice(0, 1)}
+          rows={[
+            {
+              key: 'large',
+              label: 'Large group',
+              cells: [{ columnKey: 'NEW', value: 0.4 }],
+            },
+            ...(smallGroupCell === null
+              ? []
+              : [
+                  {
+                    key: 'small',
+                    label: 'Small group',
+                    cells: [smallGroupCell],
+                  },
+                ]),
+          ]}
+        />,
+      );
+      const style = screen.getAllByRole('cell')[0].getAttribute('style');
+
+      unmount();
+
+      return style;
+    };
+
+    const styleWithoutSmallGroup = renderCellStyles(null);
+
+    expect(styleWithoutSmallGroup).toContain('blue9');
+    expect(
+      renderCellStyles({ columnKey: 'NEW', value: 1, isSmallSample: true }),
+    ).toBe(styleWithoutSmallGroup);
+  });
+
   it('gives the row key on a row click', async () => {
     const handleRowClick = jest.fn();
 

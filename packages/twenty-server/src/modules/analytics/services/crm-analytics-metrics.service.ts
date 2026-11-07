@@ -48,6 +48,7 @@ import { buildCrmAnalyticsLocalDateSql } from 'src/modules/analytics/utils/build
 import {
   addCrmAnalyticsLocalDays,
   addCrmAnalyticsPeriods,
+  computeCrmAnalyticsFirstFullLocalDate,
   computeCrmAnalyticsLocalDate,
   computeCrmAnalyticsPeriodStart,
   computeCrmAnalyticsTrendBuckets,
@@ -468,7 +469,7 @@ const buildStageClockCtes = (statement: SqlStatement): string => `latest_entry A
   FROM transition t JOIN scope s ON s.person_id = t.person_id
   WHERE t.to_key = s.current_key AND t.from_key IS DISTINCT FROM t.to_key
   ORDER BY t.person_id, t.happened_at DESC),
-moved_person AS (SELECT DISTINCT t.person_id FROM transition t),
+moved_person AS (SELECT DISTINCT t.person_id FROM transition t WHERE t.from_key IS DISTINCT FROM t.to_key),
 stage_clock AS (
   SELECT s.person_id, s.current_key, m.limit_days,
     s.created_at < $2 AND mp.person_id IS NULL AS is_inactive,
@@ -682,11 +683,12 @@ const buildCohortRow = (
 const buildTrendSeries = (
   buckets: CrmAnalyticsTrendBucket[],
   readValue: (bucketStart: string) => TrendValue,
+  readPreviousValue: (bucketStart: string) => TrendValue,
   isRateMetric: boolean,
 ): AnalyticsTrendPoint[] =>
   buckets.map(({ bucketStart, previousBucketStart, isPartial }) => {
     const current = readValue(bucketStart);
-    const previous = readValue(previousBucketStart);
+    const previous = readPreviousValue(previousBucketStart);
 
     return {
       bucketStart,
@@ -893,11 +895,14 @@ export class CrmAnalyticsMetricsService {
   // start, so a period that starts before it has no known total, whatever rows it holds.
   hasRangeStartedBeforeTracking(
     context: CrmAnalyticsQueryContext,
-    { from }: CrmAnalyticsClosedDateRange,
+    { from }: Pick<CrmAnalyticsClosedDateRange, 'from'>,
   ): boolean {
     return (
       from <
-      computeCrmAnalyticsLocalDate(context.trackingStart, context.timeZone)
+      computeCrmAnalyticsFirstFullLocalDate(
+        context.trackingStart,
+        context.timeZone,
+      )
     );
   }
 
@@ -1160,6 +1165,8 @@ GROUP BY cs.stage_key`,
     return {
       ...this.buildBase(context),
       groupBy,
+      newApplicationsFrom: submissionRange.from,
+      newApplicationsTo: submissionRange.to,
       ...overlap,
       stepStageKeys: STEP_STAGES.map((stage) => stage.stageKey),
       rows: orderedRows,
@@ -1386,7 +1393,7 @@ LEFT JOIN current_total c ON c.stage_key = k.stage_key`,
       personFilter: filter,
       scopeDateRange: dateRange,
     });
-    const { stuckByStage, stuckPeople, inactivePeople } =
+    const { stuckByStage, inactiveByStage, stuckPeople, inactivePeople } =
       await this.readStageClockTotals({
         context,
         personFilter: filter,
@@ -1452,6 +1459,7 @@ LEFT JOIN current_total c ON c.stage_key = k.stage_key`,
         context.state,
         stageCounts,
         stuckByStage,
+        inactiveByStage,
       ),
       stuck,
     };
@@ -1498,6 +1506,7 @@ GROUP BY s.raw_stage`,
     state: CrmAnalyticsCrmState,
     stageCounts: Map<string | null, number>,
     stuckByStage: Map<string, number>,
+    inactiveByStage: Map<string, number>,
   ): AnalyticsStageTotalRow[] {
     const optionLabels = buildOptionLabels(state.stage.options);
 
@@ -1518,6 +1527,7 @@ GROUP BY s.raw_stage`,
             pastLimitCount: isDefined(stage.limitDays)
               ? (stuckByStage.get(stage.stageKey) ?? 0)
               : null,
+            inactiveCount: inactiveByStage.get(stage.stageKey) ?? 0,
           },
           ...(rawCounts.length > 1
             ? rawCounts.map(({ rawValue, count }) => ({
@@ -1527,6 +1537,7 @@ GROUP BY s.raw_stage`,
                 parentStageKey: stage.stageKey,
                 count,
                 pastLimitCount: null,
+                inactiveCount: 0,
               }))
             : []),
         ];
@@ -1544,6 +1555,7 @@ GROUP BY s.raw_stage`,
                 parentStageKey: null,
                 count,
                 pastLimitCount: null,
+                inactiveCount: 0,
               },
             ]
           : [],
@@ -1564,6 +1576,7 @@ GROUP BY s.raw_stage`,
               parentStageKey: null,
               count: noStageCount,
               pastLimitCount: null,
+              inactiveCount: 0,
             },
           ]
         : []),
@@ -1580,6 +1593,7 @@ GROUP BY s.raw_stage`,
     scopeDateRange: CrmAnalyticsDateRange;
   }): Promise<{
     stuckByStage: Map<string, number>;
+    inactiveByStage: Map<string, number>;
     stuckPeople: number;
     inactivePeople: number;
   }> {
@@ -1603,6 +1617,12 @@ GROUP BY a.current_key`,
         rows.map((row): [string, number] => [
           String(row.current_key),
           toCount(row.stuck_count),
+        ]),
+      ),
+      inactiveByStage: new Map(
+        rows.map((row): [string, number] => [
+          String(row.current_key),
+          toCount(row.inactive_count),
         ]),
       ),
       stuckPeople: rows.reduce(
@@ -2276,8 +2296,21 @@ GROUP BY cm.parent_key, cm.category_key`,
       windowsClosedAt,
     });
 
+    // A bucket's own count may be partial, but as a base for comparison it would read as
+    // a real, low total.
+    const readPreviousValue = (bucketStart: string): TrendValue =>
+      metric === 'NEW_APPLICATIONS' &&
+      this.hasRangeStartedBeforeTracking(context, { from: bucketStart })
+        ? { value: null, size: null }
+        : readValue(bucketStart);
+
     return {
-      series: buildTrendSeries(buckets, readValue, isRateMetric),
+      series: buildTrendSeries(
+        buckets,
+        readValue,
+        readPreviousValue,
+        isRateMetric,
+      ),
       unavailableReason: null,
     };
   }

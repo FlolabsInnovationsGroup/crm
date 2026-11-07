@@ -112,6 +112,7 @@ const OVERVIEW: AnalyticsOverview = {
       parentStageKey: null,
       count: 900,
       pastLimitCount: 120,
+      inactiveCount: 0,
     },
   ],
   stuck: { rows: [], total: 0, hasLimits: true },

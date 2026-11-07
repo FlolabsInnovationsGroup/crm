@@ -687,6 +687,7 @@ describe('CrmAnalyticsMetricsService', () => {
           parentStageKey: 'SIGNED',
           count: 2,
           pastLimitCount: null,
+          inactiveCount: 0,
         },
         {
           rowKey: 'SIGNED:SIGNED_NON_PAID',
@@ -695,6 +696,7 @@ describe('CrmAnalyticsMetricsService', () => {
           parentStageKey: 'SIGNED',
           count: 1,
           pastLimitCount: null,
+          inactiveCount: 0,
         },
       ]);
       expect(stageTotals.filter((row) => row.rowKind === 'UNMAPPED')).toEqual([
@@ -705,6 +707,7 @@ describe('CrmAnalyticsMetricsService', () => {
           parentStageKey: null,
           count: 5,
           pastLimitCount: null,
+          inactiveCount: 0,
         },
       ]);
       expect(stageTotals.at(-1)).toEqual({
@@ -714,6 +717,7 @@ describe('CrmAnalyticsMetricsService', () => {
         parentStageKey: null,
         count: 7,
         pastLimitCount: null,
+        inactiveCount: 0,
       });
     });
 
@@ -740,6 +744,37 @@ describe('CrmAnalyticsMetricsService', () => {
       expect(
         stageTotals.find((row) => row.rowKey === 'INTERESTED')?.pastLimitCount,
       ).toBeNull();
+    });
+
+    it('reports inactive people per stage, apart from past-limit people', async () => {
+      const {
+        overview: { figures, stageTotals },
+      } = await readOverview();
+      const findRow = (rowKey: string) =>
+        stageTotals.find((row) => row.rowKey === rowKey);
+
+      expect(findRow('NEW')).toMatchObject({
+        pastLimitCount: 3,
+        inactiveCount: 2,
+      });
+      expect(findRow('INTERESTED')).toMatchObject({
+        pastLimitCount: null,
+        inactiveCount: 1,
+      });
+      expect(findRow('CONTACTED')?.inactiveCount).toBe(0);
+      expect(
+        stageTotals.reduce((total, row) => total + row.inactiveCount, 0),
+      ).toBe(figures.inactivePeople);
+    });
+
+    it('still counts a person inactive after a move inside one stage', async () => {
+      const { statements } = await readOverview();
+
+      expect(
+        statements.find(({ sql }) => CLOCK_TOTALS.test(sql))?.sql,
+      ).toContain(
+        'moved_person AS (SELECT DISTINCT t.person_id FROM transition t WHERE t.from_key IS DISTINCT FROM t.to_key)',
+      );
     });
 
     it('maps stuck rows, with names read live and the total apart', async () => {
@@ -849,8 +884,9 @@ describe('CrmAnalyticsMetricsService', () => {
       expect(figures.newApplicationsPrevious).toBe(2);
     });
 
-    it('judges the span before by the local date of tracking start', async () => {
-      // Tracking starts at midnight UTC on August 1, still July 31 in New York.
+    it('judges the span before by the first full local day of tracking', async () => {
+      // Tracking starts at midnight UTC on August 1, the evening of July 31 in New York,
+      // so July 31 is partly tracked there.
       const replacedTimeZone = jest.replaceProperty(
         CRM_ANALYTICS_CONFIG,
         'reportingTimeZone',
@@ -862,9 +898,9 @@ describe('CrmAnalyticsMetricsService', () => {
           (await readOverview({ ...DEFAULT_FILTER, dateFrom, dateTo })).overview
             .figures.newApplicationsPrevious;
 
-        await expect(readPrevious('2026-08-07', '2026-08-13')).resolves.toBe(2);
+        await expect(readPrevious('2026-08-08', '2026-08-14')).resolves.toBe(2);
         await expect(
-          readPrevious('2026-08-06', '2026-08-12'),
+          readPrevious('2026-08-07', '2026-08-13'),
         ).resolves.toBeNull();
       } finally {
         replacedTimeZone.restore();
@@ -1125,6 +1161,26 @@ describe('CrmAnalyticsMetricsService', () => {
         eligible: 0,
         rate: null,
         soFarRate: null,
+      });
+    });
+
+    it('returns the span its new applications cover', async () => {
+      const { categories: withoutDates } = await readCategories();
+      const { categories: withDates } = await readCategories({
+        filter: {
+          ...DEFAULT_FILTER,
+          dateFrom: '2026-10-11',
+          dateTo: '2026-10-20',
+        },
+      });
+
+      expect(withoutDates).toMatchObject({
+        newApplicationsFrom: '2026-11-01',
+        newApplicationsTo: '2026-11-07',
+      });
+      expect(withDates).toMatchObject({
+        newApplicationsFrom: '2026-10-11',
+        newApplicationsTo: '2026-10-20',
       });
     });
 
@@ -1522,6 +1578,93 @@ describe('CrmAnalyticsMetricsService', () => {
       expect(trends.series.map(({ previousValue }) => previousValue)).toEqual(
         new Array<null>(12).fill(null),
       );
+    });
+
+    it.each<[AnalyticsFilter['period'], string, string, string, string]>([
+      ['MONTH', '2026-11-01', '2026-11-30', '2026-11-01', '2026-10-01'],
+      ['WEEK', '2026-11-02', '2026-11-08', '2026-11-02', '2026-10-26'],
+    ])(
+      'has no %s comparison when the previous bucket starts before tracking start',
+      async (period, dateFrom, dateTo, bucketStart, previousBucketStart) => {
+        const { trends } = await readTrends({
+          metric: 'NEW_APPLICATIONS',
+          trackingStart: '2026-10-27T00:00:00.000Z',
+          filter: { ...DEFAULT_FILTER, period, dateFrom, dateTo },
+          answers: [
+            [
+              SUBMISSION_BUCKETS,
+              [
+                { bucket_start: bucketStart, bucket_value: 120 },
+                { bucket_start: previousBucketStart, bucket_value: 4 },
+              ],
+            ],
+          ],
+        });
+
+        expect(trends.series).toHaveLength(1);
+        expect(trends.series[0]).toMatchObject({
+          bucketStart,
+          value: 120,
+          previousValue: null,
+        });
+      },
+    );
+
+    it('keeps the partial count of the bucket holding tracking start', async () => {
+      const { trends } = await readTrends({
+        metric: 'NEW_APPLICATIONS',
+        trackingStart: '2026-10-27T00:00:00.000Z',
+        filter: {
+          ...DEFAULT_FILTER,
+          period: 'WEEK',
+          dateFrom: '2026-10-26',
+          dateTo: '2026-11-01',
+        },
+        answers: [
+          [SUBMISSION_BUCKETS, [{ bucket_start: '2026-10-26', bucket_value: 4 }]],
+        ],
+      });
+
+      expect(trends.series[0]).toMatchObject({
+        value: 4,
+        previousValue: null,
+      });
+    });
+
+    it('compares with a previous bucket that starts on the first tracked day', async () => {
+      const { trends } = await readTrends({
+        metric: 'NEW_APPLICATIONS',
+        trackingStart: '2026-10-26T00:00:00.000Z',
+        filter: {
+          ...DEFAULT_FILTER,
+          period: 'WEEK',
+          dateFrom: '2026-11-02',
+          dateTo: '2026-11-08',
+        },
+        answers: [
+          [SUBMISSION_BUCKETS, [{ bucket_start: '2026-10-26', bucket_value: 4 }]],
+        ],
+      });
+
+      expect(trends.series[0].previousValue).toBe(4);
+    });
+
+    it('has no comparison when tracking began during the first day of the previous bucket', async () => {
+      const { trends } = await readTrends({
+        metric: 'NEW_APPLICATIONS',
+        trackingStart: '2026-10-26T12:00:00.000Z',
+        filter: {
+          ...DEFAULT_FILTER,
+          period: 'WEEK',
+          dateFrom: '2026-11-02',
+          dateTo: '2026-11-08',
+        },
+        answers: [
+          [SUBMISSION_BUCKETS, [{ bucket_start: '2026-10-26', bucket_value: 4 }]],
+        ],
+      });
+
+      expect(trends.series[0].previousValue).toBeNull();
     });
 
     it.each<[AnalyticsFilter['period'], string, string]>([

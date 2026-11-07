@@ -19,11 +19,9 @@ export const getAnalyticsCategoryClickFilter = (
   }
 
   if (isDefined(row.parentKey)) {
-    return {
-      ...filter,
-      trackKey: row.parentKey,
-      programKey: toggleKey(row.key, filter.programKey),
-    };
+    return row.key === filter.programKey
+      ? { ...filter, programKey: null }
+      : { ...filter, trackKey: row.parentKey, programKey: row.key };
   }
 
   return {

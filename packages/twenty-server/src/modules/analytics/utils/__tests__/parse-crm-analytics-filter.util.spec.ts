@@ -143,6 +143,8 @@ describe('parseCrmAnalyticsFilter', () => {
     ['a date Postgres rejects', { dateFrom: '0000-01-01' }],
     ['a date too old for its previous period', { dateFrom: '0500-01-01' }],
     ['a date just under the floor', { dateTo: '1999-12-31' }],
+    ['a date just over the ceiling', { dateFrom: '2101-01-01' }],
+    ['a date too far ahead for its previous period', { dateTo: '9999-12-31' }],
     ['an empty date', { dateTo: '' }],
     ['a range that ends before it starts', { dateFrom: '2026-11-08', dateTo: '2026-11-07' }],
     ['an unknown status', { status: 'DELETED' }],
@@ -158,6 +160,12 @@ describe('parseCrmAnalyticsFilter', () => {
   it('accepts the first day of the date floor', () => {
     expect(parseCrmAnalyticsFilter({ dateFrom: '2000-01-01' }).dateFrom).toBe(
       '2000-01-01',
+    );
+  });
+
+  it('accepts the last day of the date ceiling', () => {
+    expect(parseCrmAnalyticsFilter({ dateTo: '2100-12-31' }).dateTo).toBe(
+      '2100-12-31',
     );
   });
 

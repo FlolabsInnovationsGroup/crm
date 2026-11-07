@@ -68,6 +68,7 @@ export const AnalyticsTrendStageChart = ({
   const {
     payload: bundle,
     isFirstLoad,
+    isRefetching,
     error,
     retry,
   } = useCrmAnalyticsSeries({ filter, requests: STAGE_REQUESTS });
@@ -153,6 +154,7 @@ export const AnalyticsTrendStageChart = ({
       title={t`People in each stage over time`}
       note={t`People in each stage, from the last daily count in each period. Main stages climb from light to dark, and exits are gray. A dash means no count is stored for that period.`}
       isLoading={isFirstLoad}
+      isRefetching={isRefetching}
       error={error}
       onRetry={retry}
       isEmpty={!hasValue}
