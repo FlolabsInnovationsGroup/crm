@@ -68,26 +68,32 @@ npx nx run twenty-front:graphql:generate      # after GraphQL schema changes (--
 
 This section lets a new chat or a compacted session continue without losing context. Read it before doing anything on the analytics tool. **Keep it current:** update it after every 2 or 3 decisions and at the end of every phase. To update: edit `.claude/worktrees/analytics-work/state_block.md` (absolute path `D:\Coding\Flolabs\crm\.claude\worktrees\analytics-work\state_block.md`), run `python -X utf8` on `sync_claude_md.py` in that folder, then commit `CLAUDE.md` on the `analytics_tool` branch.
 
-Last updated: 2026-11-07, backend and UI workflows running.
+Last updated: 2026-11-07 18:15, backend, UI, integration and SQL proof workflows running.
 
 ### Status
-| Phase | State |
+| Phase | State (2026-11-07, 18:15) |
 |---|---|
-| Setup | Done. Worktree created, dependencies installed, `twenty-shared` build started. Not yet: `.env` files, local database. Docker Desktop not running |
-| Research and critical evaluation | Done. The verifier confirmed the code references and the hand-calculated sample, and 13 defects were fixed in the contract (see its "Verifier notes"). Builders that started earlier have a change notice and `contract-changes.diff` |
-| Backend workflow `analytics-backend` (`wf_3a38ec46-0e1`) | Running: foundation, then pipeline and metrics in parallel, then up to 3 review and fix rounds. Writes only under `packages/twenty-server/src/modules/analytics/` |
-| UI workflow `analytics-ui` (`wf_f8080ac4-839`) | Running: foundation, then Funnel and Categories, Trends and Reports in parallel, then up to 3 review and fix rounds. Writes only under `packages/twenty-front/src/modules/crm-analytics/` and `src/pages/analytics/` |
-| Integration | Not started. Five existing files, one writer agent and a different reviewer, one commit per file |
-| Typecheck, lint, end-to-end | Not started. Needs Docker Desktop started and other apps closed |
+| Setup | Done. Worktree, dependencies, `twenty-shared` built. `twenty-ui` build and Docker Desktop (with db and redis containers) started by the main session |
+| Research, critique, contract | Done. Contract corrected by the verifier: 13 defects fixed |
+| Backend `analytics-backend` (`wf_3a38ec46-0e1`) | Foundation done, all 8 specs pass. Pipeline and metrics agents running, then up to 3 review and fix rounds |
+| UI `analytics-ui` (`wf_f8080ac4-839`) | Foundation done, 30 tests pass; component tests need `twenty-ui` built. Funnel and Categories, Trends and Reports agents running, then up to 3 review and fix rounds |
+| Integration `analytics-integration` (`wf_1c810e29-9f0`) | Running: writer agent, then a different reviewer agent, on the five existing files. Commit each file separately once approved |
+| SQL proof `analytics-sql-proof` (`wf_182ab2dc-c6d`) | Running: real Postgres harness in `analytics-work/e2e/sql-proof/`, results in `analytics-work/e2e/RESULTS.md`. **Rerun it once the backend services exist**, and feed failures to a backend fix agent |
+| Typecheck, lint, boot test, full local end-to-end | Not started |
 
-The code being written is uncommitted in the worktree until each workflow finishes. Agents do not commit; the main session commits at phase ends. **Nothing is pushed: the user said on 2026-11-07 to keep it local for now.**
+All new code is uncommitted in the worktree until each workflow finishes. Agents do not commit; the main session commits at phase ends. **Nothing is pushed: the user said to keep it local for now.**
 
-**Next steps:**
-1. **The user has no production access** (said 2026-11-07) and must not be asked to run anything there. `docs/analytics/production-audit.sql` is for whoever does have access, to be run later. Until then, prove the timeline behaviour locally (contract section 9, T1 to T11) and keep the page's provisional banner. **Stop rule:** if the audit eventually shows no stage rows on the timeline, or `isAuditLogged` false for `stage`, stop work on metrics and ask the user.
-2. When backend and UI finish, read their results, commit each area on `analytics_tool`, then run the integration workflow with a writer and a separate reviewer.
-3. Typecheck and lint, server then front, never together: `npx tsgo -p tsconfig.json --noEmit` in the package directly, `npx nx lint:diff-with-main <pkg>`. Boot-test server and worker.
-4. Ask the user to start Docker Desktop and close apps, then run the local end-to-end plan in contract section 9, including the timeline checks and the hand-calculated sample. Take screenshots of all tabs and states, light and dark.
-5. Report to the user. Merging and deploying are only after they review.
+**Time estimate given to the user on 2026-11-07 around 18:05:** 4 to 5 hours in total to working and tested locally, 3 at best.
+
+**Next steps, do not stop to ask (the user said to keep developing):**
+1. When backend and UI workflows finish, read results and commit each area on `analytics_tool`. Commit the five integration edits one per file.
+2. Rerun the SQL proof with all services, fix real failures with a separate fix agent.
+3. Typecheck and lint, server then front, never together: `npx tsgo -p tsconfig.json --noEmit` in the package directly, `npx nx lint:diff-with-main <pkg>`. Then boot-test server and worker.
+4. Run the full local end-to-end plan in contract section 9, with screenshots of all tabs and states, light and dark.
+5. Report to the user. Merging and deploying only after they review.
+- **The user has no production or server access** and must not be asked to run anything there. `docs/analytics/production-audit.sql` is for whoever has access, later. The user has a normal CRM login and will send screenshots of Settings, Data model, People, Stage and of a person's Timeline when they can; do not wait for them. **Stop rule:** if the audit eventually shows no stage rows on the timeline, or `isAuditLogged` false for `stage`, stop work on metrics and ask the user.
+
+**Agent limit note:** on 2026-11-07 the user said a usage window resets in about 30 minutes with tokens to spare, so extra agents are fine until about 40 minutes after 18:10, then back to the normal limit of 6, or 7 if really needed.
 
 If a workflow cannot be resumed in a new chat, check `git status` in the worktree to see what was written, compare with `docs/analytics/contract.md` section 2, and continue from there.
 
