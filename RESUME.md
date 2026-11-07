@@ -137,7 +137,7 @@ export PATH="/d/Coding/Flolabs/crm/.claude/worktrees/analytics-work/bin:$PATH" N
 6. **Boot test:** server and worker must start with no new errors, because a bad provider would stop the whole CRM.
 7. **Local run with seed data, contract section 9 "Local end to end".** `yarn start` and `setup-dev-env.sh` are likely to fail on Windows, so use the contract's commands: `.env` files with `cp -n`, `npx nx database:reset twenty-server`, then the server, the worker and `npx nx start twenty-front` in three terminals. Load the data with `node packages/twenty-utils/flolabs/analytics-tests/seed/load.mjs --crm --i-am-local` after the fields exist. Run T1 to T11 and P1 to P12. Run the `blackbox` and `ui` layers. Take screenshots of every tab and state, light and dark, plus a keyboard pass. Check People, person page, Team inbox, Notifications and Forms still work.
 8. **Hand it to the user:** they open `http://localhost:3001` themselves, with the prefilled login ("Continue with Email"). The user asked for this to be the final step.
-9. **Merging and deploying** happen only after the user reviews: `docs/analytics/THINGS-TO-DO-BEFORE-MERGE.md`.
+9. **Merging and deploying are done by a person, never by Claude.** Claude only prepares the checklist in `docs/analytics/THINGS-TO-DO-BEFORE-MERGE.md`.
 
 Update `CLAUDE.md` and this file at the end of each of these steps.
 
@@ -182,7 +182,7 @@ Full list in `CLAUDE.md`. The ones most easily broken:
 
 - Do not touch existing CRM logic. New code in new files. One agent writes, a different one reviews, for every edit to an existing CRM file. Do not fix unasked things, including bugs you notice: report them.
 - The user makes the decisions. Ask before anything irreversible.
-- Do not push, merge or deploy until the user says so.
+- **Claude never merges or pushes to `main`, ever, in any case, and never merges anything.** A person does all merging. Do not push any other branch or deploy until the user says so.
 - Seed and test data never reach `main` or the live CRM. Every pre-merge item goes in `THINGS-TO-DO-BEFORE-MERGE.md`. Test data stays small.
 - Do not waste tokens, but do not cut useful work short, and do not stop a running agent without asking.
 - At most 6 agents at once without asking, and 7 if really needed. Heavy commands one at a time. Never `isolation: 'worktree'`.

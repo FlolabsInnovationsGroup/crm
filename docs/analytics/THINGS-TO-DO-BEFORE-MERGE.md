@@ -4,6 +4,8 @@ Work through this before `analytics_tool` goes anywhere near `main`. Add new ite
 
 Merging to `main` triggers an image build, and a deploy can follow after approval, so treat the merge as the last step.
 
+**Claude never merges or pushes to `main`, ever, in any case, and never merges anything.** A person does every merge below, including updating this branch from `origin/main`. Claude can only prepare and check.
+
 ## 1. What must not go into main
 
 - [ ] **Seed data stays out.** `packages/twenty-utils/flolabs/analytics-tests/seed/` is fake test data and must never reach `main` or the live CRM. Merge from a clean branch, not from `analytics_tool` directly:
