@@ -1,0 +1,81 @@
+﻿CAUGHT soft-deleted people stay in the person relation: 7 failed
+   DF-359 metric.categoryOverlap -> payload.categories.distinctPeople [distinctPeople]
+   DF-383 metric.trendSeries -> payload.trends.series[].value [value]
+   DF-385 metric.trendSeries -> payload.trends.series[].size [size]
+   DF-388 metric.cohortTable -> payload.trends.cohorts[].size [size]
+CAUGHT reached so far counts everybody: 3 failed
+   DF-352 metric.soFarRate -> payload.funnel.rows[].soFarRate [soFarRate]
+   DF-377 metric.categoryRates -> payload.categories.rows[].stepRates[].soFarRate [soFarRate]
+   DF-395 metric.cohortTable -> payload.trends.cohorts[].cells[].soFarRate [soFarRate]
+CAUGHT exit outside the window still counts: 3 failed
+   DF-111 cte.step_row -> cte.step_exit [entered_at, window_end]
+   DF-112 cte.transition -> cte.step_exit [to_kind, happened_at]
+   DF-114 cte.step_exit -> cte.step_total [person_id]
+CAUGHT local dates ignore the reporting zone: 1 failed
+   UNIT-03 a reporting zone moves buckets and the snapshot date only: instants, counts and stored rows stay
+CAUGHT no-op moves are read as moves: 1 failed
+   UNKNOWN-06 a no-op move A to A is no move: the clock runs on and an imported person stays inactive
+node : [Nest] 29860  - 11/07/2026, 7:48:24 PM   ERROR [CrmAnalyticsSyncService] CRM analytics sync job failed for 
+workspace 20202020-d000-4000-8000-000000000012
+At line:1 char:302
++ ... tch {} } }; node "C:\Users\Ahsan\AppData\Local\Temp\claude\fc8394a882 ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([Nest] 29860  -...00-000000000012:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Error: Invalid CRM_ANALYTICS_TRACKING_START_AT value for workspace 20202020-d000-4000-8000-000000000012
+    at CrmAnalyticsSettingsService.getTrackingStart (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\tw
+enty-server\src\modules\analytics\services\crm-analytics-settings.service.ts:59:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async CrmAnalyticsSyncService.computeJobOutcome (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages
+\twenty-server\src\modules\analytics\services\crm-analytics-sync.service.ts:206:29)
+    at async D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twenty-server\src\modules\analytics\servic
+es\crm-analytics-sync.service.ts:95:23
+    at async CrmAnalyticsDatabaseService.runJob (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twenty
+-server\src\modules\analytics\services\crm-analytics-database.service.ts:74:14)
+    at async CrmAnalyticsSyncService.runLoggedJob (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twen
+ty-server\src\modules\analytics\services\crm-analytics-sync.service.ts:92:5)
+    at async CrmAnalyticsWorkspaceSyncJob.handle (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twent
+y-server\src\modules\analytics\jobs\crm-analytics-workspace-sync.job.ts:46:5)
+    at async edge.needs.needs (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twenty-utils\flolabs\ana
+lytics-tests\dataflow\tests\crm-to-storage.cjs:663:9)
+    at async Object.test (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twenty-utils\flolabs\analytic
+s-tests\dataflow\lib\test-runner.cjs:93:7)
+    at async test (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twenty-utils\flolabs\analytics-tests
+\dataflow\lib\suite.cjs:27:7)
+CAUGHT linked rows reach the sync: 3 failed
+   DF-011 crm.timelineActivity.linkedRecordId -> facade.stageChangeRelation [timelineActivity.linkedRecordId]
+   DF-014 crm.timelineActivity.properties.diff.stage -> facade.stageChangeRelation [properties.diff keys]
+   DF-072 sync.readTimeline -> analytics.sync_log.processed_count [inserted_count]
+CAUGHT the stuck limit is ignored: 2 failed
+   UNKNOWN-16 the stuck limit: under 14 days is not stuck, 15 and a half is one whole day over
+   UNKNOWN-14 too recent people are not stuck either
+CAUGHT a report stores a person name: 2 failed
+   TAINT-03 no sentinel in any column of any analytics table
+   TAINT-05 no sentinel in any stored report payload or report read back
+[Nest] 29860  - 11/07/2026, 7:49:11 PM   ERROR [CrmAnalyticsSyncService] CRM analytics sync job failed for workspace 
+20202020-d000-4000-8000-000000000012
+Error: Invalid CRM_ANALYTICS_TRACKING_START_AT value for workspace 20202020-d000-4000-8000-000000000012
+    at CrmAnalyticsSettingsService.getTrackingStart (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\tw
+enty-server\src\modules\analytics\services\crm-analytics-settings.service.ts:59:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async CrmAnalyticsSyncService.computeJobOutcome (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages
+\twenty-server\src\modules\analytics\services\crm-analytics-sync.service.ts:206:29)
+    at async D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twenty-server\src\modules\analytics\servic
+es\crm-analytics-sync.service.ts:95:23
+    at async CrmAnalyticsDatabaseService.runJob (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twenty
+-server\src\modules\analytics\services\crm-analytics-database.service.ts:74:14)
+    at async CrmAnalyticsSyncService.runLoggedJob (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twen
+ty-server\src\modules\analytics\services\crm-analytics-sync.service.ts:92:5)
+    at async CrmAnalyticsWorkspaceSyncJob.handle (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twent
+y-server\src\modules\analytics\jobs\crm-analytics-workspace-sync.job.ts:46:5)
+    at async edge.needs.needs (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twenty-utils\flolabs\ana
+lytics-tests\dataflow\tests\crm-to-storage.cjs:663:9)
+    at async Object.test (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twenty-utils\flolabs\analytic
+s-tests\dataflow\lib\test-runner.cjs:93:7)
+    at async test (D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\packages\twenty-utils\flolabs\analytics-tests
+\dataflow\lib\suite.cjs:27:7)
+CAUGHT the snapshot keeps the track row of a person twice: 1 failed
+   DF-058 cte.position_map -> analytics.daily_snapshot.dimension_key [track_key]
+CAUGHT position change also moves the source rows: 1 failed
+   FP-03 person.positionsAppliedFor moves only position and track rows

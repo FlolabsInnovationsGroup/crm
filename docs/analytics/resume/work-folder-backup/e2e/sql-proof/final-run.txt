@@ -1,0 +1,199 @@
+
+== Fresh database: page reads before any job, first sync creates storage
+PASS    A1     Meta says NEVER_SYNCED and creates nothing
+PASS    A2     Metrics and reports read as empty, with no error, before storage exists
+PASS    A3     First sync job creates storage, reads since tracking start and enqueues the baseline once
+PASS    A4     Dropping the schema returns the page to NEVER_SYNCED and the next job recreates it
+
+== Storage: real DDL constant through the real database service
+PASS    S1     DDL runs on an empty database
+PASS    S2     DDL runs twice with no error and keeps rows
+PASS    S3     Columns match contract section 3
+PASS    S4     Job connection: 120 s server limit, no 10 s client limit
+PASS    S5     Page transaction: read only with an 8 s statement limit
+PASS    S6     CRM tables have the shapes the CRM column generator produces
+
+== Facade relations: valid SQL on CRM-shaped tables
+PASS    F1     getCrmState reads every field and object as present
+PASS    F2     Person relation: enum and enum array read as text, soft-deleted excluded
+PASS    F3     Person relation: missing fields become NULL::text and empty text[]
+PASS    F4     Person relation: wrong-typed fields are treated as missing
+PASS    F5     Person relation: TEXT stage and source are accepted
+PASS    F6     Stage change relation: only own stage diffs inside the bounds
+PASS    F7     Submission relation: named form only, soft-deleted excluded
+PASS    F8     Submission relation is null with no or half-built form objects
+PASS    F9     Imported applications count: soft-deleted excluded, null when absent
+PASS    F10    Display names: composite columns, soft-deleted excluded
+PASS    F11    Every relation runs inside the read-only page transaction
+
+== CTE builders: valid SQL with real parameters
+PASS    K1     Mapping CTEs: 13 raw stages, 39 positions, 8 funnel stages
+PASS    K2     Base CTEs: every CTE is selectable with empty filters
+PASS    K3     Base CTEs: scope and cohort filters take parameters from $3
+PASS    K4     Base CTEs: no-op rows never reach the transition CTE
+PASS    K5     Local date helper buckets by the reporting zone
+
+== Hand-calculated sample (contract section 9)
+PASS    M1     Real sync job stores the six moves as read, H included
+PASS    M2     Real CTEs: cohort is A to G, H is outside
+PASS    M3     Real CTEs: person_step has exactly the hand-calculated entries
+PASS    M4     Real CTEs: the contract formulas on person_step give the expected table
+PASS    M5     Real CTEs: NEW stays are 5, 20, 10, 4, 5, so median 5 with 5 completed
+PASS    M6     Metrics service: funnel equals the contract table, NEW median 5 with 5 completed stays
+PASS    M7     Metrics service: entered = eligible + inWindow and eligible = reachedNext + timedOut + exited on every row
+
+== Sync: timeline re-read through the real jobs
+PASS    Y1     First read stores one row exactly as read and ignores everything else
+PASS    Y2     Replay adds no rows, by sync and by daily full re-read
+PASS    Y3     Merged row appends one row, dated by the merge, and leaves the first unchanged
+PASS    Y4     Replay after a merge adds nothing, daily re-read included
+PASS    Y5     Merged row with the same after but a newer updatedAt adds nothing
+PASS    Y16    Merged twice with reads between: an unbroken chain, each row kept
+PASS    Y17    A stage merged into a row first seen without one is stored as a first read
+PASS    Y6     A to B to A with a read between: rows A to B and B to A
+PASS    Y7     A to B to A with no read between: one no-op row that every read ignores
+PASS    Y8     Cursor is the latest timeline row minus 30 minutes and ignores reconcile rows
+PASS    Y9     First run with no rows uses tracking start as the cursor
+PASS    Y10    Overlap: a late row inside 30 minutes is read by sync; older is left to the daily re-read
+PASS    Y11    Off switch: job returns with no log row and no rows
+PASS    Y12    Missing stage field: log row skipped with NO_STAGE_FIELD, no throw
+PASS    Y13    Failure: bad tracking start writes a failed row and rethrows; the next run recovers
+PASS    Y14    One workspace never reads or writes another workspace
+PASS    Y15    Log trim removes only rows older than 90 days, for that workspace
+
+== Reconcile: CRM changes that left no timeline row
+PASS    R1     A person changed with no timeline row gets one flagged row
+PASS    R2     A rerun adds none and logs restored 0
+PASS    R3     A person updated in the last 30 minutes is skipped until they age
+PASS    R4     Two raw values on one stage key are no move: no false reconcile
+PASS    R5     A person with no transition has nothing to compare (documented limit)
+PASS    R6     A stage cleared in the CRM reconciles to null once
+PASS    R7     An unmapped value reconciles by raw value once
+PASS    R8     A timeline row arriving after reconcile causes no further reconcile rows
+PASS    R10    Two members editing at once: rows interleave, and the chain still ends on the CRM stage
+PASS    R9     A soft-deleted person gets no reconcile row
+
+== Snapshot and consistency check
+PASS    N1     First run: exact rows, consistency OK, status ok
+PASS    N2     Snapshot and check are one statement
+PASS    N3     Snapshot date is the local date in the reporting zone
+PASS    N4     Rerun: NOT_RUN, status ok, rows unchanged
+PASS    N5     A person created between runs causes no false mismatch and no new rows
+PASS    N6     No people at all: NOT_RUN and status ok
+PASS    N7     Missing positions and source fields still give a consistent snapshot under NONE
+PASS    N8     A mismatch marks the job failed with the three totals, and is rethrown
+
+== Metrics: figures on hand-counted people
+PASS    T1     Stage totals: top rows sum to total contacts, with Unmapped and No stage
+PASS    T2     Overview figures: active, stuck, inactive, names read live
+PASS    T3     New applications: named form, 7 local days against the 7 before
+PASS    T4     Several positions: counted once in each, distinct totals correct
+PASS    T5     Source rows: single valued, add up to distinct people, overlap 0
+PASS    T6     Funnel: imported people outside, skipped stages count, hand-counted rows
+PASS    T7     Soft-deleted people are out of totals, lists, categories and the cohort
+FAIL    T8     A soft-deleted person's applications leave New applications too
+        unfiltered count must agree
+        expected: 1
+        actual:   2
+PASS    T28    An application with no linked person still counts in the headline, and in no category row
+PASS    T9     Status filter: the six slices add up to total contacts
+PASS    T10    Track, program and source filters count the right people
+PASS    T11    Date filter: imported people drop out and are reported
+PASS    T12    Too recent: never 0%, never dropped
+PASS    T13    Durations: reconcile rows are excluded, reached still counts
+PASS    T14    Durations: raw siblings stay inside one stage, exit outside the window times out
+PASS    T15    Form reset to INTERESTED: furthest stage kept, clock restarts, never stuck
+PASS    T16    No-op rows change nothing: clock, movement, stays
+PASS    T17    Movement: event date, imported people included, counts from current scope
+PASS    T18    Trend lines from snapshots: stored counts, unknown stays null
+PASS    T19    Trend buckets read the last snapshot of each bucket, and previous is one window back
+PASS    T20    Median trend buckets by stay end date
+PASS    T21    Unavailable trends say why
+PASS    T22    Every query in every filter branch is valid SQL in the read-only transaction
+PASS    T23    Missing positions, source and form fields: every view still runs
+PASS    T24    Off switch: metrics return null
+PASS    T26    Overall conversion: 90-day window, numerator within it, too recent held back
+PASS    T27    Lowest step: needs the minimum sample, first step only when no other qualifies
+PASS    T25    Only the page path runs metrics: nothing is written
+
+== Reports: built once, frozen on rerun
+PASS    Q1     Daily job builds exactly the finished periods, none for the current week
+PASS    Q2     Report numbers: applications by submittedAt, movement by event date
+PASS    Q3     Report holds counts only, no names
+PASS    Q4     Frozen on rerun: CRM changes rewrite nothing, byte for byte
+PASS    Q5     Page reads of reports: list newest first, one report is the stored payload
+PASS    Q6     A report built now equals the page for the same cutoff
+PASS    Q7     Catch-up: at most 8 per run, oldest first, months carry cohorts, all built exactly once
+PASS    Q8     A failed reconcile leaves reports for the next run, and the job says failed
+
+== Meta: page state and sync line
+PASS    Z1     After a real sync: READY, not stale, last attempt OK
+PASS    Z2     A daily success cannot hide a stopped sync: stale stays true
+PASS    Z3     A young running row is ignored in favour of the row before it
+PASS    Z4     An old running row was killed mid-job and reads FAILED
+PASS    Z5     No sync row: null status, NEVER_SYNCED, not stale
+PASS    Z6     A failed row with no success ever: stale and FAILED, not READY
+PASS    Z11    First sync still running: NEVER_SYNCED, not yet stale
+PASS    Z7     No stage field: NO_STAGE_FIELD, whatever the log says
+PASS    Z8     Off switch: DISABLED
+PASS    Z9     Reconciliation line reads the latest ok daily row
+PASS    Z10    Options from the real field metadata reach the filter lists
+
+== Altered config: settings the audit may change
+PASS    C1     Reminder: nests under its stage, top rows still sum, clock and stay do not restart
+PASS    C2     Alias: a renamed value makes no false reconcile row, a real change still does
+PASS    C3     Non-UTC zone (Pacific/Kiritimati): snapshot date and filters use the local date
+PASS    C4     Non-UTC zone (Pacific/Kiritimati): week bucket and report periods start on the local Monday
+PASS    C5     No stage limits at all: list falls back to the longest stays, hasLimits false, valid SQL
+PASS    C6     No success stage: overall is null and every query stays valid
+PASS    C7     Signed figure switched on counts both raw values
+
+== Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)
+        first sync 1398 ms, replay 266 ms
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 8208 ms over 3 statements, FAILED: canceling statement due to statement timeout
+          8002 ms ...days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key
+          104 ms ... min(a.arrived_at) AS entered_at, min(a.arrived_at) FILTER (WHERE a.rank > f.rank) AS next_at FROM arrival a JOIN funnel_stage f ON a.rank >= f.rank GROUP BY 1, 2, 3, 4) SELECT s.raw_stage, count(*)::int AS person_count FROM scope s GROUP BY s.raw_stage
+          45 ms ...SELECT now() AS as_of, (now() AT TIME ZONE $1::text)::date::text AS local_today, to_regclass('analytics.sync_log') IS NOT NULL AS has_storage
+FAIL    V3     Page read within the 8 s limit: overview
+        canceling statement due to statement timeout; slowest statement 8002 ms, limit 8000 ms
+        funnel: 3267 ms over 4 statements
+          2692 ms ...t( 'stage_key', t.stage_key, 'entered', t.entered, 'eligible', t.eligible, 'reached_next', t.reached_next, 'exited', t.exited, 'reached_so_far', t.reached_so_far)) FROM step_total t WHERE t.group_key = a.group_key) AS steps FROM overall_total a
+          297 ms ....to_key IS NOT NULL) SELECT count(*)::int AS excluded_count FROM cohort c JOIN scope s ON s.person_id = c.person_id LEFT JOIN mapped_mover mm ON mm.person_id = c.person_id WHERE COALESCE(s.raw_stage, '') <> '' AND s.current_key IS NULL AND mm.person_id IS NULL
+          153 ms ...origin IS DISTINCT FROM 'reconcile' AND st.ended_origin IS DISTINCT FROM 'reconcile') SELECT cs.stage_key, percentile_cont(0.5) WITHIN GROUP (ORDER BY cs.stay_days) AS median_days, count(*)::int AS completed_stays FROM completed_stay cs GROUP BY cs.stage_key
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 2708 ms over 5 statements
+          1481 ms ...t( 'stage_key', t.stage_key, 'entered', t.entered, 'eligible', t.eligible, 'reached_next', t.reached_next, 'exited', t.exited, 'reached_so_far', t.reached_so_far)) FROM step_total t WHERE t.group_key = a.group_key) AS steps FROM overall_total a
+          845 ms ... count(*)::int AS people, count(*) FILTER (WHERE s.current_kind IN ('MAIN', 'OTHER') AND s.current_key IS DISTINCT FROM $3::text)::int AS active_people FROM category_member cm JOIN scope s ON s.person_id = cm.person_id GROUP BY cm.parent_key, cm.category_key
+          181 ms ...ROUP BY pp.person_id HAVING count(*) >= 2) several)::int AS people_in_several, (SELECT count(*) FROM ( SELECT pp.person_id FROM person_position pp GROUP BY pp.person_id HAVING count(DISTINCT pp.track_key) >= 2) several)::int AS people_in_several_tracks
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 1865 ms over 5 statements
+          1526 ms ...t( 'stage_key', t.stage_key, 'entered', t.entered, 'eligible', t.eligible, 'reached_next', t.reached_next, 'exited', t.exited, 'reached_so_far', t.reached_so_far)) FROM step_total t WHERE t.group_key = a.group_key) AS steps FROM overall_total a
+          154 ms ... count(*)::int AS people, count(*) FILTER (WHERE s.current_kind IN ('MAIN', 'OTHER') AND s.current_key IS DISTINCT FROM $3::text)::int AS active_people FROM category_member cm JOIN scope s ON s.person_id = cm.person_id GROUP BY cm.parent_key, cm.category_key
+          47 ms ...new_applications FROM submission sub JOIN category_member cm ON cm.person_id = sub.person_id WHERE (sub.submitted_at AT TIME ZONE $3::text)::date >= $4::date AND (sub.submitted_at AT TIME ZONE $3::text)::date <= $5::date GROUP BY cm.parent_key, cm.category_key
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 574 ms over 4 statements
+          350 ms ...t( 'stage_key', t.stage_key, 'entered', t.entered, 'eligible', t.eligible, 'reached_next', t.reached_next, 'exited', t.exited, 'reached_so_far', t.reached_so_far)) FROM step_total t WHERE t.group_key = a.group_key) AS steps FROM overall_total a
+          80 ms ...d, COALESCE(c.people, 0)::int AS count_now FROM (SELECT DISTINCT sm.stage_key FROM stage_map sm) k LEFT JOIN entered_total e ON e.stage_key = k.stage_key LEFT JOIN left_total l ON l.stage_key = k.stage_key LEFT JOIN current_total c ON c.stage_key = k.stage_key
+          44 ms ...SELECT now() AS as_of, (now() AT TIME ZONE $1::text)::date::text AS local_today, to_regclass('analytics.sync_log') IS NOT NULL AS has_storage
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 8113 ms over 2 statements, FAILED: canceling statement due to statement timeout
+          8013 ms ...t( 'stage_key', t.stage_key, 'entered', t.entered, 'eligible', t.eligible, 'reached_next', t.reached_next, 'exited', t.exited, 'reached_so_far', t.reached_so_far)) FROM step_total t WHERE t.group_key = a.group_key) AS steps FROM overall_total a
+          44 ms ...SELECT now() AS as_of, (now() AT TIME ZONE $1::text)::date::text AS local_today, to_regclass('analytics.sync_log') IS NOT NULL AS has_storage
+FAIL    V8     Page read within the 8 s limit: trend overall conversion, month
+        canceling statement due to statement timeout; slowest statement 8013 ms, limit 8000 ms
+        trend median days, week: 719 ms over 4 statements
+          312 ms ...percentile_cont(0.5) WITHIN GROUP (ORDER BY cs.stay_days) AS median_days, count(*)::int AS completed_stays FROM completed_stay cs WHERE (cs.ended_at AT TIME ZONE $3::text)::date >= $4::date AND (cs.ended_at AT TIME ZONE $3::text)::date <= $5::date GROUP BY 1
+          205 ms ...t( 'stage_key', t.stage_key, 'entered', t.entered, 'eligible', t.eligible, 'reached_next', t.reached_next, 'exited', t.exited, 'reached_so_far', t.reached_so_far)) FROM step_total t WHERE t.group_key = a.group_key) AS steps FROM overall_total a
+          102 ms ...d, COALESCE(c.people, 0)::int AS count_now FROM (SELECT DISTINCT sm.stage_key FROM stage_map sm) k LEFT JOIN entered_total e ON e.stage_key = k.stage_key LEFT JOIN left_total l ON l.stage_key = k.stage_key LEFT JOIN current_total c ON c.stage_key = k.stage_key
+PASS    V9     Page read within the 8 s limit: trend median days, week
+        daily job: 160261 ms over 114 statements
+          24081 ms ...days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key
+          16030 ms ...days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key
+          15912 ms ...days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key
+          15796 ms ...days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key
+          13662 ms ...days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key
+PASS    V2     Daily job, with reconcile, snapshot and 8 reports, inside the job limit
+
+128 passed, 3 failed, 0 not run, 560s
+5439 statements through the real runners, 389s in the database; slowest 24081 ms

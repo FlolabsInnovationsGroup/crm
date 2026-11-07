@@ -68,45 +68,34 @@ npx nx run twenty-front:graphql:generate      # after GraphQL schema changes (--
 
 This section lets a new chat or a compacted session continue without losing context. Read it before doing anything on the analytics tool. **Keep it current:** update it after every 2 or 3 decisions and at the end of every phase. To update: edit `.claude/worktrees/analytics-work/state_block.md` (absolute path `D:\Coding\Flolabs\crm\.claude\worktrees\analytics-work\state_block.md`), run `python -X utf8` on `sync_claude_md.py` in that folder, then commit `CLAUDE.md` on the `analytics_tool` branch.
 
-Last updated: 2026-11-07 19:20. Code written. Running: UI review 2, backend review 1, test suite, seed, data flow, SQL proof. Estimate given to the user: 2.5 to 3.5 hours to the local laptop run, around 10 to 11 PM. The user wants the final step to be running it on their laptop with seed data, which they will open themselves at http://localhost:3001.
+Last updated: 2026-11-07 20:15.
 
-### Status
-| Phase | State (2026-11-07, 18:15) |
+**PAUSED: the user had to close the chat. Read `RESUME.md` in the worktree root first** (`D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\RESUME.md`, with a copy in the main checkout). It has where every workflow stopped, the exact continuation scripts to launch, test results, remaining steps and the time estimate. To restart, the user opens a new chat in the worktree and asks to continue from `RESUME.md`. Time left when paused: 3 to 4.5 hours from restart, most likely about 3.5. The final step is running it on the user's laptop with seed data, which they open themselves at http://localhost:3001.
+
+### Status at the pause
+| Phase | State |
 |---|---|
-| Setup | Done. Worktree, dependencies, `twenty-shared` built. `twenty-ui` build and Docker Desktop (with db and redis containers) started by the main session |
-| Research, critique, contract | Done. Contract corrected by the verifier: 13 defects fixed |
-| Backend `analytics-backend` (`wf_3a38ec46-0e1`) | Foundation done, all 8 specs pass. Pipeline and metrics agents running, then up to 3 review and fix rounds |
-| UI `analytics-ui` (`wf_f8080ac4-839`) | Foundation done, 30 tests pass; component tests need `twenty-ui` built. Funnel and Categories, Trends and Reports agents running, then up to 3 review and fix rounds |
-| Integration `analytics-integration` | Written and APPROVED by a separate reviewer: five existing files, 27 lines added, none deleted. Uncommitted: commit one per file after the backend and UI are committed. Compile and boot not proven until the typecheck and boot test |
-| SQL proof `analytics-sql-proof` (`wf_182ab2dc-c6d`) | Running: real Postgres harness in `analytics-work/e2e/sql-proof/`, results in `analytics-work/e2e/RESULTS.md`. **Rerun it once the backend services exist**, and feed failures to a backend fix agent |
-| Automated tests `analytics-tests` | Running continuously: Opus writes permanent test files in `packages/twenty-utils/flolabs/analytics-tests/`, Haiku runs them when code changes, Sonnet evaluates. Run any layer with `node packages/twenty-utils/flolabs/analytics-tests/run-tests.mjs --layer <unit-server, unit-front, integration, blackbox, ui, all>`. Results and bugs are in `analytics-work/test-results/` (`latest-<layer>.json`, `history.jsonl`, `bugs.md`). A data flow graph layer (`analytics-tests/dataflow/`, workflow `analytics-dataflow-tests`, requested by the user) maps every path from CRM tables to the screen, tests each definition-use edge, and proves no personal data reaches the analytics tables. Seed data (`analytics-tests/seed/`, workflow `analytics-seed-data-small`): **the user said not to make test data large: keep it small but reflecting every use case.** Hand-designed people, each tied to a numbered use case in `use-cases.json`, with independently calculated expected results and a check that fails if any use case has no seed or assertion. No large dataset is kept. It never fixes product code: **read `bugs.md` between phases and send real bugs to a fix agent.** Local only, it refuses non-localhost targets |
-| Typecheck, lint, boot test, full local end-to-end | Not started |
+| Setup | Done. Worktree, dependencies, `twenty-shared` and `twenty-ui` built |
+| Research, critique, contract | Done. Contract corrected by the verifier; "Decisions from testing" added at its end |
+| Backend (`wf_3a38ec46-0e1`) | Foundation, pipeline, metrics and API, review 1, fix 1 done. Committed. Review 2 was cut off with no result. **Continue with `docs/analytics/resume/workflows/analytics-backend-continue.js`** |
+| UI (`wf_f8080ac4-839`) | Foundation, Funnel and Categories, Trends and Reports, review 1, fix 1 done. Committed. Review 2 was cut off with no result. **Continue with `analytics-ui-continue.js`** |
+| Integration | Five existing files, 27 lines added, none deleted, approved by a separate reviewer. Committed one per file. Compile and boot not proven yet |
+| Tests (`wf_b46b544a-bc6`) | Suite written and running, first author did not report, run and evaluate loop not started. Committed. **Continue with `analytics-tests-continue.js`** |
+| Data flow (`wf_36b878c6-b01`) | Graph and tests written, 622 pass, 1 stale test. Committed. **Continue with `analytics-dataflow-continue.js`** |
+| Seed (`wf_28e7e089-6d7`) | 77 people, all use cases, 185 pass, 9 fail from four questions now settled in the contract. Committed. **Continue with `analytics-seed-continue.js`** |
+| Merge guard | Done. Now also excludes `RESUME.md` and `docs/analytics/resume/` |
+| SQL proof | Done and rerun at the pause. See `RESUME.md` section 5 |
+| Type checks, lint, boot test, local run with seed data | Not started. Exact steps in `RESUME.md` section 6 and contract section 9 |
 
-All new code is uncommitted in the worktree until each workflow finishes. Agents do not commit; the main session commits at phase ends. **Nothing is pushed: the user said to keep it local for now.**
+Agents do not commit; the main session commits at phase ends. **Nothing is pushed: the user said to keep it local for now.** The only copy is the D: drive.
 
-**Time estimate given to the user on 2026-11-07 around 18:05:** 4 to 5 hours in total to working and tested locally, 3 at best.
+**The test suite:** run any layer with `node packages/twenty-utils/flolabs/analytics-tests/run-tests.mjs --layer <unit-server, unit-front, integration, seed, dataflow, blackbox, ui, merge-guard, all>`. Results and bugs are in `analytics-work/test-results/` (`latest-<layer>.json`, `history.jsonl`, `bugs.md`). The user wants a workflow that keeps testing, with Opus writing tests and Haiku or Sonnet running and judging them, and data flow graph tests. **Test data stays small: the user said not to make it large, but to reflect every use case.** It never fixes product code: read `bugs.md` between phases and send real bugs to a fix agent. Local only, it refuses non-localhost targets.
 
-**Known fixes still to apply (2026-11-07, 19:20):**
-- SQL proof finished: 128 of 131 checks passed on real Postgres with the real code, and all SQL is valid. Rerun: `node ../analytics-work/e2e/sql-proof/run.cjs` from the worktree. **Apply these once the backend review stops editing, details in `analytics-work/e2e/RESULTS.md`:**
-  - T8: new applications count a soft-deleted person's applications when no filter is set. Fix `buildApplicationSubmissionRelationSql` in the facade, keeping submissions with no person.
-  - V3, V8: at 43,000 people, Overview and the monthly overall conversion trend hit the 8 second limit, from nested loops over CTEs. Fix: `enable_nestloop` and `jit` off on analytics connections only. With both fixes the suite passes (122 of 122) and those reads take about 2 seconds. This came from an optional volume check (`PROOF_VOLUME=1`) added before the user asked for small test data; it is off by default and its data is deleted.
-- UI review finding needing server code: `readTrendValues` must return null, not 0, for new applications before tracking start.
-- Data flow tests: 2 failures and 152 skips in `analytics-work/test-results/latest-dataflow.json`, not yet looked at.
-- UI review 1 had 19 minor findings: `analytics-work/test-results/ui-review-1.md`. Also noticed: the trend table can print "-0 points".
-- All 140 UI tests passed after fixes; typecheck, lint and a browser run not done yet.
-- Merge guard finished: 40 of 40 tests pass, and `packages/twenty-utils` does not reach the Docker image.
+**Fixes:** the soft-deleted applications bug (T8) and the query speed fix (`enable_nestloop` and `jit` off on analytics connections only) are in the code. Still to do, all in the continuation scripts: `readTrendValues` returns null before tracking start; 19 minor UI findings in `analytics-work/test-results/ui-review-1.md`; "-0 points" in the trend table; Lingui for server-built labels; data flow test FP-06; nine seed failures. `RESUME.md` section 4 and 5 have details.
 
-**Next steps, do not stop to ask (the user said to keep developing):**
-1. When backend and UI workflows finish, read results and commit each area on `analytics_tool`. Commit the five integration edits one per file.
-2. Rerun the SQL proof with all services, fix real failures with a separate fix agent.
-3. Typecheck and lint, server then front, never together: `npx tsgo -p tsconfig.json --noEmit` in the package directly, `npx nx lint:diff-with-main <pkg>`. Then boot-test server and worker.
-4. Run the full local end-to-end plan in contract section 9, with screenshots of all tabs and states, light and dark.
-5. Report to the user. Merging and deploying only after they review.
 - **The user has no production or server access** and must not be asked to run anything there. `docs/analytics/production-audit.sql` is for whoever has access, later. The user has a normal CRM login and will send screenshots of Settings, Data model, People, Stage and of a person's Timeline when they can; do not wait for them. **Stop rule:** if the audit eventually shows no stage rows on the timeline, or `isAuditLogged` false for `stage`, stop work on metrics and ask the user.
 
-**Docker Desktop:** started by the main session for the local Postgres and Redis (containers `twenty-dev-db-1`, `twenty-dev-redis-1`). The user wants to close it because of its memory use and asked to be told when: tell them as soon as the SQL proof, integration tests and full end-to-end run no longer need it.
-
-If a workflow cannot be resumed in a new chat, check `git status` in the worktree to see what was written, compare with `docs/analytics/contract.md` section 2, and continue from there.
+**Docker Desktop:** needed again on restart for the local Postgres and Redis (containers `twenty-dev-db-1`, `twenty-dev-redis-1`). The user wants to close it when nothing needs it because of its memory use, so tell them as soon as the local run is over.
 
 ### Where everything is
 - **Code goes in the worktree only:** `D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool`, branch `analytics_tool`, based on `origin/main` at `30f3e351`. Use absolute paths. Dependencies are installed there. Corepack is broken on this machine, so `yarn` is not on the PATH and Nx targets that call it fail silently with a clean exit. Before any `npx nx` command run `export PATH="/d/Coding/Flolabs/crm/.claude/worktrees/analytics-work/bin:$PATH" NX_DAEMON=false NX_TUI=false`, which adds a local yarn shim. Check that the output folder really appeared.
@@ -204,6 +193,8 @@ From the requirements: track contact and application counts by pipeline, track, 
 - GitHub reported 402 dependency vulnerabilities on `main`, 5 critical. Not investigated.
 
 ### Decision log
+- 2026-11-07, 20:00: The user had to stop the chat, so all workflows were stopped and everything was committed locally. `RESUME.md` and continuation scripts in `docs/analytics/resume/workflows/` restart each workflow at the step it reached.
+- 2026-11-07, 20:00: Four questions testing found in the contract got working answers, recorded in its "Decisions from testing" section and on the before-merge checklist for confirmation: unknown sources keep their raw value, the cohort table covers the trend window, medians round to one decimal, stuck compares whole days.
 - 2026-11-05: External web app rejected. The tool is one of the CRM's pages, on the same server, with shared storage.
 - 2026-11-06: Facade is a module, the tool has no server of its own. Core CRM edits need a writer agent and a reviewer agent. Service files are TypeScript because the repo is. The user agreed to the read-only facade, worker-run heavy work and a separate `analytics` schema.
 - 2026-11-06: Branch `analytics_tool` created from `origin/main` with the 3-page PDF, and pushed.

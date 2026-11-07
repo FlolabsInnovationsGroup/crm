@@ -20,6 +20,7 @@ Merging to `main` triggers an image build, and a deploy can follow after approva
 - [ ] **`CLAUDE.md`:** decide what goes to `main`. The project-state section is working notes for this build, not lasting guidance. Default: the clean branch removes it and keeps a short pointer.
 - [ ] **Decide whether the rest of the test suite goes to `main`.** Default: tests stay on `analytics_tool`, because most of them need the seed data. The unit tests beside the product code do go to `main`.
 - [ ] **Decide whether `docs/analytics/research/` goes to `main`.** Default: it stays out; the contract and the overview PDF go in.
+- [ ] **Resume files stay out.** `RESUME.md` and `docs/analytics/resume/` are only for continuing this build. The exclusion list already leaves them out; confirm they are gone from the clean branch. Also delete the untracked `RESUME.md` copy in the main checkout once the build is finished.
 
 ## 2. Real data that must be confirmed
 
@@ -36,13 +37,14 @@ The tool is built on guessed stage values. Until these are done, the page shows 
 - [ ] **Tracking start:** the date the last HubSpot import finished. The default is 2026-10-27. Check it against the audit's people-per-day result.
 - [ ] **HubSpot history:** is stage history still readable? It could give a real funnel at launch instead of starting empty.
 - [ ] **Hand check:** one hand-counted sample period from recruiting matches the page.
+- [ ] **Confirm four answers chosen during testing** (contract, "Decisions from testing"): an unknown source keeps its raw value and shows as "Unmapped: {raw}"; the cohort table covers the same 12 weeks as the trend line; median days are rounded to one decimal; stuck compares whole days, so 14 days and 6 hours is not over a 14 day limit until day 15.
 
 ## 3. Decisions for Ahsan
 
 - [ ] **Who can see analytics.** The gate is the `EXPORT_CSV` permission, which is wider than it sounds: the default Member role has it, so nearly everyone sees the page. A role with no People access could still see names in the stuck list. To narrow it, change the flag in `NavigationDrawerAnalyticsItem.tsx` and `crm-analytics.resolver.ts`.
 - [ ] **Reports:** is a Reports tab enough for now, with no email or n8n delivery?
 - [ ] **Retention:** approve the paragraph in contract section 3.
-- [ ] **Query speed at full size:** measured once with temporary fake data at about 43,000 people. Overview and the monthly conversion trend hit the 8 second limit until `enable_nestloop` and `jit` were turned off on analytics connections, then took about 2 seconds. Confirm that fix is in the code. Real production data may behave differently, so check `analytics.sync_log` and page speed after the first deploy.
+- [ ] **Query speed at full size:** measured once with temporary fake data at about 43,000 people. Overview and the monthly conversion trend hit the 8 second limit until `enable_nestloop` and `jit` were turned off on analytics connections. That fix is now in `crm-analytics-database.service.ts`, and those reads took under a second in the latest run. Real production data may behave differently, so check `analytics.sync_log` and page speed after the first deploy.
 
 ## 4. Proof that it works
 

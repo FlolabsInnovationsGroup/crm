@@ -1,0 +1,227 @@
+=== moves=500, no fix ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 444 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 417 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 9780 ms over 5 statements, FAILED: canceling statement due to statement timeout
+FAIL    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 4042 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 351 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 2095 ms over 4 statements
+PASS    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 334 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== moves=2000, no fix ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 481 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 375 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 3751 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 2017 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 306 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 4481 ms over 4 statements
+PASS    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 335 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== moves=5000, no fix ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 567 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 392 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 3469 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 1431 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 331 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 5679 ms over 4 statements
+PASS    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 297 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== moves=10000, no fix ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 819 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 390 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 2864 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 1412 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 280 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 8098 ms over 2 statements, FAILED: canceling statement due to statement timeout
+FAIL    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 340 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== moves=20000, no fix ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 8396 ms over 3 statements, FAILED: canceling statement due to statement timeout
+FAIL    V3     Page read within the 8 s limit: overview
+        funnel: 400 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 3189 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 1829 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 299 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 8096 ms over 2 statements, FAILED: canceling statement due to statement timeout
+FAIL    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 351 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== moves=43000, no fix ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 8362 ms over 3 statements, FAILED: canceling statement due to statement timeout
+FAIL    V3     Page read within the 8 s limit: overview
+        funnel: 4947 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 6963 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 2526 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 559 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 8102 ms over 2 statements, FAILED: canceling statement due to statement timeout
+FAIL    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 1108 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== launch: 430 applied since tracking start, 500 moves, no fix ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 774 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 359 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 9449 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 2975 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 309 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 362 ms over 4 statements
+PASS    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 381 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== launch: 430 applied since tracking start, 2000 moves, no fix ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 523 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 288 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 4701 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 1587 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 358 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 451 ms over 4 statements
+PASS    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 317 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== 500 moves, with fix ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 749 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 2737 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 7733 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 1357 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 1141 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 2615 ms over 4 statements
+PASS    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 1721 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== 5000 moves, with fix ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 479 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 1192 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 5001 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 1370 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 1263 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 2249 ms over 4 statements
+PASS    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 1609 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== 20000 moves, with fix ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 529 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 1242 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 4387 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 1574 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 1290 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 2412 ms over 4 statements
+PASS    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 1356 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== 500 moves, fix with jit off ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 414 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 307 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 1093 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 393 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 280 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 294 ms over 4 statements
+PASS    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 319 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== 20000 moves, fix with jit off ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 463 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 315 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 1042 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 447 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 301 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 330 ms over 4 statements
+PASS    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 299 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+=== 43000 moves, fix with jit off ===
+PASS    V1     First sync reads every stage row inside the job limit, replay inside 30 s
+        overview: 2040 ms over 6 statements
+PASS    V3     Page read within the 8 s limit: overview
+        funnel: 523 ms over 4 statements
+PASS    V4     Page read within the 8 s limit: funnel
+        categories by track and program: 1725 ms over 5 statements
+PASS    V5     Page read within the 8 s limit: categories by track and program
+        categories by source: 511 ms over 5 statements
+PASS    V6     Page read within the 8 s limit: categories by source
+        trend total contacts, week: 364 ms over 4 statements
+PASS    V7     Page read within the 8 s limit: trend total contacts, week
+        trend overall conversion, month: 530 ms over 4 statements
+PASS    V8     Page read within the 8 s limit: trend overall conversion, month
+        trend median days, week: 517 ms over 4 statements
+PASS    V9     Page read within the 8 s limit: trend median days, week
+        daily job: 20304 ms over 114 statements
+PASS    V2     Daily job, with reconcile, snapshot and 8 reports, inside the job limit
+finished

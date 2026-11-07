@@ -1,0 +1,981 @@
+{
+  "summary": {
+    "passed": 128,
+    "failed": 3,
+    "notRun": 0
+  },
+  "environment": {
+    "database": "analytics_proof",
+    "durationSeconds": 560,
+    "runAt": "2026-11-07T14:27:04.065Z",
+    "missingAnalyticsModules": [],
+    "stubbedModules": [
+      "@nestjs/typeorm",
+      "src/engine/core-modules/message-queue/decorators/message-queue.decorator",
+      "src/engine/core-modules/message-queue/decorators/process.decorator",
+      "src/engine/core-modules/message-queue/decorators/processor.decorator",
+      "src/engine/core-modules/workspace/workspace.entity",
+      "src/engine/metadata-modules/field-metadata/field-metadata.exception",
+      "src/engine/metadata-modules/flat-entity/exceptions/flat-entity-maps.exception",
+      "src/engine/workspace-manager/workspace-migration/workspace-migration-runner/exceptions/workspace-migration-action-execution.exception"
+    ],
+    "unknownDependencies": [],
+    "notes": [],
+    "statementTiming": {
+      "count": 5439,
+      "totalMs": 389368,
+      "slowest": [
+        {
+          "durationMs": 24081,
+          "origin": "job",
+          "sql": ".limit_days, c.is_inactive, c.stage_entered_at, c.is_lower_bound, floor(extract(epoch FROM now() - c.stage_entered_at) / 86400)::int AS days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key"
+        },
+        {
+          "durationMs": 16030,
+          "origin": "job",
+          "sql": ".limit_days, c.is_inactive, c.stage_entered_at, c.is_lower_bound, floor(extract(epoch FROM now() - c.stage_entered_at) / 86400)::int AS days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key"
+        },
+        {
+          "durationMs": 15912,
+          "origin": "job",
+          "sql": ".limit_days, c.is_inactive, c.stage_entered_at, c.is_lower_bound, floor(extract(epoch FROM now() - c.stage_entered_at) / 86400)::int AS days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key"
+        },
+        {
+          "durationMs": 15796,
+          "origin": "job",
+          "sql": ".limit_days, c.is_inactive, c.stage_entered_at, c.is_lower_bound, floor(extract(epoch FROM now() - c.stage_entered_at) / 86400)::int AS days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key"
+        },
+        {
+          "durationMs": 13662,
+          "origin": "job",
+          "sql": ".limit_days, c.is_inactive, c.stage_entered_at, c.is_lower_bound, floor(extract(epoch FROM now() - c.stage_entered_at) / 86400)::int AS days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key"
+        }
+      ]
+    }
+  },
+  "results": [
+    {
+      "section": "Fresh database: page reads before any job, first sync creates storage",
+      "id": "A1",
+      "title": "Meta says NEVER_SYNCED and creates nothing",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Fresh database: page reads before any job, first sync creates storage",
+      "id": "A2",
+      "title": "Metrics and reports read as empty, with no error, before storage exists",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Fresh database: page reads before any job, first sync creates storage",
+      "id": "A3",
+      "title": "First sync job creates storage, reads since tracking start and enqueues the baseline once",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Fresh database: page reads before any job, first sync creates storage",
+      "id": "A4",
+      "title": "Dropping the schema returns the page to NEVER_SYNCED and the next job recreates it",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Storage: real DDL constant through the real database service",
+      "id": "S1",
+      "title": "DDL runs on an empty database",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Storage: real DDL constant through the real database service",
+      "id": "S2",
+      "title": "DDL runs twice with no error and keeps rows",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Storage: real DDL constant through the real database service",
+      "id": "S3",
+      "title": "Columns match contract section 3",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Storage: real DDL constant through the real database service",
+      "id": "S4",
+      "title": "Job connection: 120 s server limit, no 10 s client limit",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Storage: real DDL constant through the real database service",
+      "id": "S5",
+      "title": "Page transaction: read only with an 8 s statement limit",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Storage: real DDL constant through the real database service",
+      "id": "S6",
+      "title": "CRM tables have the shapes the CRM column generator produces",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Facade relations: valid SQL on CRM-shaped tables",
+      "id": "F1",
+      "title": "getCrmState reads every field and object as present",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Facade relations: valid SQL on CRM-shaped tables",
+      "id": "F2",
+      "title": "Person relation: enum and enum array read as text, soft-deleted excluded",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Facade relations: valid SQL on CRM-shaped tables",
+      "id": "F3",
+      "title": "Person relation: missing fields become NULL::text and empty text[]",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Facade relations: valid SQL on CRM-shaped tables",
+      "id": "F4",
+      "title": "Person relation: wrong-typed fields are treated as missing",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Facade relations: valid SQL on CRM-shaped tables",
+      "id": "F5",
+      "title": "Person relation: TEXT stage and source are accepted",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Facade relations: valid SQL on CRM-shaped tables",
+      "id": "F6",
+      "title": "Stage change relation: only own stage diffs inside the bounds",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Facade relations: valid SQL on CRM-shaped tables",
+      "id": "F7",
+      "title": "Submission relation: named form only, soft-deleted excluded",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Facade relations: valid SQL on CRM-shaped tables",
+      "id": "F8",
+      "title": "Submission relation is null with no or half-built form objects",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Facade relations: valid SQL on CRM-shaped tables",
+      "id": "F9",
+      "title": "Imported applications count: soft-deleted excluded, null when absent",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Facade relations: valid SQL on CRM-shaped tables",
+      "id": "F10",
+      "title": "Display names: composite columns, soft-deleted excluded",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Facade relations: valid SQL on CRM-shaped tables",
+      "id": "F11",
+      "title": "Every relation runs inside the read-only page transaction",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "CTE builders: valid SQL with real parameters",
+      "id": "K1",
+      "title": "Mapping CTEs: 13 raw stages, 39 positions, 8 funnel stages",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "CTE builders: valid SQL with real parameters",
+      "id": "K2",
+      "title": "Base CTEs: every CTE is selectable with empty filters",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "CTE builders: valid SQL with real parameters",
+      "id": "K3",
+      "title": "Base CTEs: scope and cohort filters take parameters from $3",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "CTE builders: valid SQL with real parameters",
+      "id": "K4",
+      "title": "Base CTEs: no-op rows never reach the transition CTE",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "CTE builders: valid SQL with real parameters",
+      "id": "K5",
+      "title": "Local date helper buckets by the reporting zone",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Hand-calculated sample (contract section 9)",
+      "id": "M1",
+      "title": "Real sync job stores the six moves as read, H included",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Hand-calculated sample (contract section 9)",
+      "id": "M2",
+      "title": "Real CTEs: cohort is A to G, H is outside",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Hand-calculated sample (contract section 9)",
+      "id": "M3",
+      "title": "Real CTEs: person_step has exactly the hand-calculated entries",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Hand-calculated sample (contract section 9)",
+      "id": "M4",
+      "title": "Real CTEs: the contract formulas on person_step give the expected table",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Hand-calculated sample (contract section 9)",
+      "id": "M5",
+      "title": "Real CTEs: NEW stays are 5, 20, 10, 4, 5, so median 5 with 5 completed",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Hand-calculated sample (contract section 9)",
+      "id": "M6",
+      "title": "Metrics service: funnel equals the contract table, NEW median 5 with 5 completed stays",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Hand-calculated sample (contract section 9)",
+      "id": "M7",
+      "title": "Metrics service: entered = eligible + inWindow and eligible = reachedNext + timedOut + exited on every row",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y1",
+      "title": "First read stores one row exactly as read and ignores everything else",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y2",
+      "title": "Replay adds no rows, by sync and by daily full re-read",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y3",
+      "title": "Merged row appends one row, dated by the merge, and leaves the first unchanged",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y4",
+      "title": "Replay after a merge adds nothing, daily re-read included",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y5",
+      "title": "Merged row with the same after but a newer updatedAt adds nothing",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y16",
+      "title": "Merged twice with reads between: an unbroken chain, each row kept",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y17",
+      "title": "A stage merged into a row first seen without one is stored as a first read",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y6",
+      "title": "A to B to A with a read between: rows A to B and B to A",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y7",
+      "title": "A to B to A with no read between: one no-op row that every read ignores",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y8",
+      "title": "Cursor is the latest timeline row minus 30 minutes and ignores reconcile rows",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y9",
+      "title": "First run with no rows uses tracking start as the cursor",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y10",
+      "title": "Overlap: a late row inside 30 minutes is read by sync; older is left to the daily re-read",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y11",
+      "title": "Off switch: job returns with no log row and no rows",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y12",
+      "title": "Missing stage field: log row skipped with NO_STAGE_FIELD, no throw",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y13",
+      "title": "Failure: bad tracking start writes a failed row and rethrows; the next run recovers",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y14",
+      "title": "One workspace never reads or writes another workspace",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Sync: timeline re-read through the real jobs",
+      "id": "Y15",
+      "title": "Log trim removes only rows older than 90 days, for that workspace",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reconcile: CRM changes that left no timeline row",
+      "id": "R1",
+      "title": "A person changed with no timeline row gets one flagged row",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reconcile: CRM changes that left no timeline row",
+      "id": "R2",
+      "title": "A rerun adds none and logs restored 0",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reconcile: CRM changes that left no timeline row",
+      "id": "R3",
+      "title": "A person updated in the last 30 minutes is skipped until they age",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reconcile: CRM changes that left no timeline row",
+      "id": "R4",
+      "title": "Two raw values on one stage key are no move: no false reconcile",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reconcile: CRM changes that left no timeline row",
+      "id": "R5",
+      "title": "A person with no transition has nothing to compare (documented limit)",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reconcile: CRM changes that left no timeline row",
+      "id": "R6",
+      "title": "A stage cleared in the CRM reconciles to null once",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reconcile: CRM changes that left no timeline row",
+      "id": "R7",
+      "title": "An unmapped value reconciles by raw value once",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reconcile: CRM changes that left no timeline row",
+      "id": "R8",
+      "title": "A timeline row arriving after reconcile causes no further reconcile rows",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reconcile: CRM changes that left no timeline row",
+      "id": "R10",
+      "title": "Two members editing at once: rows interleave, and the chain still ends on the CRM stage",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reconcile: CRM changes that left no timeline row",
+      "id": "R9",
+      "title": "A soft-deleted person gets no reconcile row",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Snapshot and consistency check",
+      "id": "N1",
+      "title": "First run: exact rows, consistency OK, status ok",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Snapshot and consistency check",
+      "id": "N2",
+      "title": "Snapshot and check are one statement",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Snapshot and consistency check",
+      "id": "N3",
+      "title": "Snapshot date is the local date in the reporting zone",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Snapshot and consistency check",
+      "id": "N4",
+      "title": "Rerun: NOT_RUN, status ok, rows unchanged",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Snapshot and consistency check",
+      "id": "N5",
+      "title": "A person created between runs causes no false mismatch and no new rows",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Snapshot and consistency check",
+      "id": "N6",
+      "title": "No people at all: NOT_RUN and status ok",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Snapshot and consistency check",
+      "id": "N7",
+      "title": "Missing positions and source fields still give a consistent snapshot under NONE",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Snapshot and consistency check",
+      "id": "N8",
+      "title": "A mismatch marks the job failed with the three totals, and is rethrown",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T1",
+      "title": "Stage totals: top rows sum to total contacts, with Unmapped and No stage",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T2",
+      "title": "Overview figures: active, stuck, inactive, names read live",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T3",
+      "title": "New applications: named form, 7 local days against the 7 before",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T4",
+      "title": "Several positions: counted once in each, distinct totals correct",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T5",
+      "title": "Source rows: single valued, add up to distinct people, overlap 0",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T6",
+      "title": "Funnel: imported people outside, skipped stages count, hand-counted rows",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T7",
+      "title": "Soft-deleted people are out of totals, lists, categories and the cohort",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T8",
+      "title": "A soft-deleted person's applications leave New applications too",
+      "status": "FAIL",
+      "failures": [
+        "unfiltered count must agree\nexpected: 1\nactual:   2"
+      ]
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T28",
+      "title": "An application with no linked person still counts in the headline, and in no category row",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T9",
+      "title": "Status filter: the six slices add up to total contacts",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T10",
+      "title": "Track, program and source filters count the right people",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T11",
+      "title": "Date filter: imported people drop out and are reported",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T12",
+      "title": "Too recent: never 0%, never dropped",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T13",
+      "title": "Durations: reconcile rows are excluded, reached still counts",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T14",
+      "title": "Durations: raw siblings stay inside one stage, exit outside the window times out",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T15",
+      "title": "Form reset to INTERESTED: furthest stage kept, clock restarts, never stuck",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T16",
+      "title": "No-op rows change nothing: clock, movement, stays",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T17",
+      "title": "Movement: event date, imported people included, counts from current scope",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T18",
+      "title": "Trend lines from snapshots: stored counts, unknown stays null",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T19",
+      "title": "Trend buckets read the last snapshot of each bucket, and previous is one window back",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T20",
+      "title": "Median trend buckets by stay end date",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T21",
+      "title": "Unavailable trends say why",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T22",
+      "title": "Every query in every filter branch is valid SQL in the read-only transaction",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T23",
+      "title": "Missing positions, source and form fields: every view still runs",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T24",
+      "title": "Off switch: metrics return null",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T26",
+      "title": "Overall conversion: 90-day window, numerator within it, too recent held back",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T27",
+      "title": "Lowest step: needs the minimum sample, first step only when no other qualifies",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Metrics: figures on hand-counted people",
+      "id": "T25",
+      "title": "Only the page path runs metrics: nothing is written",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reports: built once, frozen on rerun",
+      "id": "Q1",
+      "title": "Daily job builds exactly the finished periods, none for the current week",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reports: built once, frozen on rerun",
+      "id": "Q2",
+      "title": "Report numbers: applications by submittedAt, movement by event date",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reports: built once, frozen on rerun",
+      "id": "Q3",
+      "title": "Report holds counts only, no names",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reports: built once, frozen on rerun",
+      "id": "Q4",
+      "title": "Frozen on rerun: CRM changes rewrite nothing, byte for byte",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reports: built once, frozen on rerun",
+      "id": "Q5",
+      "title": "Page reads of reports: list newest first, one report is the stored payload",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reports: built once, frozen on rerun",
+      "id": "Q6",
+      "title": "A report built now equals the page for the same cutoff",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reports: built once, frozen on rerun",
+      "id": "Q7",
+      "title": "Catch-up: at most 8 per run, oldest first, months carry cohorts, all built exactly once",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Reports: built once, frozen on rerun",
+      "id": "Q8",
+      "title": "A failed reconcile leaves reports for the next run, and the job says failed",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Meta: page state and sync line",
+      "id": "Z1",
+      "title": "After a real sync: READY, not stale, last attempt OK",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Meta: page state and sync line",
+      "id": "Z2",
+      "title": "A daily success cannot hide a stopped sync: stale stays true",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Meta: page state and sync line",
+      "id": "Z3",
+      "title": "A young running row is ignored in favour of the row before it",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Meta: page state and sync line",
+      "id": "Z4",
+      "title": "An old running row was killed mid-job and reads FAILED",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Meta: page state and sync line",
+      "id": "Z5",
+      "title": "No sync row: null status, NEVER_SYNCED, not stale",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Meta: page state and sync line",
+      "id": "Z6",
+      "title": "A failed row with no success ever: stale and FAILED, not READY",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Meta: page state and sync line",
+      "id": "Z11",
+      "title": "First sync still running: NEVER_SYNCED, not yet stale",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Meta: page state and sync line",
+      "id": "Z7",
+      "title": "No stage field: NO_STAGE_FIELD, whatever the log says",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Meta: page state and sync line",
+      "id": "Z8",
+      "title": "Off switch: DISABLED",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Meta: page state and sync line",
+      "id": "Z9",
+      "title": "Reconciliation line reads the latest ok daily row",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Meta: page state and sync line",
+      "id": "Z10",
+      "title": "Options from the real field metadata reach the filter lists",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Altered config: settings the audit may change",
+      "id": "C1",
+      "title": "Reminder: nests under its stage, top rows still sum, clock and stay do not restart",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Altered config: settings the audit may change",
+      "id": "C2",
+      "title": "Alias: a renamed value makes no false reconcile row, a real change still does",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Altered config: settings the audit may change",
+      "id": "C3",
+      "title": "Non-UTC zone (Pacific/Kiritimati): snapshot date and filters use the local date",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Altered config: settings the audit may change",
+      "id": "C4",
+      "title": "Non-UTC zone (Pacific/Kiritimati): week bucket and report periods start on the local Monday",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Altered config: settings the audit may change",
+      "id": "C5",
+      "title": "No stage limits at all: list falls back to the longest stays, hasLimits false, valid SQL",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Altered config: settings the audit may change",
+      "id": "C6",
+      "title": "No success stage: overall is null and every query stays valid",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Altered config: settings the audit may change",
+      "id": "C7",
+      "title": "Signed figure switched on counts both raw values",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
+      "id": "V1",
+      "title": "First sync reads every stage row inside the job limit, replay inside 30 s",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
+      "id": "V3",
+      "title": "Page read within the 8 s limit: overview",
+      "status": "FAIL",
+      "failures": [
+        "canceling statement due to statement timeout; slowest statement 8002 ms, limit 8000 ms"
+      ]
+    },
+    {
+      "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
+      "id": "V4",
+      "title": "Page read within the 8 s limit: funnel",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
+      "id": "V5",
+      "title": "Page read within the 8 s limit: categories by track and program",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
+      "id": "V6",
+      "title": "Page read within the 8 s limit: categories by source",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
+      "id": "V7",
+      "title": "Page read within the 8 s limit: trend total contacts, week",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
+      "id": "V8",
+      "title": "Page read within the 8 s limit: trend overall conversion, month",
+      "status": "FAIL",
+      "failures": [
+        "canceling statement due to statement timeout; slowest statement 8013 ms, limit 8000 ms"
+      ]
+    },
+    {
+      "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
+      "id": "V9",
+      "title": "Page read within the 8 s limit: trend median days, week",
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
+      "id": "V2",
+      "title": "Daily job, with reconcile, snapshot and 8 reports, inside the job limit",
+      "status": "PASS",
+      "failures": []
+    }
+  ]
+}

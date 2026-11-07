@@ -1,0 +1,8 @@
+none: failed 9, new 0: 
+reached at window end excluded: failed 19, new 10: V-funnel no filter | V-funnel status ACTIVE | V-funnel program SOFTWARE | V-categories tracks and programs | V-categories sources, AI track | V-trends NEW_APPLICATIONS  {"period":"MONTH"} | V-trends DROP_OFF NEW {"period":"WEEK"} | V-report WEEK 2026-11-09 | V-report MONTH 2026-10-01 | U-UC-62
+stuck at the limit: failed 16, new 9: T-5 | V-overview no filter | V-overview status ACTIVE | V-overview from October on | V-overview track and status | V-zone | U-UC-39 | U-UC-40 | U-UC-53
+exit any time: failed 17, new 8: V-funnel no filter | V-funnel status ACTIVE | V-funnel program SOFTWARE | V-funnel September | V-report MONTH 2026-09-01 | V-report WEEK 2026-11-09 | V-report MONTH 2026-10-01 | U-UC-62
+cursor moved by reconcile rows: failed 12, new 3: T-1 | T-2 | U-UC-35
+reconcile ignores recent updates: failed 19, new 10: T-1 | T-2 | V-trends NEW_APPLICATIONS  {"period":"MONTH"} | V-trends NEW_APPLICATIONS  {"period":"WEEK","dateFrom":"2026-11-01","dateTo":"2026-11-18"} | V-report WEEK 2026-11-09 | V-report MONTH 2026-10-01 | U-UC-26 | U-UC-27 | U-UC-104 | U-UC-119
+reconcile compares raw values: failed 12, new 3: T-1 | T-2 | U-UC-07
+linked rows read: failed 41, new 32: T-1 | T-2 | T-4 | T-5 | V-overview no filter | V-overview status ACTIVE | V-overview from October on | V-overview track and status | V-funnel no filter | V-funnel status ACTIVE | V-funnel sample source | V-funnel program SOFTWARE

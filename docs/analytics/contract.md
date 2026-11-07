@@ -292,7 +292,9 @@ WHERE t."updatedAt" >= $2 AND t."happensAt" >= $3
 -- buildApplicationSubmissionRelationSql. null when hasFormSubmissionObject is false
 SELECT s.id, s."personId" AS person_id, s."submittedAt" AS submitted_at
 FROM "workspace_x"."_formSubmission" s JOIN "workspace_x"."_crmForm" f ON f.id = s."formId"
+LEFT JOIN "workspace_x"."person" p ON p.id = s."personId"
 WHERE s."deletedAt" IS NULL AND f.name IN ('Internship Application')
+  AND (s."personId" IS NULL OR p."deletedAt" IS NULL)
 ```
 
 Existing APIs used:
@@ -1096,3 +1098,14 @@ Each item was checked against the code. All 13 defects were confirmed and fixed,
 ## Change notice for builders (added 2026-11-07, 17:40)
 
 If you started before this notice, the contract BODY changed after you read it, not only these notes. Before you finish, read `D:/Coding/Flolabs/crm/.claude/worktrees/analytics-work/contract-changes.diff` (the exact changes) and bring your files in line. It affects: section 2 (who owns which file, config and CTE signatures), section 3 (`stage_transition` now has `source_id`, a generated `id`, and a unique index; `dimension_key` uses `NONE`), section 4 (`hasFormSubmissionObject` rules, `getObjectMetadataIdByName` path), section 5 (sync appends instead of overwriting, cursor ignores reconcile rows, snapshot and consistency check in one statement, sync state rules), section 6, and section 7 (the shared types block changed, so server and front copies must both match the new block byte for byte).
+
+## Decisions from testing (added 2026-11-07, 20:00)
+
+Testing found places where this contract was silent or disagreed with itself. These are the working answers, and the code follows them. They replace any older wording above. Builders and reviewers: do not report them again. The user or recruiting can still change them; `docs/analytics/THINGS-TO-DO-BEFORE-MERGE.md` lists them for confirmation.
+
+- **New applications and soft delete:** a soft-deleted person's applications do not count, with or without a filter. Applications with no person still count, because `public-form.service.ts:229` writes a null `personId`. Section 4 has the SQL.
+- **Query planner:** page transactions run `SET LOCAL enable_nestloop = off` and `SET LOCAL jit = off`; the dedicated job connection runs the same with `SET`. Without this, Overview and the monthly conversion trend hit the 8 second limit at 43,000 people. With it they take under a second in the latest run. CRM connections are not affected.
+- **Unknown source:** the row key stays the raw value with `isUnmapped: true`, shown as "Unmapped: {raw}", so recruiting can see which value needs mapping. There is no shared `UNMAPPED` key, and filtering uses the raw value. This replaces section 1 on that point.
+- **Cohort table window:** rows are cut to the same window as the trend line, 12 weeks by default.
+- **Median days:** rounded to one decimal before leaving the server.
+- **Stuck limit:** compares whole days, matching what the table shows, so 14 days and 6 hours is not over a 14 day limit until day 15. Funnel windows still compare exact times.

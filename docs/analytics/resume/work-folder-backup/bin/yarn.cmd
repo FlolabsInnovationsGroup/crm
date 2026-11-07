@@ -1,0 +1,2 @@
+@echo off
+node "D:/Coding/Flolabs/crm/.claude/worktrees/analytics_tool/.yarn/releases/yarn-4.13.0.cjs" %*
