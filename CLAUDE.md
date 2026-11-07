@@ -72,11 +72,11 @@ npx nx run twenty-front:graphql:generate      # after GraphQL schema changes (--
 
 This section lets a new chat or a compacted session continue without losing context. Read it before doing anything on the analytics tool. **Keep it current:** update it after every 2 or 3 decisions and at the end of every phase. To update: edit `.claude/worktrees/analytics-work/state_block.md` (absolute path `D:\Coding\Flolabs\crm\.claude\worktrees\analytics-work\state_block.md`), run `python -X utf8` on `sync_claude_md.py` in that folder, then commit `CLAUDE.md` on the `analytics_tool` branch.
 
-Last updated: 2026-11-07 21:50. Restarted: the five continuation workflows are running, with run IDs in `RESUME.md`.
+Last updated: 2026-11-07 23:10.
 
-**Paused from 20:00 to 21:50 when the user had to close the chat. Read `RESUME.md` in the worktree root first** (`D:\Coding\Flolabs\crm\.claude\worktrees\analytics_tool\RESUME.md`, with a copy in the main checkout). It has where every workflow stopped, the exact continuation scripts to launch, test results, remaining steps and the time estimate. To restart, the user opens a new chat in the worktree and asks to continue from `RESUME.md`. Time left when paused: 3 to 4.5 hours from restart, most likely about 3.5. The final step is running it on the user's laptop with seed data, which they open themselves at http://localhost:3001.
+**Current position: the CRM runs locally on the user's laptop with seed data, and the user wants to test it, then present it. `RESUME.md` section 11 has the exact local run steps.** First boot passed: server and worker start with the analytics module loaded and no errors. One whole-code review is done and its fixes are committed. Third review rounds were skipped at the user's request. Type checks and lint have still not run. The user asked to be reminded about clearing builds and installs at the very end, and only to do it when they ask.
 
-### Status at the pause
+### Status
 | Phase | State |
 |---|---|
 | Setup | Done. Worktree, dependencies, `twenty-shared` and `twenty-ui` built |
@@ -193,6 +193,8 @@ From the requirements: track contact and application counts by pipeline, track, 
 **Everything that must happen before a merge or deploy is in `docs/analytics/THINGS-TO-DO-BEFORE-MERGE.md`. Add any new item there as it comes up.** The user's rule: seed and test data must not go into `main` or reach the live CRM. Merge from the clean branch made by `analytics-tests/merge-guard/prepare-merge.mjs`, checked by `check-before-merge.mjs`, with a pull request workflow as a backstop (workflow `analytics-merge-guard` is building these).
 
 ### Reported to the user, left alone
+- Existing CRM gap: a brand-new database cannot be seeded, because the `FORM_SUBMISSIONS` widget type is only added by the 2-48 `add-person-forms-tab` upgrade command, not an instance command. Existing production is fine if that upgrade ran; a new install would fail. Worked around locally only.
+- Existing CRM code does not seed on Windows: `src/constants/assets-path.ts` checks for `/dist/`, and some stored paths use `path.join`. Production runs on Linux, so this only affects local Windows runs. Worked around in `analytics-work/e2e/local-run/`, with no CRM code changed.
 - Possible bug: `useNotificationsSeenState.ts`, `FormBuilderResponsesTab.tsx:161` and `FormBuilderActionsEditor.tsx:63` appear to omit the core Apollo client, so those queries may fail. Unconfirmed. New code must not copy it.
 - GitHub reported 402 dependency vulnerabilities on `main`, 5 critical. Not investigated.
 

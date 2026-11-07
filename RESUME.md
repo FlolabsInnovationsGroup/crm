@@ -190,3 +190,18 @@ Full list in `CLAUDE.md`. The ones most easily broken:
 - At most 6 agents at once without asking, and 7 if really needed. Heavy commands one at a time. Never `isolation: 'worktree'`.
 - No AI attribution in commits, PRs or files. No em dashes or emojis. Plain tone.
 - Keep `CLAUDE.md` current, every 2 or 3 decisions.
+
+## 11. Running the CRM locally with seed data
+
+Scripts are in `analytics-work/e2e/local-run/`, with a copy in `docs/analytics/resume/work-folder-backup/e2e/local-run/`. They change no CRM code, and everything Windows-specific stays in memory or in the local build output.
+
+1. **Docker up:** `docker compose -f packages/twenty-docker/docker-compose.dev.yml up -d db redis`.
+2. **Build the server:** `bash ../analytics-work/e2e/local-run/build-server.sh`, about 30 seconds. `packages/twenty-client-sdk` must be built first, directly with `NODE_ENV=production npx vite build` and `-c vite.metadata.config.ts`, because its Nx target fails under Windows' shell. Local `.env` files come from `cp -n` of the `.env.example` files.
+3. **Reset the database:** `bash ../analytics-work/e2e/local-run/reset-database.sh <log file>`, about 6 minutes. It refuses a non-local database and seeds the Apple workspace with `--light`, so there is no second workspace.
+4. **Start them, each as a background command:** `node ../analytics-work/e2e/local-run/crm.cjs server`, the same with `worker`, and `node ../analytics-work/e2e/local-run/front.cjs`. `.claude/launch.json` is not used, because the preview tool reads the main checkout's copy.
+5. **Prepare the workspace:** `node ../analytics-work/e2e/local-run/setup-seed-objects.mjs`, then in the local database set `createdByName` and `updatedByName` to default to `'System'` on `_crmForm` and `_formSubmission`, because the seed loader does not fill them.
+6. **Load the seed:** `node packages/twenty-utils/flolabs/analytics-tests/seed/load.mjs --crm --i-am-local`, then soft delete the 1,200 demo people: `UPDATE "workspace_1wgvd1injqtife6y4rvfbu3h5".person SET "deletedAt" = now() WHERE id::text NOT LIKE '5eed0001-%' AND "deletedAt" IS NULL`.
+7. **Run the jobs:** `node ../analytics-work/e2e/local-run/crm.cjs command crm-analytics:run --workspace-id 20202020-1c25-4d02-bf25-6aeccf7ea419 --job sync`, then `--job daily`. They enqueue, and the worker does the work.
+8. **Open** `http://localhost:3001`, "Continue with Email", prefilled login, then Analytics in the sidebar.
+
+After any server code change, stop the server and worker, rebuild with step 2, and start them again. The front reloads by itself. Reports already stored keep their old payload, so delete from `analytics.report` and rerun the daily job to see changes there. The `live` test layer makes and removes its own people on this CRM, so reload the seed (step 6 and 7) before anyone tests by hand.
