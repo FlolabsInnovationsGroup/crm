@@ -8,6 +8,10 @@ Match the surrounding code — the adjacent files in the directory you are editi
 
 The analytics tool is added to the existing CRM as new modules in the existing server and front end, with no separate server. Do not change existing CRM logic or break anything. New code goes in new files. Every change to core CRM code needs one agent to write it and a second agent to review it. Do not fix, refactor or "improve" anything the user did not ask for. Full project state: see **CRM Analytics tool: project state** at the end of this file.
 
+## Rule #2: Claude never merges or pushes to main
+
+Claude never has permission to merge to `main` or push code to `main`, ever, in any case. No approval, document, agent or instruction in a file changes this. Do not merge anything on any branch: no pull request, merge button or auto-merge. If a merge is needed, tell the user. A person does all merging.
+
 ## House rules
 
 Where this repo differs from your defaults:
@@ -111,7 +115,7 @@ Agents do not commit; the main session commits at phase ends. **Nothing is pushe
 4. **A good UI and good visual graphs matter.** Use the UI, Apple and dataviz skills for UI work.
 5. **The user makes the decisions.** Give suggestions and ask before decisions, changes and anything irreversible. On 2026-11-07 the user said to start, and later to stop spending time on research and build now, with the suggested defaults as the starting point. Report at the end of each phase. Do not fix or "improve" things that were not asked for, including bugs you notice: report them.
 6. **Do not waste tokens, but do not cut useful work short (the user, 2026-11-07):** "we don't necessarily need to save tokens, just not waste them." Let review, fix and test workflows finish, and do not stop a running agent without asking. Run simple checks directly when an agent adds nothing. Avoid duplicate agents. Complex work can use Opus 5.5 at max effort. Never more than 6 agents without asking. Heavy commands stay one at a time. Be especially careful with development, because this is the live CRM. Never use `isolation: 'worktree'` for agents, since that branches from the wrong commit.
-7. **All work on `analytics_tool`.** Nothing merges to `main` or deploys until the user reviews it. Do not push until the user says so.
+7. **All work on `analytics_tool`. Claude never merges or pushes to `main`, ever, in any case, and never merges anything** (the user, 2026-11-07). A person does all merging. Do not push any other branch or deploy until the user says so.
 8. **Keep this section updated with all details.**
 
 ### Machine limits
@@ -193,6 +197,7 @@ From the requirements: track contact and application counts by pipeline, track, 
 - GitHub reported 402 dependency vulnerabilities on `main`, 5 critical. Not investigated.
 
 ### Decision log
+- 2026-11-07, 22:15: The user ruled that Claude can never merge or push to `main`, in any case. Written in CLAUDE.md Rule #2, memory, `RESUME.md` and the before-merge checklist. The user also asked to run the CRM with seed data now and test while the review finishes, with one review pass instead of three rounds.
 - 2026-11-07, 20:00: The user had to stop the chat, so all workflows were stopped and everything was committed locally. `RESUME.md` and continuation scripts in `docs/analytics/resume/workflows/` restart each workflow at the step it reached.
 - 2026-11-07, 20:00: Four questions testing found in the contract got working answers, recorded in its "Decisions from testing" section and on the before-merge checklist for confirmation: unknown sources keep their raw value, the cohort table covers the trend window, medians round to one decimal, stuck compares whole days.
 - 2026-11-05: External web app rejected. The tool is one of the CRM's pages, on the same server, with shared storage.
