@@ -1,0 +1,21 @@
+{
+  "description": "Paths that stay on analytics_tool and never go to main. A path ending in / covers everything under it. .github/workflows/flolabs-analytics-merge-guard.yml lists the same paths inline, so change both.",
+  "excluded": [
+    {
+      "path": "packages/twenty-utils/flolabs/analytics-tests/",
+      "reason": "The test suite, this merge guard and the fake seed people are only for testing on analytics_tool."
+    },
+    {
+      "path": "docs/analytics/research/",
+      "reason": "Working notes for the build; the contract and the overview PDF are what go to main."
+    },
+    {
+      "path": "docs/analytics/resume/",
+      "reason": "Workflow scripts and a backup of the work folder, only for continuing this build."
+    },
+    {
+      "path": "RESUME.md",
+      "reason": "The resume point for this build, not lasting documentation."
+    }
+  ]
+}

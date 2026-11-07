@@ -1,0 +1,5303 @@
+{
+  "description": "Definition-use graph of CRM Analytics: from CRM columns to the screen. Every edge has a test named with its id in dataflow/tests or dataflow/front, or a coveredByLayer entry naming the suite layer that covers it.",
+  "nodes": [
+    {
+      "id": "crm.person.id",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.personRelation.person_id",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.person.stage",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.personRelation.raw_stage",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.person.positionsAppliedFor",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.personRelation.positions",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.person.applicantSource",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.personRelation.source",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.person.createdAt",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.personRelation.created_at",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.person.updatedAt",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.personRelation.updated_at",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.person.deletedAt",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.personRelation",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.person.name",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.displayNames",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.timelineActivity.id",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.stageChangeRelation.id",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.timelineActivity.targetPersonId",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.stageChangeRelation.person_id",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.timelineActivity.linkedRecordId",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.stageChangeRelation",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.timelineActivity.properties.diff.stage",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.stageChangeRelation.from_stage",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "facade.stageChangeRelation.to_stage",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.timelineActivity.happensAt",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.stageChangeRelation.happened_at",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.timelineActivity.updatedAt",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.stageChangeRelation.source_updated_at",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.formSubmission.personId",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.submissionRelation.person_id",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.formSubmission.submittedAt",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.submissionRelation.submitted_at",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.formSubmission.deletedAt",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.submissionRelation",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.crmForm.name",
+      "kind": "crm"
+    },
+    {
+      "id": "config.applicationFormNames",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "crm.application.rows",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.importedApplications",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.metadata.person.stage",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.crmState.stage",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.metadata.person.positionsAppliedFor",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.crmState.positionsAppliedFor",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.metadata.person.applicantSource",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.crmState.applicantSource",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "crm.metadata.objects",
+      "kind": "crm"
+    },
+    {
+      "id": "facade.crmState.objects",
+      "kind": "facade",
+      "source": "packages/twenty-server/src/modules/analytics/facade/crm-analytics-facade.service.ts"
+    },
+    {
+      "id": "core.keyValuePair.CRM_ANALYTICS_TRACKING_START_AT",
+      "kind": "crm"
+    },
+    {
+      "id": "settings.trackingStart",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-settings.service.ts"
+    },
+    {
+      "id": "config.trackingStartAt",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "core.keyValuePair.CRM_ANALYTICS_DISABLED",
+      "kind": "crm"
+    },
+    {
+      "id": "settings.isDisabled",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-settings.service.ts"
+    },
+    {
+      "id": "analytics.stage_transition.source_id",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.stage_transition.person_id",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.stage_transition.from_stage",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.stage_transition.to_stage",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.stage_transition.happened_at",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.stage_transition.source_updated_at",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "sync.latest.to_stage",
+      "kind": "job",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-sync.service.ts"
+    },
+    {
+      "id": "sync.readTimeline",
+      "kind": "job",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-sync.service.ts"
+    },
+    {
+      "id": "analytics.stage_transition.origin",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "job.context.workspaceId",
+      "kind": "job",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-sync.service.ts"
+    },
+    {
+      "id": "analytics.stage_transition.workspace_id",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "sync.cursor",
+      "kind": "job",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-sync.service.ts"
+    },
+    {
+      "id": "sync.reconcile",
+      "kind": "job",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-sync.service.ts"
+    },
+    {
+      "id": "cte.stage_map",
+      "kind": "cte"
+    },
+    {
+      "id": "analytics.sync_log.restored_count",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.daily_snapshot.stage",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.daily_snapshot.dimension_key",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "cte.position_map",
+      "kind": "cte"
+    },
+    {
+      "id": "analytics.daily_snapshot.person_count",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "sync.snapshot",
+      "kind": "job",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-snapshot.service.ts"
+    },
+    {
+      "id": "analytics.daily_snapshot.dimension",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "config.reportingTimeZone",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "analytics.daily_snapshot.snapshot_date",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.daily_snapshot.workspace_id",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.sync_log.details",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.sync_log.workspace_id",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "job.sync",
+      "kind": "job",
+      "source": "packages/twenty-server/src/modules/analytics/jobs/crm-analytics-workspace-sync.job.ts"
+    },
+    {
+      "id": "analytics.sync_log.job_name",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "job.daily",
+      "kind": "job",
+      "source": "packages/twenty-server/src/modules/analytics/jobs/crm-analytics-workspace-daily.job.ts"
+    },
+    {
+      "id": "analytics.sync_log.started_at",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.sync_log.finished_at",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.sync_log.status",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.sync_log.processed_count",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.sync_log.error_message",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "config.stages",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "cte.funnel_stage",
+      "kind": "cte"
+    },
+    {
+      "id": "config.tracks",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "cte.crm_person",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.scope",
+      "kind": "cte"
+    },
+    {
+      "id": "api.filter.status",
+      "kind": "api-input",
+      "source": "packages/twenty-server/src/modules/analytics/utils/parse-crm-analytics-filter.util.ts"
+    },
+    {
+      "id": "api.filter.trackKey",
+      "kind": "api-input",
+      "source": "packages/twenty-server/src/modules/analytics/utils/parse-crm-analytics-filter.util.ts"
+    },
+    {
+      "id": "api.filter.programKey",
+      "kind": "api-input",
+      "source": "packages/twenty-server/src/modules/analytics/utils/parse-crm-analytics-filter.util.ts"
+    },
+    {
+      "id": "api.filter.sourceKey",
+      "kind": "api-input",
+      "source": "packages/twenty-server/src/modules/analytics/utils/parse-crm-analytics-filter.util.ts"
+    },
+    {
+      "id": "api.filter.dateRange",
+      "kind": "api-input",
+      "source": "packages/twenty-server/src/modules/analytics/utils/parse-crm-analytics-filter.util.ts"
+    },
+    {
+      "id": "cte.transition",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.first_move",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.cohort",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.arrival",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.person_step",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.funnel_group",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.step_row",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.step_exit",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.step_total",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.overall_row",
+      "kind": "cte"
+    },
+    {
+      "id": "config.overallWindowDays",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "cte.overall_total",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.stay_event",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.ordered_event",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.kept_event",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.stay",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.completed_stay",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.latest_entry",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.moved_person",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.stage_clock",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.stage_age",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.person_position",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.category_member",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.submission",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.period_move",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.entered_total",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.left_total",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.current_total",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.snapshot_day",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.bucket_day",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.matching_row",
+      "kind": "cte"
+    },
+    {
+      "id": "cte.mapped_mover",
+      "kind": "cte"
+    },
+    {
+      "id": "metric.totalContacts",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.activePeople",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.signedPeople",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "config.showSignedFigure",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "metric.newApplications",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.importedApplications",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.importedExcludedByDate",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.stageTotals",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.stuckList",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.stuckPeople",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.inactivePeople",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.stuckByStage",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.entered",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.eligible",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.reachedNext",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.exited",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.timedOut",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.inWindow",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.stepRate",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.soFarRate",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.dropOffRate",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "config.minimumSample",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "metric.isUnderMinimum",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.medianDays",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.completedStays",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.lowestStep",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.overallEligible",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.overallReached",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.overallRate",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.overallSoFarRate",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.cohortSize",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.cohortExcludedUnmapped",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.categoryPeople",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.categoryNewApplications",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.categoryRates",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.categoryOverlap",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.categoryRows",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.cohortTable",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.trendOverallConversion",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.trendDropOff",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.trendNewApplications",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.trendSnapshot",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.trendMedianDays",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "api.filter.period",
+      "kind": "api-input",
+      "source": "packages/twenty-server/src/modules/analytics/utils/parse-crm-analytics-filter.util.ts"
+    },
+    {
+      "id": "metric.trendBuckets",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.trendSeries",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.movement",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "metric.comparisons",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "config.significantChangeRatio",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "metric.syncState",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-meta.service.ts"
+    },
+    {
+      "id": "config.staleAfterMinutes",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "config.runningLimitMinutes",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "metric.pageState",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-meta.service.ts"
+    },
+    {
+      "id": "report.periods",
+      "kind": "job",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-report.service.ts"
+    },
+    {
+      "id": "analytics.report.period_type",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.report.period_start",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.report.period_end",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "report.builder",
+      "kind": "job",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-report.service.ts"
+    },
+    {
+      "id": "analytics.report.generated_at",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.report.payload",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "analytics.report.workspace_id",
+      "kind": "storage",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-ddl.constant.ts"
+    },
+    {
+      "id": "payload.reports[].periodType",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.reports[].periodStart",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.reports[].periodEnd",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.reports[].generatedAt",
+      "kind": "payload"
+    },
+    {
+      "id": "metric.queryContext",
+      "kind": "metric",
+      "source": "packages/twenty-server/src/modules/analytics/services/crm-analytics-metrics.service.ts"
+    },
+    {
+      "id": "payload.base.asOf",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.base.trackingStartedAt",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.base.reportingTimeZone",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.base.minimumSample",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.state",
+      "kind": "payload"
+    },
+    {
+      "id": "config.isProvisional",
+      "kind": "mapping-and-settings",
+      "source": "packages/twenty-server/src/modules/analytics/constants/crm-analytics-config.constant.ts"
+    },
+    {
+      "id": "payload.meta.isProvisional",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.showSignedFigure",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.sync.lastSuccessfulSyncAt",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.sync.lastReconciliationAt",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.sync.lastAttemptAt",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.sync.lastAttemptStatus",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.sync.isStale",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.sync.restoredInLastReconciliation",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.fields.stage",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.fields.isStageAuditLogged",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.fields.positionsAppliedFor",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.fields.applicantSource",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.fields.hasFormSubmissionObject",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.fields.hasApplicationObject",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.stages[].stageKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.stages[].label",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.stages[].kind",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.stages[].rank",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.stages[].limitDays",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.stages[].windowDays",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.stages[].isSuccess",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.tracks[].key",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.tracks[].label",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.programs[].key",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.programs[].label",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.programs[].trackKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.sources[].key",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.meta.sources[].label",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.importedExcludedByDate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.figures.totalContacts",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.figures.activePeople",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.figures.newApplications",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.figures.newApplicationsPrevious",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.figures.newApplicationsFrom",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.figures.newApplicationsTo",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.figures.importedApplications",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.figures.stuckPeople",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.figures.inactivePeople",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.figures.signedPeople",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stageTotals[].rowKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stageTotals[].label",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stageTotals[].rowKind",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stageTotals[].parentStageKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stageTotals[].count",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stageTotals[].pastLimitCount",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stuck.rows[].personId",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stuck.rows[].displayName",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stuck.rows[].stageKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stuck.rows[].stageLabel",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stuck.rows[].stageEnteredAt",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stuck.rows[].daysInStage",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stuck.rows[].daysOverLimit",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stuck.rows[].isLowerBound",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stuck.total",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.overview.stuck.hasLimits",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.cohortSize",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.cohortExcludedUnmapped",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.overall.finalStageKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.overall.windowDays",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.overall.eligible",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.overall.reached",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.overall.rate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.overall.soFarRate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.overall.isUnderMinimum",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].stageKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].label",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].windowDays",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].entered",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].eligible",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].reachedNext",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].timedOut",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].exited",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].inWindow",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].stepRate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].soFarRate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].dropOffRate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].isUnderMinimum",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].medianDays",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.rows[].completedStays",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.funnel.lowestStepStageKey",
+      "kind": "payload"
+    },
+    {
+      "id": "api.groupBy",
+      "kind": "api-input",
+      "source": "packages/twenty-server/src/modules/analytics/utils/parse-crm-analytics-filter.util.ts"
+    },
+    {
+      "id": "payload.categories.groupBy",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.distinctPeople",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.peopleInSeveral",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.peopleInSeveralTracks",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.stepStageKeys",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].key",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].parentKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].label",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].isUnmapped",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].people",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].activePeople",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].newApplications",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].cohortSize",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].overallEligible",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].overallRate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].overallSoFarRate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].stepRates[].stageKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].stepRates[].eligible",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].stepRates[].rate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.categories.rows[].stepRates[].soFarRate",
+      "kind": "payload"
+    },
+    {
+      "id": "api.metric",
+      "kind": "api-input",
+      "source": "packages/twenty-server/src/modules/analytics/utils/parse-crm-analytics-filter.util.ts"
+    },
+    {
+      "id": "payload.trends.metric",
+      "kind": "payload"
+    },
+    {
+      "id": "api.stageKey",
+      "kind": "api-input",
+      "source": "packages/twenty-server/src/modules/analytics/utils/parse-crm-analytics-filter.util.ts"
+    },
+    {
+      "id": "payload.trends.stageKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.period",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.unavailableReason",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.series[].bucketStart",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.series[].value",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.series[].previousValue",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.series[].size",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.series[].isPartial",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.cohorts[].bucketStart",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.cohorts[].size",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.cohorts[].overallRate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.cohorts[].overallSoFarRate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.cohorts[].cells[].stageKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.cohorts[].cells[].entered",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.cohorts[].cells[].eligible",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.cohorts[].cells[].rate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.cohorts[].cells[].soFarRate",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.cohorts[].cells[].isMature",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.movement.from",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.movement.to",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.movement.rows[].stageKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.movement.rows[].label",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.movement.rows[].enteredInPeriod",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.movement.rows[].leftInPeriod",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.trends.movement.rows[].countNow",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.periodType",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.periodStart",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.periodEnd",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.generatedAt",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.newApplications",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.newApplicationsPrevious",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.categories",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.funnel",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.movement[]",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.stuckByStage[]",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.cohorts[]",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.comparisons[].metricKey",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.comparisons[].label",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.comparisons[].current",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.comparisons[].previous",
+      "kind": "payload"
+    },
+    {
+      "id": "payload.report.comparisons[].isSignificant",
+      "kind": "payload"
+    },
+    {
+      "id": "ui.AnalyticsFiguresRow",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsFiguresRow.tsx"
+    },
+    {
+      "id": "ui.AnalyticsStageTotalsTable",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsStageTotalsTable.tsx"
+    },
+    {
+      "id": "ui.AnalyticsStuckTable",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsStuckTable.tsx"
+    },
+    {
+      "id": "ui.AnalyticsOverviewTab",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsOverviewTab.tsx"
+    },
+    {
+      "id": "ui.AnalyticsStageLedger",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsStageLedger.tsx"
+    },
+    {
+      "id": "ui.AnalyticsCategoryTable",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsCategoryTable.tsx"
+    },
+    {
+      "id": "ui.AnalyticsTrendTable",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsTrendTable.tsx"
+    },
+    {
+      "id": "ui.buildTrendChartSeries",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/utils/buildTrendChartSeries.ts"
+    },
+    {
+      "id": "ui.AnalyticsTrendChart",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsTrendChart.tsx"
+    },
+    {
+      "id": "ui.AnalyticsCohortTable",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsCohortTable.tsx"
+    },
+    {
+      "id": "ui.AnalyticsMovementTable",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsMovementTable.tsx"
+    },
+    {
+      "id": "ui.AnalyticsSyncLine",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsSyncLine.tsx"
+    },
+    {
+      "id": "ui.AnalyticsContent",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsContent.tsx"
+    },
+    {
+      "id": "ui.AnalyticsFilterBar",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsFilterBar.tsx"
+    },
+    {
+      "id": "ui.AnalyticsReportsTab",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsReportsTab.tsx"
+    },
+    {
+      "id": "ui.AnalyticsReportView",
+      "kind": "ui",
+      "source": "packages/twenty-front/src/modules/crm-analytics/components/AnalyticsReportView.tsx"
+    }
+  ],
+  "edges": [
+    {
+      "id": "DF-001",
+      "from": "crm.person.id",
+      "to": "facade.personRelation.person_id",
+      "field": "person.id",
+      "use": "person relation identity"
+    },
+    {
+      "id": "DF-002",
+      "from": "crm.person.stage",
+      "to": "facade.personRelation.raw_stage",
+      "field": "person.stage",
+      "use": "cast to text, unmapped"
+    },
+    {
+      "id": "DF-003",
+      "from": "crm.person.positionsAppliedFor",
+      "to": "facade.personRelation.positions",
+      "field": "person.positionsAppliedFor",
+      "use": "enum array cast to text[], NULL becomes {}"
+    },
+    {
+      "id": "DF-004",
+      "from": "crm.person.applicantSource",
+      "to": "facade.personRelation.source",
+      "field": "person.applicantSource",
+      "use": "cast to text"
+    },
+    {
+      "id": "DF-005",
+      "from": "crm.person.createdAt",
+      "to": "facade.personRelation.created_at",
+      "field": "person.createdAt",
+      "use": "application date"
+    },
+    {
+      "id": "DF-006",
+      "from": "crm.person.updatedAt",
+      "to": "facade.personRelation.updated_at",
+      "field": "person.updatedAt",
+      "use": "reconcile guard"
+    },
+    {
+      "id": "DF-007",
+      "from": "crm.person.deletedAt",
+      "to": "facade.personRelation",
+      "field": "person.deletedAt",
+      "use": "WHERE filter: soft-deleted people leave the relation"
+    },
+    {
+      "id": "DF-008",
+      "from": "crm.person.name",
+      "to": "facade.displayNames",
+      "field": "person.nameFirstName, person.nameLastName",
+      "use": "live display name, at most 100, never stored"
+    },
+    {
+      "id": "DF-009",
+      "from": "crm.timelineActivity.id",
+      "to": "facade.stageChangeRelation.id",
+      "field": "timelineActivity.id",
+      "use": "source row identity"
+    },
+    {
+      "id": "DF-010",
+      "from": "crm.timelineActivity.targetPersonId",
+      "to": "facade.stageChangeRelation.person_id",
+      "field": "timelineActivity.targetPersonId",
+      "use": "person link; NULL rows are left out"
+    },
+    {
+      "id": "DF-011",
+      "from": "crm.timelineActivity.linkedRecordId",
+      "to": "facade.stageChangeRelation",
+      "field": "timelineActivity.linkedRecordId",
+      "use": "WHERE filter: linked rows such as an opportunity stage are left out"
+    },
+    {
+      "id": "DF-012",
+      "from": "crm.timelineActivity.properties.diff.stage",
+      "to": "facade.stageChangeRelation.from_stage",
+      "field": "properties.diff.stage.before",
+      "use": "raw from stage"
+    },
+    {
+      "id": "DF-013",
+      "from": "crm.timelineActivity.properties.diff.stage",
+      "to": "facade.stageChangeRelation.to_stage",
+      "field": "properties.diff.stage.after",
+      "use": "raw to stage"
+    },
+    {
+      "id": "DF-014",
+      "from": "crm.timelineActivity.properties.diff.stage",
+      "to": "facade.stageChangeRelation",
+      "field": "properties.diff keys",
+      "use": "WHERE filter: rows without a stage diff are left out"
+    },
+    {
+      "id": "DF-015",
+      "from": "crm.timelineActivity.happensAt",
+      "to": "facade.stageChangeRelation.happened_at",
+      "field": "timelineActivity.happensAt",
+      "use": "event time, UTC instant"
+    },
+    {
+      "id": "DF-016",
+      "from": "crm.timelineActivity.updatedAt",
+      "to": "facade.stageChangeRelation.source_updated_at",
+      "field": "timelineActivity.updatedAt",
+      "use": "row version and sync cursor input"
+    },
+    {
+      "id": "DF-017",
+      "from": "crm.formSubmission.personId",
+      "to": "facade.submissionRelation.person_id",
+      "field": "formSubmission.personId",
+      "use": "joins an application to its person"
+    },
+    {
+      "id": "DF-018",
+      "from": "crm.formSubmission.submittedAt",
+      "to": "facade.submissionRelation.submitted_at",
+      "field": "formSubmission.submittedAt",
+      "use": "application date for volume"
+    },
+    {
+      "id": "DF-019",
+      "from": "crm.formSubmission.deletedAt",
+      "to": "facade.submissionRelation",
+      "field": "formSubmission.deletedAt",
+      "use": "WHERE filter: deleted submissions are left out"
+    },
+    {
+      "id": "DF-020",
+      "from": "crm.crmForm.name",
+      "to": "facade.submissionRelation",
+      "field": "crmForm.name",
+      "use": "WHERE filter: only the configured application forms"
+    },
+    {
+      "id": "DF-021",
+      "from": "config.applicationFormNames",
+      "to": "facade.submissionRelation",
+      "field": "applicationFormNames",
+      "use": "names compared with crmForm.name"
+    },
+    {
+      "id": "DF-022",
+      "from": "crm.application.rows",
+      "to": "facade.importedApplications",
+      "field": "application rows, deletedAt",
+      "use": "total count only, dates unknown"
+    },
+    {
+      "id": "DF-023",
+      "from": "crm.metadata.person.stage",
+      "to": "facade.crmState.stage",
+      "field": "field type, isAuditLogged, options",
+      "use": "status, audit flag and labels"
+    },
+    {
+      "id": "DF-024",
+      "from": "crm.metadata.person.positionsAppliedFor",
+      "to": "facade.crmState.positionsAppliedFor",
+      "field": "field type, options",
+      "use": "status and labels"
+    },
+    {
+      "id": "DF-025",
+      "from": "crm.metadata.person.applicantSource",
+      "to": "facade.crmState.applicantSource",
+      "field": "field type, options",
+      "use": "status and labels"
+    },
+    {
+      "id": "DF-026",
+      "from": "crm.metadata.objects",
+      "to": "facade.crmState.objects",
+      "field": "formSubmission, crmForm and application objects",
+      "use": "hasFormSubmissionObject and hasApplicationObject"
+    },
+    {
+      "id": "DF-027",
+      "from": "core.keyValuePair.CRM_ANALYTICS_TRACKING_START_AT",
+      "to": "settings.trackingStart",
+      "field": "value",
+      "use": "override of the tracking start"
+    },
+    {
+      "id": "DF-028",
+      "from": "config.trackingStartAt",
+      "to": "settings.trackingStart",
+      "field": "trackingStartAt",
+      "use": "default tracking start"
+    },
+    {
+      "id": "DF-029",
+      "from": "core.keyValuePair.CRM_ANALYTICS_DISABLED",
+      "to": "settings.isDisabled",
+      "field": "value",
+      "use": "off switch"
+    },
+    {
+      "id": "DF-030",
+      "from": "facade.stageChangeRelation.id",
+      "to": "analytics.stage_transition.source_id",
+      "field": "id",
+      "use": "unique source version key"
+    },
+    {
+      "id": "DF-031",
+      "from": "facade.stageChangeRelation.person_id",
+      "to": "analytics.stage_transition.person_id",
+      "field": "person_id",
+      "use": "stored as a bare UUID"
+    },
+    {
+      "id": "DF-032",
+      "from": "facade.stageChangeRelation.from_stage",
+      "to": "analytics.stage_transition.from_stage",
+      "field": "from_stage",
+      "use": "first read: stored raw, never mapped"
+    },
+    {
+      "id": "DF-033",
+      "from": "facade.stageChangeRelation.to_stage",
+      "to": "analytics.stage_transition.to_stage",
+      "field": "to_stage",
+      "use": "stored raw, never mapped"
+    },
+    {
+      "id": "DF-034",
+      "from": "facade.stageChangeRelation.happened_at",
+      "to": "analytics.stage_transition.happened_at",
+      "field": "happened_at",
+      "use": "first read: same instant"
+    },
+    {
+      "id": "DF-035",
+      "from": "facade.stageChangeRelation.source_updated_at",
+      "to": "analytics.stage_transition.source_updated_at",
+      "field": "source_updated_at",
+      "use": "row version"
+    },
+    {
+      "id": "DF-036",
+      "from": "facade.stageChangeRelation.source_updated_at",
+      "to": "analytics.stage_transition.happened_at",
+      "field": "source_updated_at",
+      "use": "merged row: the merge time dates the appended row"
+    },
+    {
+      "id": "DF-037",
+      "from": "sync.latest.to_stage",
+      "to": "analytics.stage_transition.from_stage",
+      "field": "to_stage of the last stored version",
+      "use": "merged row: from the last stored stage"
+    },
+    {
+      "id": "DF-038",
+      "from": "analytics.stage_transition.to_stage",
+      "to": "sync.latest.to_stage",
+      "field": "to_stage",
+      "use": "latest version per source row"
+    },
+    {
+      "id": "DF-039",
+      "from": "sync.readTimeline",
+      "to": "analytics.stage_transition.origin",
+      "field": "literal 'timeline'",
+      "use": "marks rows that may move the cursor"
+    },
+    {
+      "id": "DF-040",
+      "from": "job.context.workspaceId",
+      "to": "analytics.stage_transition.workspace_id",
+      "field": "workspaceId",
+      "use": "keeps workspaces apart"
+    },
+    {
+      "id": "DF-041",
+      "from": "analytics.stage_transition.source_updated_at",
+      "to": "sync.cursor",
+      "field": "max(source_updated_at) of timeline rows",
+      "use": "lower bound minus the overlap"
+    },
+    {
+      "id": "DF-042",
+      "from": "analytics.stage_transition.origin",
+      "to": "sync.cursor",
+      "field": "origin",
+      "use": "reconcile rows must not move the cursor"
+    },
+    {
+      "id": "DF-043",
+      "from": "sync.cursor",
+      "to": "facade.stageChangeRelation",
+      "field": "updatedSince",
+      "use": "updatedAt filter of the sync job"
+    },
+    {
+      "id": "DF-044",
+      "from": "settings.trackingStart",
+      "to": "sync.cursor",
+      "field": "trackingStart",
+      "use": "lower bound when nothing is stored yet"
+    },
+    {
+      "id": "DF-045",
+      "from": "settings.trackingStart",
+      "to": "facade.stageChangeRelation",
+      "field": "happenedSince",
+      "use": "happensAt filter; daily also uses it as updatedSince"
+    },
+    {
+      "id": "DF-046",
+      "from": "facade.personRelation.raw_stage",
+      "to": "sync.reconcile",
+      "field": "raw_stage",
+      "use": "current stage compared with the last stored stage"
+    },
+    {
+      "id": "DF-047",
+      "from": "analytics.stage_transition.to_stage",
+      "to": "sync.reconcile",
+      "field": "to_stage of the latest row",
+      "use": "last stored stage per person"
+    },
+    {
+      "id": "DF-048",
+      "from": "facade.personRelation.updated_at",
+      "to": "sync.reconcile",
+      "field": "updated_at",
+      "use": "people updated in the last 30 minutes are skipped"
+    },
+    {
+      "id": "DF-049",
+      "from": "cte.stage_map",
+      "to": "sync.reconcile",
+      "field": "stage_key",
+      "use": "compared after mapping, so an alias is no move"
+    },
+    {
+      "id": "DF-050",
+      "from": "sync.reconcile",
+      "to": "analytics.stage_transition.to_stage",
+      "field": "raw_stage",
+      "use": "restored current stage"
+    },
+    {
+      "id": "DF-051",
+      "from": "sync.reconcile",
+      "to": "analytics.stage_transition.from_stage",
+      "field": "last stored stage",
+      "use": "restored from stage"
+    },
+    {
+      "id": "DF-052",
+      "from": "sync.reconcile",
+      "to": "analytics.stage_transition.origin",
+      "field": "literal 'reconcile'",
+      "use": "flags the row and leaves source_id NULL"
+    },
+    {
+      "id": "DF-053",
+      "from": "sync.reconcile",
+      "to": "analytics.stage_transition.happened_at",
+      "field": "now()",
+      "use": "time of discovery, a lower bound"
+    },
+    {
+      "id": "DF-054",
+      "from": "sync.reconcile",
+      "to": "analytics.stage_transition.source_updated_at",
+      "field": "now()",
+      "use": "ignored by the cursor"
+    },
+    {
+      "id": "DF-055",
+      "from": "sync.reconcile",
+      "to": "analytics.sync_log.restored_count",
+      "field": "restored_count",
+      "use": "rows restored by the daily job"
+    },
+    {
+      "id": "DF-056",
+      "from": "facade.personRelation.raw_stage",
+      "to": "analytics.daily_snapshot.stage",
+      "field": "raw_stage",
+      "use": "raw value, '' for no stage"
+    },
+    {
+      "id": "DF-057",
+      "from": "facade.personRelation.positions",
+      "to": "analytics.daily_snapshot.dimension_key",
+      "field": "positions",
+      "use": "position rows: raw value, NONE when empty"
+    },
+    {
+      "id": "DF-058",
+      "from": "cte.position_map",
+      "to": "analytics.daily_snapshot.dimension_key",
+      "field": "track_key",
+      "use": "track rows: track key, UNMAPPED or NONE"
+    },
+    {
+      "id": "DF-059",
+      "from": "facade.personRelation.source",
+      "to": "analytics.daily_snapshot.dimension_key",
+      "field": "source",
+      "use": "source rows: raw value, NONE when empty"
+    },
+    {
+      "id": "DF-060",
+      "from": "facade.personRelation.person_id",
+      "to": "analytics.daily_snapshot.person_count",
+      "field": "count of people",
+      "use": "integer count per key and stage"
+    },
+    {
+      "id": "DF-061",
+      "from": "sync.snapshot",
+      "to": "analytics.daily_snapshot.dimension",
+      "field": "all, position, track, source",
+      "use": "one set of rows per dimension"
+    },
+    {
+      "id": "DF-062",
+      "from": "config.reportingTimeZone",
+      "to": "analytics.daily_snapshot.snapshot_date",
+      "field": "reportingTimeZone",
+      "use": "local date of the first run; a rerun adds nothing"
+    },
+    {
+      "id": "DF-063",
+      "from": "job.context.workspaceId",
+      "to": "analytics.daily_snapshot.workspace_id",
+      "field": "workspaceId",
+      "use": "keeps workspaces apart"
+    },
+    {
+      "id": "DF-064",
+      "from": "analytics.daily_snapshot.person_count",
+      "to": "analytics.sync_log.details",
+      "field": "all_total, source_total",
+      "use": "consistency check against live_total"
+    },
+    {
+      "id": "DF-065",
+      "from": "facade.personRelation.person_id",
+      "to": "analytics.sync_log.details",
+      "field": "live_total",
+      "use": "consistency check against the CRM"
+    },
+    {
+      "id": "DF-066",
+      "from": "job.context.workspaceId",
+      "to": "analytics.sync_log.workspace_id",
+      "field": "workspaceId",
+      "use": "keeps workspaces apart"
+    },
+    {
+      "id": "DF-067",
+      "from": "job.sync",
+      "to": "analytics.sync_log.job_name",
+      "field": "literal 'sync'",
+      "use": "only sync rows drive the stale state"
+    },
+    {
+      "id": "DF-068",
+      "from": "job.daily",
+      "to": "analytics.sync_log.job_name",
+      "field": "literal 'daily'",
+      "use": "drives the reconciliation state"
+    },
+    {
+      "id": "DF-069",
+      "from": "job.sync",
+      "to": "analytics.sync_log.started_at",
+      "field": "now()",
+      "use": "opened as running"
+    },
+    {
+      "id": "DF-070",
+      "from": "job.sync",
+      "to": "analytics.sync_log.finished_at",
+      "field": "now()",
+      "use": "closed when the job ends"
+    },
+    {
+      "id": "DF-071",
+      "from": "job.sync",
+      "to": "analytics.sync_log.status",
+      "field": "ok, failed or skipped",
+      "use": "job outcome"
+    },
+    {
+      "id": "DF-072",
+      "from": "sync.readTimeline",
+      "to": "analytics.sync_log.processed_count",
+      "field": "inserted_count",
+      "use": "rows added by this run"
+    },
+    {
+      "id": "DF-073",
+      "from": "job.daily",
+      "to": "analytics.sync_log.details",
+      "field": "per-step outcome",
+      "use": "each step recorded apart"
+    },
+    {
+      "id": "DF-074",
+      "from": "job.sync",
+      "to": "analytics.sync_log.error_message",
+      "field": "error text",
+      "use": "first 500 characters, failed runs only"
+    },
+    {
+      "id": "DF-075",
+      "from": "config.stages",
+      "to": "cte.stage_map",
+      "field": "rawValues, stageKey, rank, kind, limitDays",
+      "use": "one row per raw value"
+    },
+    {
+      "id": "DF-076",
+      "from": "config.stages",
+      "to": "cte.funnel_stage",
+      "field": "stageKey, rank, windowDays",
+      "use": "one row per ranked stage"
+    },
+    {
+      "id": "DF-077",
+      "from": "config.tracks",
+      "to": "cte.position_map",
+      "field": "positions, trackKey",
+      "use": "one row per position"
+    },
+    {
+      "id": "DF-078",
+      "from": "facade.personRelation.person_id",
+      "to": "cte.crm_person",
+      "field": "person_id",
+      "use": "embedded relation"
+    },
+    {
+      "id": "DF-079",
+      "from": "facade.personRelation.raw_stage",
+      "to": "cte.crm_person",
+      "field": "raw_stage",
+      "use": "embedded relation"
+    },
+    {
+      "id": "DF-080",
+      "from": "facade.personRelation.positions",
+      "to": "cte.crm_person",
+      "field": "positions",
+      "use": "embedded relation"
+    },
+    {
+      "id": "DF-081",
+      "from": "facade.personRelation.source",
+      "to": "cte.crm_person",
+      "field": "source",
+      "use": "embedded relation"
+    },
+    {
+      "id": "DF-082",
+      "from": "facade.personRelation.created_at",
+      "to": "cte.crm_person",
+      "field": "created_at",
+      "use": "embedded relation"
+    },
+    {
+      "id": "DF-083",
+      "from": "cte.crm_person",
+      "to": "cte.scope",
+      "field": "raw_stage, positions, source, created_at",
+      "use": "people in view after filters"
+    },
+    {
+      "id": "DF-084",
+      "from": "cte.stage_map",
+      "to": "cte.scope",
+      "field": "stage_key, rank, kind",
+      "use": "current_key, current_rank, current_kind"
+    },
+    {
+      "id": "DF-085",
+      "from": "api.filter.status",
+      "to": "cte.scope",
+      "field": "status",
+      "use": "ACTIVE, SUCCESS, EXITED, UNMAPPED, NO_STAGE"
+    },
+    {
+      "id": "DF-086",
+      "from": "api.filter.trackKey",
+      "to": "cte.scope",
+      "field": "trackKey",
+      "use": "people with a position in the track"
+    },
+    {
+      "id": "DF-087",
+      "from": "api.filter.programKey",
+      "to": "cte.scope",
+      "field": "programKey",
+      "use": "people with the position"
+    },
+    {
+      "id": "DF-088",
+      "from": "api.filter.sourceKey",
+      "to": "cte.scope",
+      "field": "sourceKey",
+      "use": "people with the source"
+    },
+    {
+      "id": "DF-089",
+      "from": "api.filter.dateRange",
+      "to": "cte.scope",
+      "field": "dateFrom, dateTo",
+      "use": "current-state views: created in range, imported people drop"
+    },
+    {
+      "id": "DF-090",
+      "from": "analytics.stage_transition.person_id",
+      "to": "cte.transition",
+      "field": "person_id",
+      "use": "joined to the cohort and scope"
+    },
+    {
+      "id": "DF-091",
+      "from": "analytics.stage_transition.from_stage",
+      "to": "cte.transition",
+      "field": "from_stage",
+      "use": "from_key and from_rank through stage_map"
+    },
+    {
+      "id": "DF-092",
+      "from": "analytics.stage_transition.to_stage",
+      "to": "cte.transition",
+      "field": "to_stage",
+      "use": "to_key, to_rank and to_kind through stage_map"
+    },
+    {
+      "id": "DF-093",
+      "from": "analytics.stage_transition.happened_at",
+      "to": "cte.transition",
+      "field": "happened_at",
+      "use": "event time; filtered at tracking start"
+    },
+    {
+      "id": "DF-094",
+      "from": "analytics.stage_transition.origin",
+      "to": "cte.transition",
+      "field": "origin",
+      "use": "reconcile rows leave durations and the stage clock certainty"
+    },
+    {
+      "id": "DF-095",
+      "from": "analytics.stage_transition.workspace_id",
+      "to": "cte.transition",
+      "field": "workspace_id",
+      "use": "other workspaces never reach a read"
+    },
+    {
+      "id": "DF-096",
+      "from": "cte.stage_map",
+      "to": "cte.transition",
+      "field": "stage_key, rank, kind",
+      "use": "mapping at read time, so a remap rewrites nothing"
+    },
+    {
+      "id": "DF-097",
+      "from": "settings.trackingStart",
+      "to": "cte.transition",
+      "field": "trackingStart",
+      "use": "older rows are ignored"
+    },
+    {
+      "id": "DF-098",
+      "from": "cte.transition",
+      "to": "cte.first_move",
+      "field": "from_key, from_rank",
+      "use": "earliest move per person"
+    },
+    {
+      "id": "DF-099",
+      "from": "cte.scope",
+      "to": "cte.cohort",
+      "field": "created_at",
+      "use": "application date"
+    },
+    {
+      "id": "DF-100",
+      "from": "cte.scope",
+      "to": "cte.cohort",
+      "field": "current_key, current_rank",
+      "use": "initial stage when no move exists"
+    },
+    {
+      "id": "DF-101",
+      "from": "cte.first_move",
+      "to": "cte.cohort",
+      "field": "from_key, from_rank",
+      "use": "initial stage when a move exists"
+    },
+    {
+      "id": "DF-102",
+      "from": "settings.trackingStart",
+      "to": "cte.cohort",
+      "field": "trackingStart",
+      "use": "imported people stay out of the cohort"
+    },
+    {
+      "id": "DF-103",
+      "from": "api.filter.dateRange",
+      "to": "cte.cohort",
+      "field": "dateFrom, dateTo",
+      "use": "cohort views: application date in range"
+    },
+    {
+      "id": "DF-104",
+      "from": "cte.cohort",
+      "to": "cte.arrival",
+      "field": "initial_rank, created_at",
+      "use": "first arrival"
+    },
+    {
+      "id": "DF-105",
+      "from": "cte.transition",
+      "to": "cte.arrival",
+      "field": "to_rank, happened_at",
+      "use": "later arrivals; unmapped rows have no rank"
+    },
+    {
+      "id": "DF-106",
+      "from": "cte.arrival",
+      "to": "cte.person_step",
+      "field": "rank, arrived_at",
+      "use": "entered_at and next_at per step"
+    },
+    {
+      "id": "DF-107",
+      "from": "cte.funnel_stage",
+      "to": "cte.person_step",
+      "field": "stage_key, rank, window_days",
+      "use": "a person counts at every rank up to the furthest"
+    },
+    {
+      "id": "DF-108",
+      "from": "cte.cohort",
+      "to": "cte.funnel_group",
+      "field": "person_id, created_at",
+      "use": "group key: all, category or bucket"
+    },
+    {
+      "id": "DF-109",
+      "from": "cte.person_step",
+      "to": "cte.step_row",
+      "field": "stage_key, entered_at, next_at, window_days",
+      "use": "window_end per step"
+    },
+    {
+      "id": "DF-110",
+      "from": "cte.funnel_group",
+      "to": "cte.step_row",
+      "field": "group_key",
+      "use": "groups the step rows"
+    },
+    {
+      "id": "DF-111",
+      "from": "cte.step_row",
+      "to": "cte.step_exit",
+      "field": "entered_at, window_end",
+      "use": "exit must fall inside the window"
+    },
+    {
+      "id": "DF-112",
+      "from": "cte.transition",
+      "to": "cte.step_exit",
+      "field": "to_kind, happened_at",
+      "use": "EXIT moves only"
+    },
+    {
+      "id": "DF-113",
+      "from": "cte.step_row",
+      "to": "cte.step_total",
+      "field": "entered_at, window_end, next_at",
+      "use": "entered, eligible, reached_next, reached_so_far"
+    },
+    {
+      "id": "DF-114",
+      "from": "cte.step_exit",
+      "to": "cte.step_total",
+      "field": "person_id",
+      "use": "exited"
+    },
+    {
+      "id": "DF-115",
+      "from": "cte.person_step",
+      "to": "cte.overall_row",
+      "field": "entered_at",
+      "use": "entry rank and success stage"
+    },
+    {
+      "id": "DF-116",
+      "from": "config.overallWindowDays",
+      "to": "cte.overall_row",
+      "field": "overallWindowDays",
+      "use": "overall window end"
+    },
+    {
+      "id": "DF-117",
+      "from": "cte.overall_row",
+      "to": "cte.overall_total",
+      "field": "window_end, success_at",
+      "use": "entered, eligible, reached, reached_so_far"
+    },
+    {
+      "id": "DF-118",
+      "from": "cte.cohort",
+      "to": "cte.stay_event",
+      "field": "initial_key, created_at",
+      "use": "created-at row opens the first stay"
+    },
+    {
+      "id": "DF-119",
+      "from": "cte.transition",
+      "to": "cte.stay_event",
+      "field": "to_key, happened_at, origin",
+      "use": "each move"
+    },
+    {
+      "id": "DF-120",
+      "from": "cte.stay_event",
+      "to": "cte.ordered_event",
+      "field": "stage_key, happened_at",
+      "use": "ordered per person"
+    },
+    {
+      "id": "DF-121",
+      "from": "cte.ordered_event",
+      "to": "cte.kept_event",
+      "field": "previous_key",
+      "use": "rows that do not change stage key are dropped"
+    },
+    {
+      "id": "DF-122",
+      "from": "cte.kept_event",
+      "to": "cte.stay",
+      "field": "happened_at, origin",
+      "use": "a stay runs to the next kept row"
+    },
+    {
+      "id": "DF-123",
+      "from": "cte.stay",
+      "to": "cte.completed_stay",
+      "field": "started_at, ended_at, origin",
+      "use": "open stays and reconcile stays are left out"
+    },
+    {
+      "id": "DF-124",
+      "from": "cte.transition",
+      "to": "cte.latest_entry",
+      "field": "to_key, happened_at, origin",
+      "use": "latest entry into the current stage"
+    },
+    {
+      "id": "DF-125",
+      "from": "cte.scope",
+      "to": "cte.latest_entry",
+      "field": "current_key",
+      "use": "current stage"
+    },
+    {
+      "id": "DF-126",
+      "from": "cte.transition",
+      "to": "cte.moved_person",
+      "field": "person_id",
+      "use": "people with any move"
+    },
+    {
+      "id": "DF-127",
+      "from": "cte.scope",
+      "to": "cte.stage_clock",
+      "field": "created_at, current_key, current_kind",
+      "use": "active people only"
+    },
+    {
+      "id": "DF-128",
+      "from": "cte.latest_entry",
+      "to": "cte.stage_clock",
+      "field": "happened_at, origin",
+      "use": "stage_entered_at and is_lower_bound"
+    },
+    {
+      "id": "DF-129",
+      "from": "cte.moved_person",
+      "to": "cte.stage_clock",
+      "field": "person_id",
+      "use": "is_inactive"
+    },
+    {
+      "id": "DF-130",
+      "from": "cte.stage_map",
+      "to": "cte.stage_clock",
+      "field": "limit_days",
+      "use": "stuck limit"
+    },
+    {
+      "id": "DF-131",
+      "from": "cte.stage_clock",
+      "to": "cte.stage_age",
+      "field": "stage_entered_at",
+      "use": "days_in_stage"
+    },
+    {
+      "id": "DF-132",
+      "from": "cte.scope",
+      "to": "cte.person_position",
+      "field": "positions",
+      "use": "one row per position"
+    },
+    {
+      "id": "DF-133",
+      "from": "cte.position_map",
+      "to": "cte.person_position",
+      "field": "track_key",
+      "use": "UNMAPPED for an unknown position"
+    },
+    {
+      "id": "DF-134",
+      "from": "cte.person_position",
+      "to": "cte.category_member",
+      "field": "position_key, track_key",
+      "use": "program and track rows"
+    },
+    {
+      "id": "DF-135",
+      "from": "cte.scope",
+      "to": "cte.category_member",
+      "field": "source, positions",
+      "use": "source rows; NONE for no value"
+    },
+    {
+      "id": "DF-136",
+      "from": "facade.submissionRelation.person_id",
+      "to": "cte.submission",
+      "field": "person_id",
+      "use": "embedded relation"
+    },
+    {
+      "id": "DF-137",
+      "from": "facade.submissionRelation.submitted_at",
+      "to": "cte.submission",
+      "field": "submitted_at",
+      "use": "embedded relation"
+    },
+    {
+      "id": "DF-138",
+      "from": "cte.transition",
+      "to": "cte.period_move",
+      "field": "from_key, to_key, happened_at",
+      "use": "moves in the period, local date"
+    },
+    {
+      "id": "DF-139",
+      "from": "cte.scope",
+      "to": "cte.period_move",
+      "field": "person_id",
+      "use": "person filters apply to movement"
+    },
+    {
+      "id": "DF-140",
+      "from": "cte.period_move",
+      "to": "cte.entered_total",
+      "field": "to_key",
+      "use": "count per stage"
+    },
+    {
+      "id": "DF-141",
+      "from": "cte.period_move",
+      "to": "cte.left_total",
+      "field": "from_key",
+      "use": "count per stage"
+    },
+    {
+      "id": "DF-142",
+      "from": "cte.scope",
+      "to": "cte.current_total",
+      "field": "current_key",
+      "use": "people per stage now"
+    },
+    {
+      "id": "DF-143",
+      "from": "analytics.daily_snapshot.snapshot_date",
+      "to": "cte.snapshot_day",
+      "field": "snapshot_date",
+      "use": "'all' rows prove a snapshot ran"
+    },
+    {
+      "id": "DF-144",
+      "from": "cte.snapshot_day",
+      "to": "cte.bucket_day",
+      "field": "snapshot_date",
+      "use": "last snapshot in each bucket"
+    },
+    {
+      "id": "DF-145",
+      "from": "analytics.daily_snapshot.person_count",
+      "to": "cte.matching_row",
+      "field": "person_count",
+      "use": "stage and dimension filtered"
+    },
+    {
+      "id": "DF-146",
+      "from": "analytics.daily_snapshot.dimension",
+      "to": "cte.matching_row",
+      "field": "dimension",
+      "use": "one dimension only"
+    },
+    {
+      "id": "DF-147",
+      "from": "analytics.daily_snapshot.dimension_key",
+      "to": "cte.matching_row",
+      "field": "dimension_key",
+      "use": "one key only"
+    },
+    {
+      "id": "DF-148",
+      "from": "analytics.daily_snapshot.stage",
+      "to": "cte.matching_row",
+      "field": "stage",
+      "use": "mapped through stage_map at read time"
+    },
+    {
+      "id": "DF-149",
+      "from": "analytics.daily_snapshot.workspace_id",
+      "to": "cte.matching_row",
+      "field": "workspace_id",
+      "use": "other workspaces never reach a read"
+    },
+    {
+      "id": "DF-150",
+      "from": "cte.transition",
+      "to": "cte.mapped_mover",
+      "field": "from_key, to_key",
+      "use": "people with any mapped stage"
+    },
+    {
+      "id": "DF-151",
+      "from": "cte.scope",
+      "to": "metric.totalContacts",
+      "field": "raw_stage",
+      "use": "sum over stages"
+    },
+    {
+      "id": "DF-152",
+      "from": "cte.scope",
+      "to": "metric.activePeople",
+      "field": "raw_stage",
+      "use": "MAIN or OTHER, not success"
+    },
+    {
+      "id": "DF-153",
+      "from": "config.stages",
+      "to": "metric.activePeople",
+      "field": "kind, isSuccess",
+      "use": "decides which stages are active"
+    },
+    {
+      "id": "DF-154",
+      "from": "cte.scope",
+      "to": "metric.signedPeople",
+      "field": "raw_stage",
+      "use": "success stage now"
+    },
+    {
+      "id": "DF-155",
+      "from": "config.showSignedFigure",
+      "to": "metric.signedPeople",
+      "field": "showSignedFigure",
+      "use": "null when off"
+    },
+    {
+      "id": "DF-156",
+      "from": "cte.submission",
+      "to": "metric.newApplications",
+      "field": "submitted_at",
+      "use": "count in the date range and the span before"
+    },
+    {
+      "id": "DF-157",
+      "from": "api.filter.dateRange",
+      "to": "metric.newApplications",
+      "field": "dateFrom, dateTo",
+      "use": "range, or the last 7 local days"
+    },
+    {
+      "id": "DF-158",
+      "from": "cte.scope",
+      "to": "metric.newApplications",
+      "field": "person_id",
+      "use": "person filters join on person_id"
+    },
+    {
+      "id": "DF-159",
+      "from": "facade.importedApplications",
+      "to": "metric.importedApplications",
+      "field": "total",
+      "use": "null without the object"
+    },
+    {
+      "id": "DF-160",
+      "from": "cte.scope",
+      "to": "metric.importedExcludedByDate",
+      "field": "created_at",
+      "use": "imported people hidden by a date filter"
+    },
+    {
+      "id": "DF-161",
+      "from": "cte.scope",
+      "to": "metric.stageTotals",
+      "field": "raw_stage",
+      "use": "count per raw value"
+    },
+    {
+      "id": "DF-162",
+      "from": "config.stages",
+      "to": "metric.stageTotals",
+      "field": "rawValues, label, kind",
+      "use": "rows and nesting"
+    },
+    {
+      "id": "DF-163",
+      "from": "facade.crmState.stage",
+      "to": "metric.stageTotals",
+      "field": "options",
+      "use": "labels of nested rows"
+    },
+    {
+      "id": "DF-164",
+      "from": "cte.stage_age",
+      "to": "metric.stageTotals",
+      "field": "stuck_count",
+      "use": "pastLimitCount"
+    },
+    {
+      "id": "DF-165",
+      "from": "cte.stage_age",
+      "to": "metric.stuckList",
+      "field": "person_id, days_in_stage, limit_days",
+      "use": "sorted, at most 100 rows"
+    },
+    {
+      "id": "DF-166",
+      "from": "facade.displayNames",
+      "to": "metric.stuckList",
+      "field": "display name",
+      "use": "the only personal value, read live"
+    },
+    {
+      "id": "DF-167",
+      "from": "cte.stage_age",
+      "to": "metric.stuckPeople",
+      "field": "stuck_count",
+      "use": "total past limit"
+    },
+    {
+      "id": "DF-168",
+      "from": "cte.stage_age",
+      "to": "metric.inactivePeople",
+      "field": "is_inactive",
+      "use": "total inactive"
+    },
+    {
+      "id": "DF-169",
+      "from": "cte.stage_age",
+      "to": "metric.stuckByStage",
+      "field": "stuck_count",
+      "use": "count per stage for reports"
+    },
+    {
+      "id": "DF-170",
+      "from": "cte.step_total",
+      "to": "metric.entered",
+      "field": "entered",
+      "use": "rows of person_step at the stage"
+    },
+    {
+      "id": "DF-171",
+      "from": "cte.step_total",
+      "to": "metric.eligible",
+      "field": "eligible",
+      "use": "past the window"
+    },
+    {
+      "id": "DF-172",
+      "from": "cte.step_total",
+      "to": "metric.reachedNext",
+      "field": "reached_next",
+      "use": "next stage inside the window"
+    },
+    {
+      "id": "DF-173",
+      "from": "cte.step_total",
+      "to": "metric.exited",
+      "field": "exited",
+      "use": "exit inside the window"
+    },
+    {
+      "id": "DF-174",
+      "from": "metric.eligible",
+      "to": "metric.timedOut",
+      "field": "eligible",
+      "use": "eligible minus reachedNext minus exited"
+    },
+    {
+      "id": "DF-175",
+      "from": "metric.reachedNext",
+      "to": "metric.timedOut",
+      "field": "reachedNext",
+      "use": "eligible minus reachedNext minus exited"
+    },
+    {
+      "id": "DF-176",
+      "from": "metric.exited",
+      "to": "metric.timedOut",
+      "field": "exited",
+      "use": "eligible minus reachedNext minus exited"
+    },
+    {
+      "id": "DF-177",
+      "from": "metric.entered",
+      "to": "metric.inWindow",
+      "field": "entered",
+      "use": "entered minus eligible"
+    },
+    {
+      "id": "DF-178",
+      "from": "metric.eligible",
+      "to": "metric.inWindow",
+      "field": "eligible",
+      "use": "entered minus eligible"
+    },
+    {
+      "id": "DF-179",
+      "from": "metric.reachedNext",
+      "to": "metric.stepRate",
+      "field": "reachedNext",
+      "use": "fraction, null when eligible is 0"
+    },
+    {
+      "id": "DF-180",
+      "from": "metric.eligible",
+      "to": "metric.stepRate",
+      "field": "eligible",
+      "use": "fraction, null when eligible is 0"
+    },
+    {
+      "id": "DF-181",
+      "from": "cte.step_total",
+      "to": "metric.soFarRate",
+      "field": "reached_so_far",
+      "use": "over entered, display only"
+    },
+    {
+      "id": "DF-182",
+      "from": "metric.entered",
+      "to": "metric.soFarRate",
+      "field": "entered",
+      "use": "denominator"
+    },
+    {
+      "id": "DF-183",
+      "from": "metric.eligible",
+      "to": "metric.dropOffRate",
+      "field": "eligible",
+      "use": "(eligible - reachedNext) / eligible"
+    },
+    {
+      "id": "DF-184",
+      "from": "metric.reachedNext",
+      "to": "metric.dropOffRate",
+      "field": "reachedNext",
+      "use": "(eligible - reachedNext) / eligible"
+    },
+    {
+      "id": "DF-185",
+      "from": "config.minimumSample",
+      "to": "metric.isUnderMinimum",
+      "field": "minimumSample",
+      "use": "eligible below the minimum"
+    },
+    {
+      "id": "DF-186",
+      "from": "metric.eligible",
+      "to": "metric.isUnderMinimum",
+      "field": "eligible",
+      "use": "eligible below the minimum"
+    },
+    {
+      "id": "DF-187",
+      "from": "cte.completed_stay",
+      "to": "metric.medianDays",
+      "field": "stay_days",
+      "use": "percentile_cont(0.5), one decimal"
+    },
+    {
+      "id": "DF-188",
+      "from": "cte.completed_stay",
+      "to": "metric.completedStays",
+      "field": "stage_key",
+      "use": "count of stays"
+    },
+    {
+      "id": "DF-189",
+      "from": "metric.stepRate",
+      "to": "metric.lowestStep",
+      "field": "stepRate",
+      "use": "lowest rate with eligible at or above the minimum"
+    },
+    {
+      "id": "DF-190",
+      "from": "cte.overall_total",
+      "to": "metric.overallEligible",
+      "field": "eligible",
+      "use": "90 days past entry"
+    },
+    {
+      "id": "DF-191",
+      "from": "cte.overall_total",
+      "to": "metric.overallReached",
+      "field": "reached",
+      "use": "success inside 90 days"
+    },
+    {
+      "id": "DF-192",
+      "from": "metric.overallReached",
+      "to": "metric.overallRate",
+      "field": "reached",
+      "use": "fraction over eligible"
+    },
+    {
+      "id": "DF-193",
+      "from": "metric.overallEligible",
+      "to": "metric.overallRate",
+      "field": "eligible",
+      "use": "fraction over eligible"
+    },
+    {
+      "id": "DF-194",
+      "from": "cte.overall_total",
+      "to": "metric.overallSoFarRate",
+      "field": "reached_so_far, entered",
+      "use": "fraction, display only"
+    },
+    {
+      "id": "DF-195",
+      "from": "cte.overall_total",
+      "to": "metric.cohortSize",
+      "field": "entered",
+      "use": "people at the entry rank"
+    },
+    {
+      "id": "DF-196",
+      "from": "cte.mapped_mover",
+      "to": "metric.cohortExcludedUnmapped",
+      "field": "person_id",
+      "use": "moved people are not excluded"
+    },
+    {
+      "id": "DF-197",
+      "from": "cte.cohort",
+      "to": "metric.cohortExcludedUnmapped",
+      "field": "person_id",
+      "use": "only cohort people count"
+    },
+    {
+      "id": "DF-198",
+      "from": "cte.scope",
+      "to": "metric.cohortExcludedUnmapped",
+      "field": "raw_stage, current_key",
+      "use": "people whose every stage is unmapped"
+    },
+    {
+      "id": "DF-199",
+      "from": "cte.category_member",
+      "to": "metric.categoryPeople",
+      "field": "category_key, parent_key",
+      "use": "people and activePeople per row"
+    },
+    {
+      "id": "DF-200",
+      "from": "cte.scope",
+      "to": "metric.categoryPeople",
+      "field": "current_kind, current_key",
+      "use": "activePeople"
+    },
+    {
+      "id": "DF-201",
+      "from": "cte.category_member",
+      "to": "metric.categoryNewApplications",
+      "field": "category_key, parent_key",
+      "use": "grouped by current category"
+    },
+    {
+      "id": "DF-202",
+      "from": "cte.submission",
+      "to": "metric.categoryNewApplications",
+      "field": "submitted_at, person_id",
+      "use": "in the submission range"
+    },
+    {
+      "id": "DF-203",
+      "from": "cte.category_member",
+      "to": "cte.funnel_group",
+      "field": "category_key, parent_key",
+      "use": "group key of category rates"
+    },
+    {
+      "id": "DF-204",
+      "from": "cte.step_total",
+      "to": "metric.categoryRates",
+      "field": "eligible, reached_next, reached_so_far",
+      "use": "stepRates per row"
+    },
+    {
+      "id": "DF-205",
+      "from": "cte.overall_total",
+      "to": "metric.categoryRates",
+      "field": "entered, eligible, reached, reached_so_far",
+      "use": "cohortSize and overall rates per row"
+    },
+    {
+      "id": "DF-206",
+      "from": "cte.person_position",
+      "to": "metric.categoryOverlap",
+      "field": "person_id, track_key",
+      "use": "peopleInSeveral and peopleInSeveralTracks"
+    },
+    {
+      "id": "DF-207",
+      "from": "cte.scope",
+      "to": "metric.categoryOverlap",
+      "field": "person_id",
+      "use": "distinctPeople"
+    },
+    {
+      "id": "DF-208",
+      "from": "facade.crmState.positionsAppliedFor",
+      "to": "metric.categoryRows",
+      "field": "options",
+      "use": "program labels; unknown positions flagged"
+    },
+    {
+      "id": "DF-209",
+      "from": "facade.crmState.applicantSource",
+      "to": "metric.categoryRows",
+      "field": "options",
+      "use": "source labels; unknown sources flagged"
+    },
+    {
+      "id": "DF-210",
+      "from": "config.tracks",
+      "to": "metric.categoryRows",
+      "field": "trackKey, label",
+      "use": "track labels"
+    },
+    {
+      "id": "DF-211",
+      "from": "metric.categoryPeople",
+      "to": "metric.categoryRows",
+      "field": "people, activePeople",
+      "use": "row values"
+    },
+    {
+      "id": "DF-212",
+      "from": "metric.categoryNewApplications",
+      "to": "metric.categoryRows",
+      "field": "newApplications",
+      "use": "row values"
+    },
+    {
+      "id": "DF-213",
+      "from": "metric.categoryRates",
+      "to": "metric.categoryRows",
+      "field": "rates",
+      "use": "row values"
+    },
+    {
+      "id": "DF-214",
+      "from": "cte.step_total",
+      "to": "metric.cohortTable",
+      "field": "entered, eligible, reached_next, reached_so_far",
+      "use": "cells per application-date bucket"
+    },
+    {
+      "id": "DF-215",
+      "from": "cte.overall_total",
+      "to": "metric.cohortTable",
+      "field": "entered, eligible, reached, reached_so_far",
+      "use": "size and overall rates per bucket"
+    },
+    {
+      "id": "DF-216",
+      "from": "cte.overall_total",
+      "to": "metric.trendOverallConversion",
+      "field": "eligible, reached, entered",
+      "use": "bucket of application date; null until mature"
+    },
+    {
+      "id": "DF-217",
+      "from": "cte.step_total",
+      "to": "metric.trendDropOff",
+      "field": "eligible, reached_next, entered",
+      "use": "bucket of application date; null until mature"
+    },
+    {
+      "id": "DF-218",
+      "from": "cte.submission",
+      "to": "metric.trendNewApplications",
+      "field": "submitted_at",
+      "use": "bucket of submission date"
+    },
+    {
+      "id": "DF-219",
+      "from": "cte.scope",
+      "to": "metric.trendNewApplications",
+      "field": "person_id",
+      "use": "person filters join on person_id"
+    },
+    {
+      "id": "DF-220",
+      "from": "cte.bucket_day",
+      "to": "metric.trendSnapshot",
+      "field": "snapshot_date",
+      "use": "last snapshot in each bucket"
+    },
+    {
+      "id": "DF-221",
+      "from": "cte.matching_row",
+      "to": "metric.trendSnapshot",
+      "field": "person_count",
+      "use": "TOTAL_CONTACTS, ACTIVE_PEOPLE, STAGE_COUNT"
+    },
+    {
+      "id": "DF-222",
+      "from": "cte.completed_stay",
+      "to": "metric.trendMedianDays",
+      "field": "stay_days, ended_at",
+      "use": "bucket of stay end date"
+    },
+    {
+      "id": "DF-223",
+      "from": "api.filter.period",
+      "to": "metric.trendBuckets",
+      "field": "period",
+      "use": "DAY, WEEK or MONTH buckets"
+    },
+    {
+      "id": "DF-224",
+      "from": "api.filter.dateRange",
+      "to": "metric.trendBuckets",
+      "field": "dateFrom, dateTo",
+      "use": "bucket range, at most 60"
+    },
+    {
+      "id": "DF-225",
+      "from": "config.reportingTimeZone",
+      "to": "metric.trendBuckets",
+      "field": "reportingTimeZone",
+      "use": "local today and local buckets"
+    },
+    {
+      "id": "DF-226",
+      "from": "metric.trendBuckets",
+      "to": "metric.trendSeries",
+      "field": "bucketStart, previousBucketStart, isPartial",
+      "use": "one point per bucket"
+    },
+    {
+      "id": "DF-227",
+      "from": "metric.trendOverallConversion",
+      "to": "metric.trendSeries",
+      "field": "value, size",
+      "use": "OVERALL_CONVERSION"
+    },
+    {
+      "id": "DF-228",
+      "from": "metric.trendDropOff",
+      "to": "metric.trendSeries",
+      "field": "value, size",
+      "use": "DROP_OFF"
+    },
+    {
+      "id": "DF-229",
+      "from": "metric.trendNewApplications",
+      "to": "metric.trendSeries",
+      "field": "value",
+      "use": "NEW_APPLICATIONS"
+    },
+    {
+      "id": "DF-230",
+      "from": "metric.trendSnapshot",
+      "to": "metric.trendSeries",
+      "field": "value",
+      "use": "TOTAL_CONTACTS, ACTIVE_PEOPLE, STAGE_COUNT"
+    },
+    {
+      "id": "DF-231",
+      "from": "metric.trendMedianDays",
+      "to": "metric.trendSeries",
+      "field": "value, size",
+      "use": "MEDIAN_DAYS"
+    },
+    {
+      "id": "DF-232",
+      "from": "cte.entered_total",
+      "to": "metric.movement",
+      "field": "moved",
+      "use": "enteredInPeriod"
+    },
+    {
+      "id": "DF-233",
+      "from": "cte.left_total",
+      "to": "metric.movement",
+      "field": "moved",
+      "use": "leftInPeriod"
+    },
+    {
+      "id": "DF-234",
+      "from": "cte.current_total",
+      "to": "metric.movement",
+      "field": "people",
+      "use": "countNow"
+    },
+    {
+      "id": "DF-235",
+      "from": "api.filter.dateRange",
+      "to": "metric.movement",
+      "field": "dateFrom, dateTo",
+      "use": "movement range, or the period containing today"
+    },
+    {
+      "id": "DF-236",
+      "from": "metric.newApplications",
+      "to": "metric.comparisons",
+      "field": "current, previous",
+      "use": "NEW_APPLICATIONS comparison"
+    },
+    {
+      "id": "DF-237",
+      "from": "metric.movement",
+      "to": "metric.comparisons",
+      "field": "enteredInPeriod",
+      "use": "ENTERED_<stage> comparison"
+    },
+    {
+      "id": "DF-238",
+      "from": "config.significantChangeRatio",
+      "to": "metric.comparisons",
+      "field": "significantChangeRatio",
+      "use": "isSignificant"
+    },
+    {
+      "id": "DF-239",
+      "from": "config.minimumSample",
+      "to": "metric.comparisons",
+      "field": "minimumSample",
+      "use": "isSignificant needs both values at the minimum"
+    },
+    {
+      "id": "DF-240",
+      "from": "analytics.sync_log.finished_at",
+      "to": "metric.syncState",
+      "field": "finished_at",
+      "use": "last success and last reconciliation"
+    },
+    {
+      "id": "DF-241",
+      "from": "analytics.sync_log.started_at",
+      "to": "metric.syncState",
+      "field": "started_at",
+      "use": "last attempt"
+    },
+    {
+      "id": "DF-242",
+      "from": "analytics.sync_log.status",
+      "to": "metric.syncState",
+      "field": "status",
+      "use": "last attempt status, stale"
+    },
+    {
+      "id": "DF-243",
+      "from": "analytics.sync_log.job_name",
+      "to": "metric.syncState",
+      "field": "job_name",
+      "use": "daily rows never clear stale"
+    },
+    {
+      "id": "DF-244",
+      "from": "analytics.sync_log.restored_count",
+      "to": "metric.syncState",
+      "field": "restored_count",
+      "use": "restored in last reconciliation"
+    },
+    {
+      "id": "DF-245",
+      "from": "analytics.sync_log.workspace_id",
+      "to": "metric.syncState",
+      "field": "workspace_id",
+      "use": "other workspaces never reach a read"
+    },
+    {
+      "id": "DF-246",
+      "from": "config.staleAfterMinutes",
+      "to": "metric.syncState",
+      "field": "staleAfterMinutes",
+      "use": "stale limit"
+    },
+    {
+      "id": "DF-247",
+      "from": "config.runningLimitMinutes",
+      "to": "metric.syncState",
+      "field": "runningLimitMinutes",
+      "use": "a young running row is ignored"
+    },
+    {
+      "id": "DF-248",
+      "from": "facade.crmState.stage",
+      "to": "metric.pageState",
+      "field": "status",
+      "use": "NO_STAGE_FIELD"
+    },
+    {
+      "id": "DF-249",
+      "from": "settings.isDisabled",
+      "to": "metric.pageState",
+      "field": "disabled",
+      "use": "DISABLED and null payloads"
+    },
+    {
+      "id": "DF-250",
+      "from": "metric.syncState",
+      "to": "metric.pageState",
+      "field": "lastSuccessfulSyncAt",
+      "use": "NEVER_SYNCED or READY"
+    },
+    {
+      "id": "DF-251",
+      "from": "report.periods",
+      "to": "analytics.report.period_type",
+      "field": "WEEK, MONTH",
+      "use": "finished periods only"
+    },
+    {
+      "id": "DF-252",
+      "from": "report.periods",
+      "to": "analytics.report.period_start",
+      "field": "local date",
+      "use": "Monday or the first of the month"
+    },
+    {
+      "id": "DF-253",
+      "from": "report.periods",
+      "to": "analytics.report.period_end",
+      "field": "local date",
+      "use": "exclusive"
+    },
+    {
+      "id": "DF-254",
+      "from": "report.builder",
+      "to": "analytics.report.generated_at",
+      "field": "context.asOf",
+      "use": "database clock"
+    },
+    {
+      "id": "DF-255",
+      "from": "report.builder",
+      "to": "analytics.report.payload",
+      "field": "AnalyticsReport",
+      "use": "frozen, first report stands"
+    },
+    {
+      "id": "DF-256",
+      "from": "job.context.workspaceId",
+      "to": "analytics.report.workspace_id",
+      "field": "workspaceId",
+      "use": "keeps workspaces apart"
+    },
+    {
+      "id": "DF-257",
+      "from": "settings.trackingStart",
+      "to": "report.periods",
+      "field": "trackingStart",
+      "use": "first complete period after tracking start"
+    },
+    {
+      "id": "DF-258",
+      "from": "config.reportingTimeZone",
+      "to": "report.periods",
+      "field": "reportingTimeZone",
+      "use": "local week and month boundaries"
+    },
+    {
+      "id": "DF-259",
+      "from": "analytics.report.period_start",
+      "to": "report.periods",
+      "field": "period_start",
+      "use": "existing periods are not rebuilt"
+    },
+    {
+      "id": "DF-260",
+      "from": "report.periods",
+      "to": "report.builder",
+      "field": "periodStart, periodEnd",
+      "use": "range of movement and new applications"
+    },
+    {
+      "id": "DF-261",
+      "from": "metric.newApplications",
+      "to": "report.builder",
+      "field": "current, previous",
+      "use": "submittedAt inside the period"
+    },
+    {
+      "id": "DF-262",
+      "from": "metric.movement",
+      "to": "report.builder",
+      "field": "rows",
+      "use": "event date inside the period"
+    },
+    {
+      "id": "DF-263",
+      "from": "metric.categoryRows",
+      "to": "report.builder",
+      "field": "rows",
+      "use": "rates to the end of the period, people as of now"
+    },
+    {
+      "id": "DF-264",
+      "from": "metric.stuckByStage",
+      "to": "report.builder",
+      "field": "counts",
+      "use": "current state at generation"
+    },
+    {
+      "id": "DF-265",
+      "from": "metric.comparisons",
+      "to": "report.builder",
+      "field": "rows",
+      "use": "against the previous period"
+    },
+    {
+      "id": "DF-266",
+      "from": "metric.cohortTable",
+      "to": "report.builder",
+      "field": "rows",
+      "use": "monthly reports only"
+    },
+    {
+      "id": "DF-267",
+      "from": "metric.stepRate",
+      "to": "report.builder",
+      "field": "funnel",
+      "use": "same funnel method as the page"
+    },
+    {
+      "id": "DF-268",
+      "from": "analytics.report.period_type",
+      "to": "payload.reports[].periodType",
+      "field": "period_type",
+      "use": "list item"
+    },
+    {
+      "id": "DF-269",
+      "from": "analytics.report.period_start",
+      "to": "payload.reports[].periodStart",
+      "field": "period_start",
+      "use": "list item"
+    },
+    {
+      "id": "DF-270",
+      "from": "analytics.report.period_end",
+      "to": "payload.reports[].periodEnd",
+      "field": "period_end",
+      "use": "list item"
+    },
+    {
+      "id": "DF-271",
+      "from": "analytics.report.generated_at",
+      "to": "payload.reports[].generatedAt",
+      "field": "generated_at",
+      "use": "list item"
+    },
+    {
+      "id": "DF-272",
+      "from": "analytics.report.workspace_id",
+      "to": "payload.reports[].periodStart",
+      "field": "workspace_id",
+      "use": "other workspaces never reach a read"
+    },
+    {
+      "id": "DF-273",
+      "from": "metric.queryContext",
+      "to": "payload.base.asOf",
+      "field": "asOf",
+      "use": "GraphQL payload base.asOf"
+    },
+    {
+      "id": "DF-274",
+      "from": "settings.trackingStart",
+      "to": "payload.base.trackingStartedAt",
+      "field": "trackingStartedAt",
+      "use": "GraphQL payload base.trackingStartedAt"
+    },
+    {
+      "id": "DF-275",
+      "from": "config.reportingTimeZone",
+      "to": "payload.base.reportingTimeZone",
+      "field": "reportingTimeZone",
+      "use": "GraphQL payload base.reportingTimeZone"
+    },
+    {
+      "id": "DF-276",
+      "from": "config.minimumSample",
+      "to": "payload.base.minimumSample",
+      "field": "minimumSample",
+      "use": "GraphQL payload base.minimumSample"
+    },
+    {
+      "id": "DF-277",
+      "from": "metric.pageState",
+      "to": "payload.meta.state",
+      "field": "state",
+      "use": "GraphQL payload meta.state"
+    },
+    {
+      "id": "DF-278",
+      "from": "config.isProvisional",
+      "to": "payload.meta.isProvisional",
+      "field": "isProvisional",
+      "use": "GraphQL payload meta.isProvisional"
+    },
+    {
+      "id": "DF-279",
+      "from": "config.showSignedFigure",
+      "to": "payload.meta.showSignedFigure",
+      "field": "showSignedFigure",
+      "use": "GraphQL payload meta.showSignedFigure"
+    },
+    {
+      "id": "DF-280",
+      "from": "metric.syncState",
+      "to": "payload.meta.sync.lastSuccessfulSyncAt",
+      "field": "lastSuccessfulSyncAt",
+      "use": "GraphQL payload meta.sync.lastSuccessfulSyncAt"
+    },
+    {
+      "id": "DF-281",
+      "from": "metric.syncState",
+      "to": "payload.meta.sync.lastReconciliationAt",
+      "field": "lastReconciliationAt",
+      "use": "GraphQL payload meta.sync.lastReconciliationAt"
+    },
+    {
+      "id": "DF-282",
+      "from": "metric.syncState",
+      "to": "payload.meta.sync.lastAttemptAt",
+      "field": "lastAttemptAt",
+      "use": "GraphQL payload meta.sync.lastAttemptAt"
+    },
+    {
+      "id": "DF-283",
+      "from": "metric.syncState",
+      "to": "payload.meta.sync.lastAttemptStatus",
+      "field": "lastAttemptStatus",
+      "use": "GraphQL payload meta.sync.lastAttemptStatus"
+    },
+    {
+      "id": "DF-284",
+      "from": "metric.syncState",
+      "to": "payload.meta.sync.isStale",
+      "field": "isStale",
+      "use": "GraphQL payload meta.sync.isStale"
+    },
+    {
+      "id": "DF-285",
+      "from": "metric.syncState",
+      "to": "payload.meta.sync.restoredInLastReconciliation",
+      "field": "restoredInLastReconciliation",
+      "use": "GraphQL payload meta.sync.restoredInLastReconciliation"
+    },
+    {
+      "id": "DF-286",
+      "from": "facade.crmState.stage",
+      "to": "payload.meta.fields.stage",
+      "field": "stage",
+      "use": "GraphQL payload meta.fields.stage"
+    },
+    {
+      "id": "DF-287",
+      "from": "facade.crmState.stage",
+      "to": "payload.meta.fields.isStageAuditLogged",
+      "field": "isStageAuditLogged",
+      "use": "GraphQL payload meta.fields.isStageAuditLogged"
+    },
+    {
+      "id": "DF-288",
+      "from": "facade.crmState.positionsAppliedFor",
+      "to": "payload.meta.fields.positionsAppliedFor",
+      "field": "positionsAppliedFor",
+      "use": "GraphQL payload meta.fields.positionsAppliedFor"
+    },
+    {
+      "id": "DF-289",
+      "from": "facade.crmState.applicantSource",
+      "to": "payload.meta.fields.applicantSource",
+      "field": "applicantSource",
+      "use": "GraphQL payload meta.fields.applicantSource"
+    },
+    {
+      "id": "DF-290",
+      "from": "facade.crmState.objects",
+      "to": "payload.meta.fields.hasFormSubmissionObject",
+      "field": "hasFormSubmissionObject",
+      "use": "GraphQL payload meta.fields.hasFormSubmissionObject"
+    },
+    {
+      "id": "DF-291",
+      "from": "facade.crmState.objects",
+      "to": "payload.meta.fields.hasApplicationObject",
+      "field": "hasApplicationObject",
+      "use": "GraphQL payload meta.fields.hasApplicationObject"
+    },
+    {
+      "id": "DF-292",
+      "from": "config.stages",
+      "to": "payload.meta.stages[].stageKey",
+      "field": "stageKey",
+      "use": "GraphQL payload meta.stages[].stageKey"
+    },
+    {
+      "id": "DF-293",
+      "from": "config.stages",
+      "to": "payload.meta.stages[].label",
+      "field": "label",
+      "use": "GraphQL payload meta.stages[].label"
+    },
+    {
+      "id": "DF-294",
+      "from": "config.stages",
+      "to": "payload.meta.stages[].kind",
+      "field": "kind",
+      "use": "GraphQL payload meta.stages[].kind"
+    },
+    {
+      "id": "DF-295",
+      "from": "config.stages",
+      "to": "payload.meta.stages[].rank",
+      "field": "rank",
+      "use": "GraphQL payload meta.stages[].rank"
+    },
+    {
+      "id": "DF-296",
+      "from": "config.stages",
+      "to": "payload.meta.stages[].limitDays",
+      "field": "limitDays",
+      "use": "GraphQL payload meta.stages[].limitDays"
+    },
+    {
+      "id": "DF-297",
+      "from": "config.stages",
+      "to": "payload.meta.stages[].windowDays",
+      "field": "windowDays",
+      "use": "GraphQL payload meta.stages[].windowDays"
+    },
+    {
+      "id": "DF-298",
+      "from": "config.stages",
+      "to": "payload.meta.stages[].isSuccess",
+      "field": "isSuccess",
+      "use": "GraphQL payload meta.stages[].isSuccess"
+    },
+    {
+      "id": "DF-299",
+      "from": "config.tracks",
+      "to": "payload.meta.tracks[].key",
+      "field": "trackKey",
+      "use": "GraphQL payload meta.tracks[].key"
+    },
+    {
+      "id": "DF-300",
+      "from": "config.tracks",
+      "to": "payload.meta.tracks[].label",
+      "field": "label",
+      "use": "GraphQL payload meta.tracks[].label"
+    },
+    {
+      "id": "DF-301",
+      "from": "config.tracks",
+      "to": "payload.meta.programs[].key",
+      "field": "positions",
+      "use": "GraphQL payload meta.programs[].key"
+    },
+    {
+      "id": "DF-302",
+      "from": "facade.crmState.positionsAppliedFor",
+      "to": "payload.meta.programs[].label",
+      "field": "option label",
+      "use": "GraphQL payload meta.programs[].label"
+    },
+    {
+      "id": "DF-303",
+      "from": "config.tracks",
+      "to": "payload.meta.programs[].trackKey",
+      "field": "trackKey",
+      "use": "GraphQL payload meta.programs[].trackKey"
+    },
+    {
+      "id": "DF-304",
+      "from": "facade.crmState.applicantSource",
+      "to": "payload.meta.sources[].key",
+      "field": "option value",
+      "use": "GraphQL payload meta.sources[].key"
+    },
+    {
+      "id": "DF-305",
+      "from": "facade.crmState.applicantSource",
+      "to": "payload.meta.sources[].label",
+      "field": "option label",
+      "use": "GraphQL payload meta.sources[].label"
+    },
+    {
+      "id": "DF-306",
+      "from": "metric.importedExcludedByDate",
+      "to": "payload.overview.importedExcludedByDate",
+      "field": "importedExcludedByDate",
+      "use": "GraphQL payload overview.importedExcludedByDate"
+    },
+    {
+      "id": "DF-307",
+      "from": "metric.totalContacts",
+      "to": "payload.overview.figures.totalContacts",
+      "field": "totalContacts",
+      "use": "GraphQL payload overview.figures.totalContacts"
+    },
+    {
+      "id": "DF-308",
+      "from": "metric.activePeople",
+      "to": "payload.overview.figures.activePeople",
+      "field": "activePeople",
+      "use": "GraphQL payload overview.figures.activePeople"
+    },
+    {
+      "id": "DF-309",
+      "from": "metric.newApplications",
+      "to": "payload.overview.figures.newApplications",
+      "field": "newApplications",
+      "use": "GraphQL payload overview.figures.newApplications"
+    },
+    {
+      "id": "DF-310",
+      "from": "metric.newApplications",
+      "to": "payload.overview.figures.newApplicationsPrevious",
+      "field": "newApplicationsPrevious",
+      "use": "GraphQL payload overview.figures.newApplicationsPrevious"
+    },
+    {
+      "id": "DF-311",
+      "from": "metric.newApplications",
+      "to": "payload.overview.figures.newApplicationsFrom",
+      "field": "newApplicationsFrom",
+      "use": "GraphQL payload overview.figures.newApplicationsFrom"
+    },
+    {
+      "id": "DF-312",
+      "from": "metric.newApplications",
+      "to": "payload.overview.figures.newApplicationsTo",
+      "field": "newApplicationsTo",
+      "use": "GraphQL payload overview.figures.newApplicationsTo"
+    },
+    {
+      "id": "DF-313",
+      "from": "metric.importedApplications",
+      "to": "payload.overview.figures.importedApplications",
+      "field": "importedApplications",
+      "use": "GraphQL payload overview.figures.importedApplications"
+    },
+    {
+      "id": "DF-314",
+      "from": "metric.stuckPeople",
+      "to": "payload.overview.figures.stuckPeople",
+      "field": "stuckPeople",
+      "use": "GraphQL payload overview.figures.stuckPeople"
+    },
+    {
+      "id": "DF-315",
+      "from": "metric.inactivePeople",
+      "to": "payload.overview.figures.inactivePeople",
+      "field": "inactivePeople",
+      "use": "GraphQL payload overview.figures.inactivePeople"
+    },
+    {
+      "id": "DF-316",
+      "from": "metric.signedPeople",
+      "to": "payload.overview.figures.signedPeople",
+      "field": "signedPeople",
+      "use": "GraphQL payload overview.figures.signedPeople"
+    },
+    {
+      "id": "DF-317",
+      "from": "metric.stageTotals",
+      "to": "payload.overview.stageTotals[].rowKey",
+      "field": "rowKey",
+      "use": "GraphQL payload overview.stageTotals[].rowKey"
+    },
+    {
+      "id": "DF-318",
+      "from": "metric.stageTotals",
+      "to": "payload.overview.stageTotals[].label",
+      "field": "label",
+      "use": "GraphQL payload overview.stageTotals[].label"
+    },
+    {
+      "id": "DF-319",
+      "from": "metric.stageTotals",
+      "to": "payload.overview.stageTotals[].rowKind",
+      "field": "rowKind",
+      "use": "GraphQL payload overview.stageTotals[].rowKind"
+    },
+    {
+      "id": "DF-320",
+      "from": "metric.stageTotals",
+      "to": "payload.overview.stageTotals[].parentStageKey",
+      "field": "parentStageKey",
+      "use": "GraphQL payload overview.stageTotals[].parentStageKey"
+    },
+    {
+      "id": "DF-321",
+      "from": "metric.stageTotals",
+      "to": "payload.overview.stageTotals[].count",
+      "field": "count",
+      "use": "GraphQL payload overview.stageTotals[].count"
+    },
+    {
+      "id": "DF-322",
+      "from": "metric.stageTotals",
+      "to": "payload.overview.stageTotals[].pastLimitCount",
+      "field": "pastLimitCount",
+      "use": "GraphQL payload overview.stageTotals[].pastLimitCount"
+    },
+    {
+      "id": "DF-323",
+      "from": "metric.stuckList",
+      "to": "payload.overview.stuck.rows[].personId",
+      "field": "personId",
+      "use": "GraphQL payload overview.stuck.rows[].personId"
+    },
+    {
+      "id": "DF-324",
+      "from": "metric.stuckList",
+      "to": "payload.overview.stuck.rows[].displayName",
+      "field": "displayName",
+      "use": "GraphQL payload overview.stuck.rows[].displayName"
+    },
+    {
+      "id": "DF-325",
+      "from": "metric.stuckList",
+      "to": "payload.overview.stuck.rows[].stageKey",
+      "field": "stageKey",
+      "use": "GraphQL payload overview.stuck.rows[].stageKey"
+    },
+    {
+      "id": "DF-326",
+      "from": "metric.stuckList",
+      "to": "payload.overview.stuck.rows[].stageLabel",
+      "field": "stageLabel",
+      "use": "GraphQL payload overview.stuck.rows[].stageLabel"
+    },
+    {
+      "id": "DF-327",
+      "from": "metric.stuckList",
+      "to": "payload.overview.stuck.rows[].stageEnteredAt",
+      "field": "stageEnteredAt",
+      "use": "GraphQL payload overview.stuck.rows[].stageEnteredAt"
+    },
+    {
+      "id": "DF-328",
+      "from": "metric.stuckList",
+      "to": "payload.overview.stuck.rows[].daysInStage",
+      "field": "daysInStage",
+      "use": "GraphQL payload overview.stuck.rows[].daysInStage"
+    },
+    {
+      "id": "DF-329",
+      "from": "metric.stuckList",
+      "to": "payload.overview.stuck.rows[].daysOverLimit",
+      "field": "daysOverLimit",
+      "use": "GraphQL payload overview.stuck.rows[].daysOverLimit"
+    },
+    {
+      "id": "DF-330",
+      "from": "metric.stuckList",
+      "to": "payload.overview.stuck.rows[].isLowerBound",
+      "field": "isLowerBound",
+      "use": "GraphQL payload overview.stuck.rows[].isLowerBound"
+    },
+    {
+      "id": "DF-331",
+      "from": "metric.stuckList",
+      "to": "payload.overview.stuck.total",
+      "field": "total",
+      "use": "GraphQL payload overview.stuck.total"
+    },
+    {
+      "id": "DF-332",
+      "from": "metric.stuckList",
+      "to": "payload.overview.stuck.hasLimits",
+      "field": "hasLimits",
+      "use": "GraphQL payload overview.stuck.hasLimits"
+    },
+    {
+      "id": "DF-333",
+      "from": "metric.cohortSize",
+      "to": "payload.funnel.cohortSize",
+      "field": "cohortSize",
+      "use": "GraphQL payload funnel.cohortSize"
+    },
+    {
+      "id": "DF-334",
+      "from": "metric.cohortExcludedUnmapped",
+      "to": "payload.funnel.cohortExcludedUnmapped",
+      "field": "cohortExcludedUnmapped",
+      "use": "GraphQL payload funnel.cohortExcludedUnmapped"
+    },
+    {
+      "id": "DF-335",
+      "from": "config.stages",
+      "to": "payload.funnel.overall.finalStageKey",
+      "field": "isSuccess",
+      "use": "GraphQL payload funnel.overall.finalStageKey"
+    },
+    {
+      "id": "DF-336",
+      "from": "config.overallWindowDays",
+      "to": "payload.funnel.overall.windowDays",
+      "field": "windowDays",
+      "use": "GraphQL payload funnel.overall.windowDays"
+    },
+    {
+      "id": "DF-337",
+      "from": "metric.overallEligible",
+      "to": "payload.funnel.overall.eligible",
+      "field": "eligible",
+      "use": "GraphQL payload funnel.overall.eligible"
+    },
+    {
+      "id": "DF-338",
+      "from": "metric.overallReached",
+      "to": "payload.funnel.overall.reached",
+      "field": "reached",
+      "use": "GraphQL payload funnel.overall.reached"
+    },
+    {
+      "id": "DF-339",
+      "from": "metric.overallRate",
+      "to": "payload.funnel.overall.rate",
+      "field": "rate",
+      "use": "GraphQL payload funnel.overall.rate"
+    },
+    {
+      "id": "DF-340",
+      "from": "metric.overallSoFarRate",
+      "to": "payload.funnel.overall.soFarRate",
+      "field": "soFarRate",
+      "use": "GraphQL payload funnel.overall.soFarRate"
+    },
+    {
+      "id": "DF-341",
+      "from": "metric.overallEligible",
+      "to": "payload.funnel.overall.isUnderMinimum",
+      "field": "isUnderMinimum",
+      "use": "GraphQL payload funnel.overall.isUnderMinimum"
+    },
+    {
+      "id": "DF-342",
+      "from": "config.stages",
+      "to": "payload.funnel.rows[].stageKey",
+      "field": "stageKey",
+      "use": "GraphQL payload funnel.rows[].stageKey"
+    },
+    {
+      "id": "DF-343",
+      "from": "config.stages",
+      "to": "payload.funnel.rows[].label",
+      "field": "label",
+      "use": "GraphQL payload funnel.rows[].label"
+    },
+    {
+      "id": "DF-344",
+      "from": "config.stages",
+      "to": "payload.funnel.rows[].windowDays",
+      "field": "windowDays",
+      "use": "GraphQL payload funnel.rows[].windowDays"
+    },
+    {
+      "id": "DF-345",
+      "from": "metric.entered",
+      "to": "payload.funnel.rows[].entered",
+      "field": "entered",
+      "use": "GraphQL payload funnel.rows[].entered"
+    },
+    {
+      "id": "DF-346",
+      "from": "metric.eligible",
+      "to": "payload.funnel.rows[].eligible",
+      "field": "eligible",
+      "use": "GraphQL payload funnel.rows[].eligible"
+    },
+    {
+      "id": "DF-347",
+      "from": "metric.reachedNext",
+      "to": "payload.funnel.rows[].reachedNext",
+      "field": "reachedNext",
+      "use": "GraphQL payload funnel.rows[].reachedNext"
+    },
+    {
+      "id": "DF-348",
+      "from": "metric.timedOut",
+      "to": "payload.funnel.rows[].timedOut",
+      "field": "timedOut",
+      "use": "GraphQL payload funnel.rows[].timedOut"
+    },
+    {
+      "id": "DF-349",
+      "from": "metric.exited",
+      "to": "payload.funnel.rows[].exited",
+      "field": "exited",
+      "use": "GraphQL payload funnel.rows[].exited"
+    },
+    {
+      "id": "DF-350",
+      "from": "metric.inWindow",
+      "to": "payload.funnel.rows[].inWindow",
+      "field": "inWindow",
+      "use": "GraphQL payload funnel.rows[].inWindow"
+    },
+    {
+      "id": "DF-351",
+      "from": "metric.stepRate",
+      "to": "payload.funnel.rows[].stepRate",
+      "field": "stepRate",
+      "use": "GraphQL payload funnel.rows[].stepRate"
+    },
+    {
+      "id": "DF-352",
+      "from": "metric.soFarRate",
+      "to": "payload.funnel.rows[].soFarRate",
+      "field": "soFarRate",
+      "use": "GraphQL payload funnel.rows[].soFarRate"
+    },
+    {
+      "id": "DF-353",
+      "from": "metric.dropOffRate",
+      "to": "payload.funnel.rows[].dropOffRate",
+      "field": "dropOffRate",
+      "use": "GraphQL payload funnel.rows[].dropOffRate"
+    },
+    {
+      "id": "DF-354",
+      "from": "metric.isUnderMinimum",
+      "to": "payload.funnel.rows[].isUnderMinimum",
+      "field": "isUnderMinimum",
+      "use": "GraphQL payload funnel.rows[].isUnderMinimum"
+    },
+    {
+      "id": "DF-355",
+      "from": "metric.medianDays",
+      "to": "payload.funnel.rows[].medianDays",
+      "field": "medianDays",
+      "use": "GraphQL payload funnel.rows[].medianDays"
+    },
+    {
+      "id": "DF-356",
+      "from": "metric.completedStays",
+      "to": "payload.funnel.rows[].completedStays",
+      "field": "completedStays",
+      "use": "GraphQL payload funnel.rows[].completedStays"
+    },
+    {
+      "id": "DF-357",
+      "from": "metric.lowestStep",
+      "to": "payload.funnel.lowestStepStageKey",
+      "field": "lowestStepStageKey",
+      "use": "GraphQL payload funnel.lowestStepStageKey"
+    },
+    {
+      "id": "DF-358",
+      "from": "api.groupBy",
+      "to": "payload.categories.groupBy",
+      "field": "groupBy",
+      "use": "GraphQL payload categories.groupBy"
+    },
+    {
+      "id": "DF-359",
+      "from": "metric.categoryOverlap",
+      "to": "payload.categories.distinctPeople",
+      "field": "distinctPeople",
+      "use": "GraphQL payload categories.distinctPeople"
+    },
+    {
+      "id": "DF-360",
+      "from": "metric.categoryOverlap",
+      "to": "payload.categories.peopleInSeveral",
+      "field": "peopleInSeveral",
+      "use": "GraphQL payload categories.peopleInSeveral"
+    },
+    {
+      "id": "DF-361",
+      "from": "metric.categoryOverlap",
+      "to": "payload.categories.peopleInSeveralTracks",
+      "field": "peopleInSeveralTracks",
+      "use": "GraphQL payload categories.peopleInSeveralTracks"
+    },
+    {
+      "id": "DF-362",
+      "from": "config.stages",
+      "to": "payload.categories.stepStageKeys",
+      "field": "stageKey",
+      "use": "GraphQL payload categories.stepStageKeys"
+    },
+    {
+      "id": "DF-363",
+      "from": "metric.categoryRows",
+      "to": "payload.categories.rows[].key",
+      "field": "key",
+      "use": "GraphQL payload categories.rows[].key"
+    },
+    {
+      "id": "DF-364",
+      "from": "metric.categoryRows",
+      "to": "payload.categories.rows[].parentKey",
+      "field": "parentKey",
+      "use": "GraphQL payload categories.rows[].parentKey"
+    },
+    {
+      "id": "DF-365",
+      "from": "metric.categoryRows",
+      "to": "payload.categories.rows[].label",
+      "field": "label",
+      "use": "GraphQL payload categories.rows[].label"
+    },
+    {
+      "id": "DF-366",
+      "from": "metric.categoryRows",
+      "to": "payload.categories.rows[].isUnmapped",
+      "field": "isUnmapped",
+      "use": "GraphQL payload categories.rows[].isUnmapped"
+    },
+    {
+      "id": "DF-367",
+      "from": "metric.categoryPeople",
+      "to": "payload.categories.rows[].people",
+      "field": "people",
+      "use": "GraphQL payload categories.rows[].people"
+    },
+    {
+      "id": "DF-368",
+      "from": "metric.categoryPeople",
+      "to": "payload.categories.rows[].activePeople",
+      "field": "activePeople",
+      "use": "GraphQL payload categories.rows[].activePeople"
+    },
+    {
+      "id": "DF-369",
+      "from": "metric.categoryNewApplications",
+      "to": "payload.categories.rows[].newApplications",
+      "field": "newApplications",
+      "use": "GraphQL payload categories.rows[].newApplications"
+    },
+    {
+      "id": "DF-370",
+      "from": "metric.categoryRates",
+      "to": "payload.categories.rows[].cohortSize",
+      "field": "cohortSize",
+      "use": "GraphQL payload categories.rows[].cohortSize"
+    },
+    {
+      "id": "DF-371",
+      "from": "metric.categoryRates",
+      "to": "payload.categories.rows[].overallEligible",
+      "field": "overallEligible",
+      "use": "GraphQL payload categories.rows[].overallEligible"
+    },
+    {
+      "id": "DF-372",
+      "from": "metric.categoryRates",
+      "to": "payload.categories.rows[].overallRate",
+      "field": "overallRate",
+      "use": "GraphQL payload categories.rows[].overallRate"
+    },
+    {
+      "id": "DF-373",
+      "from": "metric.categoryRates",
+      "to": "payload.categories.rows[].overallSoFarRate",
+      "field": "overallSoFarRate",
+      "use": "GraphQL payload categories.rows[].overallSoFarRate"
+    },
+    {
+      "id": "DF-374",
+      "from": "metric.categoryRates",
+      "to": "payload.categories.rows[].stepRates[].stageKey",
+      "field": "stageKey",
+      "use": "GraphQL payload categories.rows[].stepRates[].stageKey"
+    },
+    {
+      "id": "DF-375",
+      "from": "metric.categoryRates",
+      "to": "payload.categories.rows[].stepRates[].eligible",
+      "field": "eligible",
+      "use": "GraphQL payload categories.rows[].stepRates[].eligible"
+    },
+    {
+      "id": "DF-376",
+      "from": "metric.categoryRates",
+      "to": "payload.categories.rows[].stepRates[].rate",
+      "field": "rate",
+      "use": "GraphQL payload categories.rows[].stepRates[].rate"
+    },
+    {
+      "id": "DF-377",
+      "from": "metric.categoryRates",
+      "to": "payload.categories.rows[].stepRates[].soFarRate",
+      "field": "soFarRate",
+      "use": "GraphQL payload categories.rows[].stepRates[].soFarRate"
+    },
+    {
+      "id": "DF-378",
+      "from": "api.metric",
+      "to": "payload.trends.metric",
+      "field": "metric",
+      "use": "GraphQL payload trends.metric"
+    },
+    {
+      "id": "DF-379",
+      "from": "api.stageKey",
+      "to": "payload.trends.stageKey",
+      "field": "stageKey",
+      "use": "GraphQL payload trends.stageKey"
+    },
+    {
+      "id": "DF-380",
+      "from": "api.filter.period",
+      "to": "payload.trends.period",
+      "field": "period",
+      "use": "GraphQL payload trends.period"
+    },
+    {
+      "id": "DF-381",
+      "from": "metric.trendSeries",
+      "to": "payload.trends.unavailableReason",
+      "field": "unavailableReason",
+      "use": "GraphQL payload trends.unavailableReason"
+    },
+    {
+      "id": "DF-382",
+      "from": "metric.trendSeries",
+      "to": "payload.trends.series[].bucketStart",
+      "field": "bucketStart",
+      "use": "GraphQL payload trends.series[].bucketStart"
+    },
+    {
+      "id": "DF-383",
+      "from": "metric.trendSeries",
+      "to": "payload.trends.series[].value",
+      "field": "value",
+      "use": "GraphQL payload trends.series[].value"
+    },
+    {
+      "id": "DF-384",
+      "from": "metric.trendSeries",
+      "to": "payload.trends.series[].previousValue",
+      "field": "previousValue",
+      "use": "GraphQL payload trends.series[].previousValue"
+    },
+    {
+      "id": "DF-385",
+      "from": "metric.trendSeries",
+      "to": "payload.trends.series[].size",
+      "field": "size",
+      "use": "GraphQL payload trends.series[].size"
+    },
+    {
+      "id": "DF-386",
+      "from": "metric.trendSeries",
+      "to": "payload.trends.series[].isPartial",
+      "field": "isPartial",
+      "use": "GraphQL payload trends.series[].isPartial"
+    },
+    {
+      "id": "DF-387",
+      "from": "metric.cohortTable",
+      "to": "payload.trends.cohorts[].bucketStart",
+      "field": "bucketStart",
+      "use": "GraphQL payload trends.cohorts[].bucketStart"
+    },
+    {
+      "id": "DF-388",
+      "from": "metric.cohortTable",
+      "to": "payload.trends.cohorts[].size",
+      "field": "size",
+      "use": "GraphQL payload trends.cohorts[].size"
+    },
+    {
+      "id": "DF-389",
+      "from": "metric.cohortTable",
+      "to": "payload.trends.cohorts[].overallRate",
+      "field": "overallRate",
+      "use": "GraphQL payload trends.cohorts[].overallRate"
+    },
+    {
+      "id": "DF-390",
+      "from": "metric.cohortTable",
+      "to": "payload.trends.cohorts[].overallSoFarRate",
+      "field": "overallSoFarRate",
+      "use": "GraphQL payload trends.cohorts[].overallSoFarRate"
+    },
+    {
+      "id": "DF-391",
+      "from": "metric.cohortTable",
+      "to": "payload.trends.cohorts[].cells[].stageKey",
+      "field": "stageKey",
+      "use": "GraphQL payload trends.cohorts[].cells[].stageKey"
+    },
+    {
+      "id": "DF-392",
+      "from": "metric.cohortTable",
+      "to": "payload.trends.cohorts[].cells[].entered",
+      "field": "entered",
+      "use": "GraphQL payload trends.cohorts[].cells[].entered"
+    },
+    {
+      "id": "DF-393",
+      "from": "metric.cohortTable",
+      "to": "payload.trends.cohorts[].cells[].eligible",
+      "field": "eligible",
+      "use": "GraphQL payload trends.cohorts[].cells[].eligible"
+    },
+    {
+      "id": "DF-394",
+      "from": "metric.cohortTable",
+      "to": "payload.trends.cohorts[].cells[].rate",
+      "field": "rate",
+      "use": "GraphQL payload trends.cohorts[].cells[].rate"
+    },
+    {
+      "id": "DF-395",
+      "from": "metric.cohortTable",
+      "to": "payload.trends.cohorts[].cells[].soFarRate",
+      "field": "soFarRate",
+      "use": "GraphQL payload trends.cohorts[].cells[].soFarRate"
+    },
+    {
+      "id": "DF-396",
+      "from": "metric.cohortTable",
+      "to": "payload.trends.cohorts[].cells[].isMature",
+      "field": "isMature",
+      "use": "GraphQL payload trends.cohorts[].cells[].isMature"
+    },
+    {
+      "id": "DF-397",
+      "from": "metric.movement",
+      "to": "payload.trends.movement.from",
+      "field": "from",
+      "use": "GraphQL payload trends.movement.from"
+    },
+    {
+      "id": "DF-398",
+      "from": "metric.movement",
+      "to": "payload.trends.movement.to",
+      "field": "to",
+      "use": "GraphQL payload trends.movement.to"
+    },
+    {
+      "id": "DF-399",
+      "from": "metric.movement",
+      "to": "payload.trends.movement.rows[].stageKey",
+      "field": "stageKey",
+      "use": "GraphQL payload trends.movement.rows[].stageKey"
+    },
+    {
+      "id": "DF-400",
+      "from": "metric.movement",
+      "to": "payload.trends.movement.rows[].label",
+      "field": "label",
+      "use": "GraphQL payload trends.movement.rows[].label"
+    },
+    {
+      "id": "DF-401",
+      "from": "metric.movement",
+      "to": "payload.trends.movement.rows[].enteredInPeriod",
+      "field": "enteredInPeriod",
+      "use": "GraphQL payload trends.movement.rows[].enteredInPeriod"
+    },
+    {
+      "id": "DF-402",
+      "from": "metric.movement",
+      "to": "payload.trends.movement.rows[].leftInPeriod",
+      "field": "leftInPeriod",
+      "use": "GraphQL payload trends.movement.rows[].leftInPeriod"
+    },
+    {
+      "id": "DF-403",
+      "from": "metric.movement",
+      "to": "payload.trends.movement.rows[].countNow",
+      "field": "countNow",
+      "use": "GraphQL payload trends.movement.rows[].countNow"
+    },
+    {
+      "id": "DF-404",
+      "from": "report.periods",
+      "to": "payload.report.periodType",
+      "field": "periodType",
+      "use": "GraphQL payload report.periodType"
+    },
+    {
+      "id": "DF-405",
+      "from": "report.periods",
+      "to": "payload.report.periodStart",
+      "field": "periodStart",
+      "use": "GraphQL payload report.periodStart"
+    },
+    {
+      "id": "DF-406",
+      "from": "report.periods",
+      "to": "payload.report.periodEnd",
+      "field": "periodEnd",
+      "use": "GraphQL payload report.periodEnd"
+    },
+    {
+      "id": "DF-407",
+      "from": "metric.queryContext",
+      "to": "payload.report.generatedAt",
+      "field": "asOf",
+      "use": "GraphQL payload report.generatedAt"
+    },
+    {
+      "id": "DF-408",
+      "from": "analytics.report.payload",
+      "to": "payload.report.newApplications",
+      "field": "newApplications",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-409",
+      "from": "analytics.report.payload",
+      "to": "payload.report.newApplicationsPrevious",
+      "field": "newApplicationsPrevious",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-410",
+      "from": "analytics.report.payload",
+      "to": "payload.report.categories",
+      "field": "categories",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-411",
+      "from": "analytics.report.payload",
+      "to": "payload.report.funnel",
+      "field": "funnel",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-412",
+      "from": "analytics.report.payload",
+      "to": "payload.report.movement[]",
+      "field": "movement[]",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-413",
+      "from": "analytics.report.payload",
+      "to": "payload.report.stuckByStage[]",
+      "field": "stuckByStage[]",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-414",
+      "from": "analytics.report.payload",
+      "to": "payload.report.cohorts[]",
+      "field": "cohorts[]",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-415",
+      "from": "analytics.report.payload",
+      "to": "payload.report.comparisons[].metricKey",
+      "field": "comparisons[].metricKey",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-416",
+      "from": "analytics.report.payload",
+      "to": "payload.report.comparisons[].label",
+      "field": "comparisons[].label",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-417",
+      "from": "analytics.report.payload",
+      "to": "payload.report.comparisons[].current",
+      "field": "comparisons[].current",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-418",
+      "from": "analytics.report.payload",
+      "to": "payload.report.comparisons[].previous",
+      "field": "comparisons[].previous",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-419",
+      "from": "analytics.report.payload",
+      "to": "payload.report.comparisons[].isSignificant",
+      "field": "comparisons[].isSignificant",
+      "use": "frozen copy read back unchanged"
+    },
+    {
+      "id": "DF-420",
+      "from": "metric.queryContext",
+      "to": "report.builder",
+      "field": "asOf, trackingStart, timeZone",
+      "use": "base fields of the report"
+    },
+    {
+      "id": "DF-421",
+      "from": "payload.overview.figures.totalContacts",
+      "to": "ui.AnalyticsFiguresRow",
+      "field": "totalContacts",
+      "use": "figure tile shows totalContacts"
+    },
+    {
+      "id": "DF-422",
+      "from": "payload.overview.figures.activePeople",
+      "to": "ui.AnalyticsFiguresRow",
+      "field": "activePeople",
+      "use": "figure tile shows activePeople"
+    },
+    {
+      "id": "DF-423",
+      "from": "payload.overview.figures.newApplications",
+      "to": "ui.AnalyticsFiguresRow",
+      "field": "newApplications",
+      "use": "figure tile shows newApplications"
+    },
+    {
+      "id": "DF-424",
+      "from": "payload.overview.figures.newApplicationsPrevious",
+      "to": "ui.AnalyticsFiguresRow",
+      "field": "newApplicationsPrevious",
+      "use": "figure tile shows newApplicationsPrevious"
+    },
+    {
+      "id": "DF-425",
+      "from": "payload.overview.figures.newApplicationsFrom",
+      "to": "ui.AnalyticsFiguresRow",
+      "field": "newApplicationsFrom",
+      "use": "figure tile shows newApplicationsFrom"
+    },
+    {
+      "id": "DF-426",
+      "from": "payload.overview.figures.newApplicationsTo",
+      "to": "ui.AnalyticsFiguresRow",
+      "field": "newApplicationsTo",
+      "use": "figure tile shows newApplicationsTo"
+    },
+    {
+      "id": "DF-427",
+      "from": "payload.overview.figures.importedApplications",
+      "to": "ui.AnalyticsFiguresRow",
+      "field": "importedApplications",
+      "use": "figure tile shows importedApplications"
+    },
+    {
+      "id": "DF-428",
+      "from": "payload.overview.figures.stuckPeople",
+      "to": "ui.AnalyticsFiguresRow",
+      "field": "stuckPeople",
+      "use": "figure tile shows stuckPeople"
+    },
+    {
+      "id": "DF-429",
+      "from": "payload.overview.figures.inactivePeople",
+      "to": "ui.AnalyticsFiguresRow",
+      "field": "inactivePeople",
+      "use": "figure tile shows inactivePeople"
+    },
+    {
+      "id": "DF-430",
+      "from": "payload.overview.figures.signedPeople",
+      "to": "ui.AnalyticsFiguresRow",
+      "field": "signedPeople",
+      "use": "figure tile shows signedPeople"
+    },
+    {
+      "id": "DF-431",
+      "from": "payload.overview.stageTotals[].label",
+      "to": "ui.AnalyticsStageTotalsTable",
+      "field": "label",
+      "use": "totals row shows label"
+    },
+    {
+      "id": "DF-432",
+      "from": "payload.overview.stageTotals[].count",
+      "to": "ui.AnalyticsStageTotalsTable",
+      "field": "count",
+      "use": "totals row shows count"
+    },
+    {
+      "id": "DF-433",
+      "from": "payload.overview.stageTotals[].pastLimitCount",
+      "to": "ui.AnalyticsStageTotalsTable",
+      "field": "pastLimitCount",
+      "use": "totals row shows pastLimitCount"
+    },
+    {
+      "id": "DF-434",
+      "from": "payload.overview.stageTotals[].rowKind",
+      "to": "ui.AnalyticsStageTotalsTable",
+      "field": "rowKind",
+      "use": "totals row shows rowKind"
+    },
+    {
+      "id": "DF-435",
+      "from": "payload.overview.stuck.rows[].displayName",
+      "to": "ui.AnalyticsStuckTable",
+      "field": "displayName",
+      "use": "stuck row uses displayName"
+    },
+    {
+      "id": "DF-436",
+      "from": "payload.overview.stuck.rows[].stageLabel",
+      "to": "ui.AnalyticsStuckTable",
+      "field": "stageLabel",
+      "use": "stuck row uses stageLabel"
+    },
+    {
+      "id": "DF-437",
+      "from": "payload.overview.stuck.rows[].daysInStage",
+      "to": "ui.AnalyticsStuckTable",
+      "field": "daysInStage",
+      "use": "stuck row uses daysInStage"
+    },
+    {
+      "id": "DF-438",
+      "from": "payload.overview.stuck.rows[].daysOverLimit",
+      "to": "ui.AnalyticsStuckTable",
+      "field": "daysOverLimit",
+      "use": "stuck row uses daysOverLimit"
+    },
+    {
+      "id": "DF-439",
+      "from": "payload.overview.stuck.rows[].isLowerBound",
+      "to": "ui.AnalyticsStuckTable",
+      "field": "isLowerBound",
+      "use": "stuck row uses isLowerBound"
+    },
+    {
+      "id": "DF-440",
+      "from": "payload.overview.stuck.rows[].personId",
+      "to": "ui.AnalyticsStuckTable",
+      "field": "personId",
+      "use": "stuck row uses personId"
+    },
+    {
+      "id": "DF-441",
+      "from": "payload.overview.stuck.total",
+      "to": "ui.AnalyticsStuckTable",
+      "field": "total",
+      "use": "Showing n of total"
+    },
+    {
+      "id": "DF-442",
+      "from": "payload.overview.stuck.hasLimits",
+      "to": "ui.AnalyticsStuckTable",
+      "field": "hasLimits",
+      "use": "notice when no limits are set"
+    },
+    {
+      "id": "DF-443",
+      "from": "payload.overview.importedExcludedByDate",
+      "to": "ui.AnalyticsOverviewTab",
+      "field": "importedExcludedByDate",
+      "use": "imported people notice under a date filter"
+    },
+    {
+      "id": "DF-444",
+      "from": "payload.funnel.rows[].label",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "label",
+      "use": "ledger row shows label"
+    },
+    {
+      "id": "DF-445",
+      "from": "payload.funnel.rows[].entered",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "entered",
+      "use": "ledger row shows entered"
+    },
+    {
+      "id": "DF-446",
+      "from": "payload.funnel.rows[].eligible",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "eligible",
+      "use": "ledger row shows eligible"
+    },
+    {
+      "id": "DF-447",
+      "from": "payload.funnel.rows[].timedOut",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "timedOut",
+      "use": "ledger row shows timedOut"
+    },
+    {
+      "id": "DF-448",
+      "from": "payload.funnel.rows[].exited",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "exited",
+      "use": "ledger row shows exited"
+    },
+    {
+      "id": "DF-449",
+      "from": "payload.funnel.rows[].inWindow",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "inWindow",
+      "use": "ledger row shows inWindow"
+    },
+    {
+      "id": "DF-450",
+      "from": "payload.funnel.rows[].stepRate",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "stepRate",
+      "use": "ledger row shows stepRate"
+    },
+    {
+      "id": "DF-451",
+      "from": "payload.funnel.rows[].soFarRate",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "soFarRate",
+      "use": "ledger row shows soFarRate"
+    },
+    {
+      "id": "DF-452",
+      "from": "payload.funnel.rows[].isUnderMinimum",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "isUnderMinimum",
+      "use": "ledger row shows isUnderMinimum"
+    },
+    {
+      "id": "DF-453",
+      "from": "payload.funnel.rows[].medianDays",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "medianDays",
+      "use": "ledger row shows medianDays"
+    },
+    {
+      "id": "DF-454",
+      "from": "payload.funnel.rows[].completedStays",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "completedStays",
+      "use": "ledger row shows completedStays"
+    },
+    {
+      "id": "DF-455",
+      "from": "payload.funnel.lowestStepStageKey",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "lowestStepStageKey",
+      "use": "exactly one Lowest step row"
+    },
+    {
+      "id": "DF-456",
+      "from": "payload.funnel.overall.rate",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "rate",
+      "use": "overall line"
+    },
+    {
+      "id": "DF-457",
+      "from": "payload.funnel.overall.soFarRate",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "soFarRate",
+      "use": "overall line so far form"
+    },
+    {
+      "id": "DF-458",
+      "from": "payload.funnel.overall.eligible",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "eligible",
+      "use": "overall line sample"
+    },
+    {
+      "id": "DF-459",
+      "from": "payload.funnel.cohortSize",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "cohortSize",
+      "use": "cohort note"
+    },
+    {
+      "id": "DF-460",
+      "from": "payload.funnel.cohortExcludedUnmapped",
+      "to": "ui.AnalyticsStageLedger",
+      "field": "cohortExcludedUnmapped",
+      "use": "cohort note"
+    },
+    {
+      "id": "DF-461",
+      "from": "payload.categories.rows[].label",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "label",
+      "use": "category row shows label"
+    },
+    {
+      "id": "DF-462",
+      "from": "payload.categories.rows[].isUnmapped",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "isUnmapped",
+      "use": "category row shows isUnmapped"
+    },
+    {
+      "id": "DF-463",
+      "from": "payload.categories.rows[].people",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "people",
+      "use": "category row shows people"
+    },
+    {
+      "id": "DF-464",
+      "from": "payload.categories.rows[].activePeople",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "activePeople",
+      "use": "category row shows activePeople"
+    },
+    {
+      "id": "DF-465",
+      "from": "payload.categories.rows[].newApplications",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "newApplications",
+      "use": "category row shows newApplications"
+    },
+    {
+      "id": "DF-466",
+      "from": "payload.categories.rows[].cohortSize",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "cohortSize",
+      "use": "category row shows cohortSize"
+    },
+    {
+      "id": "DF-467",
+      "from": "payload.categories.rows[].overallRate",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "overallRate",
+      "use": "category row shows overallRate"
+    },
+    {
+      "id": "DF-468",
+      "from": "payload.categories.rows[].overallSoFarRate",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "overallSoFarRate",
+      "use": "category row shows overallSoFarRate"
+    },
+    {
+      "id": "DF-469",
+      "from": "payload.categories.rows[].stepRates[].rate",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "rate",
+      "use": "step rate column"
+    },
+    {
+      "id": "DF-470",
+      "from": "payload.categories.rows[].stepRates[].soFarRate",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "soFarRate",
+      "use": "step rate column so far form"
+    },
+    {
+      "id": "DF-471",
+      "from": "payload.categories.distinctPeople",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "distinctPeople",
+      "use": "rows do not add up note"
+    },
+    {
+      "id": "DF-472",
+      "from": "payload.categories.peopleInSeveralTracks",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "peopleInSeveralTracks",
+      "use": "rows do not add up note"
+    },
+    {
+      "id": "DF-473",
+      "from": "payload.categories.peopleInSeveral",
+      "to": "ui.AnalyticsCategoryTable",
+      "field": "peopleInSeveral",
+      "use": "note once a track is expanded"
+    },
+    {
+      "id": "DF-474",
+      "from": "payload.trends.series[].bucketStart",
+      "to": "ui.AnalyticsTrendTable",
+      "field": "bucketStart",
+      "use": "bucket row shows bucketStart"
+    },
+    {
+      "id": "DF-475",
+      "from": "payload.trends.series[].value",
+      "to": "ui.AnalyticsTrendTable",
+      "field": "value",
+      "use": "bucket row shows value"
+    },
+    {
+      "id": "DF-476",
+      "from": "payload.trends.series[].previousValue",
+      "to": "ui.AnalyticsTrendTable",
+      "field": "previousValue",
+      "use": "bucket row shows previousValue"
+    },
+    {
+      "id": "DF-477",
+      "from": "payload.trends.series[].size",
+      "to": "ui.AnalyticsTrendTable",
+      "field": "size",
+      "use": "bucket row shows size"
+    },
+    {
+      "id": "DF-478",
+      "from": "payload.trends.series[].isPartial",
+      "to": "ui.AnalyticsTrendTable",
+      "field": "isPartial",
+      "use": "bucket row shows isPartial"
+    },
+    {
+      "id": "DF-479",
+      "from": "payload.trends.series[].value",
+      "to": "ui.buildTrendChartSeries",
+      "field": "value",
+      "use": "chart y value, rates scaled to percent here only"
+    },
+    {
+      "id": "DF-480",
+      "from": "payload.trends.series[].previousValue",
+      "to": "ui.buildTrendChartSeries",
+      "field": "previousValue",
+      "use": "gray previous line"
+    },
+    {
+      "id": "DF-481",
+      "from": "payload.trends.unavailableReason",
+      "to": "ui.AnalyticsTrendChart",
+      "field": "unavailableReason",
+      "use": "plain reason in place of the chart"
+    },
+    {
+      "id": "DF-482",
+      "from": "payload.trends.cohorts[].bucketStart",
+      "to": "ui.AnalyticsCohortTable",
+      "field": "bucketStart",
+      "use": "row label"
+    },
+    {
+      "id": "DF-483",
+      "from": "payload.trends.cohorts[].size",
+      "to": "ui.AnalyticsCohortTable",
+      "field": "size",
+      "use": "size column"
+    },
+    {
+      "id": "DF-484",
+      "from": "payload.trends.cohorts[].overallRate",
+      "to": "ui.AnalyticsCohortTable",
+      "field": "overallRate",
+      "use": "overall column"
+    },
+    {
+      "id": "DF-485",
+      "from": "payload.trends.cohorts[].overallSoFarRate",
+      "to": "ui.AnalyticsCohortTable",
+      "field": "overallSoFarRate",
+      "use": "overall column so far form"
+    },
+    {
+      "id": "DF-486",
+      "from": "payload.trends.cohorts[].cells[].rate",
+      "to": "ui.AnalyticsCohortTable",
+      "field": "rate",
+      "use": "stage cell"
+    },
+    {
+      "id": "DF-487",
+      "from": "payload.trends.cohorts[].cells[].soFarRate",
+      "to": "ui.AnalyticsCohortTable",
+      "field": "soFarRate",
+      "use": "stage cell so far form"
+    },
+    {
+      "id": "DF-488",
+      "from": "payload.trends.cohorts[].cells[].entered",
+      "to": "ui.AnalyticsCohortTable",
+      "field": "entered",
+      "use": "stage cell n"
+    },
+    {
+      "id": "DF-489",
+      "from": "payload.trends.movement.rows[].label",
+      "to": "ui.AnalyticsMovementTable",
+      "field": "label",
+      "use": "movement row shows label"
+    },
+    {
+      "id": "DF-490",
+      "from": "payload.trends.movement.rows[].enteredInPeriod",
+      "to": "ui.AnalyticsMovementTable",
+      "field": "enteredInPeriod",
+      "use": "movement row shows enteredInPeriod"
+    },
+    {
+      "id": "DF-491",
+      "from": "payload.trends.movement.rows[].leftInPeriod",
+      "to": "ui.AnalyticsMovementTable",
+      "field": "leftInPeriod",
+      "use": "movement row shows leftInPeriod"
+    },
+    {
+      "id": "DF-492",
+      "from": "payload.trends.movement.rows[].countNow",
+      "to": "ui.AnalyticsMovementTable",
+      "field": "countNow",
+      "use": "movement row shows countNow"
+    },
+    {
+      "id": "DF-493",
+      "from": "payload.meta.sync.lastSuccessfulSyncAt",
+      "to": "ui.AnalyticsSyncLine",
+      "field": "lastSuccessfulSyncAt",
+      "use": "Last successful sync text"
+    },
+    {
+      "id": "DF-494",
+      "from": "payload.meta.sync.lastAttemptStatus",
+      "to": "ui.AnalyticsSyncLine",
+      "field": "lastAttemptStatus",
+      "use": "failed attempt text"
+    },
+    {
+      "id": "DF-495",
+      "from": "payload.meta.sync.isStale",
+      "to": "ui.AnalyticsContent",
+      "field": "isStale",
+      "use": "stale banner, numbers kept"
+    },
+    {
+      "id": "DF-496",
+      "from": "payload.meta.state",
+      "to": "ui.AnalyticsContent",
+      "field": "state",
+      "use": "state panel instead of numbers"
+    },
+    {
+      "id": "DF-497",
+      "from": "payload.meta.isProvisional",
+      "to": "ui.AnalyticsContent",
+      "field": "isProvisional",
+      "use": "provisional banner"
+    },
+    {
+      "id": "DF-498",
+      "from": "payload.meta.fields.isStageAuditLogged",
+      "to": "ui.AnalyticsContent",
+      "field": "isStageAuditLogged",
+      "use": "not recording banner"
+    },
+    {
+      "id": "DF-499",
+      "from": "payload.meta.stages[].label",
+      "to": "ui.AnalyticsCohortTable",
+      "field": "label",
+      "use": "stage column headers"
+    },
+    {
+      "id": "DF-500",
+      "from": "payload.meta.tracks[].label",
+      "to": "ui.AnalyticsFilterBar",
+      "field": "label",
+      "use": "track options"
+    },
+    {
+      "id": "DF-501",
+      "from": "payload.meta.programs[].label",
+      "to": "ui.AnalyticsFilterBar",
+      "field": "label",
+      "use": "program options narrowed by track"
+    },
+    {
+      "id": "DF-502",
+      "from": "payload.meta.sources[].label",
+      "to": "ui.AnalyticsFilterBar",
+      "field": "label",
+      "use": "source options"
+    },
+    {
+      "id": "DF-503",
+      "from": "payload.meta.fields.positionsAppliedFor",
+      "to": "ui.AnalyticsFilterBar",
+      "field": "positionsAppliedFor",
+      "use": "filter disabled with a reason"
+    },
+    {
+      "id": "DF-504",
+      "from": "payload.meta.fields.applicantSource",
+      "to": "ui.AnalyticsFilterBar",
+      "field": "applicantSource",
+      "use": "filter disabled with a reason"
+    },
+    {
+      "id": "DF-505",
+      "from": "payload.reports[].periodType",
+      "to": "ui.AnalyticsReportsTab",
+      "field": "periodType",
+      "use": "list grouped by period type"
+    },
+    {
+      "id": "DF-506",
+      "from": "payload.reports[].periodStart",
+      "to": "ui.AnalyticsReportsTab",
+      "field": "periodStart",
+      "use": "list item date"
+    },
+    {
+      "id": "DF-507",
+      "from": "payload.report.generatedAt",
+      "to": "ui.AnalyticsReportView",
+      "field": "generatedAt",
+      "use": "generated time"
+    },
+    {
+      "id": "DF-508",
+      "from": "payload.report.newApplications",
+      "to": "ui.AnalyticsReportView",
+      "field": "newApplications",
+      "use": "headline count"
+    },
+    {
+      "id": "DF-509",
+      "from": "payload.report.newApplicationsPrevious",
+      "to": "ui.AnalyticsReportView",
+      "field": "newApplicationsPrevious",
+      "use": "headline change"
+    },
+    {
+      "id": "DF-510",
+      "from": "payload.report.comparisons[].label",
+      "to": "ui.AnalyticsReportView",
+      "field": "label",
+      "use": "comparison row"
+    },
+    {
+      "id": "DF-511",
+      "from": "payload.report.comparisons[].current",
+      "to": "ui.AnalyticsReportView",
+      "field": "current",
+      "use": "comparison row"
+    },
+    {
+      "id": "DF-512",
+      "from": "payload.report.comparisons[].previous",
+      "to": "ui.AnalyticsReportView",
+      "field": "previous",
+      "use": "comparison row"
+    },
+    {
+      "id": "DF-513",
+      "from": "payload.report.comparisons[].isSignificant",
+      "to": "ui.AnalyticsReportView",
+      "field": "isSignificant",
+      "use": "significant rows marked"
+    },
+    {
+      "id": "DF-514",
+      "from": "payload.report.stuckByStage[]",
+      "to": "ui.AnalyticsReportView",
+      "field": "stuckByStage[]",
+      "use": "past limit table"
+    },
+    {
+      "id": "DF-515",
+      "from": "payload.report.movement[]",
+      "to": "ui.AnalyticsReportView",
+      "field": "movement[]",
+      "use": "movement table"
+    },
+    {
+      "id": "DF-516",
+      "from": "payload.report.funnel",
+      "to": "ui.AnalyticsReportView",
+      "field": "funnel",
+      "use": "ledger"
+    },
+    {
+      "id": "DF-517",
+      "from": "payload.report.categories",
+      "to": "ui.AnalyticsReportView",
+      "field": "categories",
+      "use": "category table"
+    },
+    {
+      "id": "DF-518",
+      "from": "payload.report.cohorts[]",
+      "to": "ui.AnalyticsReportView",
+      "field": "cohorts[]",
+      "use": "cohort table, monthly only"
+    },
+    {
+      "id": "DF-519",
+      "from": "ui.AnalyticsFilterBar",
+      "to": "api.filter.status",
+      "field": "filter.status",
+      "use": "query variable"
+    },
+    {
+      "id": "DF-520",
+      "from": "ui.AnalyticsFilterBar",
+      "to": "api.filter.trackKey",
+      "field": "filter.trackKey",
+      "use": "query variable"
+    },
+    {
+      "id": "DF-521",
+      "from": "ui.AnalyticsFilterBar",
+      "to": "api.filter.programKey",
+      "field": "filter.programKey",
+      "use": "query variable"
+    },
+    {
+      "id": "DF-522",
+      "from": "ui.AnalyticsFilterBar",
+      "to": "api.filter.sourceKey",
+      "field": "filter.sourceKey",
+      "use": "query variable"
+    },
+    {
+      "id": "DF-523",
+      "from": "ui.AnalyticsFilterBar",
+      "to": "api.filter.dateRange",
+      "field": "filter.dateFrom, filter.dateTo",
+      "use": "query variable"
+    },
+    {
+      "id": "DF-524",
+      "from": "ui.AnalyticsFilterBar",
+      "to": "api.filter.period",
+      "field": "filter.period",
+      "use": "query variable"
+    },
+    {
+      "id": "DF-525",
+      "from": "api.filter.status",
+      "to": "cte.matching_row",
+      "field": "status",
+      "use": "stored stage counts narrowed by mapped status"
+    },
+    {
+      "id": "DF-526",
+      "from": "api.filter.trackKey",
+      "to": "cte.matching_row",
+      "field": "trackKey",
+      "use": "track rows of the snapshot"
+    },
+    {
+      "id": "DF-527",
+      "from": "api.filter.programKey",
+      "to": "cte.matching_row",
+      "field": "programKey",
+      "use": "position rows of the snapshot"
+    },
+    {
+      "id": "DF-528",
+      "from": "api.filter.sourceKey",
+      "to": "cte.matching_row",
+      "field": "sourceKey",
+      "use": "source rows of the snapshot"
+    },
+    {
+      "id": "DF-529",
+      "from": "crm.person.deletedAt",
+      "to": "facade.submissionRelation",
+      "field": "person.deletedAt",
+      "use": "WHERE filter: applications of a soft-deleted person leave; one with no person stays"
+    }
+  ]
+}

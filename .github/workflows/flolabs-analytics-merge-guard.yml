@@ -1,0 +1,60 @@
+name: flolabs-analytics-merge-guard
+
+# Keeps the CRM Analytics test suite and fake seed data off main. Read-only: never runs npm or project code.
+on:
+  pull_request:
+    branches: [main]
+    # edited: a pull request retargeted to main counts too.
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  excluded-paths:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Fail if the pull request contains an excluded path
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # Mirrors packages/twenty-utils/flolabs/analytics-tests/merge-guard/excluded-from-main.json.
+          # Inline because that file is itself excluded from the branch this runs on.
+          excluded_paths=(
+            packages/twenty-utils/flolabs/analytics-tests/
+            docs/analytics/research/
+            docs/analytics/resume/
+            RESUME.md
+          )
+
+          in_diff=$(git diff --name-only --no-renames --diff-filter=d "$BASE_SHA...$HEAD_SHA" -- "${excluded_paths[@]}")
+          in_history=$(git log --format=%h --full-history "$BASE_SHA..$HEAD_SHA" -- "${excluded_paths[@]}")
+
+          if [ -z "$in_diff" ] && [ -z "$in_history" ]; then
+            echo "OK: no excluded path in this pull request."
+            exit 0
+          fi
+
+          if [ -n "$in_diff" ]; then
+            echo "::error title=Test data in this pull request::These files must stay on analytics_tool and never go to main:"
+            echo "$in_diff" | sed 's/^/  /'
+          fi
+
+          if [ -n "$in_history" ]; then
+            echo "::error title=Test data in the commit history::These commits changed excluded paths, so a normal merge would carry them into the history of main:"
+            echo "$in_history" | sed 's/^/  /'
+          fi
+
+          echo "Open the pull request from the clean branch instead. On analytics_tool, run:"
+          echo "  node packages/twenty-utils/flolabs/analytics-tests/merge-guard/prepare-merge.mjs"
+          exit 1
