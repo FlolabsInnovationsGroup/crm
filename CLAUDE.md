@@ -84,7 +84,7 @@ Last updated: 2026-11-07 20:15.
 | Data flow (`wf_36b878c6-b01`) | Graph and tests written, 622 pass, 1 stale test. Committed. **Continue with `analytics-dataflow-continue.js`** |
 | Seed (`wf_28e7e089-6d7`) | 77 people, all use cases, 185 pass, 9 fail from four questions now settled in the contract. Committed. **Continue with `analytics-seed-continue.js`** |
 | Merge guard | Done. Now also excludes `RESUME.md` and `docs/analytics/resume/` |
-| SQL proof | Done and rerun at the pause. See `RESUME.md` section 5 |
+| SQL proof | Done and rerun on the committed code at the pause: 122 passed, 0 failed, and 9 large-volume checks not run because they are off by default |
 | Type checks, lint, boot test, local run with seed data | Not started. Exact steps in `RESUME.md` section 6 and contract section 9 |
 
 Agents do not commit; the main session commits at phase ends. **Nothing is pushed: the user said to keep it local for now.** The only copy is the D: drive.

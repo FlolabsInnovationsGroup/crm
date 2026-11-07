@@ -57,8 +57,8 @@ What each does:
 
 - **Backend:** `backend-known-fixes` makes `readTrendValues` return null before tracking start. Then up to two review and fix rounds, stopping when a review finds nothing serious.
 - **UI:** up to two review and fix rounds, then `ui-fix-minors` for the 19 minor findings in `analytics-work/test-results/ui-review-1.md`, the "-0 points" in the trend table, and Lingui for server-built labels.
-- **Tests:** finishes the suite, then repeats: Haiku runs every layer, Sonnet separates real bugs from bad tests and appends bugs to `analytics-work/test-results/bugs.md`, Opus corrects tests, Haiku waits for code to change. It ends after 40 rounds or 8 idle waits of about 10 minutes each. It never edits product code. Stop it with `TaskStop` when the local run is over, not before.
-- **Data flow and Seed:** one agent each to finish the known failures in section 5.
+- **Tests:** finishes the suite, then repeats: Haiku runs every layer, Sonnet separates real bugs from bad tests and appends bugs to `analytics-work/test-results/bugs.md`, Opus corrects tests, Haiku waits for code to change. It ends after 40 rounds or 8 idle waits of about 10 minutes each. It never edits product code. Stop it with `TaskStop` when the local run is over, not before. The loop runs `unit-server`, `unit-front`, `integration` (which includes seed and data flow), `blackbox` and `ui`. The merge guard runs only on demand, with `--layer merge-guard`.
+- **Data flow and Seed:** one agent each to finish the known failures in section 5. Their layers already exist in `run-tests.mjs`, so neither needs to edit that file.
 
 Do not stop a running agent without asking the user. Agents do not commit; the main session does.
 
@@ -81,6 +81,7 @@ Do not stop a running agent without asking the user. Agents do not commit; the m
 **Still to do, in the main session:**
 
 - `analytics-work/e2e/sql-proof/lib/try-fixes.cjs`: its facade block would now join person twice if `PROOF_TRY_FIXES=1` were set. Remove the block.
+- `analytics-work/e2e/RESULTS.md`: its opening paragraph is hand-written and still describes the run before the fixes (128 passed, 3 failed). Update it. The current result is in `e2e/sql-proof/last-run.json`: 122 passed, 0 failed, 9 not run.
 
 ## 5. Tests at the pause
 
@@ -88,10 +89,10 @@ Fresh runs after the workflows stopped, on the final code of this pause:
 
 | Layer | Passed | Failed | Notes |
 |---|---|---|---|
-| `unit-server` | pending | pending | Rerun at the pause |
-| `unit-front` | pending | pending | Rerun at the pause |
-| `merge-guard` | pending | pending | Rerun at the pause, including the new exclusions |
-| SQL proof | pending | pending | Rerun at the pause. `analytics-work/e2e/RESULTS.md` |
+| `unit-server` | 351 | 0 | Rerun at the pause |
+| `unit-front` | 164 | 0 | Rerun at the pause |
+| `merge-guard` | 40 | 0 | Rerun at the pause, including the new exclusions |
+| SQL proof | 122 | 0 | Rerun on the committed code. The 9 large-volume checks are off by default and were not run; `backend-fix-1` reported them passing on a scratch copy. Output: `analytics-work/e2e/sql-proof/last-run.json` |
 | `integration` | 314 | 9 | 19:37, before the stop. Same 9 as seed |
 | `seed` | 185 | 9 | 19:37, before the stop |
 | `dataflow` | 622 | 1 | 19:45, before the stop |

@@ -1,13 +1,13 @@
 {
   "summary": {
-    "passed": 128,
-    "failed": 3,
-    "notRun": 0
+    "passed": 122,
+    "failed": 0,
+    "notRun": 9
   },
   "environment": {
     "database": "analytics_proof",
-    "durationSeconds": 560,
-    "runAt": "2026-11-07T14:27:04.065Z",
+    "durationSeconds": 270,
+    "runAt": "2026-11-07T15:08:19.627Z",
     "missingAnalyticsModules": [],
     "stubbedModules": [
       "@nestjs/typeorm",
@@ -22,33 +22,33 @@
     "unknownDependencies": [],
     "notes": [],
     "statementTiming": {
-      "count": 5439,
-      "totalMs": 389368,
+      "count": 5270,
+      "totalMs": 204430,
       "slowest": [
         {
-          "durationMs": 24081,
+          "durationMs": 10520,
           "origin": "job",
-          "sql": ".limit_days, c.is_inactive, c.stage_entered_at, c.is_lower_bound, floor(extract(epoch FROM now() - c.stage_entered_at) / 86400)::int AS days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key"
+          "sql": "SELECT pg_sleep(10.5)"
         },
         {
-          "durationMs": 16030,
+          "durationMs": 292,
           "origin": "job",
-          "sql": ".limit_days, c.is_inactive, c.stage_entered_at, c.is_lower_bound, floor(extract(epoch FROM now() - c.stage_entered_at) / 86400)::int AS days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key"
+          "sql": "DELETE FROM analytics.sync_log WHERE workspace_id = $1 AND started_at < now() - interval '90 days'"
         },
         {
-          "durationMs": 15912,
+          "durationMs": 168,
           "origin": "job",
-          "sql": ".limit_days, c.is_inactive, c.stage_entered_at, c.is_lower_bound, floor(extract(epoch FROM now() - c.stage_entered_at) / 86400)::int AS days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key"
+          "sql": "UPDATE analytics.sync_log SET finished_at = now(), status = $2, processed_count = $3, restored_count = $4, details = $5::jsonb, error_message = $6 WHERE id = $1"
         },
         {
-          "durationMs": 15796,
+          "durationMs": 111,
           "origin": "job",
-          "sql": ".limit_days, c.is_inactive, c.stage_entered_at, c.is_lower_bound, floor(extract(epoch FROM now() - c.stage_entered_at) / 86400)::int AS days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key"
+          "sql": "UPDATE analytics.sync_log SET finished_at = now(), status = $2, processed_count = $3, restored_count = $4, details = $5::jsonb, error_message = $6 WHERE id = $1"
         },
         {
-          "durationMs": 13662,
+          "durationMs": 95,
           "origin": "job",
-          "sql": ".limit_days, c.is_inactive, c.stage_entered_at, c.is_lower_bound, floor(extract(epoch FROM now() - c.stage_entered_at) / 86400)::int AS days_in_stage FROM stage_clock c) SELECT a.current_key, count(*) FILTER (WHERE a.is_inactive)::int AS inactive_count, count(*) FILTER (WHERE NOT a.is_inactive AND a.days_in_stage > a.limit_days)::int AS stuck_count FROM stage_age a GROUP BY a.current_key"
+          "sql": "e) ON CONFLICT DO NOTHING RETURNING dimension, person_count) SELECT (SELECT count(*) FROM crm_person)::int AS live_total, (SELECT count(*) FROM inserted)::int AS inserted_rows, (SELECT COALESCE(sum(person_count), 0) FROM inserted WHERE dimension = 'all')::int AS all_total, (SELECT COALESCE(sum(person_count), 0) FROM inserted WHERE dimension = 'source')::int AS source_total"
         }
       ]
     }
@@ -583,10 +583,8 @@
       "section": "Metrics: figures on hand-counted people",
       "id": "T8",
       "title": "A soft-deleted person's applications leave New applications too",
-      "status": "FAIL",
-      "failures": [
-        "unfiltered count must agree\nexpected: 1\nactual:   2"
-      ]
+      "status": "PASS",
+      "failures": []
     },
     {
       "section": "Metrics: figures on hand-counted people",
@@ -914,68 +912,64 @@
       "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
       "id": "V1",
       "title": "First sync reads every stage row inside the job limit, replay inside 30 s",
-      "status": "PASS",
-      "failures": []
+      "status": "NOT_RUN",
+      "reason": "needs PROOF_VOLUME=1 on this run"
     },
     {
       "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
       "id": "V3",
       "title": "Page read within the 8 s limit: overview",
-      "status": "FAIL",
-      "failures": [
-        "canceling statement due to statement timeout; slowest statement 8002 ms, limit 8000 ms"
-      ]
+      "status": "NOT_RUN",
+      "reason": "needs PROOF_VOLUME=1 on this run"
     },
     {
       "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
       "id": "V4",
       "title": "Page read within the 8 s limit: funnel",
-      "status": "PASS",
-      "failures": []
+      "status": "NOT_RUN",
+      "reason": "needs PROOF_VOLUME=1 on this run"
     },
     {
       "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
       "id": "V5",
       "title": "Page read within the 8 s limit: categories by track and program",
-      "status": "PASS",
-      "failures": []
+      "status": "NOT_RUN",
+      "reason": "needs PROOF_VOLUME=1 on this run"
     },
     {
       "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
       "id": "V6",
       "title": "Page read within the 8 s limit: categories by source",
-      "status": "PASS",
-      "failures": []
+      "status": "NOT_RUN",
+      "reason": "needs PROOF_VOLUME=1 on this run"
     },
     {
       "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
       "id": "V7",
       "title": "Page read within the 8 s limit: trend total contacts, week",
-      "status": "PASS",
-      "failures": []
+      "status": "NOT_RUN",
+      "reason": "needs PROOF_VOLUME=1 on this run"
     },
     {
       "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
       "id": "V8",
       "title": "Page read within the 8 s limit: trend overall conversion, month",
-      "status": "FAIL",
-      "failures": [
-        "canceling statement due to statement timeout; slowest statement 8013 ms, limit 8000 ms"
-      ]
+      "status": "NOT_RUN",
+      "reason": "needs PROOF_VOLUME=1 on this run"
     },
     {
       "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
       "id": "V9",
       "title": "Page read within the 8 s limit: trend median days, week",
-      "status": "PASS",
-      "failures": []
+      "status": "NOT_RUN",
+      "reason": "needs PROOF_VOLUME=1 on this run"
     },
     {
       "section": "Volume: 43000 people, 43000 moves, against the time limits (PROOF_VOLUME=1)",
       "id": "V2",
       "title": "Daily job, with reconcile, snapshot and 8 reports, inside the job limit",
-      "status": "PASS",
-      "failures": []
+      "status": "NOT_RUN",
+      "reason": "needs PROOF_VOLUME=1 on this run"
     }
   ]
 }
