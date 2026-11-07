@@ -76,6 +76,29 @@ Where a metric cannot be drawn, such as a rate by day, the card shows the plain 
 
 The list stays on the left. A frozen report reuses the same charts from its stored payload: funnel, conversion by step, category bars, diverging movement, cohort heatmap, followed by the comparison table. A local error boundary stays around the view.
 
+**Every report downloads as a PDF with all its graphs (the user, 2026-11-07).** The report view has a clear "Download PDF" button at the top right, with a loading state and a visible error if it fails. The button only does this, using a dynamic import so the PDF code never loads with the page:
+
+```ts
+const { downloadAnalyticsReportPdf } = await import(
+  '@/crm-analytics/report-pdf/downloadAnalyticsReportPdf'
+);
+await downloadAnalyticsReportPdf(report);
+```
+
+A separate agent writes everything under `crm-analytics/report-pdf/`, using `@react-pdf/renderer` and `file-saver`, which the CRM already has. `exportBlockNoteEditorToPdf.ts` is the existing example.
+
+`AnalyticsReport` also gains an optional `trendSeries?: AnalyticsSeries[]`, frozen when the report is built: history up to the report's own period, so it never changes later. That agent adds it. The report view draws these as line charts when present and leaves them out when absent.
+
+What the PDF holds, following requirements section 7, on A4 pages with the title and page numbers on every page and always in light colors:
+
+- **First page:** title and period, generated time, tracking note, the provisional notice when it applies, key figures, plain answers, and significant changes against the previous period.
+- **Funnel:** the funnel chart, conversion at each step, what happened at each stage, time in each stage.
+- **Tracks and sources:** new applications and people by track, overall conversion by track, the step heatmap. Monthly reports also show programs.
+- **Trends:** new applications and overall conversion over time, drop-off over time, what moved this period, the cohort heatmap, stuck by stage.
+- **Last page:** the full comparison table.
+
+It holds counts only, never a person's name, because reports hold no names. An unknown rate prints as a dash, never 0%, and small samples print lighter with their count. A section with no data says so in a plain line instead of leaving an empty chart.
+
 ## Filters
 
 Date range, track, program and source stay in one row at the top. Status shows only on Overview and Tracks & sources, and is hidden elsewhere rather than disabled. The period selector moves into Trends. Removable chips show what is active.
