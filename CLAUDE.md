@@ -79,6 +79,7 @@ Last updated: 2026-11-07 18:15, backend, UI, integration and SQL proof workflows
 | UI `analytics-ui` (`wf_f8080ac4-839`) | Foundation done, 30 tests pass; component tests need `twenty-ui` built. Funnel and Categories, Trends and Reports agents running, then up to 3 review and fix rounds |
 | Integration `analytics-integration` (`wf_1c810e29-9f0`) | Running: writer agent, then a different reviewer agent, on the five existing files. Commit each file separately once approved |
 | SQL proof `analytics-sql-proof` (`wf_182ab2dc-c6d`) | Running: real Postgres harness in `analytics-work/e2e/sql-proof/`, results in `analytics-work/e2e/RESULTS.md`. **Rerun it once the backend services exist**, and feed failures to a backend fix agent |
+| Automated tests `analytics-tests` | Running continuously: Opus writes permanent test files in `packages/twenty-utils/flolabs/analytics-tests/`, Haiku runs them when code changes, Sonnet evaluates. Run any layer with `node packages/twenty-utils/flolabs/analytics-tests/run-tests.mjs --layer <unit-server, unit-front, integration, blackbox, ui, all>`. Results and bugs are in `analytics-work/test-results/` (`latest-<layer>.json`, `history.jsonl`, `bugs.md`). It never fixes product code: **read `bugs.md` between phases and send real bugs to a fix agent.** Local only, it refuses non-localhost targets |
 | Typecheck, lint, boot test, full local end-to-end | Not started |
 
 All new code is uncommitted in the worktree until each workflow finishes. Agents do not commit; the main session commits at phase ends. **Nothing is pushed: the user said to keep it local for now.**
@@ -198,5 +199,6 @@ From the requirements: track contact and application counts by pipeline, track, 
 - 2026-11-07: Agent limit settled at 6 at a time, 7 if really needed, ask before more. Complex work can use Opus 5.5 at max effort. Develop with extra care because it is the CRM.
 - 2026-11-07: Verifier fixes adopted: merged timeline rows append instead of overwrite (requirement R2), snapshot and consistency check run in one statement, reports' comparisons use counts only, `countPrevious` removed, phase gates added (code on defaults, sign-off in order).
 - 2026-11-07: The user has no production access. Production data is not a build blocker: the page shows real stage values as Unmapped rows once deployed, and timeline behaviour is proven locally.
+- 2026-11-07: The user asked for a workflow that keeps testing, with test files that can be rerun: Opus writes, Haiku or Sonnet run and evaluate.
 - 2026-11-07: The user said to stop waiting on research and build now. Critic's simplifications adopted: no current-state table, mapping in a constant, 15-minute sync, metrics per request, eight views instead of 13, reports on a page, no polling. Build started before the contract verifier finished.
 <!-- analytics-state:end -->
