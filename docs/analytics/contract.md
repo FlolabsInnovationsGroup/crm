@@ -4,7 +4,9 @@ Single source of truth for the backend, UI and integration workflows. Paths star
 
 Deviations from `research/critique.md`, each with its reason:
 - UI module is `crm-analytics` (critic's own correction): `packages/twenty-front/src/modules/analytics/` already holds `TrackPageViewEffect` and `useEventTracker`.
-- `stage_transition` has 8 columns, not 6: `workspace_id` because local data has several workspaces, `origin` because the critic's reconcile rule needs a flagged row.
+- `stage_transition` has 9 columns, not 6: `workspace_id` because local data has several workspaces, `origin` because the critic's reconcile rule needs a flagged row, `source_id` for the next item.
+- A merged timeline row appends instead of upserting (critic said upsert): `research/needs.md` R2 checks "nothing overwritten" and spec section 4 asks the same. A stage the sync already stored stays stored.
+- Code is written on default stage values before the Phase 1 audit passes (critic said audit first): only the user can run the production audit, and stage values are data in one constant. Section 10 gates sign-off and production use, and has a stop rule.
 - Jobs use their own one-connection data source: both pools have a 10 s client-side `query_timeout` (`packages/twenty-server/src/engine/twenty-orm/datasource/workspace-data-source.service.ts:151`, `packages/twenty-server/src/database/typeorm/core/core.datasource.ts:81`), and a full timeline scan may exceed it.
 - `AppPath.ts` is not edited: a local path constant works (`WorkspaceRouteObject.path` is a plain string), which removes a `twenty-shared` edit and rebuild. Five existing files change, not six.
 - Tracking start is a key-value setting with a constant default: production's date depends on the audit, and the local test needs an earlier one.
@@ -41,6 +43,7 @@ Deviations from `research/critique.md`, each with its reason:
 | 15 | Applications object | Singular name `application`, total count only because its date field is unknown | User |
 | 16 | Application forms | Form named `Internship Application` | User |
 | 17 | Retention | Section 3 paragraph | User |
+| 18 | Code before the audit | Written on defaults; phases signed off in order (section 10) | User |
 
 Default stages (`rank` null means no funnel step):
 
@@ -59,37 +62,40 @@ Default stages (`rank` null means no funnel step):
 
 A reminder is one more raw value mapped to its parent's stageKey with `isReminder: true`. An alias (renamed value) is the same. Several raw values on one stageKey is how reminders, aliases and Signed Paid or Non paid all work.
 
-Default tracks, using raw `positionsAppliedFor` values from `packages/twenty-utils/flolabs/forms/internship-application.json:155-312`, suffix `_INTERN` omitted here where present:
-- `AI_SOFTWARE` Artificial Intelligence & Software Engineering: AI_AGI, COMPUTER_VISION_ENGINEERING, FRONT_END_DEVELOPER, MACHINE_LEARNING_ENGINEERING, PROMPT_ENGINEER, QUALITY_ASSURANCE, RESEARCH_ASSOCIATE_INTERN_OPEN_SOURCE_PROJECTS, SOFTWARE_DEVELOPMENT.
-- `ROBOTICS` Robotics & Intelligent Systems: CONTROL_SYSTEMS_ENGINEERING, EMBEDDED_SYSTEMS, HUMAN_ROBOT_INTERACTION, MECHATRONICS_ENGINEERING, PRODUCT_DEVELOPMENT_INTERN_AI_AND_ROBOTICS, ROBOTICS_ENGINEERING, SENSOR_INTEGRATION.
-- `BUSINESS` Business Management, Growth & Entrepreneurship: BUSINESS_DEVELOPMENT_AND_SALES_INTERN_AI_AND_ROBOTICS, DIGITAL_MARKETING, FINANCE, GTM_ENGINEER_GO_TO_MARKET_ENGINEER, GTM_INFLUENCER, HOSPITALITY_AND_TOURISM, MARKETING, OPERATIONS, PROJECT_MANAGEMENT, SEO_SPECIALIST, SOCIAL_MEDIA.
-- `DESIGN_COMMUNICATION` Design & Technical Communication: CONTENT_MARKETING, JOURNALISM_AND_PR, PODCAST_PRODUCTION_INTERN_POSITION, TECHNICAL_WRITING, UI_UX_DESIGN.
-- `EMERGING_SCIENCES` Emerging Sciences & Technology: ANIMAL_SCIENCE_AND_VETERINARY_RESEARCH, BIOMEDICAL_ENGINEERING, EDTECH_AND_INNOVATION, ETHICAL_AND_LEGAL_RESEARCH, NEUROSCIENCE, QUANTUM_ENGINEER, SPACE_SCIENCE, SPORT_SCIENCE.
+Default tracks, with the exact 39 raw `positionsAppliedFor` values from `packages/twenty-utils/flolabs/forms/internship-application.json:155-312`:
+- `AI_SOFTWARE` Artificial Intelligence & Software Engineering: AI_AGI_INTERN, COMPUTER_VISION_ENGINEERING_INTERN, FRONT_END_DEVELOPER_INTERN, MACHINE_LEARNING_ENGINEERING_INTERN, PROMPT_ENGINEER_INTERN, QUALITY_ASSURANCE_INTERN, RESEARCH_ASSOCIATE_INTERN_OPEN_SOURCE_PROJECTS, SOFTWARE_DEVELOPMENT_INTERN.
+- `ROBOTICS` Robotics & Intelligent Systems: CONTROL_SYSTEMS_ENGINEERING_INTERN, EMBEDDED_SYSTEMS_INTERN, HUMAN_ROBOT_INTERACTION_INTERN, MECHATRONICS_ENGINEERING_INTERN, PRODUCT_DEVELOPMENT_INTERN_AI_AND_ROBOTICS, ROBOTICS_ENGINEERING_INTERN, SENSOR_INTEGRATION_INTERN.
+- `BUSINESS` Business Management, Growth & Entrepreneurship: BUSINESS_DEVELOPMENT_AND_SALES_INTERN_AI_AND_ROBOTICS, DIGITAL_MARKETING_INTERN, FINANCE_INTERN, GTM_ENGINEER_GO_TO_MARKET_ENGINEER_INTERN, GTM_INFLUENCER_INTERN, HOSPITALITY_AND_TOURISM_INTERN, MARKETING_INTERN, OPERATIONS_INTERN, PROJECT_MANAGEMENT_INTERN, SEO_SPECIALIST_INTERN, SOCIAL_MEDIA_INTERN.
+- `DESIGN_COMMUNICATION` Design & Technical Communication: CONTENT_MARKETING_INTERN, JOURNALISM_AND_PR_INTERN, PODCAST_PRODUCTION_INTERN_POSITION, TECHNICAL_WRITING_INTERN, UI_UX_DESIGN_INTERN.
+- `EMERGING_SCIENCES` Emerging Sciences & Technology: ANIMAL_SCIENCE_AND_VETERINARY_RESEARCH_INTERN, BIOMEDICAL_ENGINEERING_INTERN, EDTECH_AND_INNOVATION_INTERN, ETHICAL_AND_LEGAL_RESEARCH_INTERN, NEUROSCIENCE_INTERN, QUANTUM_ENGINEER_INTERN, SPACE_SCIENCE_INTERN, SPORT_SCIENCE_INTERN.
 
 Unknown positions go to track key `UNMAPPED`, unknown sources to source key `UNMAPPED`.
 
 ## 2. File ownership
 
-**BACKEND** (new, under `packages/twenty-server/src/modules/analytics/`; specs in `__tests__/` beside each)
+**BACKEND** (new, under `packages/twenty-server/src/modules/analytics/`; specs in `__tests__/` beside each, written by the step that owns the file)
 ```
-crm-analytics.module.ts
-constants/crm-analytics-config.constant.ts      stages, tracks, windows, limits, zone, form names, stale minutes
+Step 1 writes:
+constants/crm-analytics-config.constant.ts      CRM_ANALYTICS_CONFIG, shape below
 constants/crm-analytics-ddl.constant.ts         CRM_ANALYTICS_DDL_STATEMENTS
-constants/crm-analytics-cron-patterns.constant.ts
 types/analytics-api.type.ts                     section 7 verbatim
-types/crm-analytics-crm-state.type.ts
-dtos/crm-analytics-payload.dto.ts
-dtos/crm-analytics-filter.input.ts
+types/crm-analytics-crm-state.type.ts           section 4 types, including CrmAnalyticsSqlRunner
 facade/crm-analytics-facade.service.ts          the only code touching CRM tables
 services/crm-analytics-database.service.ts      page transaction, job connection, ensure storage
 services/crm-analytics-settings.service.ts      off switch and tracking start
+utils/build-crm-analytics-cte.util.ts           signatures below
+utils/build-crm-analytics-local-date-sql.util.ts
+
+Step 1b writes:
+crm-analytics.module.ts
+constants/crm-analytics-cron-patterns.constant.ts
+dtos/crm-analytics-payload.dto.ts
+dtos/crm-analytics-filter.input.ts
 services/crm-analytics-sync.service.ts          timeline re-read, reconcile
-services/crm-analytics-snapshot.service.ts
+services/crm-analytics-snapshot.service.ts      snapshot and consistency check
 services/crm-analytics-metrics.service.ts       all metric SQL
 services/crm-analytics-report.service.ts
-services/crm-analytics-meta.service.ts
-utils/build-crm-analytics-cte.util.ts
-utils/build-crm-analytics-local-date-sql.util.ts
+services/crm-analytics-meta.service.ts          AnalyticsMeta, including the sync state rule in section 5
 utils/parse-crm-analytics-filter.util.ts
 utils/compute-crm-analytics-report-periods.util.ts
 utils/compute-crm-analytics-significant-changes.util.ts
@@ -101,6 +107,41 @@ crons/jobs/crm-analytics-daily.cron.job.ts
 jobs/crm-analytics-workspace-sync.job.ts
 jobs/crm-analytics-workspace-daily.job.ts
 ```
+Interfaces shared by steps 1 and 1b, so neither waits:
+```ts
+// constants/crm-analytics-config.constant.ts
+export type CrmAnalyticsStageConfig = AnalyticsStageDefinition & {
+  rawValues: { rawValue: string; isReminder: boolean }[];
+};
+export type CrmAnalyticsTrackConfig = { trackKey: string; label: string; positions: string[] };
+export type CrmAnalyticsConfig = {
+  isProvisional: boolean;
+  showSignedFigure: boolean;
+  reportingTimeZone: string;
+  trackingStartAt: string;
+  overallWindowDays: number;
+  minimumSample: number;
+  significantChangeRatio: number; // 0.2 is 20%
+  syncOverlapMinutes: number;
+  staleAfterMinutes: number;
+  runningLimitMinutes: number; // 30
+  applicationFormNames: string[];
+  applicationObjectNameSingular: string;
+  stages: CrmAnalyticsStageConfig[];
+  tracks: CrmAnalyticsTrackConfig[];
+};
+export const CRM_ANALYTICS_CONFIG: CrmAnalyticsConfig;
+
+// utils/build-crm-analytics-cte.util.ts. Each returns CTE text without the leading WITH
+export const buildCrmAnalyticsMappingCtes: () => string; // stage_map, position_map, funnel_stage
+export const buildCrmAnalyticsBaseCtes: (args: {
+  personRelationSql: string;
+  scopeFilterSql: string;
+  cohortDateFilterSql: string;
+}) => string; // crm_person through person_step, section 6
+```
+Entry stage is rank 0; success is the stage with `isSuccess`. Labels are the stage keys in sentence case. `limitDays` is 14 on every MAIN stage except success; `windowDays` is 14 on every ranked stage except the last; both null otherwise.
+
 Module: `imports: [PermissionsModule, UserVarsModule, WorkspaceManyOrAllFlatEntityMapsCacheModule, TypeOrmModule.forFeature([WorkspaceEntity])]`; all classes above in `providers`; `exports: [CrmAnalyticsCronCommand]`. All Nest and GraphQL names start `CrmAnalytics`, because GraphQL type `Analytics` and `UsageAnalytics` already exist (`packages/twenty-server/src/engine/core-modules/event-logs/emit/dtos/analytics.dto.ts:4`).
 
 **UI** (new, under `packages/twenty-front/src/`; tests in `__tests__/` beside each)
@@ -134,7 +175,8 @@ Schema `analytics` in the same database. Raw SQL with qualified names, because a
 CREATE SCHEMA IF NOT EXISTS analytics;
 
 CREATE TABLE IF NOT EXISTS analytics.stage_transition (
-  id uuid PRIMARY KEY,               -- timelineActivity.id; gen_random_uuid() for reconcile rows
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_id uuid,                    -- timelineActivity.id; null for reconcile rows
   workspace_id uuid NOT NULL,
   person_id uuid NOT NULL,
   from_stage text,                   -- raw value, never mapped
@@ -147,12 +189,14 @@ CREATE INDEX IF NOT EXISTS stage_transition_person_idx
   ON analytics.stage_transition (workspace_id, person_id, happened_at);
 CREATE INDEX IF NOT EXISTS stage_transition_updated_idx
   ON analytics.stage_transition (workspace_id, source_updated_at);
+CREATE UNIQUE INDEX IF NOT EXISTS stage_transition_source_version_idx
+  ON analytics.stage_transition (workspace_id, source_id, source_updated_at);
 
 CREATE TABLE IF NOT EXISTS analytics.daily_snapshot (
   workspace_id uuid NOT NULL,
   snapshot_date date NOT NULL,       -- local date in the reporting zone
   dimension text NOT NULL CHECK (dimension IN ('all', 'position', 'track', 'source')),
-  dimension_key text NOT NULL,       -- '' for all and for no source
+  dimension_key text NOT NULL,       -- '' for all; NONE for no position, track or source
   stage text NOT NULL,               -- raw value, '' for no stage
   person_count integer NOT NULL,
   PRIMARY KEY (workspace_id, snapshot_date, dimension, dimension_key, stage)
@@ -199,7 +243,7 @@ CREATE INDEX IF NOT EXISTS sync_log_workspace_started_idx
 
 ## 4. Facade
 
-`CrmAnalyticsFacadeService` has read methods only. No other analytics file may name a CRM table, call `getWorkspaceSchemaName` or read metadata; a spec enforces it.
+`CrmAnalyticsFacadeService` has read methods only. No other analytics file may name a CRM table, call `getWorkspaceSchemaName` or read metadata; a spec enforces the `getWorkspaceSchemaName` rule and review covers the rest.
 
 ```ts
 export type CrmAnalyticsFieldStatus = 'OK' | 'MISSING' | 'WRONG_TYPE';
@@ -210,7 +254,7 @@ export type CrmAnalyticsCrmState = {
   stage: { status: CrmAnalyticsFieldStatus; isAuditLogged: boolean; options: CrmAnalyticsFieldOption[] };
   positionsAppliedFor: { status: CrmAnalyticsFieldStatus; options: CrmAnalyticsFieldOption[] };
   applicantSource: { status: CrmAnalyticsFieldStatus; options: CrmAnalyticsFieldOption[] };
-  hasFormSubmissionObject: boolean; // formSubmission and crmForm both exist
+  hasFormSubmissionObject: boolean; // both objects exist, with formSubmission.submittedAt, .form, .person and crmForm.name
   hasApplicationObject: boolean;
 };
 
@@ -245,7 +289,7 @@ WHERE t."updatedAt" >= $2 AND t."happensAt" >= $3
   AND t."targetPersonId" IS NOT NULL AND t."linkedRecordId" IS NULL
   AND t.properties->'diff' ? 'stage'
 
--- buildApplicationSubmissionRelationSql. null when the objects are absent
+-- buildApplicationSubmissionRelationSql. null when hasFormSubmissionObject is false
 SELECT s.id, s."personId" AS person_id, s."submittedAt" AS submitted_at
 FROM "workspace_x"."_formSubmission" s JOIN "workspace_x"."_crmForm" f ON f.id = s."formId"
 WHERE s."deletedAt" IS NULL AND f.name IN ('Internship Application')
@@ -254,14 +298,15 @@ WHERE s."deletedAt" IS NULL AND f.name IN ('Internship Application')
 Existing APIs used:
 | Need | API | Reference |
 |---|---|---|
-| Field and object lookup | `WorkspaceManyOrAllFlatEntityMapsCacheService.getOrRecomputeManyOrAllFlatEntityMaps({ workspaceId, flatMapsKeys: ['flatObjectMetadataMaps', 'flatFieldMetadataMaps'] })`, `getObjectMetadataIdByName`, `findFlatEntityByIdInFlatEntityMaps`, `buildFieldMapsFromFlatObjectMetadata(...).fieldIdByName` | `packages/twenty-server/src/modules/dashboard/chart-data/services/line-chart-data.service.ts:60-80`, `packages/twenty-server/src/engine/metadata-modules/flat-field-metadata/utils/build-field-maps-from-flat-object-metadata.util.ts:22` |
+| Field and object lookup | `WorkspaceManyOrAllFlatEntityMapsCacheService.getOrRecomputeManyOrAllFlatEntityMaps({ workspaceId, flatMapsKeys: ['flatObjectMetadataMaps', 'flatFieldMetadataMaps'] })`, `findFlatEntityByIdInFlatEntityMaps`, `buildFieldMapsFromFlatObjectMetadata(...).fieldIdByName` | `packages/twenty-server/src/modules/dashboard/chart-data/services/line-chart-data.service.ts:60-80`, `packages/twenty-server/src/engine/metadata-modules/flat-field-metadata/utils/build-field-maps-from-flat-object-metadata.util.ts:22` |
+| Object ID by name | `getObjectMetadataIdByName({ flatObjectMetadataMaps, objectName })`, returns `string \| undefined` | `packages/twenty-server/src/engine/metadata-modules/flat-object-metadata/utils/get-object-metadata-id-by-name.util.ts:5`, used at `packages/twenty-server/src/modules/public-form/services/public-form.service.ts:306-309` |
 | Audit flag, options | `flatField.isAuditLogged`, `flatField.options` | `packages/twenty-server/src/engine/metadata-modules/flat-field-metadata/types/orm-flat-field-metadata.type.ts:27` |
 | Table and schema names | `computeObjectTargetTable`, `getWorkspaceSchemaName` | `packages/twenty-server/src/engine/utils/compute-object-target-table.util.ts:6`, `packages/twenty-server/src/engine/workspace-datasource/utils/get-workspace-schema-name.util.ts:3` |
 | Quoting | `escapeIdentifier`, `escapeLiteral` | `packages/twenty-server/src/engine/workspace-manager/workspace-migration/utils/remove-sql-injection.util.ts:11, 97` |
 | Active workspaces | `workspaceRepository.find({ where: { activationStatus: WorkspaceActivationStatus.ACTIVE }, select: ['id'], order: { id: 'ASC' } })` | `packages/twenty-server/src/engine/trash-cleanup/crons/trash-cleanup.cron.job.ts:75-81` |
 | Column shapes | SELECT is an enum, MULTI_SELECT an enum array; `nameFirstName`, `nameLastName` | `packages/twenty-server/src/engine/workspace-manager/workspace-migration/workspace-migration-runner/utils/field-metadata-type-to-column-type.util.ts:32-34`, `packages/twenty-server/src/engine/workspace-manager/workspace-migration/workspace-migration-runner/utils/generate-column-definitions.util.ts:172`, `packages/twenty-server/src/engine/workspace-manager/dev-seeder/data/constants/person-data-seeds.constant.ts:32` |
 
-Accepted types: stage and source `SELECT` or `TEXT`; positions `MULTI_SELECT`. Otherwise `WRONG_TYPE`, treated as missing.
+Accepted types: stage and source `SELECT` or `TEXT`; positions `MULTI_SELECT`. Otherwise `WRONG_TYPE`, treated as missing. `hasFormSubmissionObject` checks each named field because `packages/twenty-utils/flolabs/setup-forms.mjs:117-197` creates the objects and fields in separate calls, so a half-built object can exist.
 
 **Database service**
 ```ts
@@ -282,27 +327,37 @@ ensureStorage(run: CrmAnalyticsSqlRunner): Promise<void>;
 | Pattern | `7,22,37,52 * * * *` (every 15 minutes, off the hour marks) | `30 2 * * *`. `QueueCronJobOptions` has no time zone field; container zone assumed UTC, not verified |
 | Work job, queue | `CrmAnalyticsWorkspaceSyncJob`, `workspaceQueue`, data `{ workspaceId }` | `CrmAnalyticsWorkspaceDailyJob`, same queue |
 | Batch size | None: one statement, no rows in Node | Same per step; reports capped at 8 per run |
-| Cursor | None stored. Lower bound is `max(source_updated_at) - 30 minutes`, or tracking start when empty | Lower bound is tracking start |
+| Cursor | None stored. Lower bound is `max(source_updated_at) FILTER (WHERE origin = 'timeline')` for the workspace, minus 30 minutes, or tracking start when empty. Reconcile rows carry `now()`, so they must not move it | Lower bound is tracking start |
 | Time limit | 120 s per statement | 120 s per statement |
 
 Both use `@Processor`, `@Process(Class.name)`, `@SentryCronMonitor(name, pattern)` as `packages/twenty-server/src/engine/trash-cleanup/crons/trash-cleanup.cron.job.ts:21-36` and `packages/twenty-server/src/engine/trash-cleanup/jobs/trash-cleanup.job.ts:13-21`. `workspaceQueue` runs concurrency 1 (`packages/twenty-server/src/engine/core-modules/message-queue/message-queue-worker-config.constant.ts:148-156`), so a slow job delays that queue; if sync exceeds 30 s in production, change the pattern to hourly.
 
 Sync steps: off switch, `ensureStorage`, `getCrmState`, stage status check, then:
 ```sql
-INSERT INTO analytics.stage_transition (id, workspace_id, person_id, from_stage, to_stage, happened_at, source_updated_at, origin)
-SELECT c.id, $1::uuid, c.person_id, c.from_stage, c.to_stage, c.happened_at, c.source_updated_at, 'timeline'
+WITH latest AS (
+  SELECT DISTINCT ON (t.source_id) t.source_id, t.to_stage
+  FROM analytics.stage_transition t
+  WHERE t.workspace_id = $1 AND t.origin = 'timeline'
+  ORDER BY t.source_id, t.source_updated_at DESC)
+INSERT INTO analytics.stage_transition (source_id, workspace_id, person_id, from_stage, to_stage, happened_at, source_updated_at, origin)
+SELECT c.id, $1::uuid, c.person_id,
+  CASE WHEN l.source_id IS NULL THEN c.from_stage ELSE l.to_stage END,
+  c.to_stage,
+  CASE WHEN l.source_id IS NULL THEN c.happened_at ELSE c.source_updated_at END,
+  c.source_updated_at, 'timeline'
 FROM (<facade.buildStageChangeRelationSql>) c
-ON CONFLICT (id) DO UPDATE SET
-  from_stage = EXCLUDED.from_stage, to_stage = EXCLUDED.to_stage,
-  happened_at = EXCLUDED.happened_at, source_updated_at = EXCLUDED.source_updated_at
-WHERE analytics.stage_transition.source_updated_at IS DISTINCT FROM EXCLUDED.source_updated_at;
+LEFT JOIN latest l ON l.source_id = c.id
+WHERE l.source_id IS NULL OR l.to_stage IS DISTINCT FROM c.to_stage
+ON CONFLICT (workspace_id, source_id, source_updated_at) DO NOTHING;
 ```
+A timeline row seen for the first time is stored as read. If the CRM later merges a new `after` into that row, one more row is appended, from the last stored stage to the new `after`, dated by the merge's `updatedAt`. Stored rows never change.
+
 Daily steps, each in its own try/catch recorded in `details`:
 1. Full re-read: the statement above from tracking start.
 2. Reconcile, skipping people updated in the last 30 minutes because their timeline job may still be pending. `stage_map` and `crm_person` are CTEs placed in front of the INSERT:
 ```sql
-INSERT INTO analytics.stage_transition (id, workspace_id, person_id, from_stage, to_stage, happened_at, source_updated_at, origin)
-SELECT gen_random_uuid(), $1::uuid, p.person_id, l.to_stage, p.raw_stage, now(), now(), 'reconcile'
+INSERT INTO analytics.stage_transition (workspace_id, person_id, from_stage, to_stage, happened_at, source_updated_at, origin)
+SELECT $1::uuid, p.person_id, l.to_stage, p.raw_stage, now(), now(), 'reconcile'
 FROM crm_person p
 JOIN LATERAL (SELECT t.to_stage FROM analytics.stage_transition t
   WHERE t.workspace_id = $1 AND t.person_id = p.person_id
@@ -313,16 +368,31 @@ WHERE p.updated_at < now() - interval '30 minutes'
   AND COALESCE(a.stage_key, l.to_stage) IS DISTINCT FROM COALESCE(b.stage_key, p.raw_stage);
 ```
 Comparing after mapping means a renamed value with an alias creates no false moves. Limit: a person with no transition at all has nothing to compare, because the current-state table was cut. The count goes to `restored_count`.
-3. Snapshot with `ON CONFLICT DO NOTHING`, so the first run of a local date stands and a rerun adds nothing. `track` rows use the mapping of that day; a later mapping change does not rewrite them.
-4. Consistency check: live person total equals the sum of today's `all` rows; result in `details`, and a mismatch sets status `failed`.
+3. Snapshot with `ON CONFLICT DO NOTHING`, so the first run of a local date stands and a rerun adds nothing. `track` rows use the mapping of that day; a later mapping change does not rewrite them. Keys: `all` uses `''`. `position` and `source` use the raw value. `track` uses the track key, or `UNMAPPED` for a position outside the map. A person with no position or source goes under `NONE` in each of those dimensions. No stage is `''`.
+4. Consistency check, in the same statement as step 3 so both read one database snapshot and a person created meanwhile cannot cause a false mismatch:
+```sql
+WITH <mapping CTEs>, crm_person AS (<facade.buildPersonRelationSql>),
+snapshot_row AS (<one SELECT per dimension, UNION ALL>),
+inserted AS (
+  INSERT INTO analytics.daily_snapshot (workspace_id, snapshot_date, dimension, dimension_key, stage, person_count)
+  SELECT $1::uuid, <local today>, dimension, dimension_key, stage, person_count FROM snapshot_row
+  ON CONFLICT DO NOTHING
+  RETURNING dimension, person_count)
+SELECT (SELECT count(*) FROM crm_person)::int AS live_total,
+       (SELECT count(*) FROM inserted)::int AS inserted_rows,
+       (SELECT COALESCE(sum(person_count), 0) FROM inserted WHERE dimension = 'all')::int AS all_total,
+       (SELECT COALESCE(sum(person_count), 0) FROM inserted WHERE dimension = 'source')::int AS source_total;
+```
+`inserted_rows` above 0: `all_total` and `source_total` must equal `live_total`; a mismatch sets status `failed` and `details.consistency = 'MISMATCH'` with the three totals. `inserted_rows` 0: the date already has a snapshot or there are no people, so `details.consistency = 'NOT_RUN'` and status is unaffected. `position` and `track` rows are not checked because they do not sum.
 5. Trim `sync_log` older than 90 days.
 6. Build missing finished reports, oldest first, `ON CONFLICT DO NOTHING`.
 
 | Topic | Rule |
 |---|---|
-| Idempotency | Row ID primary key, conditional upsert, snapshot and report keys. Reconcile finds no mismatch on rerun |
-| Merged rows | Same row ID, later `updatedAt`, so it is upserted. A to B to A becomes `from_stage = to_stage`; kept, and all reads ignore it |
-| Failure | Log row set `failed` with message; job rethrows. Attempts is 1 (`packages/twenty-server/src/engine/core-modules/message-queue/drivers/bullmq.driver.ts:446`); the next tick is the retry. Reports catch up. Stale banner shows after 60 minutes without success |
+| Idempotency | Unique `(workspace_id, source_id, source_updated_at)`, the changed-`to_stage` guard, snapshot and report keys. Reconcile finds no mismatch on rerun |
+| Merged rows | Sync saw A to B, CRM then merged to A to C: rows A to B and B to C. Sync saw A to B, CRM then merged to A to A: rows A to B and B to A. If no sync ran between the changes, the CRM holds only the merged form, so one row A to C or a no-op A to A is stored; all reads ignore no-ops. This one is the accepted limit on R2: a change the CRM merged before any read was never observed |
+| Failure | Log row set `failed` with message; job rethrows. Attempts is 1 (`packages/twenty-server/src/engine/core-modules/message-queue/drivers/bullmq.driver.ts:446`); the next tick is the retry. Reports catch up |
+| Sync state | From `sync_log`, read by `crm-analytics-meta.service.ts`. `lastSuccessfulSyncAt` is the latest `finished_at` with `job_name = 'sync'` and status `ok`; daily rows never count, so a daily success cannot hide a stopped sync. `isStale` is true when that is older than 60 minutes or absent while a sync row exists. `lastAttemptAt` and `lastAttemptStatus` come from the latest `sync` row. A `running` row younger than `runningLimitMinutes` is ignored in favour of the row before it; an older one was killed mid-job and reads as `FAILED`. `lastReconciliationAt` and `restoredInLastReconciliation` come from the latest `daily` row with status `ok` |
 | Stage field missing | Log row `skipped`, details `NO_STAGE_FIELD`, no throw |
 | Off switch | SQL below. Checked at job and resolver start. Job returns with no log row |
 | Manual rerun | `yarn command:prod crm-analytics:run --workspace-id <id> --job daily` enqueues the work job |
@@ -347,15 +417,22 @@ Computed per request by `CrmAnalyticsMetricsService`; reports call the same meth
 | Unmapped stage | Rank null, so never a funnel step. Shown in stage totals. People whose every stage is unmapped go in `cohortExcludedUnmapped` |
 | Cohort | Created on or after tracking start, inside any date filter, with at least one mapped funnel rank. Application date is `person.createdAt`. Imported people count in current totals only |
 | Reached | Furthest rank over the initial stage and all transitions. A person at rank r counts as reached at every rank up to r, so forms resetting to `INTERESTED` lower nothing and skipped stages count as reached. Allowed because a cohort person's whole history, including creation, is after tracking start |
-| Merged rows | A to B to C reads A to C; B counts as skipped. `happensAt` is the first change in the chain, at most 10 minutes early (`packages/twenty-server/src/modules/timeline/repositories/timeline-activity.repository.ts:357-370`) |
-| Several positions | Counted once in each position and once per distinct track. Rows never sum; `distinctPeople` and `peopleInSeveral` are returned. Credit goes to all current positions, and the page says so |
+| Merged rows | A to B to C merged before any read is one row A to C, and B counts as skipped. `happensAt` is the first change in the chain, at most 10 minutes early (`packages/twenty-server/src/modules/timeline/repositories/timeline-activity.repository.ts:357-370`). Section 5 has the case where a read came between |
+| Several positions | Counted once in each position and once per distinct track. Credit goes to all current positions, and the page says so. `distinctPeople` is people in `scope`, including those under `NONE`, for either `groupBy`. For `TRACK_PROGRAM`, `peopleInSeveral` is people with two or more position values and `peopleInSeveralTracks` is people with two or more distinct track keys, so FINANCE plus MARKETING counts in the first only. For `SOURCE` both are 0, since source is single-valued and rows add up to `distinctPeople` |
 | Re-applicants | One run per person; furthest stage carries over; the page says so |
 | Deleted | `deletedAt IS NULL` everywhere, as in CRM lists. Transitions stay, so a restore needs no fake move. Record merges not verified |
 | Too recent | Inside the window: excluded from numerator and denominator, reported as `inWindow` and `soFarRate`. Never dropped, never 0% |
 | Reconcile rows | Count for reached and movement, excluded from durations and stage clock certainty |
 | Date filter | Current-state views: created on or after tracking start and in range, with `importedExcludedByDate` reported. Cohort views: application date. Volume: `submittedAt`. Movement: event date |
 
-**Base CTEs** (`build-crm-analytics-cte.util.ts`; `$1` workspace, `$2` tracking start):
+**Mapping CTEs** (`buildCrmAnalyticsMappingCtes`), `VALUES` with explicit casts, values through `escapeLiteral`:
+```sql
+stage_map (raw_stage, stage_key, rank, kind, limit_days) AS (VALUES ...),  -- one row per raw value
+position_map (raw_position, track_key) AS (VALUES ...),                    -- one row per position
+funnel_stage (stage_key, rank, window_days) AS (VALUES ...)                -- one row per stage with a rank
+```
+
+**Base CTEs** (`buildCrmAnalyticsBaseCtes`; `$1` workspace, `$2` tracking start), placed after the mapping CTEs:
 ```sql
 crm_person AS (<facade.buildPersonRelationSql>),
 scope AS (SELECT p.*, m.stage_key AS current_key, m.rank AS current_rank, m.kind AS current_kind
@@ -366,8 +443,9 @@ transition AS (SELECT t.person_id, t.happened_at, t.origin,
   LEFT JOIN stage_map f ON f.raw_stage = t.from_stage
   LEFT JOIN stage_map x ON x.raw_stage = t.to_stage
   WHERE t.workspace_id = $1 AND t.happened_at >= $2 AND t.from_stage IS DISTINCT FROM t.to_stage),
-first_move AS (SELECT DISTINCT ON (person_id) person_id, from_rank FROM transition ORDER BY person_id, happened_at),
+first_move AS (SELECT DISTINCT ON (person_id) person_id, from_key, from_rank FROM transition ORDER BY person_id, happened_at),
 cohort AS (SELECT s.person_id, s.created_at,
+    CASE WHEN fm.person_id IS NULL THEN s.current_key ELSE fm.from_key END AS initial_key,
     CASE WHEN fm.person_id IS NULL THEN s.current_rank ELSE fm.from_rank END AS initial_rank
   FROM scope s LEFT JOIN first_move fm USING (person_id)
   WHERE s.created_at >= $2 AND <date filter on s.created_at>),
@@ -406,14 +484,24 @@ person_step AS (SELECT a.person_id, f.stage_key, f.rank, f.window_days,
 | Overall conversion (5C) | Entry-rank people with `entered_at + 90 days <= now()`; numerator those arriving at success rank within 90 days. Null when no eligible or no success stage |
 | Final stage row | No next stage: step columns 0 or null |
 | Lowest step | Lowest step conversion with `eligible >= minimumSample`, excluding the first step only if another qualifies. Neutral wording |
-| Stage duration (5E) | Per cohort person, order the created-at row and transitions, keep rows where `to_key` changes, so reminder moves stay inside a stage. A stay runs to the next kept row. `percentile_cont(0.5)` of days. Excluded: open stays, stays touching a `reconcile` row, skipped stages (they have no row). Median only, `completedStays` returned |
-| Category rows | `people` and `activePeople` from `scope`. `cohortSize`, `overallRate`, `stepRates` from the funnel SQL grouped by category. Tracks through `position_map`, programs by `unnest(positions)`, source by value. People with no position or source get key `NONE` |
+| Stage duration (5E) | Per cohort person, order the created-at row (it opens a stay in `initial_key`) and transitions, keep rows where `to_key` changes, so reminder moves stay inside a stage. A stay runs to the next kept row. `percentile_cont(0.5)` of days. Excluded: open stays, stays touching a `reconcile` row, skipped stages (they have no row). Median only, `completedStays` returned |
+| Category rows | `people` and `activePeople` from `scope`. `newApplications` is the New applications rule grouped by the person's current category, null with `hasFormSubmissionObject` false. `cohortSize`, `overallRate`, `stepRates` from the funnel SQL grouped by category. Tracks through `position_map`, programs by `unnest(positions)`, source by value. People with no position or source get key `NONE`, the same key the snapshot stores |
 | Cohort table | Funnel SQL grouped by week or month of application date. `isMature` when `eligible = entered` for that cell. Not mature shows `soFarRate` muted |
 | Trend line | `NEW_APPLICATIONS` by `submittedAt` bucket. `TOTAL_CONTACTS`, `ACTIVE_PEOPLE`, `STAGE_COUNT` from the last snapshot in each bucket, one dimension only. `OVERALL_CONVERSION`, `DROP_OFF` by application-date cohort, week or month only, null until mature, so the line stops and never dips to 0. `MEDIAN_DAYS` by stay end date. Default window 30 days, 12 weeks or 12 months, or the date filter, at most 60 buckets. Previous is the same count of buckets before |
-| Movement | Transitions in the current period (date filter, else the period containing today): `enteredInPeriod` where `to_key` is the stage and differs from `from_key`, `leftInPeriod` the reverse. Includes imported people. `countNow` from `scope`, `countPrevious` from the snapshot at period start. Null with more than one category filter |
-| Comparisons (reports) | New applications, entries per stage, overall conversion, against the previous period. `isSignificant` per open question 9 |
+| Movement | Transitions in the current period (date filter, else the period containing today): `enteredInPeriod` where `to_key` is the stage and differs from `from_key`, `leftInPeriod` the reverse. Includes imported people. `countNow` from `scope`. Period comparison of stage counts is the `STAGE_COUNT` trend line |
+| Comparisons (reports) | New applications and `enteredInPeriod` per stage, each against the same count for the previous period. Counts only, because a rate for a just-finished period is still inside its window. `isSignificant` per open question 9 |
 
-Weekly and monthly reports: Monday-based local weeks and calendar months, finished only, first complete period after tracking start. Same payload shape; `cohorts` filled on monthly only.
+Weekly and monthly reports: Monday-based local weeks and calendar months, finished only, first complete period after tracking start. Same payload shape; `cohorts` filled on monthly only. No track, program, source or status filter. Each part's basis:
+
+| Field | Basis |
+|---|---|
+| `newApplications`, `categories.rows[].newApplications` | `submittedAt` inside the period. This answers "new applications by category" |
+| `movement`, `comparisons` | Event date inside the period |
+| `funnel`, `categories` rates and `cohortSize` | Every cohort person with application date before `period_end`, so rates come from the people past their window at `generated_at`, and the report says "all applications since tracking start". A period's own applications are too recent to rate |
+| `categories.people`, `activePeople`, `stuckByStage`, `movement.countNow` | Current state at `generated_at` |
+| `cohorts` | Month of application date, up to `period_end`; immature cells keep the "so far" form |
+
+**Applications (R16).** No stored table, because the form code writes no Applications record (`research/needs.md` section 4). Spec fields: application ID, contact ID and date come from the submission relation. Track, program and source are the person's current values, labeled as current. Imported Applications are a total marked "dates unknown".
 
 ## 7. API
 
@@ -613,6 +701,7 @@ export type AnalyticsCategoryRow = {
   isUnmapped: boolean;
   people: number;
   activePeople: number;
+  newApplications: number | null;
   cohortSize: number;
   overallEligible: number;
   overallRate: number | null;
@@ -624,6 +713,7 @@ export type AnalyticsCategories = AnalyticsBase & {
   groupBy: AnalyticsCategoryGroupBy;
   distinctPeople: number;
   peopleInSeveral: number;
+  peopleInSeveralTracks: number;
   stepStageKeys: string[];
   rows: AnalyticsCategoryRow[];
 };
@@ -659,7 +749,6 @@ export type AnalyticsMovementRow = {
   enteredInPeriod: number;
   leftInPeriod: number;
   countNow: number;
-  countPrevious: number | null;
 };
 
 export type AnalyticsTrends = AnalyticsBase & {
@@ -714,6 +803,7 @@ Views for the tab, each with a title and a one-line unit and date-basis note
 Component tree, all in `modules/crm-analytics/components/` except the page:
 ```
 pages/analytics/AnalyticsPage.tsx            copy packages/twenty-front/src/pages/team-inbox/TeamInboxPage.tsx:10-33; calls useCrmAnalyticsMeta; actionButton = AnalyticsSyncLine
+  AnalyticsSyncLine.tsx                      takes meta.sync
   AnalyticsContent.tsx                       state switch, banners, TabListRoot + TabList, filter useState
     AnalyticsStatePanel.tsx                  EmptyState or ErrorState per state
     AnalyticsFilterBar.tsx
@@ -752,7 +842,7 @@ NavigationDrawerAnalyticsItem.tsx            copy packages/twenty-front/src/modu
 | `useNumberFormat`, `useDateTimeFormat`, `beautifyPastDateRelativeToNow` | `@/localization/hooks/`, `~/utils/date-utils` | Numbers, dates, sync text |
 | `GraphWidgetLineChart` | `@/page-layout/widgets/graph/graph-widget-line-chart/components/GraphWidgetLineChart` | Trend line |
 
-Trend chart wrapper provides `PageLayoutEditModeProviderContext`, `PageLayoutComponentInstanceContext`, `WidgetComponentInstanceContext` as `packages/twenty-front/src/modules/page-layout/widgets/graph/__tests__/GraphWidgetTestWrapper.tsx:26-34`, inside a 280 px box. Props: `id`, `colorMode="automaticPalette"`, `showLegend`, `showGrid`, `data` from `buildTrendChartSeries` with the gray previous series first, then blue. `y: null` is allowed (`packages/twenty-front/src/modules/page-layout/widgets/graph/graph-widget-line-chart/types/LineChartDataPoint.ts`) and leaves a gap; `gray` exists (`packages/twenty-front/src/modules/page-layout/widgets/graph/utils/createGraphColorRegistry.ts:169`). Rates are passed as 0 to 100 with `suffix="%"`. Runtime color handling not verified.
+Trend chart wrapper provides `PageLayoutEditModeProviderContext`, `PageLayoutComponentInstanceContext`, `WidgetComponentInstanceContext` as `packages/twenty-front/src/modules/page-layout/widgets/graph/__tests__/GraphWidgetTestWrapper.tsx:26-34`, inside a 280 px box. Props: `id`, `colorMode="automaticPalette"`, `showLegend`, `showGrid`, `enableArea={false}` (the default is true, `packages/twenty-front/src/modules/page-layout/widgets/graph/graph-widget-line-chart/components/GraphWidgetLineChart.tsx:81`), `data` from `buildTrendChartSeries` with the gray previous series first, then blue. `y: null` is allowed by the type (`packages/twenty-front/src/modules/page-layout/widgets/graph/graph-widget-line-chart/types/LineChartDataPoint.ts`); `gray` exists (`packages/twenty-front/src/modules/page-layout/widgets/graph/utils/createGraphColorRegistry.ts:169`). Rates are passed as 0 to 100 with `suffix="%"`. The gap at a null point and runtime color handling are not verified; section 9's UI checks cover both.
 
 **Custom:** figures row, ledger, all tables, bars. Plain DOM with Linaria, as `packages/twenty-front/src/modules/form-builder/components/FormBuilderResponsesTab.tsx:29-82, 103-140`. Canvas bars are not used: they cannot take focus or align with columns (`packages/twenty-front/src/modules/page-layout/widgets/graph/graph-widget-bar-chart/components/BarChartBaseLayer.tsx:21`). No pies, no 3D, no rainbow, no dual axes.
 
@@ -766,10 +856,10 @@ Trend chart wrapper provides `PageLayoutEditModeProviderContext`, `PageLayoutCom
 | Overview, totals | `stageTotals` | Table: label, bar, count, past limit. NESTED rows indented under parent. Bars scale to the largest top row |
 | Overview, stuck | `stuck` | Table: name, stage, days in stage ("at least N" when `isLowerBound`), days over limit. Row opens person. "Showing 100 of {total}" |
 | Funnel | `AnalyticsFunnel` | Overall line (rate, or "so far" form), `AnalyticsStageLedger`, note giving cohort size, excluded unmapped, re-applicant rule |
-| Categories | `AnalyticsCategories` | Switch Track and program or Source. Sticky first column: label, people bar, active, cohort, overall rate, one column per `stepStageKeys`. Tracks expand to programs by a button. Horizontal scroll inside the table box. Note "{peopleInSeveral} people count in several rows; rows do not add up to {distinctPeople}" |
+| Categories | `AnalyticsCategories` | Switch Track and program or Source. Sticky first column: label, people bar, active, new applications, cohort, overall rate, one column per `stepStageKeys`. Tracks expand to programs by a button. Horizontal scroll inside the table box. Note "{n} people count in several rows; rows do not add up to {distinctPeople}", where n is `peopleInSeveralTracks` with every track collapsed, else `peopleInSeveral`. No note when n is 0 |
 | Trends, line | `series` with metric and stage selects | Bucket table directly under the chart: no toggle |
 | Trends, cohorts | `cohorts` | Rows of cohorts, columns of stages, numbers with n, no shading |
-| Trends, movement | `movement` | Stage, entered, left, now, previous, change |
+| Trends, movement | `movement` | Stage, entered, left, now |
 | Reports | `AnalyticsReportListItem[]`, `AnalyticsReport` | List by period type, newest first. Viewer: generated time, tracking caveat, comparisons table with significant rows marked, then the shared tables |
 
 **Stage ledger (signature).** One real `<table>`, stages as rows. Columns: Stage; Reached (solid bar scaled to first row, plus number); To next (rate set on the hairline between this row and the next, through a positioned element in the cell); Timed out; Exited; Too recent; Median days. Exactly one row carries the accent, `lowestStepStageKey`, with the neutral label "Lowest step" and no alarm color. Not yet known looks the same everywhere through `AnalyticsRateCell`.
@@ -810,8 +900,8 @@ Trend chart wrapper provides `PageLayoutEditModeProviderContext`, `PageLayoutCom
 
 | Spec | Purpose |
 |---|---|
-| `crm-analytics-facade.service.spec.ts` | Absent fields report MISSING, wrong type WRONG_TYPE, no throw; NULL substitution in person relation; absent form objects return null; relation filters present; names capped at 100 |
-| `crm-analytics-read-only.spec.ts` | Walks the folder: only the facade names `person`, `timelineActivity`, `_formSubmission` or calls `getWorkspaceSchemaName`; facade SQL starts with SELECT and has no write keyword; facade has no `.insert(`, `.update(`, `.delete(`, `.save(` |
+| `crm-analytics-facade.service.spec.ts` | Absent fields report MISSING, wrong type WRONG_TYPE, no throw; NULL substitution in person relation; absent form objects return null; a half-built form object (any one of the four fields missing) returns null; relation filters present; relation SQL starts with SELECT; names capped at 100 |
+| `crm-analytics-read-only.spec.ts` | Only the facade imports `getWorkspaceSchemaName`; facade has no `.insert(`, `.update(`, `.delete(`, `.save(` |
 | `crm-analytics-api-types.spec.ts` | Server and front type files are identical after normalizing line endings |
 | `timeline-diff-shape.spec.ts` | `objectRecordChangedValues` (`packages/twenty-server/src/engine/core-modules/event-emitter/utils/object-record-changed-values.ts:70`) yields `{ stage: { before, after } }` for a SELECT and arrays for MULTI_SELECT. Catches an upstream shape change |
 | `crm-analytics-ddl.constant.spec.ts` | Each statement has `IF NOT EXISTS` and only touches `analytics` |
@@ -821,7 +911,9 @@ Trend chart wrapper provides `PageLayoutEditModeProviderContext`, `PageLayoutCom
 | `build-crm-analytics-local-date-sql.util.spec.ts` | One expression; zone is a parameter |
 | `compute-crm-analytics-report-periods.util.spec.ts` | Only finished, Monday local boundary in a non-UTC zone, month boundary, skips existing, cap of 8 |
 | `compute-crm-analytics-significant-changes.util.spec.ts` | Threshold; both values must meet minimum |
-| `crm-analytics-sync.service.spec.ts` | First run uses tracking start; later runs overlap 30 minutes; daily uses tracking start; failure writes `failed` and rethrows; off switch skips; missing stage logs `skipped`; first sync enqueues daily when none logged |
+| `crm-analytics-sync.service.spec.ts` | First run uses tracking start; later runs overlap 30 minutes; cursor SQL filters on `origin = 'timeline'`; daily uses tracking start; failure writes `failed` and rethrows; off switch skips; missing stage logs `skipped`; first sync enqueues daily when none logged |
+| `crm-analytics-snapshot.service.spec.ts` | Totals that differ set `failed` and `MISMATCH`; equal totals stay ok; `inserted_rows` 0 gives `NOT_RUN` and status ok |
+| `crm-analytics-meta.service.spec.ts` | Daily `ok` row does not clear stale; young `running` row ignored; old `running` row reads `FAILED`; no sync row gives null status |
 | `crm-analytics-metrics.service.spec.ts` | Row mapping: identities `entered = eligible + inWindow`, `eligible = reachedNext + timedOut + exited`; null rates at 0; lowest step needs minimum; off switch payload null |
 | `crm-analytics-sync.cron.job.spec.ts` | One queue message per active workspace; a queue error for one does not stop the rest |
 | `crm-analytics.resolver.spec.ts` | Guard metadata present; filter parsed before service call |
@@ -864,7 +956,7 @@ Sample setup, on the Apple seed workspace only, so the second seed workspace tes
 3. `TWENTY_URL=http://localhost:3000 TWENTY_TOKEN_FILE=<WORK>/e2e/token.txt node packages/twenty-utils/flolabs/setup-forms.mjs`. Create a `crmForm` named `Internship Application` through the form builder.
 4. Set the tracking start for this test only:
    `INSERT INTO core."keyValuePair" ("key","value","workspaceId","type") VALUES ('CRM_ANALYTICS_TRACKING_START_AT','"2026-08-01T00:00:00.000Z"'::jsonb,'<id>','USER_VARIABLE');`
-5. `WORK/e2e/people.mjs`: create and move people with `/rest/people` (under 100 requests a minute). Backdate only in local psql: `person."createdAt"` and `timelineActivity."happensAt"`, with `"updatedAt" = now()` so the sync re-reads them.
+5. `WORK/e2e/people.mjs`: create and move people with `/rest/people` (under 100 requests a minute). Backdate only in local psql: `person."createdAt"` and `timelineActivity."happensAt"`. Do it before the first sync, or `DROP SCHEMA analytics CASCADE` first, because a stored row is never rewritten.
 
 Run jobs on demand: `node dist/command/command.js crm-analytics:run --workspace-id <id> --job sync` (or `daily`) from `packages/twenty-server`.
 
@@ -873,8 +965,8 @@ Run jobs on demand: `node dist/command/command.js crm-analytics:run --workspace-
 | # | Action | Expected |
 |---|---|---|
 | T1 | Change Stage once in the UI as the seeded user | One `timelineActivity` row: `properties.diff.stage` with before and after, `targetPersonId` set, `linkedRecordId` null. After sync, one transition |
-| T2 | Change again within 10 minutes, same user | Same row updated, `updatedAt` moved, `happensAt` unchanged. Same transition upserted with first before and last after; no new row |
-| T3 | Change A to B to A within 10 minutes | `before = after`. Transition kept, every read ignores it |
+| T2 | Change A to B, run sync, change B to C within 10 minutes, run sync | Same timeline row updated, `updatedAt` moved, `happensAt` unchanged. Transitions A to B and B to C; the first is unchanged. Rerun adds none |
+| T3 | Change A to B to A within 10 minutes: once with a sync between, once without | With: transitions A to B and B to A, so the backward move is appended. Without: `before = after`, one no-op transition, every read ignores it |
 | T4 | Change after 11 minutes | New row, new transition |
 | T5 | PATCH with the API key | Row with `workspaceMemberId` null, separate from T1's merge key |
 | T6 | Bulk update several people in the table | One row per person |
@@ -889,7 +981,8 @@ Run jobs on demand: `node dist/command/command.js crm-analytics:run --workspace-
 | # | Check | Expected |
 |---|---|---|
 | P1 | Run sync twice | Second run changes no row count |
-| P2 | Run daily twice | Snapshot and report counts unchanged; `restored_count` 0 second time |
+| P2 | Run daily twice, creating a person between the runs | Snapshot and report counts unchanged; `restored_count` 0 second time; status `ok` both times, with `consistency` `OK` then `NOT_RUN` |
+| P2b | Sum `stageTotals` top rows, and compare `all` snapshot rows with `SELECT count(*)` on person in psql | Both equal total contacts |
 | P3 | `UPDATE person SET stage` in psql (no events), wait 30 minutes or backdate `updatedAt`, run daily | One `reconcile` row, logged, excluded from durations; rerun adds none |
 | P4 | Second seed workspace | State `NO_STAGE_FIELD`, log `skipped`, no error in worker output |
 | P5 | Off switch on | Jobs skip, page says off. Off again recovers |
@@ -923,7 +1016,7 @@ Expected, compared with `AnalyticsFunnel`:
 
 NEW median days: stays of 5, 20, 10, 4, 5, so 5, with `completedStays` 5. Then repeat with one hand-counted sample from recruiting.
 
-**UI checks** with screenshots: all tabs and states, light and dark, keyboard-only pass, filters narrowing, 1280 px wide, stuck row opening the side panel.
+**UI checks** with screenshots: all tabs and states, light and dark, keyboard-only pass, filters narrowing, 1280 px wide, stuck row opening the side panel, trend line with a null bucket (gap, not 0) and gray previous line with no area fill.
 
 ## 10. Order of work
 
@@ -931,16 +1024,27 @@ At most 5 agents at a time across all workflows until the user lifts the limit. 
 
 | Step | Work | Parallel | Commands |
 |---|---|---|---|
-| 0 | Verify this contract | Alone | Read only |
-| 1 | Backend: config, DDL, facade, database, settings | With step 2 | Files only |
-| 1b | Backend: sync, snapshot, metrics, reports, resolver, jobs | Same | One jest file at a time |
-| 2 | UI: types, tables, tabs, states, chart wrapper | With step 1 | One jest file at a time |
+| 0 | Verify this contract, then send section 11 items 1 and 2 to the user | Alone | Read only |
+| 1 | Backend: files under "Step 1 writes" in section 2 | With step 2 | One jest file at a time |
+| 1b | Backend: files under "Step 1b writes" in section 2, against the interfaces there | Same | One jest file at a time |
+| 2 | UI: every UI file in section 2 | With step 1 | One jest file at a time |
 | 3 | Integration: five edits, one writer, a different reviewer | After 1 and 2 | Read only until 4 |
 | 4 | Typecheck and lint, server then front, never together | Alone | Heavy |
 | 5 | Local end to end | Alone, Docker needed | Very heavy |
-| 6 | Audit results from the user replace defaults in the constant | Any time | Rerun config spec |
+| 6 | Audit results from the user replace defaults in the constant, including reminder values, and `isProvisional` goes false | When the user returns them; Phase 1 cannot pass without it | Rerun config spec |
 
-Both sides write section 7's block on their own at the start, so neither waits. The bulk of steps 1 and 2 needs no heavy command.
+Steps 1 and 2 each write section 7's block on their own at the start, so neither waits. The bulk of steps 1 and 2 needs no heavy command.
+
+**Phase gates (spec 11, R33).** Steps 1 to 4 write code only and pass no phase. Phases are signed off in this order, and each needs the one before it. Step 5 runs its checks in the same order. Until Phase 1 passes, the page keeps its provisional banner and the module is not enabled in production.
+
+| Phase | Criterion | Evidence |
+|---|---|---|
+| 1 Data audit | Required records and events can be retrieved | Section 11 items 1 and 2 returned and in the constant; T1 to T11 |
+| 2 Data pipeline | CRM totals match; repeats add no records | P1 to P5, P7, P8 |
+| 3 Analytics and dashboard | Metrics match independent samples | Hand-calculated sample and the recruiting sample; P9 to P12; UI checks |
+| 4 Reports and monitoring | Reports run on schedule; failures detected and recoverable | Report built by the daily job and equal to the page; P6; P7 |
+
+Stop rule: if audit query 2 returns no stage rows, or `isAuditLogged` is false for `stage`, stop work on the metrics and ask the user. The funnel depends on those rows.
 
 | Weight | Commands |
 |---|---|
@@ -976,3 +1080,19 @@ SELECT name, type, "isAuditLogged" FROM core."fieldMetadata" WHERE name IN ('sta
 10. One hand-counted sample period to check results.
 11. Approve the retention paragraph in section 3.
 12. Start Docker Desktop and close other apps when step 5 begins.
+
+## Verifier notes
+
+Each item was checked against the code. All 13 defects were confirmed and fixed, with these qualifications and the points left as they were:
+
+- **Sync cursor:** the cursor jump is real, but the stated harm is smaller than reported. `updatedAt` is set when the timeline row is written, so a queue backlog does not backdate it, and the daily full re-read runs before reconcile. The filter is still applied because it costs one clause.
+- **R22:** left as an open question, not a contract defect. The acceptance check is "Stage totals equal People total", which passes on defaults because unknown values get their own Unmapped rows (P2b). Reminders stay Unmapped until recruiting sends the stage list, which Phase 1 now requires.
+- **R33:** the literal check is met for sign-off, not for writing code. Code starts on defaults, with open question 18 for the user to confirm.
+- **`timeline-diff-shape.spec.ts`:** kept. The sync depends on this upstream shape, and T1 only runs by hand.
+- **Takeaway builders:** kept. The verifier said they are not a stated requirement, but `brief.md:85` asks for a takeaway sentence and the critic only reduced it to one per tab.
+- **`unavailableReason`:** kept. Snapshots store one dimension at a time, and daily rates are out of scope, so the page needs to say why a line is missing instead of drawing a wrong one.
+- **Applied from the over-engineering list:** `crm-analytics-read-only.spec.ts` narrowed; `countPrevious` and its multi-filter rule removed, since the `STAGE_COUNT` trend answers the same question.
+
+## Change notice for builders (added 2026-11-07, 17:40)
+
+If you started before this notice, the contract BODY changed after you read it, not only these notes. Before you finish, read `D:/Coding/Flolabs/crm/.claude/worktrees/analytics-work/contract-changes.diff` (the exact changes) and bring your files in line. It affects: section 2 (who owns which file, config and CTE signatures), section 3 (`stage_transition` now has `source_id`, a generated `id`, and a unique index; `dimension_key` uses `NONE`), section 4 (`hasFormSubmissionObject` rules, `getObjectMetadataIdByName` path), section 5 (sync appends instead of overwriting, cursor ignores reconcile rows, snapshot and consistency check in one statement, sync state rules), section 6, and section 7 (the shared types block changed, so server and front copies must both match the new block byte for byte).
