@@ -68,7 +68,7 @@ npx nx run twenty-front:graphql:generate      # after GraphQL schema changes (--
 
 This section lets a new chat or a compacted session continue without losing context. Read it before doing anything on the analytics tool. **Keep it current:** update it after every 2 or 3 decisions and at the end of every phase. To update: edit `.claude/worktrees/analytics-work/state_block.md` (absolute path `D:\Coding\Flolabs\crm\.claude\worktrees\analytics-work\state_block.md`), run `python -X utf8` on `sync_claude_md.py` in that folder, then commit `CLAUDE.md` on the `analytics_tool` branch.
 
-Last updated: 2026-11-07 19:05, code written; reviews, test suite, seed, data flow and merge guard agents finishing.
+Last updated: 2026-11-07 19:20. Code written. Running: UI review 2, backend review 1, test suite, seed, data flow, SQL proof. Estimate given to the user: 2.5 to 3.5 hours to the local laptop run, around 10 to 11 PM. The user wants the final step to be running it on their laptop with seed data, which they will open themselves at http://localhost:3001.
 
 ### Status
 | Phase | State (2026-11-07, 18:15) |
@@ -85,6 +85,14 @@ Last updated: 2026-11-07 19:05, code written; reviews, test suite, seed, data fl
 All new code is uncommitted in the worktree until each workflow finishes. Agents do not commit; the main session commits at phase ends. **Nothing is pushed: the user said to keep it local for now.**
 
 **Time estimate given to the user on 2026-11-07 around 18:05:** 4 to 5 hours in total to working and tested locally, 3 at best.
+
+**Known fixes still to apply (2026-11-07, 19:20):**
+- SQL proof bug B1: new applications count a soft-deleted person's applications when no filter is set. Exact fix in `analytics-work/e2e/RESULTS.md` (change `buildApplicationSubmissionRelationSql` in the facade, keep submissions with no person).
+- UI review finding needing server code: `readTrendValues` must return null, not 0, for new applications before tracking start.
+- Data flow tests: 2 failures and 152 skips in `analytics-work/test-results/latest-dataflow.json`, not yet looked at.
+- UI review 1 had 19 minor findings: `analytics-work/test-results/ui-review-1.md`. Also noticed: the trend table can print "-0 points".
+- All 140 UI tests passed after fixes; typecheck, lint and a browser run not done yet.
+- Merge guard finished: 40 of 40 tests pass, and `packages/twenty-utils` does not reach the Docker image.
 
 **Next steps, do not stop to ask (the user said to keep developing):**
 1. When backend and UI workflows finish, read results and commit each area on `analytics_tool`. Commit the five integration edits one per file.
