@@ -10,7 +10,7 @@ Merging to `main` triggers an image build, and a deploy can follow after approva
   ```bash
   node packages/twenty-utils/flolabs/analytics-tests/merge-guard/prepare-merge.mjs
   ```
-  This makes the branch `analytics_tool_merge` with everything on the exclusion list removed, then checks it. `analytics_tool` keeps all the tests and seed data for future testing. The exclusion list is `merge-guard/excluded-from-main.json`.
+  This makes the branch `analytics_tool_merge` with everything on the exclusion list removed, then checks it. `analytics_tool` keeps all the tests and seed data for future testing. The exclusion list is `merge-guard/excluded-from-main.json`. Only committed work goes in. The branch is one commit on the point where `analytics_tool` left `origin/main`, so no older commit holding seed files can reach the history of `main`, whichever merge button is used.
 - [ ] **Merge guard passes** on the clean branch:
   ```bash
   node packages/twenty-utils/flolabs/analytics-tests/merge-guard/check-before-merge.mjs --ref analytics_tool_merge
@@ -42,7 +42,7 @@ The tool is built on guessed stage values. Until these are done, the page shows 
 - [ ] **Who can see analytics.** The gate is the `EXPORT_CSV` permission, which is wider than it sounds: the default Member role has it, so nearly everyone sees the page. A role with no People access could still see names in the stuck list. To narrow it, change the flag in `NavigationDrawerAnalyticsItem.tsx` and `crm-analytics.resolver.ts`.
 - [ ] **Reports:** is a Reports tab enough for now, with no email or n8n delivery?
 - [ ] **Retention:** approve the paragraph in contract section 3.
-- [ ] **Query speed at full size:** test data is deliberately small, so speed at about 43,000 people is unmeasured. Page queries stop at 8 seconds. Either approve a one-off check with temporary data, or accept finding out on first use.
+- [ ] **Query speed at full size:** measured once with temporary fake data at about 43,000 people. Overview and the monthly conversion trend hit the 8 second limit until `enable_nestloop` and `jit` were turned off on analytics connections, then took about 2 seconds. Confirm that fix is in the code. Real production data may behave differently, so check `analytics.sync_log` and page speed after the first deploy.
 
 ## 4. Proof that it works
 
@@ -63,10 +63,11 @@ Run from the worktree. Each must pass on the final code.
 ## 5. Branch and commits
 
 - [ ] **Update from `origin/main`** and resolve conflicts. Five existing files are edited; `main` may have moved.
-- [ ] **Integration edits are one commit per file,** each reviewed by a second agent.
+- [ ] **Integration edits are one commit per file,** each reviewed by a second agent. That history stays on `analytics_tool`; the clean branch folds everything into one commit.
 - [ ] **No AI attribution** in commit messages, because CI rejects it.
-- [ ] **`FLOLABS.md`:** add the analytics section: what it is, the off switch, how to change the mapping.
+- [ ] **`FLOLABS.md`:** add the analytics section: what it is, the off switch, how to change the mapping. The merge guard fails on any existing file beyond the five and `CLAUDE.md`, so also add `FLOLABS.md` to `ALSO_ALLOWED_EXISTING_FILES` in `merge-guard/check-before-merge.mjs`.
 - [ ] **Security scan workflow** passes on the pull request.
+- [ ] **Merge guard workflow** `flolabs-analytics-merge-guard` passes on the pull request. A red check only blocks the merge button if it is a required check in the branch protection for `main`, which someone with admin access has to set.
 - [ ] **Team reviews the pull request.** Nothing merges without Ahsan's go.
 
 ## 6. Deploying to production
