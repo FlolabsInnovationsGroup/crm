@@ -197,7 +197,7 @@ From the requirements: track contact and application counts by pipeline, track, 
 - GitHub reported 402 dependency vulnerabilities on `main`, 5 critical. Not investigated.
 
 ### Decision log
-- 2026-11-07, 22:20: The user asked that the very last step, after testing and the presentation, clears the builds, installs and other local data to get the disk space back. Listed in `docs/analytics/THINGS-TO-DO-BEFORE-MERGE.md` section 7. Show the exact list and sizes first; never delete the code or the branch.
+- 2026-11-07, 22:20: The user asked to be reminded at the very end, after testing and the presentation, about clearing the builds, installs and other local data to get the disk space back. **Do it only when the user asks.** Listed in `docs/analytics/THINGS-TO-DO-BEFORE-MERGE.md` section 7. Show the exact list and sizes first; never delete the code or the branch.
 - 2026-11-07, 22:15: The user ruled that Claude can never merge or push to `main`, in any case. Written in CLAUDE.md Rule #2, memory, `RESUME.md` and the before-merge checklist. The user also asked to run the CRM with seed data now and test while the review finishes, with one review pass instead of three rounds.
 - 2026-11-07, 20:00: The user had to stop the chat, so all workflows were stopped and everything was committed locally. `RESUME.md` and continuation scripts in `docs/analytics/resume/workflows/` restart each workflow at the step it reached.
 - 2026-11-07, 20:00: Four questions testing found in the contract got working answers, recorded in its "Decisions from testing" section and on the before-merge checklist for confirmation: unknown sources keep their raw value, the cohort table covers the trend window, medians round to one decimal, stuck compares whole days.

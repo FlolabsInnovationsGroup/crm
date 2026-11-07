@@ -88,7 +88,7 @@ Run from the worktree. Each must pass on the final code.
 
 ## 7. Clean up at the very end, to get the disk space back
 
-The user asked for this as the last step, after testing and the presentation. Claude shows the exact list and sizes first, then deletes. Stop the local CRM before starting.
+**Claude only reminds the user about this at the end. It does nothing here until the user asks.** Then it shows the exact list and sizes first, and stops the local CRM before starting.
 
 - [ ] **Installs and builds in the worktree:** `node_modules` everywhere, every package's `dist` and `build`, the `.nx` cache, and the Vite cache.
 - [ ] **Local settings:** `packages/twenty-server/.env`, `packages/twenty-front/.env` and `analytics-work/e2e/token.txt`.
