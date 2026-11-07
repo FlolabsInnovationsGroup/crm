@@ -28,9 +28,11 @@ const META_REFRESH_AFTER_IN_MS = 5 * 60 * 1000;
 
 const StyledContainer = styled.div`
   display: flex;
+  flex: 1;
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  overflow-y: auto;
 `;
 
 const StyledBanners = styled.div`
@@ -46,8 +48,6 @@ const StyledTabList = styled(TabList)`
 
 const StyledBody = styled.div`
   flex: 1;
-  min-height: 0;
-  overflow-y: auto;
   padding: ${themeCssVariables.spacing[4]};
 `;
 
