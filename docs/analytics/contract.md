@@ -1118,3 +1118,7 @@ Testing found places where this contract was silent or disagreed with itself. Th
 - **Page reads:** at most 2 run at once per server process. Others wait briefly, then get a clear busy error, and a read stops once it has run for about 15 seconds in total. This protects the CRM's shared connection pool.
 - **Comparisons before tracking:** a previous value is null, never 0, when the previous period starts before tracking start.
 - **Overall conversion by week:** the default window grows to 26 weeks, so it can include weeks old enough to count.
+
+## Dashboard redesign (added 2026-11-07, 23:40)
+
+The user wants a graph-first dashboard. `docs/analytics/dashboard-redesign.md` replaces section 8's chart rules wherever they disagree, and adds `getCrmAnalyticsSeries` to section 7. Its types go in the section 7 block when that is built.
