@@ -94,7 +94,7 @@ If a new chat cannot resume the workflow, rerun only the missing reports: the ag
 3. **Build what is intended, do not over-engineer, make the tool the team needs.** Critically evaluate scope.
 4. **A good UI and good visual graphs matter.** Use the UI, Apple and dataviz skills for UI work.
 5. **The user makes the decisions.** Give suggestions and ask before decisions, changes and anything irreversible. On 2026-11-07 the user said to start, using the suggested defaults listed below as the starting point. Report at the end of each phase. Do not fix or "improve" things that were not asked for, including bugs you notice: report them.
-6. **Agents:** at most 4 at the same time, counting all workflows and subagents. Each can be Opus 5.5 at max effort (`model: 'opus', effort: 'max'`) and should take a large area of work rather than fanning out. Never use `isolation: 'worktree'` for agents, since that branches from the wrong commit.
+6. **Agents:** at most 6 at the same time, counting all workflows and subagents; 7 only if really needed; ask the user before going above that. Agents doing complex work can be Opus 5.5 at max effort (`model: 'opus', effort: 'max'`). Be especially careful with development, because this is the live CRM. Never use `isolation: 'worktree'` for agents, since that branches from the wrong commit.
 7. **All work on `analytics_tool`.** Nothing merges to `main` or deploys until the user reviews it. Do not push without asking.
 8. **Keep this section updated with all details.**
 
@@ -183,6 +183,6 @@ From the requirements: track contact and application counts by pipeline, track, 
 - 2026-11-06: Facade is a module, the tool has no server of its own. Core CRM edits need a writer agent and a reviewer agent. Service files are TypeScript because the repo is. The user agreed to the read-only facade, worker-run heavy work and a separate `analytics` schema.
 - 2026-11-06: Branch `analytics_tool` created from `origin/main` with the 3-page PDF, and pushed.
 - 2026-11-07: Chart mockup declined for now. The user gave the go to implement with multi-agent workflows, including a research agent that critically evaluates scope.
-- 2026-11-07: Agent limit set to 4 at a time, each Opus 5.5 at max effort with bigger tasks.
 - 2026-11-07: All project details to be kept in `CLAUDE.md` and updated regularly.
+- 2026-11-07: Agent limit settled at 6 at a time, 7 if really needed, ask before more. (It moved through 5, 6 and 4 first.) Complex work can use Opus 5.5 at max effort. Develop with extra care because it is the CRM.
 <!-- analytics-state:end -->
