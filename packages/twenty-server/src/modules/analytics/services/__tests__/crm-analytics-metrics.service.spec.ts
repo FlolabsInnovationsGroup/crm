@@ -1,0 +1,1997 @@
+import { CrmAnalyticsFacadeService } from 'src/modules/analytics/facade/crm-analytics-facade.service';
+import { type CrmAnalyticsDatabaseService } from 'src/modules/analytics/services/crm-analytics-database.service';
+import { CrmAnalyticsMetricsService } from 'src/modules/analytics/services/crm-analytics-metrics.service';
+import { CrmAnalyticsReportService } from 'src/modules/analytics/services/crm-analytics-report.service';
+import { type CrmAnalyticsSettingsService } from 'src/modules/analytics/services/crm-analytics-settings.service';
+import {
+  type AnalyticsFilter,
+  type AnalyticsFunnelRow,
+  type AnalyticsReport,
+} from 'src/modules/analytics/types/analytics-api.type';
+import {
+  type CrmAnalyticsCrmState,
+  type CrmAnalyticsSqlRunner,
+} from 'src/modules/analytics/types/crm-analytics-crm-state.type';
+
+const WORKSPACE_ID = '20202020-0000-4000-8000-000000000001';
+const TRACKING_START = '2026-08-01T00:00:00.000Z';
+const NOW = '2026-11-07T12:00:00.000Z';
+const LOCAL_TODAY = '2026-11-07';
+
+const DEFAULT_FILTER: AnalyticsFilter = {
+  dateFrom: null,
+  dateTo: null,
+  trackKey: null,
+  programKey: null,
+  sourceKey: null,
+  status: 'ALL',
+  period: 'WEEK',
+};
+
+const buildState = (
+  overrides: Partial<CrmAnalyticsCrmState> = {},
+): CrmAnalyticsCrmState => ({
+  workspaceId: WORKSPACE_ID,
+  stage: {
+    status: 'OK',
+    isAuditLogged: true,
+    options: [{ value: 'SIGNED_PAID', label: 'Signed paid' }],
+  },
+  positionsAppliedFor: {
+    status: 'OK',
+    options: [{ value: 'FINANCE_INTERN', label: 'Finance intern' }],
+  },
+  applicantSource: {
+    status: 'OK',
+    options: [{ value: 'LINKEDIN', label: 'LinkedIn' }],
+  },
+  hasFormSubmissionObject: true,
+  hasApplicationObject: true,
+  ...overrides,
+});
+
+type SqlAnswer = [RegExp, Record<string, unknown>[]];
+type RecordedStatement = { sql: string; parameters: unknown[] };
+
+const setup = ({
+  answers = [],
+  isDisabled = false,
+  hasStorage = true,
+  state = buildState(),
+}: {
+  answers?: SqlAnswer[];
+  isDisabled?: boolean;
+  hasStorage?: boolean;
+  state?: CrmAnalyticsCrmState;
+} = {}) => {
+  const statements: RecordedStatement[] = [];
+
+  const run: CrmAnalyticsSqlRunner = async (sql, parameters) => {
+    statements.push({ sql, parameters: [...parameters] });
+
+    if (sql.includes('to_regclass')) {
+      return [
+        {
+          as_of: new Date(NOW),
+          local_today: LOCAL_TODAY,
+          has_storage: hasStorage,
+        },
+      ];
+    }
+
+    return answers.find(([pattern]) => pattern.test(sql))?.[1] ?? [];
+  };
+
+  // The real facade, so its SQL is what the statement checks below read.
+  const facadeService = new CrmAnalyticsFacadeService(
+    {} as never,
+    {} as never,
+  );
+
+  jest.spyOn(facadeService, 'getCrmState').mockResolvedValue(state);
+  jest.spyOn(facadeService, 'countImportedApplications').mockResolvedValue(12);
+  jest
+    .spyOn(facadeService, 'getPersonDisplayNames')
+    .mockResolvedValue(new Map([['person-1', 'Ada Lovelace']]));
+
+  const runPageTransaction = jest.fn(
+    async (_workspaceId: string, work: (run: CrmAnalyticsSqlRunner) => unknown) =>
+      work(run),
+  );
+  const databaseService = {
+    runPageTransaction,
+  } as unknown as CrmAnalyticsDatabaseService;
+  const settingsService = {
+    isDisabled: jest.fn(async () => isDisabled),
+    getTrackingStart: jest.fn(async () => TRACKING_START),
+  } as unknown as CrmAnalyticsSettingsService;
+
+  const metricsService = new CrmAnalyticsMetricsService(
+    databaseService,
+    facadeService,
+    settingsService,
+  );
+
+  return {
+    metricsService,
+    reportService: new CrmAnalyticsReportService(
+      databaseService,
+      metricsService,
+      settingsService,
+    ),
+    facadeService,
+    runPageTransaction,
+    run,
+    statements,
+  };
+};
+
+const STEP = /overall_total a/;
+const FUNNEL_PLAIN = /''::text AS group_key[\s\S]*overall_total a/;
+const DURATIONS = /GROUP BY cs\.stage_key/;
+const EXCLUDED = /excluded_count/;
+const STAGE_COUNTS = /GROUP BY s\.raw_stage/;
+const CLOCK_TOTALS = /inactive_count/;
+const STUCK_ROWS = /total_count/;
+const NEW_APPLICATION_TOTALS = /current_count/;
+const IMPORTED_PEOPLE = /imported_count/;
+const CATEGORY_PEOPLE = /active_people/;
+const CATEGORY_OVERLAP = /distinct_people/;
+const CATEGORY_NEW_APPLICATIONS = /AS new_applications/;
+const MOVEMENT = /entered_in_period/;
+const SNAPSHOT_BUCKETS = /matching_row/;
+const SUBMISSION_BUCKETS = /FROM submission sub[\s\S]*GROUP BY 1/;
+const MEDIAN_BUCKETS = /FROM completed_stay cs\s+WHERE/;
+
+// entered, eligible, reached_next, exited and reached_so_far per step, as person_step
+// gives them for the hand-calculated sample in section 9 of the contract.
+const HAND_SAMPLE_FUNNEL_ROW = {
+  group_key: '',
+  entered: 7,
+  eligible: 0,
+  reached: 0,
+  reached_so_far: 0,
+  steps: [
+    {
+      stage_key: 'NEW',
+      entered: 7,
+      eligible: 5,
+      reached_next: 2,
+      exited: 1,
+      reached_so_far: 4,
+    },
+    {
+      stage_key: 'CONTACTED',
+      entered: 4,
+      eligible: 3,
+      reached_next: 1,
+      exited: 0,
+      reached_so_far: 1,
+    },
+    {
+      stage_key: 'BEFORE_MEETING',
+      entered: 1,
+      eligible: 1,
+      reached_next: 1,
+      exited: 0,
+      reached_so_far: 1,
+    },
+    {
+      stage_key: 'SATURDAY_MEETING',
+      entered: 1,
+      eligible: 1,
+      reached_next: 1,
+      exited: 0,
+      reached_so_far: 1,
+    },
+    {
+      stage_key: 'ATTENDED',
+      entered: 1,
+      eligible: 1,
+      reached_next: 0,
+      exited: 0,
+      reached_so_far: 0,
+    },
+  ],
+};
+
+const readFunnel = async (
+  funnelRow: Record<string, unknown>,
+  otherAnswers: SqlAnswer[] = [],
+) => {
+  const { metricsService } = setup({
+    answers: [[STEP, [funnelRow]], ...otherAnswers],
+  });
+  const funnel = await metricsService.getFunnel({
+    workspaceId: WORKSPACE_ID,
+    filter: DEFAULT_FILTER,
+  });
+
+  if (funnel === null) {
+    throw new Error('Expected a funnel payload');
+  }
+
+  return funnel;
+};
+
+const findStep = (rows: AnalyticsFunnelRow[], stageKey: string) => {
+  const row = rows.find((candidate) => candidate.stageKey === stageKey);
+
+  if (row === undefined) {
+    throw new Error(`No funnel row for ${stageKey}`);
+  }
+
+  return row;
+};
+
+const expectStatementShape = ({ sql, parameters }: RecordedStatement) => {
+  const referencedParameters = new Set(
+    [...sql.matchAll(/\$(\d+)/g)].map((match) => Number(match[1])),
+  );
+
+  // Postgres rejects a statement with an unused or skipped parameter.
+  expect([...referencedParameters].sort((first, second) => first - second)).toEqual(
+    parameters.map((_parameter, index) => index + 1),
+  );
+  expect(sql).not.toMatch(/,\s*SELECT\b/);
+  expect(sql).not.toMatch(/,\s*\)/);
+  expect(sql).not.toMatch(/,\s*,/);
+};
+
+describe('CrmAnalyticsMetricsService', () => {
+  describe('off switch and missing storage', () => {
+    const callEveryPageRead = (metricsService: CrmAnalyticsMetricsService) =>
+      Promise.all([
+        metricsService.getOverview({
+          workspaceId: WORKSPACE_ID,
+          filter: DEFAULT_FILTER,
+        }),
+        metricsService.getFunnel({
+          workspaceId: WORKSPACE_ID,
+          filter: DEFAULT_FILTER,
+        }),
+        metricsService.getCategories({
+          workspaceId: WORKSPACE_ID,
+          filter: DEFAULT_FILTER,
+          groupBy: 'TRACK_PROGRAM',
+        }),
+        metricsService.getTrends({
+          workspaceId: WORKSPACE_ID,
+          filter: DEFAULT_FILTER,
+          metric: 'TOTAL_CONTACTS',
+          stageKey: null,
+        }),
+      ]);
+
+    it('gives a null payload and reads nothing when switched off', async () => {
+      const { metricsService, runPageTransaction, facadeService, statements } =
+        setup({ isDisabled: true });
+
+      await expect(callEveryPageRead(metricsService)).resolves.toEqual([
+        null,
+        null,
+        null,
+        null,
+      ]);
+      expect(runPageTransaction).not.toHaveBeenCalled();
+      expect(facadeService.getCrmState).not.toHaveBeenCalled();
+      expect(statements).toHaveLength(0);
+    });
+
+    it('checks for storage first and reads no analytics table without it', async () => {
+      const { metricsService, statements } = setup({ hasStorage: false });
+
+      await expect(callEveryPageRead(metricsService)).resolves.toEqual([
+        null,
+        null,
+        null,
+        null,
+      ]);
+      expect(statements).toHaveLength(4);
+      statements.forEach(({ sql }) => {
+        expect(sql).toContain(`to_regclass('analytics.sync_log')`);
+        expect(sql).not.toMatch(/analytics\.(stage_transition|daily_snapshot)/);
+      });
+    });
+  });
+
+  describe('funnel', () => {
+    it('matches the hand-calculated table', async () => {
+      const funnel = await readFunnel(HAND_SAMPLE_FUNNEL_ROW, [
+        [
+          DURATIONS,
+          [{ stage_key: 'NEW', median_days: 5, completed_stays: 5 }],
+        ],
+      ]);
+
+      expect(funnel.cohortSize).toBe(7);
+      expect(findStep(funnel.rows, 'NEW')).toEqual({
+        stageKey: 'NEW',
+        label: 'New',
+        windowDays: 14,
+        entered: 7,
+        eligible: 5,
+        reachedNext: 2,
+        timedOut: 2,
+        exited: 1,
+        inWindow: 2,
+        stepRate: 0.4,
+        soFarRate: 4 / 7,
+        dropOffRate: 0.6,
+        isUnderMinimum: true,
+        medianDays: 5,
+        completedStays: 5,
+      });
+      expect(findStep(funnel.rows, 'CONTACTED')).toEqual({
+        stageKey: 'CONTACTED',
+        label: 'Contacted',
+        windowDays: 14,
+        entered: 4,
+        eligible: 3,
+        reachedNext: 1,
+        timedOut: 2,
+        exited: 0,
+        inWindow: 1,
+        stepRate: 1 / 3,
+        soFarRate: 0.25,
+        dropOffRate: 2 / 3,
+        isUnderMinimum: true,
+        medianDays: null,
+        completedStays: 0,
+      });
+    });
+
+    it('keeps the identities on every step row', async () => {
+      const { rows } = await readFunnel(HAND_SAMPLE_FUNNEL_ROW);
+
+      rows
+        .filter((row) => row.windowDays !== null)
+        .forEach((row) => {
+          expect(row.entered).toBe(row.eligible + row.inWindow);
+          expect(row.eligible).toBe(row.reachedNext + row.timedOut + row.exited);
+        });
+    });
+
+    it('lists every ranked stage in order, with zeros for an empty one', async () => {
+      const { rows } = await readFunnel(HAND_SAMPLE_FUNNEL_ROW);
+
+      expect(rows.map((row) => row.stageKey)).toEqual([
+        'NEW',
+        'CONTACTED',
+        'BEFORE_MEETING',
+        'SATURDAY_MEETING',
+        'ATTENDED',
+        'SECOND_MEETING',
+        'AGREEMENT_SENT',
+        'SIGNED',
+      ]);
+      expect(findStep(rows, 'SECOND_MEETING')).toMatchObject({
+        entered: 0,
+        eligible: 0,
+        stepRate: null,
+        soFarRate: null,
+        dropOffRate: null,
+      });
+    });
+
+    it('never shows too-recent people as 0% or dropped', async () => {
+      const { rows } = await readFunnel({
+        group_key: '',
+        entered: 5,
+        eligible: 0,
+        reached: 0,
+        reached_so_far: 0,
+        steps: [
+          {
+            stage_key: 'NEW',
+            entered: 5,
+            eligible: 0,
+            reached_next: 0,
+            exited: 0,
+            reached_so_far: 0,
+          },
+        ],
+      });
+
+      expect(findStep(rows, 'NEW')).toMatchObject({
+        inWindow: 5,
+        timedOut: 0,
+        exited: 0,
+        stepRate: null,
+        dropOffRate: null,
+        soFarRate: 0,
+      });
+    });
+
+    it('gives the final stage 0 or null in the step columns', async () => {
+      const { rows } = await readFunnel({
+        group_key: '',
+        entered: 9,
+        eligible: 0,
+        reached: 0,
+        reached_so_far: 2,
+        steps: [
+          {
+            stage_key: 'SIGNED',
+            entered: 2,
+            eligible: 0,
+            reached_next: 0,
+            exited: 0,
+            reached_so_far: 0,
+          },
+        ],
+      });
+
+      expect(findStep(rows, 'SIGNED')).toMatchObject({
+        windowDays: null,
+        entered: 2,
+        eligible: 0,
+        reachedNext: 0,
+        timedOut: 0,
+        exited: 0,
+        inWindow: 0,
+        stepRate: null,
+        soFarRate: null,
+        dropOffRate: null,
+      });
+    });
+
+    it('rates overall conversion on eligible people only', async () => {
+      const { overall } = await readFunnel({
+        group_key: '',
+        entered: 100,
+        eligible: 40,
+        reached: 4,
+        reached_so_far: 10,
+        steps: [],
+      });
+
+      expect(overall).toEqual({
+        finalStageKey: 'SIGNED',
+        windowDays: 90,
+        eligible: 40,
+        reached: 4,
+        rate: 0.1,
+        soFarRate: 0.1,
+        isUnderMinimum: false,
+      });
+    });
+
+    it('leaves overall conversion null with nobody eligible', async () => {
+      const { overall } = await readFunnel(HAND_SAMPLE_FUNNEL_ROW);
+
+      expect(overall.rate).toBeNull();
+      expect(overall.isUnderMinimum).toBe(true);
+    });
+
+    it('rounds median days and reports excluded people', async () => {
+      const funnel = await readFunnel(HAND_SAMPLE_FUNNEL_ROW, [
+        [
+          DURATIONS,
+          [{ stage_key: 'NEW', median_days: 5.26, completed_stays: 3 }],
+        ],
+        [EXCLUDED, [{ excluded_count: 6 }]],
+      ]);
+
+      expect(findStep(funnel.rows, 'NEW').medianDays).toBe(5.3);
+      expect(funnel.cohortExcludedUnmapped).toBe(6);
+    });
+
+    describe('lowest step', () => {
+      const buildStep = (
+        stageKey: string,
+        eligible: number,
+        reachedNext: number,
+      ) => ({
+        stage_key: stageKey,
+        entered: eligible,
+        eligible,
+        reached_next: reachedNext,
+        exited: 0,
+        reached_so_far: reachedNext,
+      });
+
+      const readLowestStep = async (steps: ReturnType<typeof buildStep>[]) =>
+        (
+          await readFunnel({
+            group_key: '',
+            entered: 100,
+            eligible: 0,
+            reached: 0,
+            reached_so_far: 0,
+            steps,
+          })
+        ).lowestStepStageKey;
+
+      it('skips steps under the minimum sample', async () => {
+        await expect(
+          readLowestStep([
+            buildStep('NEW', 100, 50),
+            buildStep('CONTACTED', 40, 30),
+            buildStep('BEFORE_MEETING', 29, 1),
+          ]),
+        ).resolves.toBe('CONTACTED');
+      });
+
+      it('skips the first step when another qualifies', async () => {
+        await expect(
+          readLowestStep([
+            buildStep('NEW', 100, 10),
+            buildStep('CONTACTED', 40, 30),
+          ]),
+        ).resolves.toBe('CONTACTED');
+      });
+
+      it('names the first step when it alone qualifies', async () => {
+        await expect(
+          readLowestStep([buildStep('NEW', 100, 10), buildStep('CONTACTED', 5, 1)]),
+        ).resolves.toBe('NEW');
+      });
+
+      it('names nothing when no step qualifies', async () => {
+        await expect(
+          readLowestStep([buildStep('NEW', 29, 1)]),
+        ).resolves.toBeNull();
+      });
+    });
+
+    it('applies the date filter to the application date, as parameters', async () => {
+      const { metricsService, statements } = setup({
+        answers: [[STEP, [HAND_SAMPLE_FUNNEL_ROW]]],
+      });
+
+      await metricsService.getFunnel({
+        workspaceId: WORKSPACE_ID,
+        filter: {
+          ...DEFAULT_FILTER,
+          dateFrom: '2026-10-01',
+          dateTo: '2026-10-31',
+        },
+      });
+
+      const funnelStatement = statements.find(({ sql }) =>
+        FUNNEL_PLAIN.test(sql),
+      );
+
+      expect(funnelStatement?.sql).toMatch(
+        /s\.created_at >= \$2 AND \(s\.created_at AT TIME ZONE \$\d+::text\)::date >= \$\d+::date/,
+      );
+      expect(funnelStatement?.parameters).toEqual(
+        expect.arrayContaining(['UTC', '2026-10-01', '2026-10-31']),
+      );
+    });
+  });
+
+  describe('overview', () => {
+    const OVERVIEW_ANSWERS: SqlAnswer[] = [
+      [
+        STAGE_COUNTS,
+        [
+          { raw_stage: 'NEW', person_count: 10 },
+          { raw_stage: 'SIGNED_PAID', person_count: 2 },
+          { raw_stage: 'SIGNED_NON_PAID', person_count: 1 },
+          { raw_stage: 'NOT_INTERESTED', person_count: 3 },
+          { raw_stage: 'INTERESTED', person_count: 4 },
+          { raw_stage: 'LEGACY', person_count: 5 },
+          { raw_stage: null, person_count: 6 },
+          { raw_stage: '', person_count: 1 },
+        ],
+      ],
+      [
+        CLOCK_TOTALS,
+        [
+          { current_key: 'NEW', inactive_count: 2, stuck_count: 3 },
+          { current_key: 'INTERESTED', inactive_count: 1, stuck_count: 0 },
+        ],
+      ],
+      [
+        STUCK_ROWS,
+        [
+          {
+            person_id: 'person-1',
+            current_key: 'NEW',
+            stage_entered_at: new Date('2026-10-01T00:00:00.000Z'),
+            days_in_stage: 37,
+            days_over_limit: 23,
+            is_lower_bound: true,
+            total_count: 3,
+          },
+          {
+            person_id: 'person-2',
+            current_key: 'NEW',
+            stage_entered_at: '2026-10-05T00:00:00.000Z',
+            days_in_stage: 33,
+            days_over_limit: 19,
+            is_lower_bound: false,
+            total_count: 3,
+          },
+        ],
+      ],
+      [NEW_APPLICATION_TOTALS, [{ current_count: 4, previous_count: 2 }]],
+      [IMPORTED_PEOPLE, [{ imported_count: 42 }]],
+    ];
+
+    const readOverview = async (filter: AnalyticsFilter = DEFAULT_FILTER) => {
+      const context = setup({ answers: OVERVIEW_ANSWERS });
+      const overview = await context.metricsService.getOverview({
+        workspaceId: WORKSPACE_ID,
+        filter,
+      });
+
+      if (overview === null) {
+        throw new Error('Expected an overview payload');
+      }
+
+      return { overview, statements: context.statements };
+    };
+
+    it('makes the top rows sum to total contacts', async () => {
+      const {
+        overview: { figures, stageTotals },
+      } = await readOverview();
+
+      expect(figures.totalContacts).toBe(32);
+      expect(
+        stageTotals
+          .filter((row) => row.rowKind !== 'NESTED')
+          .reduce((total, row) => total + row.count, 0),
+      ).toBe(32);
+    });
+
+    it('counts active as MAIN or OTHER, not success', async () => {
+      const {
+        overview: { figures },
+      } = await readOverview();
+
+      expect(figures.activePeople).toBe(14);
+    });
+
+    it('nests raw siblings under their stage and marks unmapped values', async () => {
+      const {
+        overview: { stageTotals },
+      } = await readOverview();
+
+      expect(stageTotals.find((row) => row.rowKey === 'SIGNED')).toMatchObject({
+        rowKind: 'MAIN',
+        count: 3,
+        pastLimitCount: null,
+      });
+      expect(
+        stageTotals.filter((row) => row.parentStageKey === 'SIGNED'),
+      ).toEqual([
+        {
+          rowKey: 'SIGNED:SIGNED_PAID',
+          label: 'Signed paid',
+          rowKind: 'NESTED',
+          parentStageKey: 'SIGNED',
+          count: 2,
+          pastLimitCount: null,
+        },
+        {
+          rowKey: 'SIGNED:SIGNED_NON_PAID',
+          label: 'SIGNED_NON_PAID',
+          rowKind: 'NESTED',
+          parentStageKey: 'SIGNED',
+          count: 1,
+          pastLimitCount: null,
+        },
+      ]);
+      expect(stageTotals.filter((row) => row.rowKind === 'UNMAPPED')).toEqual([
+        {
+          rowKey: 'UNMAPPED:LEGACY',
+          label: 'LEGACY',
+          rowKind: 'UNMAPPED',
+          parentStageKey: null,
+          count: 5,
+          pastLimitCount: null,
+        },
+      ]);
+      expect(stageTotals.at(-1)).toEqual({
+        rowKey: 'NO_STAGE',
+        label: 'No stage',
+        rowKind: 'NO_STAGE',
+        parentStageKey: null,
+        count: 7,
+        pastLimitCount: null,
+      });
+    });
+
+    it('gives each row a unique key', async () => {
+      const {
+        overview: { stageTotals },
+      } = await readOverview();
+      const rowKeys = stageTotals.map((row) => row.rowKey);
+
+      expect(new Set(rowKeys).size).toBe(rowKeys.length);
+    });
+
+    it('reports past-limit counts only on stages with a limit', async () => {
+      const {
+        overview: { stageTotals },
+      } = await readOverview();
+
+      expect(
+        stageTotals.find((row) => row.rowKey === 'NEW')?.pastLimitCount,
+      ).toBe(3);
+      expect(
+        stageTotals.find((row) => row.rowKey === 'CONTACTED')?.pastLimitCount,
+      ).toBe(0);
+      expect(
+        stageTotals.find((row) => row.rowKey === 'INTERESTED')?.pastLimitCount,
+      ).toBeNull();
+    });
+
+    it('maps stuck rows, with names read live and the total apart', async () => {
+      const {
+        overview: { figures, stuck },
+      } = await readOverview();
+
+      expect(figures.stuckPeople).toBe(3);
+      expect(figures.inactivePeople).toBe(3);
+      expect(stuck.total).toBe(3);
+      expect(stuck.hasLimits).toBe(true);
+      expect(stuck.rows[0]).toEqual({
+        personId: 'person-1',
+        displayName: 'Ada Lovelace',
+        stageKey: 'NEW',
+        stageLabel: 'New',
+        stageEnteredAt: '2026-10-01T00:00:00.000Z',
+        daysInStage: 37,
+        daysOverLimit: 23,
+        isLowerBound: true,
+      });
+      expect(stuck.rows[1].displayName).toBe('');
+    });
+
+    it('shows the signed figure only when configured', async () => {
+      const {
+        overview: { figures },
+      } = await readOverview();
+
+      expect(figures.signedPeople).toBeNull();
+    });
+
+    it('defaults new applications to the last 7 local days', async () => {
+      const {
+        overview: { figures },
+        statements,
+      } = await readOverview();
+
+      expect(figures).toMatchObject({
+        newApplications: 4,
+        newApplicationsPrevious: 2,
+        newApplicationsFrom: '2026-11-01',
+        newApplicationsTo: '2026-11-07',
+        importedApplications: 12,
+      });
+      expect(
+        statements.find(({ sql }) => NEW_APPLICATION_TOTALS.test(sql))
+          ?.parameters,
+      ).toEqual(
+        expect.arrayContaining([
+          '2026-11-01',
+          '2026-11-07',
+          '2026-10-25',
+          '2026-10-31',
+        ]),
+      );
+    });
+
+    it('compares a date filter with the equal-length span before', async () => {
+      const {
+        overview: { figures },
+        statements,
+      } = await readOverview({
+        ...DEFAULT_FILTER,
+        dateFrom: '2026-10-11',
+        dateTo: '2026-10-20',
+      });
+
+      expect(figures.newApplicationsFrom).toBe('2026-10-11');
+      expect(figures.newApplicationsTo).toBe('2026-10-20');
+      expect(
+        statements.find(({ sql }) => NEW_APPLICATION_TOTALS.test(sql))
+          ?.parameters,
+      ).toEqual(expect.arrayContaining(['2026-10-01', '2026-10-10']));
+    });
+
+    it('joins submissions to scope only with a person filter', async () => {
+      const { statements: unfiltered } = await readOverview();
+      const { statements: filtered } = await readOverview({
+        ...DEFAULT_FILTER,
+        status: 'ACTIVE',
+      });
+
+      expect(
+        unfiltered.find(({ sql }) => NEW_APPLICATION_TOTALS.test(sql))?.sql,
+      ).not.toContain('JOIN scope s ON s.person_id = sub.person_id');
+      expect(
+        filtered.find(({ sql }) => NEW_APPLICATION_TOTALS.test(sql))?.sql,
+      ).toContain('JOIN scope s ON s.person_id = sub.person_id');
+    });
+
+    it('keeps soft-deleted people out of new applications with no person filter', async () => {
+      const { statements } = await readOverview();
+
+      expect(
+        statements.find(({ sql }) => NEW_APPLICATION_TOTALS.test(sql))?.sql,
+      ).toContain(`(s."personId" IS NULL OR p."deletedAt" IS NULL)`);
+    });
+
+    it('gives null new applications without the form objects', async () => {
+      const { metricsService, statements } = setup({
+        answers: OVERVIEW_ANSWERS,
+        state: buildState({ hasFormSubmissionObject: false }),
+      });
+
+      const overview = await metricsService.getOverview({
+        workspaceId: WORKSPACE_ID,
+        filter: DEFAULT_FILTER,
+      });
+
+      expect(overview?.figures.newApplications).toBeNull();
+      expect(overview?.figures.newApplicationsPrevious).toBeNull();
+      expect(
+        statements.some(({ sql }) => NEW_APPLICATION_TOTALS.test(sql)),
+      ).toBe(false);
+    });
+
+    it('limits current state to tracked people under a date filter', async () => {
+      const { overview, statements } = await readOverview({
+        ...DEFAULT_FILTER,
+        dateFrom: '2026-10-01',
+      });
+
+      expect(overview.importedExcludedByDate).toBe(42);
+      expect(
+        statements.find(({ sql }) => STAGE_COUNTS.test(sql))?.sql,
+      ).toContain('p.created_at >= $2');
+
+      const { overview: unfiltered, statements: unfilteredStatements } =
+        await readOverview();
+
+      expect(unfiltered.importedExcludedByDate).toBe(0);
+      expect(
+        unfilteredStatements.some(({ sql }) => IMPORTED_PEOPLE.test(sql)),
+      ).toBe(false);
+    });
+  });
+
+  describe('categories', () => {
+    const FUNNEL_GROUPS = [
+      {
+        group_key: '/ROBOTICS',
+        entered: 6,
+        eligible: 4,
+        reached: 1,
+        reached_so_far: 2,
+        steps: [
+          {
+            stage_key: 'NEW',
+            entered: 6,
+            eligible: 5,
+            reached_next: 2,
+            exited: 1,
+            reached_so_far: 3,
+          },
+        ],
+      },
+    ];
+
+    const TRACK_ANSWERS: SqlAnswer[] = [
+      [
+        CATEGORY_PEOPLE,
+        [
+          {
+            parent_key: null,
+            category_key: 'BUSINESS',
+            people: 5,
+            active_people: 4,
+          },
+          {
+            parent_key: 'BUSINESS',
+            category_key: 'FINANCE_INTERN',
+            people: 3,
+            active_people: 2,
+          },
+          {
+            parent_key: 'BUSINESS',
+            category_key: 'MARKETING_INTERN',
+            people: 4,
+            active_people: 3,
+          },
+          {
+            parent_key: null,
+            category_key: 'ROBOTICS',
+            people: 8,
+            active_people: 8,
+          },
+          {
+            parent_key: null,
+            category_key: 'UNMAPPED',
+            people: 20,
+            active_people: 1,
+          },
+          {
+            parent_key: 'UNMAPPED',
+            category_key: 'OLD_ROLE',
+            people: 20,
+            active_people: 1,
+          },
+          {
+            parent_key: null,
+            category_key: 'NONE',
+            people: 30,
+            active_people: 9,
+          },
+        ],
+      ],
+      [
+        CATEGORY_OVERLAP,
+        [
+          {
+            distinct_people: 60,
+            people_in_several: 7,
+            people_in_several_tracks: 3,
+          },
+        ],
+      ],
+      [
+        CATEGORY_NEW_APPLICATIONS,
+        [{ parent_key: null, category_key: 'ROBOTICS', new_applications: 2 }],
+      ],
+      [/category_member[\s\S]*overall_total a/, FUNNEL_GROUPS],
+    ];
+
+    const readCategories = async ({
+      answers = TRACK_ANSWERS,
+      groupBy = 'TRACK_PROGRAM',
+      state,
+      filter = DEFAULT_FILTER,
+    }: {
+      answers?: SqlAnswer[];
+      groupBy?: 'TRACK_PROGRAM' | 'SOURCE';
+      state?: CrmAnalyticsCrmState;
+      filter?: AnalyticsFilter;
+    } = {}) => {
+      const context = setup({ answers, state });
+      const categories = await context.metricsService.getCategories({
+        workspaceId: WORKSPACE_ID,
+        filter,
+        groupBy,
+      });
+
+      if (categories === null) {
+        throw new Error('Expected a categories payload');
+      }
+
+      return { categories, statements: context.statements };
+    };
+
+    it('puts programs under their track, largest first, catch-alls last', async () => {
+      const {
+        categories: { rows },
+      } = await readCategories();
+
+      expect(rows.map((row) => [row.parentKey, row.key])).toEqual([
+        [null, 'ROBOTICS'],
+        [null, 'BUSINESS'],
+        ['BUSINESS', 'MARKETING_INTERN'],
+        ['BUSINESS', 'FINANCE_INTERN'],
+        [null, 'UNMAPPED'],
+        ['UNMAPPED', 'OLD_ROLE'],
+        [null, 'NONE'],
+      ]);
+    });
+
+    it('labels and flags the rows', async () => {
+      const {
+        categories: { rows },
+      } = await readCategories();
+
+      const findRow = (key: string) => rows.find((row) => row.key === key);
+
+      expect(findRow('ROBOTICS')).toMatchObject({
+        label: 'Robotics & Intelligent Systems',
+        isUnmapped: false,
+      });
+      expect(findRow('FINANCE_INTERN')).toMatchObject({
+        label: 'Finance intern',
+        isUnmapped: false,
+      });
+      expect(findRow('UNMAPPED')).toMatchObject({
+        label: 'Unmapped',
+        isUnmapped: true,
+      });
+      expect(findRow('OLD_ROLE')).toMatchObject({
+        label: 'OLD_ROLE',
+        isUnmapped: true,
+      });
+      expect(findRow('NONE')).toMatchObject({
+        label: 'No position',
+        isUnmapped: false,
+      });
+    });
+
+    it('fills counts, rates and step rates from the funnel group', async () => {
+      const {
+        categories: { rows, stepStageKeys },
+      } = await readCategories();
+      const robotics = rows.find((row) => row.key === 'ROBOTICS');
+
+      expect(stepStageKeys).toEqual([
+        'NEW',
+        'CONTACTED',
+        'BEFORE_MEETING',
+        'SATURDAY_MEETING',
+        'ATTENDED',
+        'SECOND_MEETING',
+        'AGREEMENT_SENT',
+      ]);
+      expect(robotics).toMatchObject({
+        people: 8,
+        activePeople: 8,
+        newApplications: 2,
+        cohortSize: 6,
+        overallEligible: 4,
+        overallRate: 0.25,
+        overallSoFarRate: 2 / 6,
+      });
+      expect(robotics?.stepRates).toHaveLength(7);
+      expect(robotics?.stepRates[0]).toEqual({
+        stageKey: 'NEW',
+        eligible: 5,
+        rate: 0.4,
+        soFarRate: 0.5,
+      });
+      expect(robotics?.stepRates[1]).toEqual({
+        stageKey: 'CONTACTED',
+        eligible: 0,
+        rate: null,
+        soFarRate: null,
+      });
+    });
+
+    it('reports overlap for tracks', async () => {
+      const { categories } = await readCategories();
+
+      expect(categories).toMatchObject({
+        distinctPeople: 60,
+        peopleInSeveral: 7,
+        peopleInSeveralTracks: 3,
+      });
+    });
+
+    it('has one flat row per source, flagging values outside the field options', async () => {
+      const { categories, statements } = await readCategories({
+        groupBy: 'SOURCE',
+        answers: [
+          [
+            CATEGORY_PEOPLE,
+            [
+              {
+                parent_key: null,
+                category_key: 'LINKEDIN',
+                people: 5,
+                active_people: 4,
+              },
+              {
+                parent_key: null,
+                category_key: 'OLD_SITE',
+                people: 9,
+                active_people: 1,
+              },
+              {
+                parent_key: null,
+                category_key: 'NONE',
+                people: 2,
+                active_people: 2,
+              },
+            ],
+          ],
+          [
+            CATEGORY_OVERLAP,
+            [
+              {
+                distinct_people: 16,
+                people_in_several: 0,
+                people_in_several_tracks: 0,
+              },
+            ],
+          ],
+        ],
+      });
+
+      expect(
+        categories.rows.map((row) => [row.key, row.label, row.isUnmapped]),
+      ).toEqual([
+        ['LINKEDIN', 'LinkedIn', false],
+        ['OLD_SITE', 'OLD_SITE', true],
+        ['NONE', 'No source', false],
+      ]);
+      expect(categories.distinctPeople).toBe(16);
+      expect(categories.peopleInSeveral).toBe(0);
+      expect(categories.peopleInSeveralTracks).toBe(0);
+      expect(
+        statements.some(({ sql }) => sql.includes('person_position')),
+      ).toBe(false);
+    });
+
+    it('flags no source as unmapped when the field has no option list', async () => {
+      const { categories } = await readCategories({
+        groupBy: 'SOURCE',
+        state: buildState({
+          applicantSource: { status: 'OK', options: [] },
+        }),
+        answers: [
+          [
+            CATEGORY_PEOPLE,
+            [
+              {
+                parent_key: null,
+                category_key: 'typed by hand',
+                people: 5,
+                active_people: 4,
+              },
+            ],
+          ],
+        ],
+      });
+
+      expect(categories.rows[0].isUnmapped).toBe(false);
+    });
+
+    it('gives null new applications without the form objects', async () => {
+      const { categories, statements } = await readCategories({
+        state: buildState({ hasFormSubmissionObject: false }),
+      });
+
+      expect(categories.rows[0].newApplications).toBeNull();
+      expect(
+        statements.some(({ sql }) => CATEGORY_NEW_APPLICATIONS.test(sql)),
+      ).toBe(false);
+    });
+
+    it('splits the date filter by basis', async () => {
+      const { statements } = await readCategories({
+        filter: {
+          ...DEFAULT_FILTER,
+          dateFrom: '2026-10-01',
+          dateTo: '2026-10-31',
+        },
+      });
+
+      // People: created in range. New applications: submitted in range. Funnel: application date.
+      expect(
+        statements.find(({ sql }) => CATEGORY_PEOPLE.test(sql))?.sql,
+      ).toContain('p.created_at >= $2 AND (p.created_at AT TIME ZONE');
+      expect(
+        statements.find(({ sql }) => CATEGORY_NEW_APPLICATIONS.test(sql))?.sql,
+      ).not.toContain('p.created_at >= $2');
+      expect(
+        statements.find(({ sql }) => /overall_total a/.test(sql))?.sql,
+      ).toContain('s.created_at >= $2 AND (s.created_at AT TIME ZONE');
+    });
+  });
+
+  describe('trends', () => {
+    const readTrends = async ({
+      answers = [],
+      filter = DEFAULT_FILTER,
+      metric,
+      stageKey = null,
+      state,
+    }: {
+      answers?: SqlAnswer[];
+      filter?: AnalyticsFilter;
+      metric: Parameters<CrmAnalyticsMetricsService['getTrends']>[0]['metric'];
+      stageKey?: string | null;
+      state?: CrmAnalyticsCrmState;
+    }) => {
+      const context = setup({ answers, state });
+      const trends = await context.metricsService.getTrends({
+        workspaceId: WORKSPACE_ID,
+        filter,
+        metric,
+        stageKey,
+      });
+
+      if (trends === null) {
+        throw new Error('Expected a trends payload');
+      }
+
+      return { trends, statements: context.statements };
+    };
+
+    it('pairs new applications with the buckets before, counting empties as 0', async () => {
+      const { trends, statements } = await readTrends({
+        metric: 'NEW_APPLICATIONS',
+        answers: [
+          [
+            SUBMISSION_BUCKETS,
+            [
+              { bucket_start: '2026-11-02', bucket_value: 3 },
+              { bucket_start: '2026-08-10', bucket_value: 1 },
+            ],
+          ],
+        ],
+      });
+
+      expect(trends.series).toHaveLength(12);
+      expect(trends.series[11]).toEqual({
+        bucketStart: '2026-11-02',
+        value: 3,
+        previousValue: 1,
+        size: null,
+        isPartial: true,
+      });
+      expect(trends.series[0]).toEqual({
+        bucketStart: '2026-08-17',
+        value: 0,
+        previousValue: 0,
+        size: null,
+        isPartial: false,
+      });
+      expect(
+        statements.find(({ sql }) => SUBMISSION_BUCKETS.test(sql))?.parameters,
+      ).toEqual(expect.arrayContaining(['week', '2026-05-25', '2026-11-08']));
+    });
+
+    it('says why new applications are missing without the form objects', async () => {
+      const { trends, statements } = await readTrends({
+        metric: 'NEW_APPLICATIONS',
+        state: buildState({ hasFormSubmissionObject: false }),
+      });
+
+      expect(trends.unavailableReason).toBe('NO_SUBMISSION_OBJECT');
+      expect(trends.series).toEqual([]);
+      expect(
+        statements.some(({ sql }) => SUBMISSION_BUCKETS.test(sql)),
+      ).toBe(false);
+    });
+
+    it('leaves a bucket with no snapshot null, never 0', async () => {
+      const { trends } = await readTrends({
+        metric: 'TOTAL_CONTACTS',
+        answers: [
+          [
+            SNAPSHOT_BUCKETS,
+            [{ bucket_start: '2026-11-02', bucket_value: 500 }],
+          ],
+        ],
+      });
+
+      expect(trends.series[11].value).toBe(500);
+      expect(trends.series[11].previousValue).toBeNull();
+      expect(trends.series[0].value).toBeNull();
+    });
+
+    it('reads one snapshot dimension at a time', async () => {
+      const dimensionOf = async (filter: Partial<AnalyticsFilter>) => {
+        const { statements } = await readTrends({
+          metric: 'TOTAL_CONTACTS',
+          filter: { ...DEFAULT_FILTER, ...filter },
+        });
+
+        return statements.find(({ sql }) => SNAPSHOT_BUCKETS.test(sql))
+          ?.parameters;
+      };
+
+      expect(await dimensionOf({})).toEqual(expect.arrayContaining(['all', '']));
+      expect(await dimensionOf({ trackKey: 'ROBOTICS' })).toEqual(
+        expect.arrayContaining(['track', 'ROBOTICS']),
+      );
+      expect(await dimensionOf({ programKey: 'FINANCE_INTERN' })).toEqual(
+        expect.arrayContaining(['position', 'FINANCE_INTERN']),
+      );
+      expect(await dimensionOf({ sourceKey: 'NONE' })).toEqual(
+        expect.arrayContaining(['source', 'NONE']),
+      );
+      // A program inside the chosen track is still one dimension.
+      expect(
+        await dimensionOf({ trackKey: 'BUSINESS', programKey: 'FINANCE_INTERN' }),
+      ).toEqual(expect.arrayContaining(['position', 'FINANCE_INTERN']));
+    });
+
+    it.each([
+      [{ trackKey: 'ROBOTICS', sourceKey: 'LINKEDIN' }],
+      [{ programKey: 'FINANCE_INTERN', sourceKey: 'LINKEDIN' }],
+      [{ trackKey: 'ROBOTICS', programKey: 'FINANCE_INTERN' }],
+    ])('refuses the snapshot combination %j', async (filter) => {
+      const { trends, statements } = await readTrends({
+        metric: 'ACTIVE_PEOPLE',
+        filter: { ...DEFAULT_FILTER, ...filter },
+      });
+
+      expect(trends.unavailableReason).toBe('SNAPSHOT_FILTER_COMBINATION');
+      expect(trends.series).toEqual([]);
+      expect(statements.some(({ sql }) => SNAPSHOT_BUCKETS.test(sql))).toBe(
+        false,
+      );
+    });
+
+    it('defaults a stage count to the entry stage and echoes it', async () => {
+      const { trends, statements } = await readTrends({
+        metric: 'STAGE_COUNT',
+      });
+
+      expect(trends.stageKey).toBe('NEW');
+      expect(
+        statements.find(({ sql }) => SNAPSHOT_BUCKETS.test(sql))?.parameters,
+      ).toContain('NEW');
+    });
+
+    it('refuses daily rates', async () => {
+      const { trends } = await readTrends({
+        metric: 'OVERALL_CONVERSION',
+        filter: { ...DEFAULT_FILTER, period: 'DAY' },
+      });
+
+      expect(trends.unavailableReason).toBe('DAILY_RATE');
+      expect(trends.series).toEqual([]);
+      expect(trends.cohorts).toEqual([]);
+    });
+
+    describe('rates by application-date cohort', () => {
+      const buildBucket = (
+        bucketStart: string,
+        overall: { entered: number; eligible: number; reached: number },
+        step: { entered: number; eligible: number; reached_next: number },
+      ) => ({
+        group_key: bucketStart,
+        ...overall,
+        reached_so_far: overall.reached + 1,
+        steps: [
+          {
+            stage_key: 'NEW',
+            ...step,
+            exited: 0,
+            reached_so_far: step.reached_next + 1,
+          },
+        ],
+      });
+
+      const COHORT_ANSWERS: SqlAnswer[] = [
+        [
+          /date_trunc[\s\S]*overall_total a/,
+          [
+            buildBucket(
+              '2026-08-17',
+              { entered: 10, eligible: 10, reached: 2 },
+              { entered: 10, eligible: 10, reached_next: 6 },
+            ),
+            buildBucket(
+              '2026-11-02',
+              { entered: 10, eligible: 9, reached: 2 },
+              { entered: 10, eligible: 9, reached_next: 6 },
+            ),
+          ],
+        ],
+      ];
+
+      it('gives overall conversion only once the bucket is mature', async () => {
+        const { trends } = await readTrends({
+          metric: 'OVERALL_CONVERSION',
+          answers: COHORT_ANSWERS,
+        });
+
+        expect(trends.series[0]).toMatchObject({
+          bucketStart: '2026-08-17',
+          value: 0.2,
+          size: 10,
+        });
+        expect(trends.series[11]).toMatchObject({
+          bucketStart: '2026-11-02',
+          value: null,
+          size: 10,
+        });
+        expect(trends.series[5]).toMatchObject({ value: null, size: 0 });
+      });
+
+      it('gives drop-off for the entry stage unless told otherwise', async () => {
+        const { trends } = await readTrends({
+          metric: 'DROP_OFF',
+          answers: COHORT_ANSWERS,
+        });
+
+        expect(trends.stageKey).toBe('NEW');
+        expect(trends.series[0].value).toBe(0.4);
+        expect(trends.series[11].value).toBeNull();
+      });
+
+      it('builds cohort cells that hide the rate until mature', async () => {
+        const { trends } = await readTrends({
+          metric: 'TOTAL_CONTACTS',
+          answers: COHORT_ANSWERS,
+        });
+        const [matureRow, immatureRow] = trends.cohorts;
+
+        expect(trends.cohorts).toHaveLength(2);
+        expect(matureRow.bucketStart).toBe('2026-08-17');
+        expect(matureRow.size).toBe(10);
+        expect(matureRow.overallRate).toBe(0.2);
+        expect(matureRow.overallSoFarRate).toBe(0.3);
+        expect(matureRow.cells[0]).toEqual({
+          stageKey: 'NEW',
+          entered: 10,
+          eligible: 10,
+          rate: 0.6,
+          soFarRate: 0.7,
+          isMature: true,
+        });
+
+        expect(immatureRow.overallRate).toBeNull();
+        expect(immatureRow.overallSoFarRate).toBe(0.3);
+        expect(immatureRow.cells[0]).toEqual({
+          stageKey: 'NEW',
+          entered: 10,
+          eligible: 9,
+          rate: null,
+          soFarRate: 0.7,
+          isMature: false,
+        });
+      });
+
+      it('groups cohorts by the chosen period and leaves days out', async () => {
+        const { statements } = await readTrends({
+          metric: 'TOTAL_CONTACTS',
+          filter: { ...DEFAULT_FILTER, period: 'MONTH' },
+        });
+
+        expect(
+          statements.find(({ sql }) => /overall_total a/.test(sql))?.parameters,
+        ).toContain('month');
+
+        const { trends, statements: dailyStatements } = await readTrends({
+          metric: 'TOTAL_CONTACTS',
+          filter: { ...DEFAULT_FILTER, period: 'DAY' },
+          answers: COHORT_ANSWERS,
+        });
+
+        expect(trends.cohorts).toEqual([]);
+        expect(dailyStatements.some(({ sql }) => STEP.test(sql))).toBe(false);
+      });
+    });
+
+    it('rounds median days, stays null without stays, and can read one stage', async () => {
+      const { trends, statements } = await readTrends({
+        metric: 'MEDIAN_DAYS',
+        stageKey: 'CONTACTED',
+        answers: [
+          [
+            MEDIAN_BUCKETS,
+            [
+              {
+                bucket_start: '2026-11-02',
+                median_days: 3.14,
+                completed_stays: 8,
+              },
+            ],
+          ],
+        ],
+      });
+
+      expect(trends.stageKey).toBe('CONTACTED');
+      expect(trends.series[11]).toMatchObject({ value: 3.1, size: 8 });
+      expect(trends.series[0]).toMatchObject({ value: null, size: 0 });
+      expect(
+        statements.find(({ sql }) => MEDIAN_BUCKETS.test(sql))?.parameters,
+      ).toContain('CONTACTED');
+    });
+
+    it('reads every stage for median days when none is chosen', async () => {
+      const { trends, statements } = await readTrends({
+        metric: 'MEDIAN_DAYS',
+      });
+
+      expect(trends.stageKey).toBeNull();
+      expect(
+        statements.find(({ sql }) => MEDIAN_BUCKETS.test(sql))?.sql,
+      ).not.toContain('cs.stage_key =');
+    });
+
+    it('reports movement in stage order for the period holding today', async () => {
+      const { trends, statements } = await readTrends({
+        metric: 'TOTAL_CONTACTS',
+        answers: [
+          [
+            MOVEMENT,
+            [
+              {
+                stage_key: 'NEW',
+                entered_in_period: 2,
+                left_in_period: 5,
+                count_now: 40,
+              },
+            ],
+          ],
+        ],
+      });
+
+      expect(trends.movement.from).toBe('2026-11-02');
+      expect(trends.movement.to).toBe(LOCAL_TODAY);
+      expect(trends.movement.rows[0]).toEqual({
+        stageKey: 'NEW',
+        label: 'New',
+        enteredInPeriod: 2,
+        leftInPeriod: 5,
+        countNow: 40,
+      });
+      expect(trends.movement.rows[1]).toEqual({
+        stageKey: 'CONTACTED',
+        label: 'Contacted',
+        enteredInPeriod: 0,
+        leftInPeriod: 0,
+        countNow: 0,
+      });
+      expect(
+        statements.find(({ sql }) => MOVEMENT.test(sql))?.parameters,
+      ).toEqual(expect.arrayContaining(['2026-11-02', LOCAL_TODAY]));
+    });
+
+    it('uses event dates for movement and keeps imported people in', async () => {
+      const { trends, statements } = await readTrends({
+        metric: 'TOTAL_CONTACTS',
+        filter: {
+          ...DEFAULT_FILTER,
+          dateFrom: '2026-10-01',
+          dateTo: '2026-10-31',
+        },
+      });
+
+      expect(trends.movement.from).toBe('2026-10-01');
+      expect(trends.movement.to).toBe('2026-10-31');
+
+      const movementSql =
+        statements.find(({ sql }) => MOVEMENT.test(sql))?.sql ?? '';
+
+      expect(movementSql).toContain('t.happened_at AT TIME ZONE');
+      expect(movementSql).not.toContain('p.created_at >= $2');
+    });
+  });
+
+  describe('every statement', () => {
+    const FILTERS: AnalyticsFilter[] = [
+      DEFAULT_FILTER,
+      { ...DEFAULT_FILTER, dateFrom: '2026-10-01', dateTo: '2026-10-31' },
+      { ...DEFAULT_FILTER, dateFrom: '2026-10-01' },
+      { ...DEFAULT_FILTER, dateTo: '2026-10-31' },
+      { ...DEFAULT_FILTER, status: 'ACTIVE' },
+      { ...DEFAULT_FILTER, status: 'SUCCESS' },
+      { ...DEFAULT_FILTER, status: 'EXITED' },
+      { ...DEFAULT_FILTER, status: 'UNMAPPED' },
+      { ...DEFAULT_FILTER, status: 'NO_STAGE' },
+      { ...DEFAULT_FILTER, trackKey: 'NONE', programKey: 'NONE', sourceKey: 'NONE' },
+      { ...DEFAULT_FILTER, trackKey: 'BUSINESS', programKey: 'FINANCE_INTERN' },
+      { ...DEFAULT_FILTER, sourceKey: 'LINKEDIN', period: 'MONTH' },
+      {
+        ...DEFAULT_FILTER,
+        trackKey: 'UNMAPPED',
+        sourceKey: 'LINKEDIN',
+        status: 'ACTIVE',
+        period: 'DAY',
+        dateFrom: '2026-10-01',
+        dateTo: '2026-10-31',
+      },
+    ];
+
+    const METRICS = [
+      'NEW_APPLICATIONS',
+      'TOTAL_CONTACTS',
+      'ACTIVE_PEOPLE',
+      'STAGE_COUNT',
+      'OVERALL_CONVERSION',
+      'DROP_OFF',
+      'MEDIAN_DAYS',
+    ] as const;
+
+    const collectStatements = async () => {
+      const { metricsService, statements } = setup({
+        answers: [
+          [
+            STUCK_ROWS,
+            [
+              {
+                person_id: 'person-1',
+                current_key: 'NEW',
+                stage_entered_at: NOW,
+                days_in_stage: 20,
+                days_over_limit: 6,
+                is_lower_bound: false,
+                total_count: 1,
+              },
+            ],
+          ],
+        ],
+      });
+
+      for (const filter of FILTERS) {
+        await metricsService.getOverview({
+          workspaceId: WORKSPACE_ID,
+          filter,
+        });
+        await metricsService.getFunnel({ workspaceId: WORKSPACE_ID, filter });
+        await metricsService.getCategories({
+          workspaceId: WORKSPACE_ID,
+          filter,
+          groupBy: 'TRACK_PROGRAM',
+        });
+        await metricsService.getCategories({
+          workspaceId: WORKSPACE_ID,
+          filter,
+          groupBy: 'SOURCE',
+        });
+
+        for (const metric of METRICS) {
+          await metricsService.getTrends({
+            workspaceId: WORKSPACE_ID,
+            filter,
+            metric,
+            stageKey: metric === 'MEDIAN_DAYS' ? 'CONTACTED' : null,
+          });
+        }
+      }
+
+      return statements;
+    };
+
+    it('numbers its parameters without a gap and has no stray comma', async () => {
+      const statements = await collectStatements();
+
+      expect(statements.length).toBeGreaterThan(100);
+      statements.forEach(expectStatementShape);
+    });
+
+    it('only reads', async () => {
+      const statements = await collectStatements();
+
+      statements.forEach(({ sql }) =>
+        expect(sql).not.toMatch(
+          /\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b/,
+        ),
+      );
+    });
+
+    it('ignores no-op rows wherever it reads transitions', async () => {
+      const statements = await collectStatements();
+      const transitionReads = statements.filter(({ sql }) =>
+        sql.includes('analytics.stage_transition'),
+      );
+
+      expect(transitionReads.length).toBeGreaterThan(0);
+      transitionReads.forEach(({ sql }) => {
+        expect(sql.match(/analytics\.stage_transition/g)).toHaveLength(1);
+        expect(sql).toContain('t.from_stage IS DISTINCT FROM t.to_stage');
+      });
+    });
+
+    it('passes filter values as parameters, never in the text', async () => {
+      const hostileValue = `x'; DROP TABLE person; --`;
+      const { metricsService, statements } = setup();
+
+      await metricsService.getOverview({
+        workspaceId: WORKSPACE_ID,
+        filter: {
+          ...DEFAULT_FILTER,
+          trackKey: hostileValue,
+          programKey: hostileValue,
+          sourceKey: hostileValue,
+        },
+      });
+
+      expect(statements.length).toBeGreaterThan(1);
+      statements.forEach(({ sql }) => expect(sql).not.toContain('DROP TABLE'));
+      expect(
+        statements.some(({ parameters }) =>
+          parameters.includes(hostileValue),
+        ),
+      ).toBe(true);
+    });
+
+    it('binds the workspace and tracking start as $1 and $2', async () => {
+      const statements = await collectStatements();
+
+      statements
+        .filter(({ sql }) => sql.includes('crm_person AS ('))
+        .forEach(({ parameters }) => {
+          expect(parameters[0]).toBe(WORKSPACE_ID);
+          expect(parameters[1]).toBe(TRACKING_START);
+        });
+    });
+  });
+});
+
+describe('CrmAnalyticsReportService', () => {
+  const REPORT_ANSWERS: SqlAnswer[] = [
+    [NEW_APPLICATION_TOTALS, [{ current_count: 40, previous_count: 30 }]],
+    [
+      MOVEMENT,
+      [
+        {
+          stage_key: 'NEW',
+          entered_in_period: 40,
+          left_in_period: 5,
+          count_now: 70,
+        },
+      ],
+    ],
+    [FUNNEL_PLAIN, [HAND_SAMPLE_FUNNEL_ROW]],
+    [
+      /date_trunc[\s\S]*overall_total a/,
+      [{ ...HAND_SAMPLE_FUNNEL_ROW, group_key: '2026-08-01' }],
+    ],
+    [CLOCK_TOTALS, [{ current_key: 'NEW', inactive_count: 1, stuck_count: 3 }]],
+  ];
+
+  const INSERT_REPORT = /INSERT INTO analytics\.report/;
+  const EXISTING_REPORTS =
+    /SELECT r\.period_type, r\.period_start::text AS period_start\s+FROM analytics\.report/;
+
+  const setupBuild = (answers: SqlAnswer[] = []) => {
+    const context = setup({
+      answers: [
+        ...answers,
+        [INSERT_REPORT, [{ period_start: 'inserted' }]],
+        ...REPORT_ANSWERS,
+      ],
+    });
+
+    return {
+      ...context,
+      insertedReports: () =>
+        context.statements
+          .filter(({ sql }) => INSERT_REPORT.test(sql))
+          .map(({ parameters }) => ({
+            parameters,
+            report: JSON.parse(String(parameters[5])) as AnalyticsReport,
+          })),
+    };
+  };
+
+  it('builds oldest first, capped at 8, and returns how many were stored', async () => {
+    const { reportService, run, insertedReports } = setupBuild();
+
+    await expect(
+      reportService.buildMissingReports({
+        workspaceId: WORKSPACE_ID,
+        state: buildState(),
+        run,
+      }),
+    ).resolves.toBe(8);
+
+    expect(
+      insertedReports().map(({ parameters }) => [parameters[1], parameters[2]]),
+    ).toEqual([
+      ['WEEK', '2026-08-03'],
+      ['WEEK', '2026-08-10'],
+      ['WEEK', '2026-08-17'],
+      ['WEEK', '2026-08-24'],
+      ['MONTH', '2026-08-01'],
+      ['WEEK', '2026-08-31'],
+      ['WEEK', '2026-09-07'],
+      ['WEEK', '2026-09-14'],
+    ]);
+  });
+
+  it('skips stored periods and does not count a lost insert', async () => {
+    const { reportService, run, statements } = setupBuild([
+      [
+        EXISTING_REPORTS,
+        [
+          { period_type: 'WEEK', period_start: '2026-08-03' },
+          { period_type: 'MONTH', period_start: '2026-08-01' },
+        ],
+      ],
+      [INSERT_REPORT, []],
+    ]);
+
+    await expect(
+      reportService.buildMissingReports({
+        workspaceId: WORKSPACE_ID,
+        state: buildState(),
+        run,
+      }),
+    ).resolves.toBe(0);
+
+    const inserted = statements.filter(({ sql }) => INSERT_REPORT.test(sql));
+
+    expect(inserted).toHaveLength(8);
+    expect(inserted[0].parameters[2]).toBe('2026-08-10');
+    expect(inserted[0].sql).toContain('ON CONFLICT DO NOTHING');
+  });
+
+  it('stores counts only, on the same shape as the page, with cohorts on months', async () => {
+    const { reportService, run, insertedReports } = setupBuild();
+
+    await reportService.buildMissingReports({
+      workspaceId: WORKSPACE_ID,
+      state: buildState(),
+      run,
+    });
+
+    const reports = insertedReports();
+    const week = reports[0].report;
+    const month = reports[4].report;
+
+    expect(week).toMatchObject({
+      periodType: 'WEEK',
+      periodStart: '2026-08-03',
+      periodEnd: '2026-08-10',
+      generatedAt: NOW,
+      asOf: NOW,
+      trackingStartedAt: TRACKING_START,
+      reportingTimeZone: 'UTC',
+      minimumSample: 30,
+      newApplications: 40,
+      newApplicationsPrevious: 30,
+    });
+    expect(week.cohorts).toEqual([]);
+    expect(week.funnel.rows[0].stepRate).toBe(0.4);
+    expect(week.categories.groupBy).toBe('TRACK_PROGRAM');
+    expect(week.stuckByStage[0]).toEqual({
+      stageKey: 'NEW',
+      label: 'New',
+      count: 3,
+    });
+    expect(JSON.stringify(week)).not.toContain('displayName');
+
+    expect(month.periodType).toBe('MONTH');
+    expect(month.cohorts).toHaveLength(1);
+    expect(month.cohorts[0].bucketStart).toBe('2026-08-01');
+  });
+
+  it('compares counts against the previous period, flagging significant ones', async () => {
+    const { reportService, run, insertedReports } = setupBuild();
+
+    await reportService.buildMissingReports({
+      workspaceId: WORKSPACE_ID,
+      state: buildState(),
+      run,
+    });
+
+    const { comparisons } = insertedReports()[0].report;
+
+    expect(comparisons[0]).toEqual({
+      metricKey: 'NEW_APPLICATIONS',
+      label: 'New applications',
+      current: 40,
+      previous: 30,
+      isSignificant: true,
+    });
+    expect(comparisons[1]).toEqual({
+      metricKey: 'ENTERED_NEW',
+      label: 'Entered New',
+      current: 40,
+      previous: 40,
+      isSignificant: false,
+    });
+  });
+
+  it('uses the period for events and everything up to its end for rates', async () => {
+    const { reportService, run, statements } = setupBuild();
+
+    await reportService.buildMissingReports({
+      workspaceId: WORKSPACE_ID,
+      state: buildState(),
+      run,
+    });
+
+    const firstReportStatements = statements.slice(
+      0,
+      statements.findIndex(({ sql }) => INSERT_REPORT.test(sql)),
+    );
+
+    expect(
+      firstReportStatements.find(({ sql }) => NEW_APPLICATION_TOTALS.test(sql))
+        ?.parameters,
+    ).toEqual(
+      expect.arrayContaining([
+        '2026-08-03',
+        '2026-08-09',
+        '2026-07-27',
+        '2026-08-02',
+      ]),
+    );
+    expect(
+      firstReportStatements.find(({ sql }) => FUNNEL_PLAIN.test(sql))
+        ?.parameters,
+    ).toContain('2026-08-09');
+    expect(
+      firstReportStatements.find(({ sql }) => FUNNEL_PLAIN.test(sql))
+        ?.parameters,
+    ).not.toContain('2026-08-03');
+    expect(
+      firstReportStatements.find(({ sql }) => CATEGORY_PEOPLE.test(sql))?.sql,
+    ).not.toContain('p.created_at >= $2');
+  });
+
+  describe('reading stored reports', () => {
+    it('gives null when switched off, without opening a transaction', async () => {
+      const { reportService, runPageTransaction } = setup({ isDisabled: true });
+
+      await expect(reportService.listReports(WORKSPACE_ID)).resolves.toBeNull();
+      await expect(
+        reportService.getReport({
+          workspaceId: WORKSPACE_ID,
+          periodType: 'WEEK',
+          periodStart: '2026-08-03',
+        }),
+      ).resolves.toBeNull();
+      expect(runPageTransaction).not.toHaveBeenCalled();
+    });
+
+    it('checks for storage before reading', async () => {
+      const { reportService, statements } = setup({ hasStorage: false });
+
+      await expect(reportService.listReports(WORKSPACE_ID)).resolves.toEqual([]);
+      await expect(
+        reportService.getReport({
+          workspaceId: WORKSPACE_ID,
+          periodType: 'WEEK',
+          periodStart: '2026-08-03',
+        }),
+      ).resolves.toBeNull();
+      expect(statements.every(({ sql }) => sql.includes('to_regclass'))).toBe(
+        true,
+      );
+    });
+
+    it('lists without payloads, turning timestamps into ISO strings', async () => {
+      const { reportService, statements } = setup({
+        answers: [
+          [
+            /ORDER BY r\.period_start DESC/,
+            [
+              {
+                period_type: 'MONTH',
+                period_start: '2026-08-01',
+                period_end: '2026-09-01',
+                generated_at: new Date(NOW),
+              },
+            ],
+          ],
+        ],
+      });
+
+      await expect(reportService.listReports(WORKSPACE_ID)).resolves.toEqual([
+        {
+          periodType: 'MONTH',
+          periodStart: '2026-08-01',
+          periodEnd: '2026-09-01',
+          generatedAt: NOW,
+        },
+      ]);
+      expect(
+        statements.find(({ sql }) => sql.includes('ORDER BY'))?.sql,
+      ).not.toContain('payload');
+    });
+
+    it('returns a stored payload as stored, or null', async () => {
+      const payload = { periodType: 'WEEK', frozen: true };
+      const { reportService, statements } = setup({
+        answers: [[/SELECT r\.payload/, [{ payload }]]],
+      });
+
+      await expect(
+        reportService.getReport({
+          workspaceId: WORKSPACE_ID,
+          periodType: 'WEEK',
+          periodStart: '2026-08-03',
+        }),
+      ).resolves.toEqual(payload);
+      expect(
+        statements.find(({ sql }) => sql.includes('r.payload'))?.parameters,
+      ).toEqual([WORKSPACE_ID, 'WEEK', '2026-08-03']);
+
+      const { reportService: emptyReportService } = setup();
+
+      await expect(
+        emptyReportService.getReport({
+          workspaceId: WORKSPACE_ID,
+          periodType: 'WEEK',
+          periodStart: '2026-08-03',
+        }),
+      ).resolves.toBeNull();
+    });
+  });
+});
