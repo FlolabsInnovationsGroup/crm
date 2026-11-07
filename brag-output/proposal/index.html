@@ -1,0 +1,676 @@
+<title>Meet Manager Buddy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column. Every section opens in plain words; a "technical detail" layer can be switched on for engineers. */
+:root {
+  --paper: #f3f5f4;
+  --sheet: #ffffff;
+  --ink: #17221f;
+  --muted: #59685f;
+  --rule: #d5ddda;
+  --soft: #e7edeb;
+  --buddy: #136b56;
+  --buddy-soft: #dcefe8;
+  --ask: #a0650c;
+  --ask-soft: #fbefd9;
+  --never: #b3261e;
+  --never-soft: #f8e1df;
+  --tech: #3d4f78;
+  --tech-soft: #e6eaf4;
+  --night-bg: #0f1a2b;
+  --night-card: #16243a;
+  --night-ink: #e8eef6;
+  --night-muted: #a3b3c9;
+  --night-rule: #263854;
+  --night-accent: #6fd6b8;
+  --night-amber: #e8b25c;
+  --night-red: #f2928a;
+  --night-blue: #a9c1ea;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1513; --sheet: #161f1c; --ink: #dde7e3; --muted: #97a9a2; --rule: #2b3935; --soft: #1e2a27;
+    --buddy: #4fc1a2; --buddy-soft: #133029; --ask: #e6a646; --ask-soft: #33260f; --never: #f2766d; --never-soft: #3a1a18;
+    --tech: #9db1e0; --tech-soft: #1d2438; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f1513; --sheet: #161f1c; --ink: #dde7e3; --muted: #97a9a2; --rule: #2b3935; --soft: #1e2a27;
+  --buddy: #4fc1a2; --buddy-soft: #133029; --ask: #e6a646; --ask-soft: #33260f; --never: #f2766d; --never-soft: #3a1a18;
+  --tech: #9db1e0; --tech-soft: #1d2438; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.6; }
+.wrap { max-width: 920px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; display: flex; flex-direction: column; gap: 64px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font: 750 clamp(44px, 8vw, 76px)/1 var(--display); letter-spacing: -.015em; }
+h1 span, .accent { color: var(--buddy); }
+h2 { font: 600 clamp(26px, 3.6vw, 34px)/1.15 var(--display); }
+h3 { font: 600 19px/1.3 var(--display); }
+p { margin: 0; max-width: 66ch; }
+ul, ol { margin: 0; padding-left: 20px; }
+li { margin-block: 4px; }
+code { font-family: var(--mono); font-size: .85em; background: var(--soft); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+a { color: var(--buddy); }
+section { display: flex; flex-direction: column; gap: 20px; scroll-margin-top: 20px; }
+.eyebrow { font: 500 12.5px var(--mono); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.head { display: flex; flex-direction: column; gap: 6px; }
+.lede { font-size: 20px; line-height: 1.5; color: var(--muted); max-width: 58ch; }
+.note { font-size: 14.5px; color: var(--muted); }
+
+.hero { display: flex; flex-direction: column; gap: 18px; }
+.ask { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 22px 24px; display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.5fr); gap: 22px; }
+.ask .label { font: 500 12.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--buddy); }
+.ask h3 { font-size: 23px; margin-top: 6px; }
+.ask ol { display: flex; flex-direction: column; gap: 6px; padding-left: 22px; }
+.ask li { margin: 0; }
+@media (max-width: 680px) { .ask { grid-template-columns: 1fr; } }
+
+.mode { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; align-self: flex-start; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--paper); padding-block: 10px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+.mode span { font-size: 14.5px; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); padding: 3px; }
+.seg button { font: 500 14.5px var(--body); color: var(--muted); background: transparent; border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.seg button:focus-visible, summary:focus-visible, .chapters button:focus-visible { outline: 2px solid var(--buddy); outline-offset: 2px; }
+
+.short { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.short div { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.short h3 { font-size: 17px; color: var(--buddy); }
+.short .never h3 { color: var(--never); }
+.short p { font-size: 16px; }
+@media (max-width: 640px) { .short { grid-template-columns: 1fr; } }
+
+.facts { display: flex; flex-wrap: wrap; gap: 12px 36px; }
+.fact b { display: block; font: 750 40px/1.05 var(--display); font-variant-numeric: tabular-nums; }
+.fact span { font-size: 15px; color: var(--muted); }
+
+.video { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.video video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #0d1412; }
+.chapters { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px; border-top: 1px solid var(--rule); }
+.chapters button { font: 500 14px var(--body); color: var(--ink); background: var(--soft); border: 0; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.chapters button b { font: 500 12.5px var(--mono); color: var(--muted); margin-right: 6px; font-weight: 500; }
+
+.rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.rule { background: var(--buddy-soft); border-radius: 10px; padding: 20px 22px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rule .n { font: 750 40px/1 var(--display); color: var(--buddy); }
+.rule h3 { font-size: 21px; }
+.rule p { font-size: 16px; }
+@media (max-width: 680px) { .rules { grid-template-columns: 1fr; } }
+
+details.tech { border: 1px solid var(--tech-soft); background: color-mix(in srgb, var(--tech-soft) 45%, var(--sheet)); border-radius: 10px; }
+details.tech summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; padding: 12px 16px; font: 500 14.5px var(--body); color: var(--tech); }
+details.tech summary::-webkit-details-marker { display: none; }
+details.tech summary::before { content: "+"; font: 500 16px var(--mono); width: 18px; text-align: center; }
+details.tech[open] summary::before { content: "−"; }
+details.tech .in { padding: 0 18px 18px 44px; display: flex; flex-direction: column; gap: 10px; font-size: 15.5px; min-width: 0; }
+details.tech .in li { margin-block: 3px; }
+
+.scroll { overflow-x: auto; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; min-width: 560px; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--rule); }
+th { font: 500 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--paper); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.in .scroll table { font-size: 14.5px; }
+
+.levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.lvl { background: var(--sheet); border: 1px solid var(--rule); border-top: 4px solid var(--buddy); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.lvl.tell { border-top-color: color-mix(in srgb, var(--buddy) 55%, var(--ask)); }
+.lvl.ask2 { border-top-color: var(--ask); }
+.lvl.never { border-top-color: var(--never); background: var(--never-soft); border-color: transparent; border-top-color: var(--never); }
+.lvl .tag { font: 500 12px var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.lvl h3 { font-size: 17px; }
+.lvl ul { font-size: 15px; padding-left: 18px; }
+@media (max-width: 760px) { .levels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 440px) { .levels { grid-template-columns: 1fr; } }
+
+figure { margin: 0; }
+.flow { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; }
+.flow .sx { overflow-x: auto; }
+.flow svg { display: block; width: 100%; min-width: 620px; height: auto; color: var(--ink); font-family: var(--body); }
+svg .box { fill: var(--sheet); stroke: var(--rule); stroke-width: 1.5; }
+svg .box-b { fill: var(--buddy-soft); stroke: var(--buddy); stroke-width: 1.6; }
+svg .tb { fill: var(--ink); font-size: 15px; font-weight: 600; }
+svg .t { fill: var(--ink); font-size: 13.5px; }
+svg .ts { fill: var(--muted); font-size: 12px; }
+svg .tg { fill: var(--buddy); font-size: 12.5px; font-weight: 500; }
+svg .ln { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+svg .lb { stroke: var(--buddy); stroke-width: 2.2; fill: none; }
+svg .ah { fill: var(--muted); }
+svg .ahb { fill: var(--buddy); }
+figcaption { font-size: 14.5px; color: var(--muted); margin-top: 10px; max-width: 70ch; }
+
+.cost { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cost div { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cost b { font: 750 34px/1.05 var(--display); font-variant-numeric: tabular-nums; }
+.cost span { font-size: 15px; color: var(--muted); }
+@media (max-width: 680px) { .cost { grid-template-columns: 1fr; } }
+.budget { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--soft); }
+.budget i { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14.5px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: 0; }
+
+.gantt { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; overflow-x: auto; }
+.gantt .grid { min-width: 620px; display: grid; grid-template-columns: 210px repeat(12, minmax(0, 1fr)); row-gap: 8px; align-items: center; font-size: 14.5px; }
+.gantt .wk { font: 500 11.5px var(--mono); color: var(--muted); text-align: center; }
+.gantt .bar { height: 22px; border-radius: 5px; background: var(--buddy); }
+.gantt .bar.light { background: color-mix(in srgb, var(--buddy) 45%, var(--sheet)); }
+.gantt .bar.later { background: transparent; border: 1.5px dashed var(--buddy); }
+.gantt .name { padding-right: 10px; }
+.phases { display: flex; flex-direction: column; gap: 10px; }
+.phase { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; }
+.phase .when { font: 500 13px var(--mono); color: var(--buddy); }
+.phase .when b { display: block; font: 600 17px var(--display); color: var(--ink); }
+.phase p { font-size: 15.5px; }
+.phase .done { color: var(--muted); font-size: 14.5px; margin-top: 4px; }
+@media (max-width: 560px) { .phase { grid-template-columns: 1fr; gap: 4px; } }
+
+.faq { display: flex; flex-direction: column; gap: 8px; }
+.faq details { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; }
+.faq summary { cursor: pointer; padding: 14px 18px; font: 600 16.5px var(--body); list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font: 500 18px var(--mono); color: var(--muted); }
+.faq details[open] summary::after { content: "−"; }
+.faq .a { padding: 0 18px 16px; font-size: 16px; color: var(--ink); }
+
+.decide { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.decide > div { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.decide h3 { font-size: 18px; }
+.decide ol { padding-left: 22px; font-size: 15.5px; display: flex; flex-direction: column; gap: 6px; }
+.decide ol li { margin: 0; }
+.decide .rec { color: var(--buddy); font-weight: 500; }
+.decide .now { border-color: var(--buddy); box-shadow: inset 0 0 0 1px var(--buddy); }
+@media (max-width: 680px) { .decide { grid-template-columns: 1fr; } }
+
+.changed { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 22px; }
+.changed ul { font-size: 15.5px; display: flex; flex-direction: column; gap: 4px; }
+footer { font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--rule); padding-top: 18px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.diff { background: var(--night-bg); color: var(--night-ink); border-radius: 16px; padding-block: 34px; padding-inline: clamp(18px, 4vw, 40px); gap: 24px; }
+.diff .eyebrow { color: var(--night-accent); }
+.diff h2 { font: 750 clamp(30px, 4.6vw, 46px)/1.08 var(--display); letter-spacing: -.01em; }
+.diff h2 span { color: var(--night-accent); }
+.diff .lede { color: var(--night-muted); font-size: 18.5px; }
+.vs-wrap { overflow-x: auto; border: 1px solid var(--night-rule); border-radius: 12px; }
+table.vs { min-width: 560px; font-size: 15.5px; }
+.vs th, .vs td { border-bottom: 1px solid var(--night-rule); padding: 11px 16px; }
+.vs thead th { background: transparent; color: var(--night-muted); }
+.vs thead th.b { color: var(--night-accent); }
+.vs tbody th { font: 500 13px var(--mono); color: var(--night-muted); text-transform: none; letter-spacing: .02em; background: transparent; width: 24%; }
+.vs td { color: var(--night-muted); }
+.vs tbody tr:last-child th, .vs tbody tr:last-child td { border-bottom: 0; }
+@media (max-width: 640px) {
+  table.vs { min-width: 0; }
+  .vs thead { display: none; }
+  .vs tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-bottom: 1px solid var(--night-rule); }
+  .vs tbody tr:last-child { border-bottom: 0; }
+  .vs tbody th { grid-column: 1 / -1; width: auto; border-bottom: 0; padding-bottom: 0; }
+  .vs th, .vs td { border-bottom: 0; }
+  .vs td::before { content: attr(data-label); display: block; font: 500 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--night-muted); margin-bottom: 2px; }
+  .vs td.b::before { color: var(--night-accent); }
+}
+@media (max-width: 480px) {
+  .log li { grid-template-columns: 46px minmax(0, 1fr); row-gap: 4px; }
+  .log .s { grid-column: 2; justify-self: start; }
+}
+.vs td.b { color: var(--night-ink); background: rgba(111, 214, 184, .07); }
+.shift { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 760px) { .shift { grid-template-columns: 1fr; } }
+.panel { background: var(--night-card); border: 1px solid var(--night-rule); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.panel h3 { font-size: 19px; color: var(--night-ink); }
+.panel .sub { font-size: 13.5px; color: var(--night-muted); margin-top: -6px; }
+.log, .days { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
+.log li { display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding-block: 7px; border-top: 1px solid var(--night-rule); font-size: 15px; margin: 0; }
+.log time, .days b { font: 500 13px var(--mono); color: var(--night-muted); }
+.log .s { font: 600 11.5px var(--body); padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+.s.done { background: rgba(111, 214, 184, .14); color: var(--night-accent); }
+.s.told { background: rgba(169, 193, 234, .16); color: var(--night-blue); }
+.s.need { background: rgba(232, 178, 92, .16); color: var(--night-amber); }
+.s.alert { background: rgba(242, 146, 138, .16); color: var(--night-red); }
+.panel .task { font: 600 16.5px/1.4 var(--display); color: var(--night-ink); }
+.days { gap: 10px; }
+.days li { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 10px; margin: 0; font-size: 15px; }
+.days b { color: var(--night-accent); font-weight: 500; }
+.panel .result { background: rgba(111, 214, 184, .12); color: var(--night-accent); border-radius: 8px; padding: 10px 12px; font-weight: 600; font-size: 15px; margin-top: auto; }
+.limits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 680px) { .limits { grid-template-columns: 1fr; } }
+.limits div { border: 1px solid var(--night-rule); border-radius: 10px; padding: 14px 16px; font-size: 15px; color: var(--night-muted); min-width: 0; }
+.limits b { display: block; color: var(--night-ink); font: 600 16.5px var(--display); margin-bottom: 4px; }
+.diff details.tech { background: var(--night-card); border-color: var(--night-rule); }
+.diff details.tech summary { color: var(--night-blue); }
+.diff details.tech .in { color: var(--night-ink); }
+.diff code { background: rgba(255, 255, 255, .08); color: inherit; }
+.diff summary:focus-visible { outline-color: var(--night-accent); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <span class="eyebrow">Proposal · FloLabs recruiting team · November 2026</span>
+  <h1>Manager <span>Buddy</span></h1>
+  <p class="lede">An AI teammate for the recruiting team that works on its own, around the clock. It follows up, finishes tasks that take days, watches for problems, and tells you what it did and what needs you. You can also talk to it like a colleague, by chat, voice or email.</p>
+  <div class="ask">
+    <div><span class="label">What we're asking for</span><h3>Three yeses to start</h3></div>
+    <ol>
+      <li>Agree the <a href="#rules">two rules</a> that protect the CRM and our data.</li>
+      <li>Start the first three weeks: a safe test copy of the CRM, then Buddy's core with a live cost meter.</li>
+      <li>Set the AI budget at <strong>$35 a month</strong>, as a hard cap.</li>
+    </ol>
+  </div>
+</header>
+
+<div class="mode" role="group" aria-label="Reading level">
+  <span>Reading as</span>
+  <div class="seg">
+    <button type="button" id="mode-plain" aria-pressed="true">Everyone</button>
+    <button type="button" id="mode-tech" aria-pressed="false">With technical detail</button>
+  </div>
+</div>
+
+<section class="diff" aria-labelledby="diff-h" id="different">
+  <div class="head"><span class="eyebrow">What makes it different</span><h2 id="diff-h">The chatbot waits to be asked. <span>Buddy just works.</span></h2></div>
+  <p class="lede">The CRM's chatbot is useful, but it only does something when a person opens it and asks. Buddy is given work and gets on with it: day and night, across days, with nobody watching. It comes back with results, or when it needs a decision.</p>
+  <div class="vs-wrap"><table class="vs">
+    <thead><tr><th scope="col"><span class="sr">Question</span></th><th scope="col">The CRM chatbot today</th><th scope="col" class="b">Manager Buddy</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">When it works</th><td data-label="Chatbot">When someone opens it and asks</td><td class="b" data-label="Buddy">All the time, day and night</td></tr>
+      <tr><th scope="row">Who starts the work</th><td data-label="Chatbot">You do, every time</td><td class="b" data-label="Buddy">Buddy does: on a schedule, when an email arrives or a record changes, or when you assign it a task</td></tr>
+      <tr><th scope="row">A job that takes days</th><td data-label="Chatbot">Can't; each answer ends with the chat</td><td class="b" data-label="Buddy">Plans the steps, checks back for days, and finishes it</td></tr>
+      <tr><th scope="row">Follow-ups</th><td data-label="Chatbot">Only if someone remembers</td><td class="b" data-label="Buddy">Sent on time, within quiet hours and limits</td></tr>
+      <tr><th scope="row">When something breaks</th><td data-label="Chatbot">You find out later</td><td class="b" data-label="Buddy">The owner hears within 5 minutes</td></tr>
+      <tr><th scope="row">Next morning</th><td data-label="Chatbot">Nothing new</td><td class="b" data-label="Buddy">A briefing: what it did, and what needs you</td></tr>
+    </tbody>
+  </table></div>
+  <div class="shift">
+    <div class="panel">
+      <h3>One night with Buddy</h3><span class="sub">Example: Tuesday night, nobody signed in</span>
+      <ol class="log">
+        <li><time>22:00</time><span>Lead search: 11 new companies added</span><span class="s done">Done</span></li>
+        <li><time>23:40</time><span>Sorted 31 new emails by topic</span><span class="s done">Done</span></li>
+        <li><time>00:15</time><span>Sent 4 routine replies of a trusted kind</span><span class="s told">Owners told</span></li>
+        <li><time>01:30</time><span>Drafted 3 new replies for approval</span><span class="s need">Needs you</span></li>
+        <li><time>02:05</time><span>Set follow-ups for 9 stuck applicants</span><span class="s done">Sends 09:00</span></li>
+        <li><time>03:10</time><span>Workflow failed: retried, owner emailed</span><span class="s alert">Alert</span></li>
+        <li><time>05:40</time><span>Interested lead: task created for Maya</span><span class="s need">Needs you</span></li>
+        <li><time>06:30</time><span>Prepared 8 morning briefings</span><span class="s done">Done</span></li>
+        <li><time>08:00</time><span>Briefings sent</span><span class="s done">Sent</span></li>
+      </ol>
+    </div>
+    <div class="panel">
+      <h3>One task, start to finish</h3><span class="sub">Example: assigned to Buddy in the CRM on Monday</span>
+      <p class="task">"Get a Masterclass form from everyone in Attended by Friday."</p>
+      <ol class="days">
+        <li><b>Mon</b><span>Finds 40 people in Attended. 14 haven't sent the form, so it reminds them with the approved email.</span></li>
+        <li><b>Wed</b><span>Checks again: 9 more sent it. It reminds the other 5.</span></li>
+        <li><b>Fri</b><span>37 of 40 done. It hands the last 3 to Maya as a CRM task.</span></li>
+      </ol>
+      <p class="result">Done on its own in 5 days. Nobody had to chase it.</p>
+    </div>
+  </div>
+  <div class="limits">
+    <div><b>Within your role</b>Every action goes through the CRM's own permissions, day or night.</div>
+    <div><b>New kinds of email wait</b>Anything new waits for a yes in the morning. Only trusted kinds go out on their own.</div>
+    <div><b>Capped, logged, stoppable</b>A daily budget cap, quiet hours, a log of every action, and one switch to pause.</div>
+  </div>
+  <details class="tech"><summary>Technical detail: how Buddy runs on its own</summary><div class="in">
+    <ul>
+      <li>Work starts in four ways: schedules, CRM events by webhook (new email, form submitted, record changed, workflow run finished), tasks assigned to the Buddy user in the CRM, and messages from allowlisted team addresses.</li>
+      <li>A task becomes a plan stored in Buddy's database. Each step is a durable job in <code>pg-boss</code> on Buddy's own Postgres, with retries and a unique key, so no step runs twice and nothing is lost on a restart. A wait of days or months is just a scheduled job.</li>
+      <li>Before each action Buddy checks the autonomy level for that kind of action, the acting person's role (enforced by the CRM), the budget and quiet hours. Anything above its level becomes an approval.</li>
+      <li>Progress goes onto the CRM task as notes. When the work is done Buddy closes its own task; when it's stuck it creates a task for the owner. If the person who assigned it loses access, the task stops and the team is told.</li>
+      <li>Buddy watches itself too: a missed or doubled job, or spend at 50, 80 and 100% of budget, emails the admin. At the cap it pauses.</li>
+    </ul>
+  </div></details>
+</section>
+
+<section aria-labelledby="short">
+  <div class="head"><span class="eyebrow">In one minute</span><h2 id="short">The short version</h2></div>
+  <div class="short">
+    <div><h3>What it is</h3><p>A teammate that sits next to the CRM and works through it on its own, like a new hire with their own desk who never logs off.</p></div>
+    <div><h3>What it does</h3><p>Works the pipeline day and night: follow-ups, reply drafts, tasks that take days, alerts when something breaks, and a morning briefing on what it did. You can also just ask it things.</p></div>
+    <div class="never"><h3>What it never does</h3><p>Change the CRM itself, show you anything you can't already see, decide on an applicant, or spend past its cap.</p></div>
+    <div><h3>What it costs, and when</h3><p>About $22 a month in AI, capped at $35. Useful from week 3. Everything in this plan is done in 12 weeks.</p></div>
+  </div>
+</section>
+
+<section aria-labelledby="why">
+  <div class="head"><span class="eyebrow">Why</span><h2 id="why">The pipeline is bigger than the team's attention</h2></div>
+  <div class="facts">
+    <div class="fact"><b>42,975</b><span>people in the CRM</span></div>
+    <div class="fact"><b>30,048</b><span>email threads</span></div>
+    <div class="fact"><b>25</b><span>pipeline stages</span></div>
+  </div>
+  <p>Today, a follow-up happens only if someone remembers it. The chatbot in the CRM helps only when someone opens it and asks. Buddy works the other way round: it watches the pipeline, does the follow-ups, and comes to us.</p>
+</section>
+
+<section aria-labelledby="see" id="demo">
+  <div class="head"><span class="eyebrow">See it</span><h2 id="see">A day and a night with Buddy, in two minutes</h2></div>
+  <div class="video">
+    <video id="demo-video" controls preload="metadata" playsinline poster="demo.jpg"><source src="demo.mp4" type="video/mp4"></video>
+    <div class="chapters">
+      <button type="button" data-t="12.2"><b>0:12</b>Chatbot vs Buddy</button>
+      <button type="button" data-t="21"><b>0:21</b>Overnight</button>
+      <button type="button" data-t="40"><b>0:40</b>Morning briefing</button>
+      <button type="button" data-t="49"><b>0:49</b>A task, start to finish</button>
+      <button type="button" data-t="69"><b>1:09</b>Just ask</button>
+      <button type="button" data-t="81.5"><b>1:21</b>Acts as you</button>
+      <button type="button" data-t="90.5"><b>1:30</b>Asks first</button>
+      <button type="button" data-t="102.5"><b>1:42</b>Live cost</button>
+    </div>
+  </div>
+  <p class="note">This is a concept demo. Buddy isn't built yet, and every person, company and number inside the app is an example.</p>
+</section>
+
+<section aria-labelledby="rules-h" id="rules">
+  <div class="head"><span class="eyebrow">The two rules</span><h2 id="rules-h">Every step of the plan keeps these two promises</h2></div>
+  <div class="rules">
+    <div class="rule"><span class="n">1</span><h3>Nothing in the existing CRM is removed or changed</h3><p>Buddy is added next to the CRM, not inside it. It goes through the same doors the CRM's own chatbot uses. Switch Buddy off and the CRM works exactly as it does today.</p></div>
+    <div class="rule"><span class="n">2</span><h3>Company data is protected, and every release is tested</h3><p>Buddy never opens the CRM's database directly. Before each release we test on a copy of the real CRM, once with Buddy off and once with it on, and only then go live.</p></div>
+  </div>
+  <details class="tech"><summary>Technical detail: how the rules are enforced</summary><div class="in">
+    <ul>
+      <li>Buddy is a separate service with its own server, Postgres, job queue and logs. It has no access to the CRM's database or Redis.</li>
+      <li>It reaches the CRM only through public interfaces: the MCP endpoint the chatbot uses (<code>engine/api/mcp</code>), REST and GraphQL, the CRM's OAuth server, and webhooks.</li>
+      <li>CRM code changes: none in every phase. If a gap ever needs one, it goes in as new files behind a switch that is off by default, tested on staging, and listed in a "CRM touchpoints" register. Today the register is empty.</li>
+      <li>Every release: restore the latest production backup to staging, run the CRM regression suite with Buddy off, switch Buddy on and run its own tests, run the CRM suite again including response times (within 10%), then release right after a backup. A Buddy release never ships together with a CRM release.</li>
+      <li>The regression suite covers login and permissions per role, People and Applications views, public forms, team inbox and email, workflows and the chatbot. It's automated with Playwright (the repo already has <code>twenty-e2e-testing</code>) plus a 15-minute manual checklist.</li>
+      <li>Staging comes from a backup because a fresh, empty install currently fails to create its first workspace (the <code>FORM_SUBMISSIONS</code> widget type issue). Production is not affected.</li>
+      <li>Rollback is stopping Buddy. Every record Buddy creates or edits is logged with who asked and why, so it can be listed and reverted.</li>
+    </ul>
+  </div></details>
+</section>
+
+<section aria-labelledby="asyou">
+  <div class="head"><span class="eyebrow">Permissions</span><h2 id="asyou">Buddy can do what you can do, and nothing more</h2></div>
+  <p>Buddy logs in as the person it's helping, using the CRM's own sign-in. The CRM then checks every action against that person's role, just like it does for them. A read-only user gets a read-only Buddy.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>When</th><th>Buddy acts as</th><th>What that means</th></tr></thead>
+    <tbody>
+      <tr><td>You chat or talk to Buddy</td><td>You</td><td>It can only do what your role allows. Anything that writes or deletes asks you to confirm first.</td></tr>
+      <tr><td>A task you assigned or scheduled</td><td>You</td><td>If your access changes or you leave, the task stops and tells the team.</td></tr>
+      <tr><td>Team jobs: monitoring, reports, leads</td><td>The "Buddy" user</td><td>A normal CRM user with its own role, set by an admin.</td></tr>
+      <tr><td>Always, on top</td><td>Buddy's own limit</td><td>A ceiling for everyone, admins included. We suggest no settings, roles or data-model changes.</td></tr>
+    </tbody>
+  </table></div>
+  <details class="tech"><summary>Technical detail: we checked this in our code</summary><div class="in">
+    <ul>
+      <li>When an app acts for a user, the CRM allows an action only if <strong>both</strong> the user's role and the app's own role allow it: <code>resolveCallerRoles</code> in <code>mcp-protocol.service.ts</code> and <code>build-user-role-ids-by-source.util.ts</code>.</li>
+      <li>The CRM's OAuth server accepts self-registered apps with the authorization-code and refresh-token grants (<code>oauth-registration.controller.ts</code>). Each person connects Buddy once.</li>
+      <li>Option A (recommended): use the existing APIs, so no CRM code changes, and the CRM is unaffected if Buddy fails. Option B, a module inside the CRM, is only for a gap the APIs can't cover.</li>
+      <li>API load stays under the CRM's own rate limits for apps; Buddy paces itself below them. End-to-end login is tested on staging in week 1.</li>
+    </ul>
+  </div></details>
+</section>
+
+<section aria-labelledby="freedom">
+  <div class="head"><span class="eyebrow">Autonomy</span><h2 id="freedom">How much it does on its own</h2></div>
+  <div class="levels">
+    <div class="lvl"><span class="tag">Do</span><h3>Acts and logs it</h3><ul><li>Read and search</li><li>Answer questions</li><li>Reports and notes</li><li>Alerts to the team</li></ul></div>
+    <div class="lvl tell"><span class="tag">Do and tell</span><h3>Acts, then tells you</h3><ul><li>Routine replies, once trusted</li><li>Follow-up reminders</li><li>Check-ins with old contacts</li></ul></div>
+    <div class="lvl ask2"><span class="tag">Ask first</span><h3>Drafts, waits for a yes</h3><ul><li>New kinds of email</li><li>Stage changes</li><li>Bulk edits, merges, deletes</li><li>New workflows</li></ul></div>
+    <div class="lvl never"><span class="tag">Never</span><h3>Blocked in code</h3><ul><li>Change roles or settings</li><li>Go beyond your role</li><li>Decide on an applicant</li><li>Go over budget</li></ul></div>
+  </div>
+  <p>Every kind of email starts at <strong>Ask first</strong>. It moves to <strong>Do and tell</strong> only after two weeks in which 90% or more of its drafts were sent unchanged. Anyone can see that score for each kind of email.</p>
+  <p class="note">Decisions about applicants stay with people. GDPR forbids decisions about people made only by a machine, and the EU AI Act treats AI in recruitment as high-risk.</p>
+</section>
+
+<section aria-labelledby="watch">
+  <div class="head"><span class="eyebrow">Monitoring</span><h2 id="watch">What it keeps an eye on</h2></div>
+  <div class="scroll"><table>
+    <thead><tr><th>What</th><th>What you get</th></tr></thead>
+    <tbody>
+      <tr><td>A CRM workflow failed</td><td>An email to the owner within 5 minutes</td></tr>
+      <tr><td>A mailbox stopped syncing</td><td>An email, and a line in the daily report</td></tr>
+      <tr><td>The CRM is down or slow</td><td>An email straight away</td></tr>
+      <tr><td>Someone replied with interest</td><td>An email plus a CRM task for the owner</td></tr>
+      <tr><td>Buddy's own jobs or budget</td><td>An email to the admin; at 100% of budget Buddy pauses</td></tr>
+    </tbody>
+  </table></div>
+  <p>Every morning at 08:00, each person gets a briefing: new applicants and leads, replies waiting, people stuck in a stage, tasks done or stuck, anything that failed, and yesterday's cost. It only contains what that person's role can see. On Fridays there's a weekly report with the funnel by stage and source.</p>
+  <details class="tech"><summary>Technical detail: scheduling and checks</summary><div class="in">
+    <ul>
+      <li>Work arrives four ways: chat or voice, email from an allowlisted team address, a CRM task assigned to the Buddy user, or a schedule.</li>
+      <li>The scheduler is a durable job queue in Buddy's own Postgres (<code>pg-boss</code>): retries, waits of months, no job runs twice, nothing lost on restart. It never uses the CRM's Redis or worker.</li>
+      <li>Failed workflow runs come from the workflow tools (<code>list_workflow_runs</code>) and webhooks; mailbox state from the sync status in the API; health from the health endpoint and response times.</li>
+      <li>Buddy only reads, and adds notes, tasks and emails through the CRM. It doesn't turn on, edit or delete existing CRM workflows.</li>
+    </ul>
+  </div></details>
+</section>
+
+<section aria-labelledby="how">
+  <div class="head"><span class="eyebrow">How it fits together</span><h2 id="how">Next to the CRM, never inside it</h2></div>
+  <figure class="flow">
+    <div class="sx">
+    <svg viewBox="0 0 820 300" role="img" aria-label="The team talks to Manager Buddy by chat, voice, email or CRM tasks. Buddy runs on its own server with its own memory and schedule. It reaches the FloLabs CRM only through the CRM's own APIs, signed in as the person it helps. The CRM itself is unchanged.">
+      <defs>
+        <marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+        <marker id="m2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ahb"/></marker>
+      </defs>
+      <rect x="10" y="40" width="170" height="220" rx="10" class="box"/>
+      <text x="30" y="70" class="tb">Your team</text>
+      <text x="30" y="104" class="t">Chat</text><text x="30" y="134" class="t">Voice</text><text x="30" y="164" class="t">Email</text><text x="30" y="194" class="t">CRM tasks</text>
+      <text x="30" y="234" class="ts">same Buddy behind each</text>
+
+      <rect x="260" y="20" width="270" height="260" rx="12" class="box-b"/>
+      <text x="280" y="50" class="tb">Manager Buddy</text>
+      <text x="280" y="70" class="ts">its own server and database</text>
+      <text x="280" y="106" class="t">Brain (Claude, FloBrain later)</text>
+      <text x="280" y="134" class="t">Memory</text>
+      <text x="280" y="162" class="t">Schedule and alerts</text>
+      <text x="280" y="190" class="t">Cost meter and budget</text>
+      <text x="280" y="218" class="t">Voice</text>
+      <text x="280" y="256" class="tg">signs in as you</text>
+
+      <rect x="620" y="40" width="190" height="220" rx="10" class="box"/>
+      <text x="640" y="70" class="tb">FloLabs CRM</text>
+      <text x="640" y="90" class="ts">unchanged</text>
+      <text x="640" y="126" class="t">People, applicants</text>
+      <text x="640" y="154" class="t">Emails, tasks</text>
+      <text x="640" y="182" class="t">Workflows</text>
+      <text x="640" y="210" class="t">Roles and permissions</text>
+
+      <line x1="180" y1="150" x2="256" y2="150" class="ln" marker-end="url(#m1)"/>
+      <line x1="530" y1="130" x2="616" y2="130" class="lb" marker-end="url(#m2)"/>
+      <text x="573" y="120" text-anchor="middle" class="tg">its APIs</text>
+      <line x1="620" y1="180" x2="534" y2="180" class="ln" marker-end="url(#m1)"/>
+      <text x="577" y="200" text-anchor="middle" class="ts">news of changes</text>
+    </svg>
+    </div>
+    <figcaption>Only one part of Buddy knows about our CRM. A CRM update can break Buddy in one place at most, and Buddy can never break the CRM.</figcaption>
+  </figure>
+  <details class="tech"><summary>Technical detail: components and outside services</summary><div class="in">
+    <ul>
+      <li><strong>Login:</strong> CRM OAuth plus a team allowlist. <strong>Brain:</strong> a Claude agent loop with a model router (Haiku 5.5 for sorting and quick lookups, Sonnet 5.5 for conversation and drafts, Opus 5.5 only for planning).</li>
+      <li><strong>Tools adapter:</strong> the only part that knows the CRM. It also wraps Apify, n8n and email. Contract tests run on every CRM upgrade.</li>
+      <li><strong>Model adapter:</strong> every model call goes through one thin adapter, so FloBrain can replace Claude later as one new adapter, one job at a time, with Claude as fallback. No extra FloBrain work in this plan.</li>
+      <li><strong>Reused from the CRM as is:</strong> MCP tools, OAuth, roles, webhooks, Tasks, the workflow tools, the chatbot's usage records (<code>agentTurn</code>), and the app system for an optional voice button or cost widget inside the CRM.</li>
+      <li><strong>Outside services:</strong> Anthropic; speech (local models or Deepgram and Cartesia); Apify for lead search; n8n for Calendly, Zoom and Slack; Telnyx for phone calls later.</li>
+    </ul>
+  </div></details>
+</section>
+
+<section aria-labelledby="mem">
+  <div class="head"><span class="eyebrow">Memory</span><h2 id="mem">It remembers, but it checks the facts</h2></div>
+  <p>Buddy keeps a record of conversations, emails, people, leads and decisions, so nobody has to explain things twice. You can search it by meaning: "who mentioned robotics experience?"</p>
+  <p>For facts like stages, counts and who replied, it never trusts its memory. It reads them live from the CRM, so it can't report something that's no longer true. And it won't show you a memory from a record you can't open in the CRM.</p>
+  <details class="tech"><summary>Technical detail: six layers, all in Buddy's own Postgres</summary><div class="in">
+    <ol>
+      <li><strong>Facts</strong> read live from the CRM with the user's permissions, never copied as truth.</li>
+      <li><strong>Event log</strong>, append-only: every conversation, transcript, email, action, alert and run.</li>
+      <li><strong>Search by meaning:</strong> pgvector plus full-text search for names and addresses. Embeddings from a local model by default, so text stays on our servers.</li>
+      <li><strong>Knowledge graph</strong> in Postgres tables: people, companies, leads and campaigns with dated links (replied to, met, referred by).</li>
+      <li><strong>Team rules</strong>, small and edited by the team, loaded every time ("never email applicants on Fridays").</li>
+      <li><strong>Working memory:</strong> the conversation in hand, compacted when long, repeated context cached.</li>
+    </ol>
+    <ul>
+      <li>Each memory points to its source record and is re-checked with the user's login before it's shown.</li>
+      <li>When a person is deleted in the CRM, a webhook deletes their memories too (GDPR).</li>
+      <li>About 2 to 4 GB for 43k people and about 100k emails, growing 1 to 2 GB a year. Filled from webhooks and slow, throttled reads at night.</li>
+      <li>Start with Postgres. Graphiti or Mem0 are options to trial later. Avoid Kùzu (archived October 2025) and FalkorDB (SSPL licence).</li>
+    </ul>
+  </div></details>
+</section>
+
+<section aria-labelledby="voice">
+  <div class="head"><span class="eyebrow">Voice and leads</span><h2 id="voice">Talk to it, and let it find new contacts</h2></div>
+  <p><strong>Voice.</strong> Hold a button and talk, then Buddy answers out loud. It's the same Buddy as in chat, with the same permissions and memory. It comes first in the Buddy web app, then optionally as a button inside the CRM, and later as a phone number. Free local voices cover English. If we need Arabic, we'll use a paid voice.</p>
+  <p><strong>Leads</strong> (weeks 9 to 12). Buddy searches for new contacts, removes anyone already in the CRM, scores the rest, and adds only qualified ones. Then it sends a personal first email and a few follow-ups, and tells the owner within five minutes when someone is interested. Cold email goes from a separate domain, with small daily limits and an unsubscribe link, so it can never hurt delivery of our emails to applicants.</p>
+  <details class="tech"><summary>Technical detail: voice pipeline and lead flow</summary><div class="in">
+    <ul>
+      <li>Anthropic has no public real-time voice API, so voice is a pipeline: microphone, turn detection, speech-to-text, Buddy's brain, text-to-speech. Target: first words back in about a second, measured in phase 4.</li>
+      <li>Recommended: Pipecat (BSD-2) for the pipeline; Moonshine or faster-whisper for speech-to-text; Kokoro (Apache-2.0, CPU) for the voice. Hosted options: Deepgram Nova-3, Cartesia Sonic or ElevenLabs Flash. Phone via Telnyx later.</li>
+      <li>The CRM's app system supports apps with a microphone permission, so a voice button inside the CRM needs no CRM change. To confirm on our version in staging.</li>
+      <li>Leads: Apify actors through Apify's official MCP server, dedupe by email and domain, rules first then Haiku 5.5 through the Batch API for scoring, Sonnet 5.5 for first emails. Raw scraped data stays in Buddy's database.</li>
+      <li>Before the first send: a GDPR legitimate-interest check and telling people where we got their details (Art. 14); country rules (Germany needs consent even for B2B); no LinkedIn scraping.</li>
+      <li>Workflows Buddy drafts are created switched off and named "[Buddy] ...". A person reviews and switches them on. Existing workflows are never edited.</li>
+    </ul>
+  </div></details>
+</section>
+
+<section aria-labelledby="cost">
+  <div class="head"><span class="eyebrow">Cost</span><h2 id="cost">About $22 a month in AI, with a hard cap</h2></div>
+  <div class="cost">
+    <div><b>~$22</b><span>a month in AI tokens, mostly the cheapest model (Haiku 5.5)</span></div>
+    <div><b>$35</b><span>hard monthly cap. Alerts at 50, 80 and 100%, then Buddy pauses</span></div>
+    <div><b>~9 months</b><span>how long $200 in Claude credits lasts at this rate</span></div>
+  </div>
+  <figure>
+    <div class="budget" role="img" aria-label="The $35 monthly budget: Haiku for everyday work $16, Sonnet for critical tasks $6, voice $3.50, buffer for spikes and testing $9.50.">
+      <i style="width:45.7%;background:var(--buddy)"></i><i style="width:17.1%;background:color-mix(in srgb, var(--buddy) 55%, var(--sheet))"></i><i style="width:10%;background:var(--ask)"></i><i style="width:27.2%;background:var(--rule)"></i>
+    </div>
+    <figcaption class="legend"><span style="--c:var(--buddy)">Haiku, everyday work $16</span><span style="--c:color-mix(in srgb, var(--buddy) 55%, var(--sheet))">Sonnet, critical tasks $6</span><span style="--c:var(--ask)">Voice $3.50</span><span style="--c:var(--rule)">Buffer $9.50</span></figcaption>
+  </figure>
+  <p>Every AI call is metered the moment it happens and shown on a live dashboard, so we never find out from the invoice. One switch pauses one feature or all of Buddy, and the CRM carries on as normal.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Other costs</th><th>Amount</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td>Buddy's own server</td><td class="num">about $51 a month</td><td>From week 1. Or $0 extra if we run it as a capped container on the current server (decision 2).</td></tr>
+      <tr><td>Speech</td><td class="num">$0 to $45 a month</td><td>$0 with free local voices; $8 to $45 for paid ones.</td></tr>
+      <tr><td>Lead search and outreach mailboxes</td><td class="num">from about $29 a month</td><td>Only from week 9. Apify Starter plan, plus mailboxes on a separate domain. Third-party prices, to confirm.</td></tr>
+    </tbody>
+  </table></div>
+  <details class="tech"><summary>Technical detail: scenarios and how we keep it low</summary><div class="in">
+    <div class="scroll"><table>
+      <thead><tr><th>Scenario</th><th>Per month</th><th>$200 lasts</th></tr></thead>
+      <tbody>
+        <tr><td>A. Haiku 5.5 only</td><td class="num">~$16</td><td class="num">~12 months</td></tr>
+        <tr><td>B. Haiku, with Sonnet 5.5 for about 20 critical tasks and 1% of requests (recommended)</td><td class="num">~$22</td><td class="num">~9 months</td></tr>
+        <tr><td>C. Haiku, with Sonnet for 50 jobs and 5% of requests</td><td class="num">~$34</td><td class="num">~6 months</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>Levers: prompt caching (repeated context re-read at 5% of input price), the model router, the Batch API at 50% off for anything nobody waits for, plain queries before AI (Claude only sees the shortlist, never 43k people), 30-day reuse of scores and summaries, Haiku prompts kept under 100K tokens to avoid the 5x price tier.</li>
+      <li>The ledger records model, input, cache write, cache read and output tokens per call, plus who asked, which feature and which task. It's checked against Anthropic's usage report daily (target: within 2%). Buddy gets its own Anthropic workspace and key.</li>
+      <li>The chatbot's own usage is read from <code>agentTurn</code> and shown on the same dashboard, read-only.</li>
+      <li>The first estimate (about $280 a month) was for the original wider scope with heavier models. The narrower scope (email, campaigns, task updates and tasks people ask for, no CV processing) brought it to about $22. Claude prices from Anthropic's pricing page, 31 Oct 2026.</li>
+      <li>Before relying on the $200: confirm it's API credit in the Claude Console, and whether it expires.</li>
+    </ul>
+  </div></details>
+</section>
+
+<section aria-labelledby="when">
+  <div class="head"><span class="eyebrow">Timeline</span><h2 id="when">Twelve weeks, useful from week 3</h2></div>
+  <div class="gantt" role="img" aria-label="Week 1: safety net. Weeks 2 to 3: core and cost meter. Weeks 3 to 5: memory. Weeks 5 to 7: tasks, autonomy and alerts. Weeks 7 to 9: voice. Weeks 9 to 12: leads and workflows. Cost tuning runs from week 4 onward.">
+    <div class="grid">
+      <span></span><span class="wk">W1</span><span class="wk">W2</span><span class="wk">W3</span><span class="wk">W4</span><span class="wk">W5</span><span class="wk">W6</span><span class="wk">W7</span><span class="wk">W8</span><span class="wk">W9</span><span class="wk">W10</span><span class="wk">W11</span><span class="wk">W12</span>
+      <span class="name">Safety net</span><span class="bar" style="grid-column:2 / 3"></span>
+      <span class="name">Core and cost meter</span><span class="bar" style="grid-column:3 / 5"></span>
+      <span class="name">Memory</span><span class="bar" style="grid-column:4 / 7"></span>
+      <span class="name">Tasks, autonomy, alerts</span><span class="bar" style="grid-column:6 / 9"></span>
+      <span class="name">Voice</span><span class="bar" style="grid-column:8 / 11"></span>
+      <span class="name">Leads and workflows</span><span class="bar" style="grid-column:10 / 14"></span>
+      <span class="name">Cost tuning</span><span class="bar light" style="grid-column:5 / 14"></span>
+    </div>
+  </div>
+  <div class="phases">
+    <div class="phase"><div class="when">Week 1<b>Safety net</b></div><div><p>A test copy of the real CRM, the regression tests run twice as a baseline, Buddy's CRM user and sign-in.</p><p class="done">Done when the tests pass twice in a row and signing in as a person works end to end.</p></div></div>
+    <div class="phase"><div class="when">Weeks 2 to 3<b>Core and cost</b></div><div><p>Chat with Buddy, signed in as you, with the live cost meter, budgets and the pause switch.</p><p class="done">Done when a read-only user can't change anything through Buddy, and Buddy's cost matches Anthropic's report within 2%.</p></div></div>
+    <div class="phase"><div class="when">Weeks 3 to 5<b>Memory</b></div><div><p>Buddy remembers and can search by meaning, with the permission check and deletion on request.</p><p class="done">Done when it answers a 50-question "who mentioned X" test correctly and nobody sees memory from records they can't open.</p></div></div>
+    <div class="phase"><div class="when">Weeks 5 to 7<b>Works on its own</b></div><div><p>Schedules, alerts, daily and weekly reports, email sorting and drafts, then Do and tell for trusted email types.</p><p class="done">Done after a week with no missed or doubled job, and alerts within 5 minutes.</p></div></div>
+    <div class="phase"><div class="when">Weeks 7 to 9<b>Voice</b></div><div><p>Talk to Buddy in its app, and optionally from a button in the CRM.</p><p class="done">Done when first words come back in about a second and answers match chat.</p></div></div>
+    <div class="phase"><div class="when">Weeks 9 to 12<b>Leads</b></div><div><p>Lead search, outreach and follow-up, interest alerts, workflow drafts.</p><p class="done">Done after two weeks with bounces under 2%, no complaints, and every interested reply flagged within 5 minutes.</p></div></div>
+    <div class="phase"><div class="when">Next phase<b>FloBrain</b></div><div><p>FloBrain becomes Buddy's brain, one job at a time, with Claude kept as a fallback.</p><p class="done">Done when FloBrain matches Claude on the same test set.</p></div></div>
+  </div>
+</section>
+
+<section aria-labelledby="faq">
+  <div class="head"><span class="eyebrow">Questions people ask</span><h2 id="faq">Straight answers</h2></div>
+  <div class="faq">
+    <details><summary>What does it do when nobody is around?</summary><div class="a">It keeps working: it sorts new email, sends follow-ups on time, carries on with tasks it was given, retries or reports anything that failed, and prepares the next morning's briefing. Anything it isn't trusted to do alone waits for a person.</div></details>
+    <details><summary>What stops it going wrong at night, with nobody watching?</summary><div class="a">The same limits apply day and night. It acts only within people's roles, new kinds of email wait for approval, it keeps quiet hours, and spending has a daily cap. Every action is logged and can be listed and reverted, and one switch pauses it.</div></details>
+    <details><summary>Will it change or slow down the CRM?</summary><div class="a">No. It runs on its own server and uses the CRM the way any outside app would, within the CRM's own limits. Response times are part of every release test, and must stay within 10%.</div></details>
+    <details><summary>Can it show me things I'm not allowed to see?</summary><div class="a">No. It acts with your role, and the CRM checks every request. Memories are re-checked against the CRM with your login before you see them.</div></details>
+    <details><summary>Will it email applicants without asking?</summary><div class="a">Not at first. Every kind of email starts as a draft that a person approves. A kind of email may go out on its own only after two weeks in which 90% of its drafts were sent unchanged, and the team can see that score.</div></details>
+    <details><summary>What if an email tries to trick it?</summary><div class="a">Text from applicants and leads is treated as information, never as instructions. Only team members can give Buddy orders, and what it may do is fixed by the autonomy levels, whatever an email says.</div></details>
+    <details><summary>What if it breaks, or costs too much?</summary><div class="a">We switch it off and the CRM carries on as before. Spending is capped per day, per person and per month, with alerts at 50, 80 and 100%, and Buddy pauses at the cap.</div></details>
+    <details><summary>Is this legal under GDPR?</summary><div class="a">Buddy never decides on an applicant, it keeps a log of every action, deleting a person in the CRM deletes their memories, and lead outreach gets a legitimate-interest check and country rules before the first send. A DPIA comes before anything ranks applicants. This is a summary, not legal advice.</div></details>
+  </div>
+</section>
+
+<section aria-labelledby="decide">
+  <div class="head"><span class="eyebrow">For this meeting</span><h2 id="decide">Decisions we need</h2></div>
+  <div class="decide">
+    <div class="now"><h3>Needed now</h3><ol>
+      <li>The two rules, and using the existing APIs only. <span class="rec">Recommended.</span></li>
+      <li>Where Buddy runs: its own server (about $51 a month) or a capped container on the current one. <span class="rec">Recommended: own server.</span></li>
+      <li>The monthly AI budget and daily cap per person. <span class="rec">Recommended: $35 a month.</span></li>
+      <li>Who sets the Buddy user's role and Buddy's limit.</li>
+    </ol></div>
+    <div><h3>Needed later</h3><ol start="5">
+      <li>Voice: free local voices or paid ones, and do we need Arabic? (week 7)</li>
+      <li>Search model: local or a paid provider. <span class="rec">Recommended: local.</span> (week 3)</li>
+      <li>Which kinds of email may send without approval after the trial. (week 7)</li>
+      <li>Lead targets, countries, outreach domain and daily limits. (week 9)</li>
+    </ol></div>
+  </div>
+</section>
+
+<section aria-labelledby="changed">
+  <div class="head"><span class="eyebrow">If you saw the 28 October proposal</span><h2 id="changed">What changed since then</h2></div>
+  <div class="changed"><ul>
+    <li>Buddy keeps its data in its own database instead of lists inside the CRM, so the CRM stays exactly as it is.</li>
+    <li>Buddy signs in as each person instead of using one shared key, so it can never do more than they can.</li>
+    <li>Voice, memory search and lead generation are now part of the plan.</li>
+    <li>Cost is metered live with a $35 monthly cap, instead of only a daily limit.</li>
+    <li>Every release is tested on a copy of the real CRM, before and after Buddy is switched on.</li>
+  </ul></div>
+</section>
+
+<footer>
+  <span>Based on the Manager Buddy implementation plan (31 Oct 2026), which stays the full technical reference, and the first proposal of 28 Oct 2026.</span>
+  <span>Facts about our CRM were checked in the code on <code>automations_branch</code>. Claude prices from Anthropic's pricing page on 31 Oct 2026; other vendor prices are third-party estimates.</span>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var plain = document.getElementById('mode-plain');
+  var tech = document.getElementById('mode-tech');
+  function setMode(isTech) {
+    plain.setAttribute('aria-pressed', String(!isTech));
+    tech.setAttribute('aria-pressed', String(isTech));
+    document.querySelectorAll('details.tech').forEach(function (d) { d.open = isTech; });
+    try { localStorage.setItem('buddy-mode', isTech ? 'tech' : 'plain'); } catch (e) {}
+  }
+  plain.addEventListener('click', function () { setMode(false); });
+  tech.addEventListener('click', function () { setMode(true); });
+  try { if (localStorage.getItem('buddy-mode') === 'tech') setMode(true); } catch (e) {}
+
+  var video = document.getElementById('demo-video');
+  document.querySelectorAll('.chapters button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      video.currentTime = parseFloat(b.dataset.t);
+      var p = video.play();
+      if (p && p.catch) p.catch(function () {});
+    });
+  });
+})();
+</script>

@@ -1,0 +1,798 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Manager Buddy demo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=block">
+<style>
+:root {
+  --paper: #f3f5f4;
+  --sheet: #ffffff;
+  --ink: #1b2421;
+  --muted: #66746f;
+  --rule: #e3e8e6;
+  --soft: #f1f4f3;
+  --buddy: #136b56;
+  --buddy-soft: #dcefe8;
+  --ask: #a8690c;
+  --ask-soft: #fbefd9;
+  --never: #b3261e;
+  --never-soft: #f8e1df;
+  --told: #3f5f86;
+  --told-soft: #e6eef7;
+  --dark: #0d1412;
+  --display: "Bricolage Grotesque", system-ui, sans-serif;
+  --ui: "Inter", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--paper); }
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: var(--ui); color: var(--ink); }
+#bg { position: absolute; inset: 0; background: var(--paper); }
+#glow { position: absolute; width: 1400px; height: 1400px; border-radius: 50%; background: radial-gradient(circle, rgba(19,107,86,.13) 0%, rgba(19,107,86,0) 60%); left: 900px; top: -300px; }
+#night { position: absolute; inset: 0; background: radial-gradient(1500px 900px at 65% 0%, #1c3054 0%, #0e1829 58%, #0a111d 100%); opacity: 0; }
+#stars { position: absolute; inset: 0; opacity: 0; }
+.star { position: absolute; border-radius: 50%; background: #e3ebff; }
+#dawn { position: absolute; inset: 0; background: linear-gradient(to top, rgba(255,186,120,.62) 0%, rgba(255,205,150,.22) 38%, rgba(255,205,150,0) 70%); opacity: 0; }
+#bgdark { position: absolute; inset: 0; background: radial-gradient(1200px 700px at 30% 40%, #16231f 0%, var(--dark) 70%); }
+.abs { position: absolute; }
+[data-in] { opacity: 0; will-change: transform, opacity; }
+
+/* hook */
+#hook { left: 160px; top: 200px; width: 1600px; color: #e9f1ee; }
+.stat { font: 750 118px/1.02 var(--display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.stat small { font: 600 54px var(--display); color: #8fb3a8; margin-left: 22px; letter-spacing: 0; }
+#hookq { font: 600 76px/1.1 var(--display); color: #5fd0b0; margin-top: 54px; }
+
+/* reveal + outro */
+.center { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.logo { width: 132px; height: 132px; border-radius: 50%; }
+.big { font: 750 150px/1 var(--display); letter-spacing: -.025em; }
+.big span { color: var(--buddy); }
+.sub { font: 500 40px/1.35 var(--ui); color: var(--muted); }
+
+/* the difference */
+.vs-title { position: absolute; left: 0; right: 0; top: 112px; text-align: center; font: 750 92px/1 var(--display); letter-spacing: -.02em; }
+.vs-title span { color: var(--buddy); }
+.cmp { position: absolute; top: 272px; width: 700px; height: 600px; border-radius: 22px; padding: 30px 34px; }
+.cmp.old { left: 230px; background: #eef1f0; border: 1px solid #dfe5e3; }
+.cmp.new { left: 990px; background: var(--sheet); border: 2px solid var(--buddy); box-shadow: 0 40px 90px rgba(20,40,35,.14); }
+.cmp .top { display: flex; align-items: center; gap: 14px; font: 650 29px var(--ui); }
+.cmp .face { width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center; flex: none; }
+.cmp.old .face { background: #d9dfdd; }
+.cmp.new .face { background: var(--buddy); }
+.cmp .state { margin-left: auto; font: 600 17px var(--ui); padding: 6px 14px; border-radius: 16px; display: flex; align-items: center; gap: 8px; }
+.cmp.old .state { background: #e1e6e4; color: #7b8884; }
+.cmp.new .state { background: var(--buddy-soft); color: var(--buddy); }
+.cmp .foot { position: absolute; left: 34px; right: 34px; bottom: 30px; font: 500 25px var(--ui); color: #7b8884; }
+.cmp.new .foot { color: var(--buddy); font-weight: 650; }
+.idle { position: absolute; left: 34px; right: 34px; top: 112px; height: 384px; border: 2px dashed #d3dbd8; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #8a9692; font: 500 25px var(--ui); }
+.zz { display: flex; gap: 10px; }
+.zz i { width: 12px; height: 12px; border-radius: 50%; background: #aab5b1; display: block; }
+.ticker { position: absolute; left: 34px; right: 34px; top: 112px; height: 384px; overflow: hidden; }
+.ti { position: absolute; left: 0; right: 0; height: 56px; display: flex; align-items: center; gap: 16px; font: 500 23px var(--ui); background: var(--soft); border-radius: 12px; padding: 0 18px; }
+.ti b { font: 500 18px var(--mono); color: var(--buddy); font-weight: 500; }
+
+/* caption column */
+.cap { position: absolute; left: 120px; top: 330px; width: 520px; }
+.eyebrow { font: 500 21px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--buddy); }
+.cap h2 { font: 650 66px/1.05 var(--display); letter-spacing: -.015em; margin-top: 18px; }
+.cap p { font: 400 29px/1.45 var(--ui); color: var(--muted); margin-top: 26px; }
+.cap.night .eyebrow { color: #6fd6b8; }
+.cap.night h2 { color: #eef4f1; }
+.cap.night p { color: #a9bccb; }
+
+/* app window */
+#app { left: 700px; top: 110px; width: 1110px; height: 860px; background: var(--sheet); border-radius: 18px; box-shadow: 0 40px 90px rgba(20,40,35,.16), 0 0 0 1px rgba(20,40,35,.06); overflow: hidden; }
+#side { position: absolute; left: 0; top: 0; bottom: 0; width: 250px; background: #fafbfb; border-right: 1px solid var(--rule); padding: 26px 18px; }
+.brand { display: flex; align-items: center; gap: 12px; font: 650 21px var(--ui); padding: 0 8px 26px; }
+.brand img { width: 38px; height: 38px; border-radius: 50%; }
+.brand div small { display: block; font: 500 14px var(--ui); color: var(--muted); }
+.nav { position: relative; display: flex; align-items: center; gap: 12px; height: 50px; padding: 0 12px; border-radius: 9px; font: 500 19px var(--ui); color: #4c5955; }
+.nav .ico { width: 22px; height: 22px; flex: none; }
+.navhl { position: absolute; left: 18px; width: 214px; height: 50px; border-radius: 9px; background: var(--buddy-soft); }
+.badge { margin-left: auto; position: relative; width: 26px; height: 22px; font: 600 14px/22px var(--ui); background: var(--ask); color: #fff; border-radius: 11px; text-align: center; }
+.badge span { position: absolute; left: 0; right: 0; top: 0; }
+.conn { position: absolute; left: 18px; right: 18px; bottom: 22px; font: 500 15px/1.4 var(--ui); color: var(--muted); background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; }
+.conn b { display: flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #2fb37f; display: inline-block; flex: none; }
+#head { position: absolute; left: 250px; right: 0; top: 0; height: 76px; border-bottom: 1px solid var(--rule); }
+#head .title { font: 650 24px var(--ui); position: absolute; left: 30px; top: 22px; }
+.who { position: absolute; right: 26px; top: 17px; display: flex; align-items: center; gap: 10px; font: 500 18px var(--ui); background: var(--soft); border-radius: 22px; padding: 5px 16px 5px 6px; white-space: nowrap; }
+.who.off { padding: 5px 16px; color: var(--muted); }
+.who.off b { color: var(--buddy); font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.av { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font: 650 14px var(--ui); color: #fff; flex: none; }
+.role { font: 600 14px var(--ui); padding: 2px 8px; border-radius: 6px; background: var(--buddy-soft); color: var(--buddy); }
+.role.ro { background: #e8ebf2; color: #4a5a85; }
+.view { position: absolute; left: 250px; right: 0; top: 76px; bottom: 0; padding: 30px 36px; }
+
+/* night shift */
+.ntop { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
+.clock .lbl { font: 500 17px var(--ui); color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.clock .time { font: 750 74px/1 var(--display); font-variant-numeric: tabular-nums; margin-top: 8px; letter-spacing: -.01em; }
+.nstats { display: flex; gap: 12px; }
+.ns { border: 1px solid var(--rule); border-radius: 12px; padding: 10px 16px; min-width: 128px; }
+.ns .k { font: 500 15px var(--ui); color: var(--muted); }
+.ns .v { font: 750 32px/1.2 var(--display); font-variant-numeric: tabular-nums; }
+.ns.amb .v { color: var(--ask); }
+.le { display: grid; grid-template-columns: 66px 30px 1fr auto; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--soft); font: 400 21px var(--ui); }
+.le .tm { font: 500 17px var(--mono); color: var(--muted); }
+.ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; }
+.tagp { font: 600 14.5px var(--ui); padding: 3px 10px; border-radius: 7px; white-space: nowrap; }
+.k-done .ic, .k-done .tagp { background: var(--buddy-soft); color: var(--buddy); }
+.k-told .ic, .k-told .tagp { background: var(--told-soft); color: var(--told); }
+.k-need .ic, .k-need .tagp { background: var(--ask-soft); color: var(--ask); }
+.k-alert .ic, .k-alert .tagp { background: var(--never-soft); color: var(--never); }
+
+/* briefing */
+.mail { border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; }
+.mailhead { padding: 20px 26px; border-bottom: 1px solid var(--rule); background: #fbfcfc; }
+.mailhead .from { font: 500 17px var(--ui); color: var(--muted); }
+.mailhead h3 { font: 650 27px var(--ui); margin-top: 6px; }
+.rows { padding: 12px 26px 6px; }
+.row { display: flex; align-items: center; gap: 18px; padding: 15px 0; border-bottom: 1px solid var(--soft); font: 400 23px var(--ui); }
+.row:last-child { border-bottom: 0; }
+.row .n { font: 700 32px var(--display); min-width: 66px; text-align: right; font-variant-numeric: tabular-nums; }
+.row.good .n { color: var(--buddy); }
+.row.amb .n { color: var(--ask); }
+.row.bad .n, .row.bad b { color: var(--never); }
+.mailfoot { padding: 16px 26px; background: var(--soft); font: 500 18px var(--ui); color: var(--muted); display: flex; justify-content: space-between; }
+
+/* task */
+.tc { border: 1px solid var(--rule); border-radius: 14px; padding: 20px 24px; position: relative; }
+.tc h3 { font: 650 24px/1.3 var(--ui); padding-right: 150px; }
+.tc .meta { display: flex; align-items: center; gap: 8px; font: 400 18px var(--ui); color: var(--muted); margin-top: 8px; }
+.tc .meta b { color: var(--ink); font-weight: 600; }
+.mini { width: 26px; height: 26px; border-radius: 7px; background: var(--buddy); display: grid; place-items: center; flex: none; }
+.status { position: absolute; right: 22px; top: 20px; width: 140px; height: 32px; }
+.status span { position: absolute; right: 0; top: 0; font: 600 16px var(--ui); padding: 5px 12px; border-radius: 8px; white-space: nowrap; }
+.st-todo { background: #eceff0; color: #66746f; }
+.st-prog { background: var(--ask-soft); color: var(--ask); }
+.st-done { background: var(--buddy-soft); color: var(--buddy); }
+.prog { margin-top: 16px; }
+.prog .pr { display: flex; justify-content: space-between; font: 600 18px var(--ui); }
+.prog .pr span { color: var(--buddy); font-variant-numeric: tabular-nums; }
+.ptrack { height: 14px; background: #e3ebe8; border-radius: 7px; margin-top: 8px; overflow: hidden; }
+.ptrack .fill { height: 100%; background: var(--buddy); border-radius: 7px; }
+.week { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); margin-top: 16px; border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; height: 74px; }
+.week .d { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font: 600 18px var(--ui); border-right: 1px solid var(--soft); }
+.week .d:last-child { border-right: 0; }
+.week .d small { font: 500 14px var(--ui); color: var(--buddy); height: 18px; white-space: nowrap; }
+.dayhl { position: absolute; top: 0; bottom: 0; background: var(--buddy-soft); }
+.cols { display: grid; grid-template-columns: 1fr 1.15fr; gap: 16px; margin-top: 16px; }
+.box { border: 1px solid var(--rule); border-radius: 12px; padding: 14px 20px; }
+.box h4 { font: 500 15px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.step { display: flex; gap: 12px; align-items: flex-start; font: 400 19px/1.35 var(--ui); padding: 6px 0; }
+.cb { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #c9d3cf; flex: none; position: relative; margin-top: 1px; }
+.cb i { position: absolute; inset: -2px; border-radius: 50%; background: var(--buddy); display: grid; place-items: center; }
+.ev { padding: 6px 0; border-bottom: 1px solid var(--soft); font: 400 18.5px/1.4 var(--ui); }
+.ev:last-child { border-bottom: 0; }
+.ev b { display: block; font: 500 15px var(--mono); color: var(--buddy); font-weight: 500; }
+.donebar { margin-top: 16px; background: var(--buddy); color: #fff; border-radius: 12px; padding: 14px 20px; font: 600 19px var(--ui); display: flex; align-items: center; gap: 12px; }
+
+/* chat */
+.msgs { position: absolute; left: 36px; right: 36px; top: 30px; bottom: 150px; display: flex; flex-direction: column; gap: 22px; }
+.me { align-self: flex-end; max-width: 620px; background: var(--buddy); color: #fff; font: 400 24px/1.4 var(--ui); padding: 16px 22px; border-radius: 20px 20px 6px 20px; }
+.bot { align-self: flex-start; max-width: 720px; display: flex; gap: 14px; }
+.bot .bav { width: 44px; height: 44px; border-radius: 12px; background: var(--buddy); flex: none; display: grid; place-items: center; }
+.bot .bubble { background: var(--soft); border-radius: 6px 20px 20px 20px; padding: 16px 22px; font: 400 23px/1.45 var(--ui); }
+.chips { display: flex; flex-direction: column; gap: 9px; }
+.chip { display: flex; align-items: center; gap: 10px; font: 500 19px var(--ui); color: var(--muted); }
+.chip .ck { width: 22px; height: 22px; border-radius: 50%; background: var(--buddy); display: grid; place-items: center; }
+.answer h4 { font: 700 36px var(--display); }
+.bars { margin-top: 12px; display: flex; flex-direction: column; gap: 9px; width: 560px; }
+.bar { display: grid; grid-template-columns: 170px 1fr 40px; align-items: center; gap: 12px; font: 500 18px var(--ui); }
+.bar .track { height: 18px; background: #e3ebe8; border-radius: 5px; overflow: hidden; }
+.bar .fill { height: 100%; background: var(--buddy); border-radius: 5px; width: 0; }
+.bar b { font-variant-numeric: tabular-nums; text-align: right; }
+.meta2 { font: 500 16px var(--ui); color: var(--muted); margin-top: 12px; display: flex; align-items: center; gap: 10px; }
+.speak { display: inline-flex; align-items: flex-end; gap: 3px; height: 18px; }
+.speak i { width: 4px; background: var(--buddy); border-radius: 2px; display: block; }
+.composer { position: absolute; left: 36px; right: 36px; bottom: 30px; height: 96px; border: 1px solid var(--rule); border-radius: 18px; display: flex; align-items: center; padding: 0 16px 0 26px; gap: 18px; background: #fff; }
+.composer .ph { font: 400 22px var(--ui); color: #9aa6a2; flex: 1; position: relative; height: 40px; }
+.composer .ph > * { position: absolute; left: 0; top: 4px; white-space: nowrap; }
+.wave { display: flex; align-items: center; gap: 5px; height: 50px; }
+.wave i { width: 6px; border-radius: 3px; background: var(--buddy); display: block; }
+.mic { width: 66px; height: 66px; border-radius: 50%; background: var(--soft); display: grid; place-items: center; flex: none; position: relative; }
+.mic .ring { position: absolute; inset: -8px; border-radius: 50%; border: 3px solid var(--buddy); }
+.caret { display: inline-block; width: 2px; height: 1.05em; background: currentColor; vertical-align: -0.15em; margin-left: 2px; }
+.lockline { display: flex; gap: 12px; align-items: flex-start; }
+.lock { width: 34px; height: 34px; border-radius: 9px; background: #e8ebf2; display: grid; place-items: center; flex: none; margin-top: 2px; }
+.tasktag { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; font: 600 17px var(--ui); color: var(--buddy); background: var(--buddy-soft); border-radius: 8px; padding: 6px 12px; }
+
+/* approvals */
+.card { border: 1px solid var(--rule); border-radius: 14px; padding: 22px 26px; }
+.tagask { font: 600 15px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--ask); background: var(--ask-soft); border-radius: 6px; padding: 4px 10px; }
+.applicant { display: flex; align-items: center; gap: 14px; }
+.applicant .nm { font: 650 23px var(--ui); }
+.applicant .st { font: 500 17px var(--ui); color: var(--muted); }
+.quote { margin-top: 14px; font: 400 24px/1.45 var(--ui); padding-left: 16px; border-left: 3px solid var(--rule); }
+.draft { margin-top: 18px; background: var(--soft); border-radius: 12px; padding: 16px 20px; font: 400 21px/1.5 var(--ui); }
+.draft .lbl { font: 600 15px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--buddy); margin-bottom: 6px; }
+.suggest { margin-top: 14px; display: flex; align-items: center; gap: 10px; font: 500 19px var(--ui); }
+.pill { font: 600 17px var(--ui); border: 1px solid var(--rule); border-radius: 8px; padding: 4px 12px; }
+.btns { margin-top: 20px; display: flex; gap: 12px; align-items: center; }
+.btn { font: 600 20px var(--ui); border-radius: 10px; padding: 12px 22px; border: 1px solid var(--rule); background: #fff; position: relative; }
+.btn.go { background: var(--buddy); color: #fff; border-color: var(--buddy); }
+.sent { font: 600 20px var(--ui); color: var(--buddy); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.trust { margin-top: 22px; border: 1px solid var(--rule); border-radius: 14px; padding: 18px 26px; }
+.trust .top { display: flex; justify-content: space-between; font: 600 20px var(--ui); }
+.trust .top span { color: var(--buddy); font-variant-numeric: tabular-nums; }
+.ttrack { position: relative; height: 16px; background: #e3ebe8; border-radius: 8px; margin: 14px 0 10px; }
+.ttrack .fill { height: 100%; background: var(--buddy); border-radius: 8px; width: 0; }
+.ttrack .mark { position: absolute; left: 90%; top: -8px; bottom: -8px; width: 3px; background: var(--ink); border-radius: 2px; }
+.trust p { font: 400 18px var(--ui); color: var(--muted); }
+
+/* usage */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.sc { border: 1px solid var(--rule); border-radius: 12px; padding: 16px 18px; }
+.sc .k { font: 500 16px var(--ui); color: var(--muted); }
+.sc .v { font: 750 40px var(--display); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.sc .s { font: 400 15px var(--ui); color: var(--muted); }
+.chart { margin-top: 16px; border: 1px solid var(--rule); border-radius: 12px; padding: 16px 20px; }
+.chart .k { font: 600 18px var(--ui); display: flex; justify-content: space-between; }
+.live { display: inline-flex; align-items: center; gap: 8px; font: 600 15px var(--ui); color: var(--buddy); }
+.budget { margin-top: 16px; display: grid; grid-template-columns: 1fr 300px; gap: 14px; }
+.budget .bx { border: 1px solid var(--rule); border-radius: 12px; padding: 16px 20px; }
+.budget .k { font: 600 18px var(--ui); display: flex; justify-content: space-between; }
+.btrack { height: 14px; background: #e3ebe8; border-radius: 7px; margin: 12px 0 8px; position: relative; overflow: hidden; }
+.btrack .fill { height: 100%; background: var(--buddy); width: 0; }
+.budget .s { font: 400 16px var(--ui); color: var(--muted); }
+.toggle { display: flex; align-items: center; gap: 14px; margin-top: 8px; font: 600 19px var(--ui); }
+.sw { width: 58px; height: 32px; border-radius: 16px; background: var(--buddy); position: relative; flex: none; }
+.sw i { position: absolute; top: 4px; left: 30px; width: 24px; height: 24px; border-radius: 50%; background: #fff; }
+
+#cursor { position: absolute; left: 0; top: 0; width: 34px; height: 34px; pointer-events: none; }
+#ripple { position: absolute; width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--buddy); opacity: 0; }
+#tag { position: absolute; right: 34px; bottom: 26px; font: 500 16px var(--mono); letter-spacing: .04em; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+  <div id="glow"></div>
+  <div id="night"></div>
+  <div id="stars"></div>
+  <div id="dawn"></div>
+  <div id="bgdark"></div>
+
+  <!-- HOOK -->
+  <div id="hook" class="abs">
+    <div class="stat" data-in="0.15" data-out="6.0" data-anim="up"><span data-count="0,42975,0.15,1.6">0</span><small>people in the CRM</small></div>
+    <div class="stat" data-in="0.9" data-out="6.05" data-anim="up"><span data-count="0,30048,0.9,1.5">0</span><small>email threads</small></div>
+    <div class="stat" data-in="1.65" data-out="6.1" data-anim="up"><span data-count="0,25,1.65,0.9">0</span><small>pipeline stages</small></div>
+    <div id="hookq" data-in="3.3" data-out="6.15" data-anim="up">Who follows up on all of it?</div>
+  </div>
+
+  <!-- REVEAL -->
+  <div class="center" style="top:300px">
+    <img class="logo" src="flolabs-logo.png" data-in="6.9" data-out="11.6" data-anim="pop">
+    <div class="big" style="margin-top:34px" data-in="7.25" data-out="11.65" data-anim="up">Manager <span>Buddy</span></div>
+    <div class="sub" style="margin-top:30px" data-in="7.9" data-out="11.7" data-anim="up">An AI teammate that works on its own, day and night.</div>
+  </div>
+
+  <!-- THE DIFFERENCE -->
+  <div class="vs-title" data-in="12.3" data-out="20.3" data-anim="up">A chatbot answers. <span>Buddy works.</span></div>
+  <div class="cmp old" data-in="13.0" data-out="20.35" data-anim="up">
+    <div class="top"><div class="face"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7b8884" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div>The CRM chatbot<span class="state">Idle</span></div>
+    <div class="idle">
+      <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#aab5b1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
+      Waiting for someone to ask
+      <div class="zz" id="zz"><i></i><i></i><i></i></div>
+    </div>
+    <div class="foot" data-in="13.6" data-anim="fade">Helps only when someone opens it and asks.</div>
+  </div>
+  <div class="cmp new" data-in="13.4" data-out="20.4" data-anim="up">
+    <div class="top"><div class="face"><svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><circle cx="8.5" cy="11" r="2"/><circle cx="15.5" cy="11" r="2"/><path d="M8 15.5c2.2 1.6 5.8 1.6 8 0" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></div>Manager Buddy<span class="state"><span class="dot pulse"></span>On duty, 24/7</span></div>
+    <div class="ticker">
+      <div class="ti" data-tick="14.2"><b>22:00</b>Searched for new leads</div>
+      <div class="ti" data-tick="14.95"><b>23:40</b>Sorted 31 new emails</div>
+      <div class="ti" data-tick="15.7"><b>02:05</b>Followed up with 9 applicants</div>
+      <div class="ti" data-tick="16.45"><b>03:10</b>Caught a failed workflow</div>
+      <div class="ti" data-tick="17.2"><b>05:40</b>Flagged an interested lead</div>
+      <div class="ti" data-tick="17.95"><b>08:00</b>Sent the morning briefings</div>
+    </div>
+    <div class="foot" data-in="14.0" data-anim="fade">Works on its own, day and night.</div>
+  </div>
+
+  <!-- CAPTIONS -->
+  <div class="cap night">
+    <div class="eyebrow" data-in="21.7" data-out="37.0" data-anim="up">Around the clock</div>
+    <h2 data-in="21.85" data-out="37.05" data-anim="up">It works while you sleep.</h2>
+    <p data-in="22.1" data-out="37.1" data-anim="up">Overnight it sorts email, follows up, chases leads and fixes what it can. By 08:00 you know what it did.</p>
+  </div>
+  <div class="cap">
+    <div class="eyebrow" data-in="40.3" data-out="48.5" data-anim="up">08:00, every morning</div>
+    <h2 data-in="40.45" data-out="48.55" data-anim="up">Your day in one email.</h2>
+    <p data-in="40.7" data-out="48.6" data-anim="up">Starting with what Buddy did overnight. Each person sees only what their role allows.</p>
+  </div>
+  <div class="cap">
+    <div class="eyebrow" data-in="49.3" data-out="68.5" data-anim="up">Assign and walk away</div>
+    <h2 data-in="49.45" data-out="68.55" data-anim="up">Give it a task. It sees it through.</h2>
+    <p data-in="49.7" data-out="68.6" data-anim="up">Buddy plans the steps, follows up for days, and only comes back when it's done or stuck.</p>
+  </div>
+  <div class="cap">
+    <div class="eyebrow" data-in="69.2" data-out="80.9" data-anim="up">Chat or voice</div>
+    <h2 data-in="69.35" data-out="80.95" data-anim="up">Or just ask.</h2>
+    <p data-in="69.6" data-out="81.0" data-anim="up">Answers come straight from the CRM, so the numbers are always current.</p>
+  </div>
+  <div class="cap">
+    <div class="eyebrow" data-in="81.7" data-out="89.9" data-anim="up">Acts as you</div>
+    <h2 data-in="81.85" data-out="89.95" data-anim="up">It can only do what you can do.</h2>
+    <p data-in="82.1" data-out="90.0" data-anim="up">Buddy works with your CRM role. A read-only user gets a read-only Buddy.</p>
+  </div>
+  <div class="cap">
+    <div class="eyebrow" data-in="90.7" data-out="101.9" data-anim="up">Asks first</div>
+    <h2 data-in="90.85" data-out="101.95" data-anim="up">Applicants hear from Buddy only after a yes.</h2>
+    <p data-in="91.1" data-out="102.0" data-anim="up">It drafts, a person approves, and each kind of email earns the right to go out on its own.</p>
+  </div>
+  <div class="cap">
+    <div class="eyebrow" data-in="102.7" data-out="110.1" data-anim="up">Cost, live</div>
+    <h2 data-in="102.85" data-out="110.15" data-anim="up">Every token, on screen.</h2>
+    <p data-in="103.1" data-out="110.2" data-anim="up">About $22 a month, a hard cap at $35, and one switch pauses it all.</p>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="abs" data-in="21.2" data-out="110.3" data-anim="rise" data-dur="0.9">
+    <div id="side">
+      <div class="brand"><img src="flolabs-logo.png"><div>Manager Buddy<small>FloLabs CRM</small></div></div>
+      <div class="navhl" id="navhl"></div>
+      <div class="nav"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Activity</div>
+      <div class="nav"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>Briefing</div>
+      <div class="nav"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg>Tasks</div>
+      <div class="nav"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Chat</div>
+      <div class="nav"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>Approvals<span class="badge" data-in="27.85" data-anim="pop"><span data-out="95.75" data-anim="fade">3</span><span data-in="95.85" data-anim="pop">2</span></span></div>
+      <div class="nav"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15l4-4 3 3 5-6"/></svg>Usage</div>
+      <div class="conn"><b><span class="dot"></span>CRM connected</b>Acting as you, through the CRM's own APIs</div>
+    </div>
+
+    <div id="head">
+      <div class="title" data-in="21.6" data-out="39.8" data-anim="fade">Activity</div>
+      <div class="title" data-in="40.1" data-out="48.6" data-anim="fade">Briefing</div>
+      <div class="title" data-in="49.1" data-out="68.6" data-anim="fade">Tasks</div>
+      <div class="title" data-in="69.1" data-out="90.1" data-anim="fade">Chat</div>
+      <div class="title" data-in="90.6" data-out="102.1" data-anim="fade">Approvals</div>
+      <div class="title" data-in="102.6" data-anim="fade">Usage</div>
+      <div class="who off" data-in="21.6" data-out="39.8" data-anim="fade"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>Team offline<b><span class="dot pulse"></span>Buddy on duty</b></div>
+      <div class="who" data-in="40.1" data-out="81.6" data-anim="fade"><div class="av" style="background:#7a5af5">MA</div>Maya<span class="role">Editor</span></div>
+      <div class="who" data-in="81.8" data-out="90.1" data-anim="fade"><div class="av" style="background:#4a5a85">OM</div>Omar<span class="role ro">Read-only</span></div>
+      <div class="who" data-in="90.3" data-anim="fade"><div class="av" style="background:#7a5af5">MA</div>Maya<span class="role">Editor</span></div>
+    </div>
+
+    <!-- night shift -->
+    <div class="view" data-in="21.6" data-out="39.8" data-anim="fade">
+      <div class="ntop">
+        <div class="clock"><div class="lbl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>Tuesday night · nobody signed in</div><div class="time" id="clock">22:00</div></div>
+        <div class="nstats">
+          <div class="ns"><div class="k">Done</div><div class="v" data-steps="21.6:0|22.6:11|24.35:42|26.1:46|29.6:55|31.35:56|33.1:57|34.85:65|36.6:73">0</div></div>
+          <div class="ns amb"><div class="k">Needs you</div><div class="v" data-steps="21.6:0|27.85:3|33.1:4">0</div></div>
+          <div class="ns"><div class="k">Cost tonight</div><div class="v" data-steps="21.6:0|22.6:0.04|24.35:0.11|26.1:0.15|27.85:0.21|29.6:0.24|31.35:0.26|33.1:0.28|34.85:0.35|36.6:0.38" data-pre="$" data-dec="2">$0.00</div></div>
+        </div>
+      </div>
+      <div class="log">
+        <div class="le k-done" data-in="22.6" data-anim="left"><span class="tm">22:00</span><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></span><span>Lead search: 11 new companies added</span><span class="tagp">Done</span></div>
+        <div class="le k-done" data-in="24.35" data-anim="left"><span class="tm">23:40</span><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg></span><span>Sorted 31 new emails by topic</span><span class="tagp">Done</span></div>
+        <div class="le k-told" data-in="26.1" data-anim="left"><span class="tm">00:15</span><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></span><span>Sent 4 routine replies on its own</span><span class="tagp">Owners told</span></div>
+        <div class="le k-need" data-in="27.85" data-anim="left"><span class="tm">01:30</span><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span><span>Drafted 3 new replies for approval</span><span class="tagp">Needs you</span></div>
+        <div class="le k-done" data-in="29.6" data-anim="left"><span class="tm">02:05</span><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span>Set follow-ups for 9 stuck applicants</span><span class="tagp">Sends at 09:00</span></div>
+        <div class="le k-alert" data-in="31.35" data-anim="left"><span class="tm">03:10</span><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 8v5M12 16.5v.5"/><path d="M10.3 3.9L2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><span>Workflow failed: retried, owner emailed</span><span class="tagp">Alert</span></div>
+        <div class="le k-need" data-in="33.1" data-anim="left"><span class="tm">05:40</span><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 21s-7-4.5-9.3-9A5 5 0 0 1 12 6a5 5 0 0 1 9.3 6c-2.3 4.5-9.3 9-9.3 9z"/></svg></span><span>Interested lead: task created for Maya</span><span class="tagp">Needs you</span></div>
+        <div class="le k-done" data-in="34.85" data-anim="left"><span class="tm">06:30</span><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span><span>Prepared 8 morning briefings</span><span class="tagp">Done</span></div>
+        <div class="le k-done" data-in="36.6" data-anim="left" style="border-bottom:0"><span class="tm">08:00</span><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span>Briefings sent. Good morning.</span><span class="tagp">Sent</span></div>
+      </div>
+    </div>
+
+    <!-- briefing -->
+    <div class="view" data-in="40.2" data-out="48.6" data-anim="fade">
+      <div class="mail">
+        <div class="mailhead" data-in="40.5" data-anim="up">
+          <div class="from">From Manager Buddy · to Maya · 08:00</div>
+          <h3>Good morning, Maya. Here is your Wednesday.</h3>
+        </div>
+        <div class="rows">
+          <div class="row good" data-in="41.4" data-anim="left"><span class="n">73</span>things done overnight, all logged</div>
+          <div class="row amb" data-in="41.85" data-anim="left"><span class="n">4</span>need you: 3 drafts, 1 interested lead</div>
+          <div class="row" data-in="42.3" data-anim="left"><span class="n">14</span>new applicants since yesterday</div>
+          <div class="row" data-in="42.75" data-anim="left"><span class="n">9</span>follow-ups going out at 09:00</div>
+          <div class="row bad" data-in="43.2" data-anim="left"><span class="n">1</span><span><b>workflow failed</b> overnight, owner told</span></div>
+        </div>
+        <div class="mailfoot" data-in="43.7" data-anim="fade"><span>Last night's AI cost: $0.38</span><span>Month to date: $14.20 of $35</span></div>
+      </div>
+    </div>
+
+    <!-- task, start to finish -->
+    <div class="view" data-in="49.2" data-out="68.6" data-anim="fade">
+      <div class="tc" data-in="49.6" data-anim="up">
+        <div class="status">
+          <span class="st-todo" data-in="49.6" data-out="51.0" data-anim="fade">To do</span>
+          <span class="st-prog" data-in="51.1" data-out="62.9" data-anim="pop">In progress</span>
+          <span class="st-done" data-in="63.0" data-anim="pop">Done</span>
+        </div>
+        <h3>Get a Masterclass form from everyone in Attended</h3>
+        <div class="meta">Assigned to <span class="mini"><svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><circle cx="8.5" cy="11" r="2"/><circle cx="15.5" cy="11" r="2"/><path d="M8 15.5c2.2 1.6 5.8 1.6 8 0" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg></span><b>Manager Buddy</b> by Maya · due Friday</div>
+        <div class="prog">
+          <div class="pr">Forms received<span><span data-steps="49.6:26|58.0:35|61.8:37">26</span> of 40</span></div>
+          <div class="ptrack"><div class="fill" data-wsteps="49.6:65|58.0:87.5|61.8:92.5"></div></div>
+        </div>
+      </div>
+      <div class="week" id="week" data-in="51.6" data-anim="up">
+        <div class="dayhl" id="dayhl"></div>
+        <div class="d">Mon<small data-in="54.0" data-anim="fade">Reminded 14</small></div>
+        <div class="d">Tue<small></small></div>
+        <div class="d">Wed<small data-in="57.8" data-anim="fade">Reminded 5</small></div>
+        <div class="d">Thu<small></small></div>
+        <div class="d">Fri<small data-in="61.6" data-anim="fade">3 to Maya</small></div>
+      </div>
+      <div class="cols">
+        <div class="box" data-in="51.4" data-anim="up">
+          <h4>Buddy's plan</h4>
+          <div class="step" data-in="51.8" data-anim="left"><span class="cb"><i data-in="54.3" data-anim="pop"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M5 12l5 5 9-10"/></svg></i></span>Find everyone in Attended</div>
+          <div class="step" data-in="52.2" data-anim="left"><span class="cb"><i data-in="54.7" data-anim="pop"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M5 12l5 5 9-10"/></svg></i></span>Check who hasn't sent the form</div>
+          <div class="step" data-in="52.6" data-anim="left"><span class="cb"><i data-in="61.9" data-anim="pop"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M5 12l5 5 9-10"/></svg></i></span>Remind them with the approved email, every 2 days</div>
+          <div class="step" data-in="53.0" data-anim="left"><span class="cb"><i data-in="62.4" data-anim="pop"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M5 12l5 5 9-10"/></svg></i></span>Hand anyone left to Maya on Friday</div>
+        </div>
+        <div class="box" data-in="53.4" data-anim="up">
+          <h4>What happened</h4>
+          <div class="ev" data-in="54.0" data-anim="up"><b>Mon 10:00</b>40 people in Attended, 14 without the form. Reminded all 14.</div>
+          <div class="ev" data-in="57.8" data-anim="up"><b>Wed 10:00</b>9 more sent it. Reminded the other 5.</div>
+          <div class="ev" data-in="61.6" data-anim="up"><b>Fri 10:00</b>37 of 40 done. Handed the last 3 to Maya.</div>
+        </div>
+      </div>
+      <div class="donebar" data-in="63.4" data-anim="up"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8"><path d="M5 12l5 5 9-10"/></svg>Finished on its own in 5 days. Nobody had to chase it.</div>
+    </div>
+
+    <!-- just ask -->
+    <div class="view" data-in="69.1" data-out="81.1" data-anim="fade" style="padding:0">
+      <div class="msgs">
+        <div class="me" data-in="70.4" data-anim="up"><span data-type="70.4,26">How many people booked a Saturday meeting this week, and where did they come from?</span></div>
+        <div class="bot" data-in="74.2" data-anim="up">
+          <div class="bav"><svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><circle cx="8.5" cy="11" r="2"/><circle cx="15.5" cy="11" r="2"/><path d="M8 15.5c2.2 1.6 5.8 1.6 8 0" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></div>
+          <div class="bubble">
+            <div class="chips">
+              <div class="chip" data-in="74.4" data-anim="left"><span class="ck"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M5 12l5 5 9-10"/></svg></span>Looked up People in the CRM</div>
+              <div class="chip" data-in="74.9" data-anim="left"><span class="ck"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M5 12l5 5 9-10"/></svg></span>Counted Saturday meetings this week</div>
+              <div class="chip" data-in="75.4" data-anim="left"><span class="ck"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M5 12l5 5 9-10"/></svg></span>Grouped them by source</div>
+            </div>
+            <div class="answer" data-in="76.0" data-anim="up" style="margin-top:16px">
+              <h4>17 people booked this week.</h4>
+              <div class="bars">
+                <div class="bar"><span>Instagram</span><div class="track"><div class="fill" data-grow="76.4,1.0,100"></div></div><b>8</b></div>
+                <div class="bar"><span>University fairs</span><div class="track"><div class="fill" data-grow="76.6,1.0,62.5"></div></div><b>5</b></div>
+                <div class="bar"><span>Referrals</span><div class="track"><div class="fill" data-grow="76.8,1.0,37.5"></div></div><b>3</b></div>
+                <div class="bar"><span>Website</span><div class="track"><div class="fill" data-grow="77.0,1.0,12.5"></div></div><b>1</b></div>
+              </div>
+              <div class="meta2" data-in="77.9" data-anim="fade"><span class="speak" id="speak"></span>Speaking · read live from the CRM · cost $0.002</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="ph">
+          <span data-in="69.1" data-out="69.8" data-anim="fade">Ask Buddy anything, or hold to talk</span>
+          <span data-in="69.9" data-out="73.9" data-anim="fade" style="color:var(--buddy);font-weight:600">Listening…</span>
+          <span data-in="74.0" data-anim="fade">Ask Buddy anything, or hold to talk</span>
+        </div>
+        <div class="wave" id="wave"></div>
+        <div class="mic">
+          <div class="ring" id="micring"></div>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#136b56" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- acts as you -->
+    <div class="view" data-in="81.6" data-out="90.1" data-anim="fade" style="padding:0">
+      <div class="msgs">
+        <div class="me" data-in="82.3" data-anim="up"><span data-type="82.3,22">Move these 12 people to Contacted.</span></div>
+        <div class="bot" data-in="84.5" data-anim="up">
+          <div class="bav"><svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><circle cx="8.5" cy="11" r="2"/><circle cx="15.5" cy="11" r="2"/><path d="M8 15.5c2.2 1.6 5.8 1.6 8 0" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></div>
+          <div class="bubble">
+            <div class="lockline">
+              <div class="lock"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a5a85" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+              <div>I can't do that with your role. <b>Read-only</b> users can view people but not change their stage.</div>
+            </div>
+            <div data-in="85.8" data-anim="up" style="margin-top:12px">I've sent the 12 people to Sara, who can move them.</div>
+            <div data-in="86.5" data-anim="up"><span class="tasktag"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12l5 5 9-10"/></svg>Task created for Sara</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="composer"><div class="ph"><span>Ask Buddy anything, or hold to talk</span></div><div class="mic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#136b56" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div></div>
+    </div>
+
+    <!-- asks first -->
+    <div class="view" data-in="90.6" data-out="102.1" data-anim="fade">
+      <div class="card" data-in="91.1" data-anim="up">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="applicant"><div class="av" style="background:#d9822b;width:46px;height:46px;font-size:17px">LH</div><div><div class="nm">Lina H. replied</div><div class="st">Applicant · Contacted</div></div></div>
+          <span class="tagask">Asks first</span>
+        </div>
+        <div class="quote">"Saturday works for me. What's the next step?"</div>
+        <div class="draft" data-in="92.1" data-anim="up"><div class="lbl">Buddy's draft</div>Hi Lina, you're booked for Saturday. Before then, please watch the two meeting recordings linked below. See you there!</div>
+        <div class="suggest" data-in="93.0" data-anim="up">Also suggested: <span class="pill">Move to Before Meeting</span></div>
+        <div class="btns" data-in="93.5" data-anim="up">
+          <div style="position:relative;height:50px;width:230px">
+            <div class="btn go abs" id="approve" data-out="95.75" data-anim="fade" style="left:0;top:0">Approve and send</div>
+            <div class="sent abs" data-in="95.8" data-anim="pop" style="left:0;top:11px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M5 12l5 5 9-10"/></svg>Sent and logged</div>
+          </div>
+          <div class="btn">Edit</div>
+          <div class="btn">Reject</div>
+        </div>
+      </div>
+      <div class="trust" data-in="96.6" data-anim="up">
+        <div class="top">Meeting confirmation emails<span><span data-count="0,88,96.9,1.4">0</span>% sent unchanged</span></div>
+        <div class="ttrack"><div class="fill" data-grow="96.9,1.4,88"></div><div class="mark"></div></div>
+        <p>At 90% for two weeks, Buddy may send these on its own and tell you after.</p>
+      </div>
+    </div>
+
+    <!-- cost, live -->
+    <div class="view" data-in="102.6" data-anim="fade">
+      <div class="stats">
+        <div class="sc" data-in="103.0" data-anim="up"><div class="k">Spend today</div><div class="v"><span data-count="0,0.71,103.2,1.3" data-pre="$" data-dec="2">$0.00</span></div><div class="s">of a $1.60 daily cap</div></div>
+        <div class="sc" data-in="103.2" data-anim="up"><div class="k">Month to date</div><div class="v"><span data-count="0,14.2,103.4,1.3" data-pre="$" data-dec="2">$0.00</span></div><div class="s">of a $35 cap</div></div>
+        <div class="sc" data-in="103.4" data-anim="up"><div class="k">Cache hit rate</div><div class="v"><span data-count="0,87,103.6,1.3" data-suf="%">0%</span></div><div class="s">reused, so cheaper</div></div>
+        <div class="sc" data-in="103.6" data-anim="up"><div class="k">Tokens today</div><div class="v"><span data-count="0,1.2,103.8,1.3" data-suf="M" data-dec="1">0M</span></div><div class="s">mostly Haiku 5.5</div></div>
+      </div>
+      <div class="chart" data-in="103.9" data-anim="up">
+        <div class="k">Spend per hour today<span class="live"><span class="dot" id="livedot"></span>Live</span></div>
+        <svg width="746" height="192" viewBox="0 0 776 200" style="margin-top:8px;display:block;overflow:visible">
+          <g stroke="#e3e8e6" stroke-width="1"><line x1="0" y1="40" x2="776" y2="40"/><line x1="0" y1="100" x2="776" y2="100"/><line x1="0" y1="160" x2="776" y2="160"/></g>
+          <path id="area" d="M0,170 L60,166 L120,150 L180,120 L240,96 L300,110 L360,84 L420,92 L480,70 L540,88 L600,104 L660,96 L720,120 L776,128 L776,160 L0,160 Z" fill="rgba(19,107,86,.10)"/>
+          <path id="line" d="M0,170 L60,166 L120,150 L180,120 L240,96 L300,110 L360,84 L420,92 L480,70 L540,88 L600,104 L660,96 L720,120 L776,128" fill="none" stroke="#136b56" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+          <g font-family="Inter" font-size="14" fill="#66746f"><text x="0" y="196">08:00</text><text x="240" y="196">12:00</text><text x="480" y="196">16:00</text><text x="720" y="196">20:00</text></g>
+        </svg>
+      </div>
+      <div class="budget" data-in="104.8" data-anim="up">
+        <div class="bx"><div class="k">Monthly budget<span style="color:var(--buddy)">On track</span></div><div class="btrack"><div class="fill" data-grow="105.2,1.2,41"></div></div><div class="s">$14.20 of $35 · alerts at 50, 80 and 100%</div></div>
+        <div class="bx"><div class="k">Buddy</div><div class="toggle"><div class="sw"><i></i></div><div>Running<div class="s" style="font-weight:400">Tap to pause everything</div></div></div></div>
+      </div>
+    </div>
+
+    <svg id="cursor" viewBox="0 0 24 24" data-in="93.8" data-out="96.6" data-anim="fade"><path d="M4 2l15 11-7 1.3 4 7.2-3 1.5-4-7.3L4 20z" fill="#1b2421" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
+    <div id="ripple"></div>
+  </div>
+
+  <!-- OUTRO -->
+  <div class="center" style="top:240px">
+    <img class="logo" src="flolabs-logo.png" style="width:110px;height:110px" data-in="110.9" data-anim="pop">
+    <div class="big" style="margin-top:30px;font-size:132px" data-in="111.15" data-anim="up">Manager <span>Buddy</span></div>
+    <div class="sub" style="margin-top:34px;color:var(--ink);font-weight:600;font-size:46px" data-in="111.7" data-anim="up">Works on its own, around the clock.</div>
+    <div class="sub" style="margin-top:10px;color:var(--ink);font-weight:600;font-size:46px" data-in="112.3" data-anim="up">Nothing in the CRM changes.</div>
+    <div class="sub" style="margin-top:22px" data-in="112.9" data-anim="up">Useful from week 3 · full scope in 12 weeks · about $22 a month</div>
+  </div>
+
+  <div id="tag" data-in="6.9" data-anim="fade">Concept demo · example data</div>
+</div>
+
+<script>
+const DURATION = 118;
+const NIGHT = [20.6, 37.4];
+const OUTRO = 110.6;
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const easeOut = x => 1 - Math.pow(1 - x, 3);
+const easeInOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const lerp = (a, b, p) => a + (b - a) * p;
+
+const animated = [...document.querySelectorAll('[data-in],[data-out]')].map(el => ({
+  el,
+  tin: el.dataset.in != null ? parseFloat(el.dataset.in) : -1,
+  tout: el.dataset.out != null ? parseFloat(el.dataset.out) : null,
+  anim: el.dataset.anim || 'fade',
+  dur: parseFloat(el.dataset.dur || '0.6'),
+}));
+const counters = [...document.querySelectorAll('[data-count]')].map(el => {
+  const [from, to, start, dur] = el.dataset.count.split(',').map(parseFloat);
+  return { el, from, to, start, dur, pre: el.dataset.pre || '', suf: el.dataset.suf || '', dec: parseInt(el.dataset.dec || '0') };
+});
+const parseSteps = s => s.split('|').map(p => p.split(':').map(parseFloat));
+const steppers = [...document.querySelectorAll('[data-steps]')].map(el => ({ el, steps: parseSteps(el.dataset.steps), pre: el.dataset.pre || '', dec: parseInt(el.dataset.dec || '0') }));
+const wsteppers = [...document.querySelectorAll('[data-wsteps]')].map(el => ({ el, steps: parseSteps(el.dataset.wsteps) }));
+const growers = [...document.querySelectorAll('[data-grow]')].map(el => {
+  const [start, dur, pct] = el.dataset.grow.split(',').map(parseFloat);
+  return { el, start, dur, pct };
+});
+const typers = [...document.querySelectorAll('[data-type]')].map(el => {
+  const [start, cps] = el.dataset.type.split(',').map(parseFloat);
+  return { el, start, cps, full: el.textContent };
+});
+const tickItems = [...document.querySelectorAll('[data-tick]')].map(el => ({ el, at: parseFloat(el.dataset.tick) }));
+
+const wave = document.getElementById('wave');
+for (let i = 0; i < 22; i++) wave.appendChild(document.createElement('i'));
+const speak = document.getElementById('speak');
+for (let i = 0; i < 5; i++) speak.appendChild(document.createElement('i'));
+
+// Deterministic star field for the night shift.
+const starBox = document.getElementById('stars');
+let seed = 11;
+const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const stars = [];
+for (let i = 0; i < 90; i++) {
+  const s = document.createElement('i');
+  s.className = 'star';
+  const size = 1.5 + rand() * 2.2;
+  Object.assign(s.style, { left: (rand() * 1920) + 'px', top: (rand() * 1080) + 'px', width: size + 'px', height: size + 'px' });
+  starBox.appendChild(s);
+  stars.push({ s, speed: 0.6 + rand() * 1.6, phase: rand() * 6.28 });
+}
+
+const NAV = [[21.2, 0], [40.0, 1], [49.0, 2], [69.0, 3], [90.5, 4], [102.5, 5]];
+const CLOCK = [[21.6, 0], [22.6, 0], [24.35, 100], [26.1, 135], [27.85, 210], [29.6, 245], [31.35, 310], [33.1, 460], [34.85, 510], [36.6, 600]];
+const DAYS = [[53.6, 0], [57.0, 0], [57.6, 2], [60.8, 2], [61.4, 4]];
+const CLICK = 95.45;
+
+const lineLen = document.getElementById('line').getTotalLength();
+// Read lazily: layout shifts once the web fonts have loaded.
+let NAV_TOPS = null, APPROVE_AT = null, DAY_LEFTS = null, DAY_W = 0;
+function measure() {
+  NAV_TOPS = [...document.querySelectorAll('#side .nav')].map(n => n.offsetTop);
+  const a = document.getElementById('approve');
+  let x = a.offsetWidth * 0.55, y = a.offsetHeight * 0.55, el = a;
+  while (el && el.id !== 'app') { x += el.offsetLeft; y += el.offsetTop; el = el.offsetParent; }
+  APPROVE_AT = [x, y];
+  const cells = [...document.querySelectorAll('#week .d')];
+  DAY_LEFTS = cells.map(c => c.offsetLeft);
+  DAY_W = cells[0].offsetWidth;
+}
+
+function animate(item, t) {
+  const { el, tin, tout, anim, dur } = item;
+  const a = tin < 0 ? 1 : easeOut(clamp((t - tin) / dur));
+  const b = tout == null ? 0 : easeInOut(clamp((t - tout) / 0.4));
+  const o = a * (1 - b);
+  let tr = '';
+  if (anim === 'up') tr = `translateY(${(1 - a) * 26 - b * 14}px)`;
+  else if (anim === 'left') tr = `translateX(${(1 - a) * -30}px)`;
+  else if (anim === 'right') tr = `translateX(${(1 - a) * 60}px)`;
+  else if (anim === 'pop') tr = `scale(${0.86 + 0.14 * a - 0.04 * b})`;
+  else if (anim === 'rise') tr = `translateY(${(1 - a) * 80 + b * 40}px) scale(${0.97 + 0.03 * a})`;
+  el.style.opacity = o.toFixed(4);
+  el.style.transform = tr;
+  el.style.visibility = o < 0.002 ? 'hidden' : 'visible';
+}
+
+const fmt = (v, dec) => v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+
+function stepValue(steps, t, dur) {
+  let v = steps[0][1];
+  for (let k = 1; k < steps.length; k++) {
+    if (t >= steps[k][0]) v = lerp(steps[k - 1][1], steps[k][1], easeOut(clamp((t - steps[k][0]) / dur)));
+  }
+  return v;
+}
+
+function piecewise(keys, t) {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let k = 0; k < keys.length - 1; k++) {
+    const [ta, va] = keys[k], [tb, vb] = keys[k + 1];
+    if (t < tb) return lerp(va, vb, easeInOut(clamp((t - ta) / (tb - ta))));
+  }
+  return keys[keys.length - 1][1];
+}
+
+window.render = function (t) {
+  if (!NAV_TOPS) measure();
+  const dark = 1 - easeInOut(clamp((t - 6.2) / 0.8));
+  document.getElementById('bgdark').style.opacity = dark;
+  document.getElementById('glow').style.transform = `translate(${Math.sin(t * 0.21) * 60}px, ${Math.cos(t * 0.17) * 40}px)`;
+
+  const night = easeInOut(clamp((t - NIGHT[0]) / 1.2)) * (1 - easeInOut(clamp((t - NIGHT[1]) / 2.8)));
+  document.getElementById('night').style.opacity = night;
+  document.getElementById('stars').style.opacity = night;
+  for (const st of stars) st.s.style.opacity = 0.35 + 0.65 * Math.abs(Math.sin(t * st.speed + st.phase));
+  document.getElementById('dawn').style.opacity = 0.8 * Math.sin(Math.PI * clamp((t - 36.8) / 3.8));
+  const tagMix = night;
+  document.getElementById('tag').style.color = `rgb(${lerp(102, 150, tagMix)}, ${lerp(116, 168, tagMix)}, ${lerp(111, 194, tagMix)})`;
+
+  for (const item of animated) animate(item, t);
+
+  for (const c of counters) {
+    const p = easeOut(clamp((t - c.start) / c.dur));
+    c.el.textContent = c.pre + fmt(lerp(c.from, c.to, p), c.dec) + c.suf;
+  }
+  for (const s of steppers) s.el.textContent = s.pre + fmt(stepValue(s.steps, t, 0.7), s.dec);
+  for (const s of wsteppers) s.el.style.width = stepValue(s.steps, t, 0.8) + '%';
+  for (const g of growers) g.el.style.width = (g.pct * easeInOut(clamp((t - g.start) / g.dur))) + '%';
+  for (const ty of typers) {
+    const n = Math.floor(clamp((t - ty.start) * ty.cps, 0, ty.full.length));
+    const typing = n < ty.full.length && t >= ty.start;
+    ty.el.innerHTML = ty.full.slice(0, n).replace(/&/g, '&amp;').replace(/</g, '&lt;') + (typing ? '<span class="caret"></span>' : '');
+  }
+
+  // Buddy's ticker: newest on top, older items pushed down.
+  for (const it of tickItems) {
+    const own = easeOut(clamp((t - it.at) / 0.45));
+    let pushed = 0;
+    for (const other of tickItems) if (other.at > it.at) pushed += easeOut(clamp((t - other.at) / 0.45));
+    it.el.style.top = (pushed * 64) + 'px';
+    it.el.style.opacity = own;
+    it.el.style.transform = `translateY(${(1 - own) * -18}px)`;
+  }
+  document.querySelectorAll('#zz i').forEach((d, i) => { d.style.opacity = 0.25 + 0.75 * Math.max(0, Math.sin(t * 2.2 - i * 0.7)); });
+  document.querySelectorAll('.pulse').forEach(d => { d.style.opacity = 0.45 + 0.55 * Math.abs(Math.cos(t * 2.6)); });
+
+  // night clock
+  const minutes = Math.round(piecewise(CLOCK, t));
+  const total = (22 * 60 + minutes) % 1440;
+  document.getElementById('clock').textContent = String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+
+  // week strip highlight moves day by day
+  const hl = document.getElementById('dayhl');
+  const dayIndex = piecewise(DAYS, t);
+  hl.style.left = lerp(DAY_LEFTS[0], DAY_LEFTS[4], dayIndex / 4) + 'px';
+  hl.style.width = DAY_W + 'px';
+  hl.style.opacity = easeOut(clamp((t - DAYS[0][0]) / 0.4));
+
+  // navigation highlight slides between items
+  let idx = 0, since = 0;
+  for (const [ts, i] of NAV) if (t >= ts) { idx = i; since = ts; }
+  let prev = idx;
+  for (const [ts, i] of NAV) if (ts < since) prev = i;
+  const p = easeInOut(clamp((t - since) / 0.45));
+  document.getElementById('navhl').style.top = lerp(NAV_TOPS[prev], NAV_TOPS[idx], p) + 'px';
+  document.querySelectorAll('#side .nav').forEach((n, i) => {
+    n.style.color = i === idx ? '#136b56' : '#4c5955';
+    n.style.fontWeight = i === idx ? '600' : '500';
+  });
+
+  // push-to-talk
+  const listen = clamp((t - 69.9) / 0.3) * (1 - clamp((t - 73.9) / 0.3));
+  document.getElementById('micring').style.opacity = listen;
+  document.getElementById('micring').style.transform = `scale(${1 + 0.06 * Math.sin(t * 9)})`;
+  [...wave.children].forEach((b, i) => {
+    const h = 6 + listen * (8 + 30 * Math.abs(Math.sin(t * (5 + (i % 5)) + i * 1.7)) * (0.5 + 0.5 * Math.sin(t * 2.3 + i)));
+    b.style.height = h + 'px';
+    b.style.opacity = 0.25 + 0.75 * listen;
+  });
+  const talking = clamp((t - 77.9) / 0.3) * (1 - clamp((t - 80.6) / 0.4));
+  [...speak.children].forEach((b, i) => { b.style.height = (4 + talking * 14 * Math.abs(Math.sin(t * 7 + i * 1.3))) + 'px'; });
+
+  // cursor and click
+  const cur = document.getElementById('cursor');
+  const path = [[93.8, 1010, 760], [95.3, APPROVE_AT[0], APPROVE_AT[1]], [96.5, APPROVE_AT[0] + 60, APPROVE_AT[1] + 90]];
+  let cx = path[0][1], cy = path[0][2];
+  for (let i = 0; i < path.length - 1; i++) {
+    const [ta, xa, ya] = path[i], [tb, xb, yb] = path[i + 1];
+    if (t >= ta) { const q = easeInOut(clamp((t - ta) / (tb - ta))); cx = lerp(xa, xb, q); cy = lerp(ya, yb, q); }
+  }
+  const press = t > CLICK && t < CLICK + 0.18 ? 0.85 : 1;
+  cur.style.left = cx + 'px'; cur.style.top = cy + 'px';
+  cur.style.transform += ` scale(${press})`;
+  document.getElementById('approve').style.filter = t > CLICK && t < CLICK + 0.25 ? 'brightness(0.85)' : 'none';
+  const rp = clamp((t - CLICK) / 0.6);
+  const ripple = document.getElementById('ripple');
+  ripple.style.opacity = t > CLICK && t < CLICK + 0.6 ? (1 - rp) * 0.8 : 0;
+  ripple.style.left = (cx - 26) + 'px'; ripple.style.top = (cy - 26) + 'px';
+  ripple.style.transform = `scale(${0.4 + rp * 1.2})`;
+
+  // usage chart draws in, live dot pulses
+  const lp = easeInOut(clamp((t - 104.2) / 2.4));
+  const line = document.getElementById('line');
+  line.style.strokeDasharray = lineLen;
+  line.style.strokeDashoffset = lineLen * (1 - lp);
+  document.getElementById('area').style.opacity = clamp((t - 105.6) / 1.0);
+  document.getElementById('livedot').style.opacity = 0.45 + 0.55 * Math.abs(Math.cos(t * 3));
+};
+
+// Sound cues, read by the renderer to build the soundtrack.
+window.SFX = [
+  ...[0.15, 0.9, 1.65].map(t => ({ t, k: 'pop' })), { t: 3.3, k: 'swell' }, { t: 6.9, k: 'reveal' },
+  { t: 12.2, k: 'swell' }, { t: 13.0, k: 'pop' }, { t: 13.4, k: 'pop' }, ...[14.2, 14.95, 15.7, 16.45, 17.2, 17.95].map(t => ({ t, k: 'tick' })),
+  { t: 20.8, k: 'night' },
+  ...[22.6, 24.35, 26.1, 27.85, 29.6, 34.85].map(t => ({ t, k: 'tick' })), { t: 31.35, k: 'low' }, { t: 33.1, k: 'chime' }, { t: 36.6, k: 'reveal' },
+  { t: 38.6, k: 'swell' },
+  ...[41.4, 41.85, 42.3, 42.75].map(t => ({ t, k: 'tick' })), { t: 43.2, k: 'low' },
+  { t: 49.0, k: 'swell' }, { t: 49.6, k: 'pop' }, ...[51.8, 52.2, 52.6, 53.0].map(t => ({ t, k: 'tick' })),
+  ...[53.6, 57.4, 61.2].map(t => ({ t, k: 'day' })), ...[54.0, 57.8, 61.6, 54.3, 54.7, 61.9, 62.4].map(t => ({ t, k: 'tick' })), { t: 63.0, k: 'success' },
+  { t: 69.0, k: 'swell' }, { t: 69.9, k: 'mic' }, { t: 73.9, k: 'mic' }, ...[74.4, 74.9, 75.4].map(t => ({ t, k: 'tick' })), { t: 76.0, k: 'pop' },
+  { t: 81.5, k: 'swell' }, { t: 84.5, k: 'low' }, { t: 86.5, k: 'tick' },
+  { t: 90.5, k: 'swell' }, { t: 91.1, k: 'pop' }, { t: 92.1, k: 'tick' }, { t: 95.45, k: 'click' }, { t: 95.8, k: 'success' }, { t: 96.9, k: 'tick' },
+  { t: 102.5, k: 'swell' }, ...[103.0, 103.2, 103.4, 103.6].map(t => ({ t, k: 'tick' })),
+  { t: 110.4, k: 'swell' }, { t: 110.9, k: 'reveal' },
+];
+window.TIMELINE = { duration: DURATION, night: NIGHT, outro: OUTRO };
+window.DURATION = DURATION;
+render(0);
+</script>
+</body>
+</html>

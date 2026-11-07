@@ -1,0 +1,1 @@
+The CRM chatbot answers when you ask. Manager Buddy works when nobody is asking: overnight it sorts email, sends follow-ups on time, retries what failed and flags interested leads, and it finishes tasks that take days. It only ever does what your own CRM role allows, and nothing in the CRM changes. Concept demo, example data.
