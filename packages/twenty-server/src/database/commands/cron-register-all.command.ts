@@ -22,6 +22,7 @@ import { CheckCustomDomainValidRecordsCronCommand } from 'src/engine/core-module
 import { WebhookSubscriptionRenewalCronCommand } from 'src/modules/connected-account/webhook-subscription-manager/crons/commands/webhook-subscription-renewal.cron.command';
 import { EmailingOngoingStaleCronCommand } from 'src/modules/emailing/crons/commands/emailing-ongoing-stale.cron.command';
 import { ReconcileCampaignStatsCronCommand } from 'src/modules/emailing/crons/commands/reconcile-campaign-stats.cron.command';
+import { CrmAnalyticsCronCommand } from 'src/modules/analytics/crons/commands/crm-analytics.cron.command';
 import { TrashCleanupCronCommand } from 'src/engine/trash-cleanup/commands/trash-cleanup.cron.command';
 import { DeferredWorkspaceMigrationActionRecoveryCronCommand } from 'src/engine/workspace-manager/workspace-migration/workspace-migration-runner/crons/commands/deferred-workspace-migration-action-recovery.cron.command';
 import { CleanOnboardingWorkspacesCronCommand } from 'src/engine/workspace-manager/workspace-cleaner/commands/clean-onboarding-workspaces.cron.command';
@@ -61,6 +62,7 @@ export class CronRegisterAllCommand extends CommandRunner {
 
     private readonly emailingOngoingStaleCronCommand: EmailingOngoingStaleCronCommand,
     private readonly reconcileCampaignStatsCronCommand: ReconcileCampaignStatsCronCommand,
+    private readonly crmAnalyticsCronCommand: CrmAnalyticsCronCommand,
 
     private readonly workflowCronTriggerCronCommand: WorkflowCronTriggerCronCommand,
     private readonly workflowRunEnqueueCronCommand: WorkflowRunEnqueueCronCommand,
@@ -148,6 +150,10 @@ export class CronRegisterAllCommand extends CommandRunner {
       {
         name: 'ReconcileCampaignStats',
         command: this.reconcileCampaignStatsCronCommand,
+      },
+      {
+        name: 'CrmAnalytics',
+        command: this.crmAnalyticsCronCommand,
       },
       {
         name: 'CheckCustomDomainValidRecords',

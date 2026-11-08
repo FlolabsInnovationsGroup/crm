@@ -1,6 +1,7 @@
 import { NavigationDrawerFormsItem } from '@/form-builder/components/NavigationDrawerFormsItem';
 import { NavigationDrawerNotificationsItem } from '@/notifications/components/NavigationDrawerNotificationsItem';
 import { NavigationDrawerTeamInboxItem } from '@/team-inbox/components/NavigationDrawerTeamInboxItem';
+import { NavigationDrawerAnalyticsItem } from '@/crm-analytics/components/NavigationDrawerAnalyticsItem';
 import { NavigationDrawerOpenedSection } from '@/navigation-menu-item/display/sections/components/NavigationDrawerOpenedSection';
 import { NavigationDrawerWorkspaceSectionSkeletonLoader } from '@/object-metadata/components/NavigationDrawerWorkspaceSectionSkeletonLoader';
 
@@ -37,6 +38,7 @@ export const MainNavigationDrawerScrollableItems = () => {
       <NavigationDrawerNotificationsItem />
       <NavigationDrawerTeamInboxItem />
       <NavigationDrawerFormsItem />
+      <NavigationDrawerAnalyticsItem />
       <NavigationDrawerOpenedSection />
       <Suspense fallback={<NavigationDrawerWorkspaceSectionSkeletonLoader />}>
         <FavoritesSectionDispatcher />
