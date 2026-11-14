@@ -220,6 +220,7 @@ type TeamInboxThreadPaneProps = {
   mailboxes: InboxMailbox[];
   isClosed: boolean;
   initialTemplateId: string | null;
+  onInitialTemplateApplied: () => void;
   onToggleClosed: () => Promise<void>;
   onBack: () => void;
   onMarkUnread: () => void;
@@ -241,6 +242,7 @@ export const TeamInboxThreadPane = ({
   mailboxes,
   isClosed,
   initialTemplateId,
+  onInitialTemplateApplied,
   onToggleClosed,
   onBack,
   onMarkUnread,
@@ -421,6 +423,7 @@ export const TeamInboxThreadPane = ({
             fromHandle={fromHandle}
             recipientName={null}
             initialTemplateId={initialTemplateId}
+            onInitialTemplateApplied={onInitialTemplateApplied}
             onClose={handleCloseComposer}
             onSent={handleSent}
           />

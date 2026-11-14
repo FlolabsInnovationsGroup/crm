@@ -476,10 +476,25 @@ export const TeamInboxContent = () => {
     },
   ];
 
+  // Reason counts come from the loaded cards, so they show only when every
+  // open card is loaded.
+  const areReasonCountsExact =
+    !isShowingDoneToday && threads.length >= totalNumberOfThreads;
+
   const reviewFilters: { id: ReviewFilter; label: string }[] = [
     { id: ALL_REVIEW_ITEMS, label: t`All · ${manualReviewCount}` },
-    { id: 'QUESTION', label: t`Questions · ${questionCount}` },
-    { id: 'NOT_INTERESTED', label: t`Not interested · ${notInterestedCount}` },
+    {
+      id: 'QUESTION',
+      label: areReasonCountsExact
+        ? t`Questions · ${questionCount}`
+        : t`Questions`,
+    },
+    {
+      id: 'NOT_INTERESTED',
+      label: areReasonCountsExact
+        ? t`Not interested · ${notInterestedCount}`
+        : t`Not interested`,
+    },
     { id: 'DONE_TODAY', label: t`Done today · ${doneSinceCount}` },
   ];
 
@@ -606,7 +621,7 @@ export const TeamInboxContent = () => {
                 ]}
                 onSelect={setMessageChannelId}
                 trigger={
-                  <StyledChipButton type="button" aria-label={t`Mailbox`}>
+                  <StyledChipButton type="button" title={t`Mailbox`}>
                     <span>{selectedMailbox?.handle ?? t`All mailboxes`}</span>
                     <IconChevronDown size={12} />
                   </StyledChipButton>
@@ -698,6 +713,7 @@ export const TeamInboxContent = () => {
               ? pendingTemplate.templateId
               : null
           }
+          onInitialTemplateApplied={() => setPendingTemplate(null)}
           onToggleClosed={() => handleToggleClosed(selectedThreadId)}
           onBack={() => selectThread(null)}
           onMarkUnread={() => {

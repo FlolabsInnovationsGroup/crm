@@ -43,7 +43,7 @@ export const useInboxPeopleByEmail = (emails: string[]) => {
     objectNameSingular: CoreObjectNameSingular.Person,
     filter: {
       or: sortedEmails.map((email) => ({
-        emails: { primaryEmail: { ilike: email } },
+        emails: { primaryEmail: { ilike: email.replace(/[\\%_]/g, '\\$&') } },
       })),
     },
     limit: sortedEmails.length * 2,

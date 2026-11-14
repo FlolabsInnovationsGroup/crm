@@ -226,7 +226,11 @@ export const TeamInboxManualReviewCard = ({
           <StyledReason
             tone={subject.reason === 'not interested' ? 'quiet' : 'warn'}
           >
-            {subject.reason}
+            {subject.reason === 'question'
+              ? t`Question`
+              : subject.reason === 'not interested'
+                ? t`Not interested`
+                : subject.reason}
           </StyledReason>
         )}
       </StyledHeader>

@@ -106,7 +106,8 @@ export const TeamInboxMessageBubble = ({
       tabIndex={message.isDraft ? 0 : undefined}
       onClick={message.isDraft ? () => onDraftClick(message) : undefined}
       onKeyDown={(event) => {
-        if (message.isDraft && event.key === 'Enter') {
+        if (message.isDraft && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
           onDraftClick(message);
         }
       }}

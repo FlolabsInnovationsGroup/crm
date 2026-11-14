@@ -192,6 +192,7 @@ type TeamInboxReplyComposerProps = {
   fromHandle: string | null;
   recipientName: RecipientName | null;
   initialTemplateId: string | null;
+  onInitialTemplateApplied: () => void;
   onClose: () => void;
   onSent: () => void;
 };
@@ -218,6 +219,7 @@ export const TeamInboxReplyComposer = ({
   fromHandle,
   recipientName,
   initialTemplateId,
+  onInitialTemplateApplied,
   onClose,
   onSent,
 }: TeamInboxReplyComposerProps) => {
@@ -264,6 +266,7 @@ export const TeamInboxReplyComposer = ({
   useEffect(() => {
     if (
       !isNonEmptyString(initialTemplateId) ||
+      isDefined(draftPrefill) ||
       appliedInitialTemplateId === initialTemplateId
     ) {
       return;
@@ -274,12 +277,18 @@ export const TeamInboxReplyComposer = ({
     if (isDefined(template)) {
       setAppliedInitialTemplateId(initialTemplateId);
       applyTemplate(template);
+      onInitialTemplateApplied();
     }
     // applyTemplate is rebuilt every render; the ids decide when to run.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, initialTemplateId, appliedInitialTemplateId]);
+  }, [templates, initialTemplateId, appliedInitialTemplateId, draftPrefill]);
 
+  // The full fields have their own Ctrl+Enter on the recipient inputs.
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (isShowingAllFields || event.defaultPrevented) {
+      return;
+    }
+
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
       event.preventDefault();
 
@@ -325,7 +334,14 @@ export const TeamInboxReplyComposer = ({
             )}
             <StyledLinkButton
               type="button"
-              onClick={() => setIsShowingAllFields(true)}
+              onClick={() => {
+                // Reseed the full editor with what was typed so far.
+                composerState.applyTemplate({
+                  subject: composerState.subject,
+                  body: composerState.body,
+                });
+                setIsShowingAllFields(true);
+              }}
             >
               {t`Cc/Bcc · Subject`}
             </StyledLinkButton>
@@ -354,7 +370,7 @@ export const TeamInboxReplyComposer = ({
         </>
       )}
       <StyledFooter>
-        {templates.length > 0 && (
+        {templates.length > 0 && !isShowingAllFields && (
           <TeamInboxMenu
             dropdownId="team-inbox-composer-template"
             placement="top-start"
