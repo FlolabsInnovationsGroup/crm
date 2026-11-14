@@ -12,6 +12,7 @@ import { FileUrlService } from 'src/engine/core-modules/file/file-url/file-url.s
 import { type InboxMailboxDTO } from 'src/engine/core-modules/messaging/dtos/inbox-mailbox.dto';
 import { type TimelineThreadDTO } from 'src/engine/core-modules/messaging/dtos/timeline-thread.dto';
 import { type InboxThreadFilter } from 'src/engine/core-modules/messaging/types/inbox-thread-filter.type';
+import { MANUAL_REVIEW_SUBJECT_PREFIX } from 'src/engine/core-modules/messaging/utils/team-inbox-manual-review.util';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { type TargetFilter } from 'src/engine/core-modules/target/utils/get-target-field-name-for-object-record.util';
 import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
@@ -27,7 +28,15 @@ const escapeLikePattern = (value: string) => value.replace(/[\\%_]/g, '\\$&');
 
 const applyInboxFilter = (
   queryBuilder: WorkspaceSelectQueryBuilder,
-  { direction, messageChannelId, searchTerm, unreadFor }: InboxThreadFilter,
+  {
+    direction,
+    messageChannelId,
+    searchTerm,
+    unreadFor,
+    manualReview,
+  }: InboxThreadFilter,
+  // Thread level, so a reply to a triage email stays with it.
+  manualReviewThreadIds: string[],
 ): void => {
   queryBuilder
     .innerJoin(
@@ -47,6 +56,23 @@ const applyInboxFilter = (
     queryBuilder.andWhere(
       'messageChannelMessageAssociations.messageChannelId = :messageChannelId',
       { messageChannelId },
+    );
+  }
+
+  if (isDefined(manualReview)) {
+    queryBuilder
+      .andWhere(
+        'messageThread.id = ANY(CAST(:manualReviewThreadIds AS uuid[]))',
+        { manualReviewThreadIds },
+      )
+      .andWhere(
+        'NOT (messageThread.id = ANY(CAST(:doneThreadIds AS uuid[])))',
+        { doneThreadIds: manualReview.doneThreadIds },
+      );
+  } else {
+    queryBuilder.andWhere(
+      'NOT (messageThread.id = ANY(CAST(:manualReviewThreadIds AS uuid[])))',
+      { manualReviewThreadIds },
     );
   }
 
@@ -129,11 +155,25 @@ export class TimelineMessagingService {
         .offset(offset)
         .limit(pageSize);
 
+      const manualReviewThreadIds: string[] = isDefined(inboxFilter)
+        ? (
+            await messageThreadRepository
+              .createQueryBuilder('messageThread')
+              .select('messageThread.id', 'id')
+              .innerJoin('messageThread.messages', 'messages')
+              .where('messages.subject ILIKE :manualReviewPattern', {
+                manualReviewPattern: `${escapeLikePattern(MANUAL_REVIEW_SUBJECT_PREFIX)}%`,
+              })
+              .groupBy('messageThread.id')
+              .getRawMany()
+          ).map((thread) => thread.id)
+        : [];
+
       const applyRecordFilter = (
         queryBuilder: WorkspaceSelectQueryBuilder,
       ): void => {
         if (isDefined(inboxFilter)) {
-          applyInboxFilter(queryBuilder, inboxFilter);
+          applyInboxFilter(queryBuilder, inboxFilter, manualReviewThreadIds);
 
           return;
         }
@@ -249,9 +289,12 @@ export class TimelineMessagingService {
           .where('messageThread.id = ANY(:messageThreadIds)', {
             messageThreadIds,
           })
-          .andWhere('messageChannelMessageAssociations.direction = :direction', {
-            direction: 'INCOMING',
-          })
+          .andWhere(
+            'messageChannelMessageAssociations.direction = :direction',
+            {
+              direction: 'INCOMING',
+            },
+          )
           .groupBy('messageThread.id')
           .getRawMany();
 

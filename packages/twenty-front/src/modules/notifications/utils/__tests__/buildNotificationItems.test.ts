@@ -13,7 +13,7 @@ describe('buildNotificationItems', () => {
           id: 't1',
           subject: 'Re: Internship',
           lastMessageReceivedAt: '2026-10-26T08:00:00.000Z',
-          firstParticipant: { displayName: 'Ada' },
+          contactName: 'Ada',
         },
       ],
       formSubmissions: [
@@ -42,6 +42,24 @@ describe('buildNotificationItems', () => {
       title: 'Call Ada',
       subtitle: 'Task for you',
     });
+  });
+
+  it('adds the submission detail to the subtitle', () => {
+    const [item] = buildNotificationItems({
+      incomingThreads: [],
+      formSubmissions: [
+        {
+          id: 'f1',
+          label: 'Apply · a@b.co',
+          createdAt: '2026-10-26T09:00:00.000Z',
+          detail: 'AI/AGI Intern',
+        },
+      ],
+      tasks: [],
+      labels,
+    });
+
+    expect(item.subtitle).toBe('New form submission · AI/AGI Intern');
   });
 });
 

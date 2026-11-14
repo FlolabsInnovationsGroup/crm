@@ -8,6 +8,8 @@ export const GET_NOTIFICATION_FORM_SUBMISSIONS = gql`
           id
           name
           createdAt
+          formId
+          answers
         }
       }
     }
@@ -26,6 +28,20 @@ export const GET_NOTIFICATION_TASKS = gql`
           id
           title
           createdAt
+        }
+      }
+    }
+  }
+`;
+
+export const GET_NOTIFICATION_FORM_DEFINITIONS = gql`
+  query GetNotificationFormDefinitions($formIds: [UUID!]!) {
+    crmForms(filter: { id: { in: $formIds } }) {
+      edges {
+        node {
+          id
+          name
+          definition
         }
       }
     }

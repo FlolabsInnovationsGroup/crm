@@ -22,6 +22,7 @@ export const useTeamInboxThreads = (filter: TeamInboxFilter) => {
     messageChannelId: filter.messageChannelId,
     searchTerm: filter.searchTerm.trim() === '' ? null : filter.searchTerm,
     unreadOnly: filter.unreadOnly ? true : null,
+    manualReview: filter.manualReview ? true : null,
   };
 
   const { data, loading, error, fetchMore, refetch } =
