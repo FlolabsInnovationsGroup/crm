@@ -42,4 +42,7 @@ export class TimelineThreadDTO {
   // Set by the team inbox only.
   @Field(() => String, { nullable: true })
   contactDisplayName?: string | null;
+
+  @Field(() => UUIDScalarType, { nullable: true })
+  contactPersonId?: string | null;
 }

@@ -6,7 +6,10 @@ type InboxParticipant = {
   displayName: string | null;
   role: MessageParticipantRole;
   receivedAt: Date | null;
+  personId: string | null;
 };
+
+export type InboxContact = { name: string; personId: string | null };
 
 const ROLE_PRIORITY = [
   MessageParticipantRole.FROM,
@@ -16,10 +19,10 @@ const ROLE_PRIORITY = [
 
 // The first outside sender, or, when only the team wrote, the first outside
 // recipient. Callers pass participants that are not workspace members.
-export const pickInboxContactName = (
+export const pickInboxContact = (
   participants: InboxParticipant[],
   ownHandles: string[],
-): string | null => {
+): InboxContact | null => {
   const ownHandleSet = new Set(
     ownHandles.map((handle) => handle.toLowerCase()),
   );
@@ -39,7 +42,10 @@ export const pickInboxContactName = (
     const contact = outsiders.find((participant) => participant.role === role);
 
     if (isDefined(contact)) {
-      return contact.displayName || contact.handle;
+      return {
+        name: contact.displayName || contact.handle || '',
+        personId: contact.personId,
+      };
     }
   }
 

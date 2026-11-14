@@ -4,11 +4,14 @@ import { useState } from 'react';
 import { TIMELINE_THREADS_DEFAULT_PAGE_SIZE } from '@/activities/emails/constants/Messaging';
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
 import { GET_INBOX_THREADS } from '@/team-inbox/graphql/getInboxThreads';
+import { type InboxThread } from '@/team-inbox/types/InboxThread';
 import { type TeamInboxFilter } from '@/team-inbox/types/TeamInboxFilter';
 import { type TimelineThreadsWithTotal } from '~/generated/graphql';
 
 type GetInboxThreadsResult = {
-  getInboxThreads: TimelineThreadsWithTotal;
+  getInboxThreads: Omit<TimelineThreadsWithTotal, 'timelineThreads'> & {
+    timelineThreads: InboxThread[];
+  };
 };
 
 export const useTeamInboxThreads = (filter: TeamInboxFilter) => {

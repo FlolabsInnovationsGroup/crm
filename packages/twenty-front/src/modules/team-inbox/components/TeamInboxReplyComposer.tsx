@@ -12,7 +12,11 @@ import { type EmailDraftPrefill } from '@/activities/emails/types/EmailDraftPref
 import { type EmailReplyMode } from '@/activities/emails/types/EmailReplyMode';
 
 const StyledContainer = styled.div`
-  border-top: 1px solid ${themeCssVariables.border.color.medium};
+  background: ${themeCssVariables.background.primary};
+  border-radius: ${themeCssVariables.border.radius.xl};
+  box-shadow:
+    0 0 0 2px ${themeCssVariables.color.turquoise},
+    ${themeCssVariables.boxShadow.strong};
   display: flex;
   flex-direction: column;
   max-height: 60%;
@@ -24,7 +28,7 @@ const StyledActions = styled.div`
   display: flex;
   gap: ${themeCssVariables.spacing[2]};
   justify-content: flex-end;
-  padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[4]};
+  padding: ${themeCssVariables.spacing[3]} ${themeCssVariables.spacing[4]};
 `;
 
 type TeamInboxReplyComposerProps = {
@@ -72,7 +76,7 @@ export const TeamInboxReplyComposer = ({
         <Button
           variant="solid"
           color="accent"
-          size="sm"
+          size="md"
           startIcon={<IconSend />}
           disabled={!canSendReply}
           onClick={composerState.handleSend}

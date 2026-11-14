@@ -1,5 +1,5 @@
 import { styled } from '@linaria/react';
-import { t } from '@lingui/core/macro';
+import { plural, t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
 import { useState } from 'react';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
@@ -7,7 +7,6 @@ import { isDefined } from 'twenty-shared/utils';
 import {
   IconArrowBackUp,
   IconArrowBackUpDouble,
-  IconCheck,
   IconLayoutSidebarRight,
   IconMail,
 } from 'twenty-ui/icon';
@@ -29,28 +28,108 @@ import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSide
 import { TeamInboxContactPane } from '@/team-inbox/components/TeamInboxContactPane';
 import { TeamInboxReplyComposer } from '@/team-inbox/components/TeamInboxReplyComposer';
 import { getConversationContact } from '@/team-inbox/utils/getConversationContact';
-import { parseManualReviewSubject } from '@/team-inbox/utils/parseManualReviewSubject';
+import { formatToHumanReadableDate } from '~/utils/date-utils';
 
 const StyledContainer = styled.div`
   display: flex;
   flex: 1;
   flex-direction: column;
+  gap: ${themeCssVariables.spacing[3]};
   min-height: 0;
   min-width: 0;
+  padding: ${themeCssVariables.spacing[4]};
 `;
 
 const StyledBackBar = styled.div`
-  border-bottom: 1px solid ${themeCssVariables.border.color.light};
   display: none;
-  padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[4]};
 
   @container team-inbox (max-width: 700px) {
     display: block;
   }
 `;
 
+const StyledCard = styled.div`
+  background: ${themeCssVariables.background.primary};
+  border-radius: ${themeCssVariables.border.radius.xl};
+  box-shadow: ${themeCssVariables.boxShadow.light};
+`;
+
+const StyledHeader = styled(StyledCard)`
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${themeCssVariables.spacing[2]};
+  padding: ${themeCssVariables.spacing[4]} ${themeCssVariables.spacing[5]};
+`;
+
+const StyledHeading = styled.div`
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+`;
+
+const StyledSubject = styled.h2`
+  font-size: ${themeCssVariables.font.size.xl};
+  font-weight: ${themeCssVariables.font.weight.semiBold};
+  margin: 0;
+  overflow-wrap: anywhere;
+`;
+
+const StyledSubtitle = styled.span`
+  color: ${themeCssVariables.font.color.tertiary};
+  font-size: ${themeCssVariables.font.size.sm};
+`;
+
+const StyledMessages = styled.div`
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: ${themeCssVariables.spacing[3]};
+  min-height: 0;
+  overflow-y: auto;
+  padding: ${themeCssVariables.spacing[1]};
+`;
+
+const StyledBubble = styled.div<{ isOurs: boolean }>`
+  align-self: ${({ isOurs }) => (isOurs ? 'flex-end' : 'flex-start')};
+  background: ${({ isOurs }) =>
+    isOurs
+      ? themeCssVariables.tag.background.turquoise
+      : themeCssVariables.background.primary};
+  border-radius: ${({ isOurs }) =>
+    isOurs ? '16px 16px 6px 16px' : '16px 16px 16px 6px'};
+  box-shadow: ${({ isOurs }) =>
+    isOurs ? 'none' : themeCssVariables.boxShadow.light};
+  max-width: 85%;
+  min-width: 0;
+  overflow: hidden;
+  width: fit-content;
+`;
+
+const StyledReplyBar = styled(StyledCard)`
+  align-items: center;
+  display: flex;
+  gap: ${themeCssVariables.spacing[2]};
+  padding: ${themeCssVariables.spacing[3]};
+`;
+
+const StyledReplyPrompt = styled.button`
+  background: none;
+  border: none;
+  color: ${themeCssVariables.font.color.tertiary};
+  cursor: text;
+  flex: 1;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.md};
+  padding: ${themeCssVariables.spacing[2]};
+  text-align: start;
+`;
+
 const StyledContactColumn = styled.div`
-  border-left: 1px solid ${themeCssVariables.border.color.light};
+  background: ${themeCssVariables.background.primary};
+  box-shadow: -1px 0 0 ${themeCssVariables.border.color.light};
   flex: 0 0 300px;
   min-height: 0;
   overflow-y: auto;
@@ -60,58 +139,30 @@ const StyledContactColumn = styled.div`
   }
 `;
 
-const StyledHeader = styled.div`
-  align-items: center;
-  border-bottom: 1px solid ${themeCssVariables.border.color.light};
-  display: flex;
-  flex-wrap: wrap;
-  gap: ${themeCssVariables.spacing[2]};
-  padding: ${themeCssVariables.spacing[3]} ${themeCssVariables.spacing[4]};
-`;
-
-const StyledSubject = styled.h2`
-  flex: 1;
-  font-size: ${themeCssVariables.font.size.lg};
-  font-weight: ${themeCssVariables.font.weight.semiBold};
-  margin: 0;
-  min-width: 200px;
-  overflow-wrap: anywhere;
-`;
-
-const StyledMessages = styled.div`
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-`;
-
-const StyledReplyBar = styled.div`
-  border-top: 1px solid ${themeCssVariables.border.color.medium};
-  display: flex;
-  gap: ${themeCssVariables.spacing[2]};
-  padding: ${themeCssVariables.spacing[3]} ${themeCssVariables.spacing[4]};
-`;
-
 type TeamInboxThreadPaneProps = {
   threadId: string;
   fallbackSubject: string;
   ownHandles: string[];
-  isManualReview: boolean;
   onBack: () => void;
   onMarkUnread: () => void;
-  onOpenApplicantThread: (applicantEmail: string) => void;
-  onManualReviewDone: () => Promise<void>;
 };
+
+const isOwnMessage = (
+  message: EmailThreadMessageWithSender,
+  ownHandles: string[],
+) =>
+  isDefined(message.sender?.workspaceMember) ||
+  ownHandles.some(
+    (handle) => handle.toLowerCase() === message.sender?.handle?.toLowerCase(),
+  );
 
 // Renders the conversation and, beside it, the contact it is with.
 export const TeamInboxThreadPane = ({
   threadId,
   fallbackSubject,
   ownHandles,
-  isManualReview,
   onBack,
   onMarkUnread,
-  onOpenApplicantThread,
-  onManualReviewDone,
 }: TeamInboxThreadPaneProps) => {
   const apolloCoreClient = useApolloCoreClient();
   const { openRecordInSidePanel } = useOpenRecordInSidePanel();
@@ -122,18 +173,10 @@ export const TeamInboxThreadPane = ({
   const [draftPrefill, setDraftPrefill] = useState<EmailDraftPrefill | null>(
     null,
   );
-  const [isMarkingDone, setIsMarkingDone] = useState(false);
 
   const subject = messages[0]?.subject ?? fallbackSubject;
   const contact = getConversationContact(messages, ownHandles);
-
-  const manualReview = isManualReview
-    ? parseManualReviewSubject(subject)
-    : null;
-  const applicantEmail = manualReview?.applicantEmail ?? null;
-  const title = isDefined(applicantEmail)
-    ? `${applicantEmail} · ${manualReview?.originalSubject ?? ''}`
-    : subject;
+  const firstMessageAt = messages[0]?.receivedAt;
 
   const lastMessage = messages[messages.length - 1];
   const isLongThread = messages.length >= 5;
@@ -171,21 +214,21 @@ export const TeamInboxThreadPane = ({
     });
   };
 
-  const handleManualReviewDone = async () => {
-    setIsMarkingDone(true);
-
-    try {
-      await onManualReviewDone();
-    } finally {
-      setIsMarkingDone(false);
-    }
-  };
-
-  const canReply =
-    isDefined(replyContext) &&
-    replyContext.loading === false &&
-    !isManualReview;
+  const canReply = isDefined(replyContext) && replyContext.loading === false;
   const canReplyAll = canReply && isNonEmptyString(replyContext.replyAllCc);
+  const contactName = contact?.displayName ?? '';
+
+  const subtitle = [
+    contactName,
+    messages.length > 0
+      ? plural(messages.length, { one: '# message', other: '# messages' })
+      : null,
+    isNonEmptyString(firstMessageAt)
+      ? t`started ${formatToHumanReadableDate(firstMessageAt)}`
+      : null,
+  ]
+    .filter(isNonEmptyString)
+    .join(' · ');
 
   return (
     <>
@@ -196,36 +239,22 @@ export const TeamInboxThreadPane = ({
           </Button>
         </StyledBackBar>
         <StyledHeader>
-          <StyledSubject dir="auto">
-            {isNonEmptyString(title) ? title : t`(no subject)`}
-          </StyledSubject>
-          {isDefined(applicantEmail) && (
-            <Button
-              variant="outline"
-              size="sm"
-              startIcon={<IconArrowBackUp />}
-              onClick={() => onOpenApplicantThread(applicantEmail)}
-            >{t`Reply to applicant`}</Button>
-          )}
-          {isManualReview && (
-            <Button
-              variant="soft"
-              color="accent"
-              size="sm"
-              startIcon={<IconCheck />}
-              loading={isMarkingDone}
-              disabled={isMarkingDone}
-              onClick={handleManualReviewDone}
-            >{t`Done`}</Button>
-          )}
+          <StyledHeading>
+            <StyledSubject dir="auto">
+              {isNonEmptyString(subject) ? subject : t`(no subject)`}
+            </StyledSubject>
+            <StyledSubtitle dir="auto">{subtitle}</StyledSubtitle>
+          </StyledHeading>
           <Button
-            variant="ghost"
+            variant="soft"
             size="sm"
             startIcon={<IconMail />}
             onClick={onMarkUnread}
-          >{t`Mark as unread`}</Button>
+          >
+            {t`Mark unread`}
+          </Button>
           <Button
-            variant="ghost"
+            variant="soft"
             size="sm"
             startIcon={<IconLayoutSidebarRight />}
             onClick={() =>
@@ -234,7 +263,9 @@ export const TeamInboxThreadPane = ({
                 objectNameSingular: CoreObjectNameSingular.MessageThread,
               })
             }
-          >{t`Open in panel`}</Button>
+          >
+            {t`Open in panel`}
+          </Button>
         </StyledHeader>
         <StyledMessages>
           {threadLoading && messages.length === 0 ? (
@@ -242,24 +273,31 @@ export const TeamInboxThreadPane = ({
           ) : (
             <>
               {firstMessages.map((message) => (
-                <EmailThreadMessage
+                <StyledBubble
                   key={message.id}
-                  message={message}
-                  onDraftClick={handleDraftClick}
-                />
+                  isOurs={isOwnMessage(message, ownHandles)}
+                >
+                  <EmailThreadMessage
+                    message={message}
+                    hideBottomBorder
+                    onDraftClick={handleDraftClick}
+                  />
+                </StyledBubble>
               ))}
               <EmailThreadIntermediaryMessages
                 messages={intermediaryMessages}
                 onDraftClick={handleDraftClick}
               />
               {isDefined(lastMessage) && (
-                <EmailThreadMessage
-                  key={lastMessage.id}
-                  message={lastMessage}
-                  isExpanded
-                  hideBottomBorder
-                  onDraftClick={handleDraftClick}
-                />
+                <StyledBubble isOurs={isOwnMessage(lastMessage, ownHandles)}>
+                  <EmailThreadMessage
+                    key={lastMessage.id}
+                    message={lastMessage}
+                    isExpanded
+                    hideBottomBorder
+                    onDraftClick={handleDraftClick}
+                  />
+                </StyledBubble>
               )}
               <CustomResolverFetchMoreLoader
                 loading={threadLoading}
@@ -280,23 +318,38 @@ export const TeamInboxThreadPane = ({
         ) : (
           canReply && (
             <StyledReplyBar>
-              <Button
-                variant="outline"
-                startIcon={<IconArrowBackUp />}
+              <StyledReplyPrompt
+                type="button"
                 onClick={() => setReplyMode('reply')}
-              >{t`Reply`}</Button>
+              >
+                {isNonEmptyString(contactName)
+                  ? t`Reply to ${contactName}…`
+                  : t`Reply…`}
+              </StyledReplyPrompt>
               {canReplyAll && (
                 <Button
-                  variant="outline"
+                  variant="soft"
+                  size="sm"
                   startIcon={<IconArrowBackUpDouble />}
                   onClick={() => setReplyMode('reply-all')}
-                >{t`Reply all`}</Button>
+                >
+                  {t`Reply all`}
+                </Button>
               )}
+              <Button
+                variant="solid"
+                color="accent"
+                size="sm"
+                startIcon={<IconArrowBackUp />}
+                onClick={() => setReplyMode('reply')}
+              >
+                {t`Reply`}
+              </Button>
             </StyledReplyBar>
           )
         )}
       </StyledContainer>
-      {!isManualReview && isDefined(contact) && (
+      {isDefined(contact) && (
         <StyledContactColumn>
           <TeamInboxContactPane
             personId={contact.personId}

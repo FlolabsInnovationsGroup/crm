@@ -261,24 +261,23 @@ export class TimelineMessagingResolver {
 
     const threadIds = result.timelineThreads.map((thread) => thread.id);
 
-    const [lastIncomingAtByThreadId, contactNameByThreadId] = await Promise.all(
-      [
-        this.timelineMessagingService.getLastIncomingAtByThreadId(
-          threadIds,
-          workspace.id,
-        ),
-        this.teamInboxContactService.getContactNameByThreadId(
-          threadIds,
-          workspace.id,
-        ),
-      ],
-    );
+    const [lastIncomingAtByThreadId, contactByThreadId] = await Promise.all([
+      this.timelineMessagingService.getLastIncomingAtByThreadId(
+        threadIds,
+        workspace.id,
+      ),
+      this.teamInboxContactService.getContactByThreadId(
+        threadIds,
+        workspace.id,
+      ),
+    ]);
 
     return {
       ...result,
       timelineThreads: result.timelineThreads.map((thread) => ({
         ...thread,
-        contactDisplayName: contactNameByThreadId[thread.id] ?? null,
+        contactDisplayName: contactByThreadId[thread.id]?.name ?? null,
+        contactPersonId: contactByThreadId[thread.id]?.personId ?? null,
         read: isTeamInboxThreadRead(
           readState,
           thread.id,
