@@ -39,8 +39,11 @@ const TABS: TeamInboxTab[] = [
 const ALL_MAILBOXES = '';
 
 // List, conversation and contact side by side, like the HubSpot inbox the
-// HR team came from. Narrow screens drop the contact, then show one pane.
+// HR team came from. Breakpoints follow the inbox's own width, which shrinks
+// when the side panel opens: first the contact goes, then one pane shows.
 const StyledContainer = styled.div`
+  container-name: team-inbox;
+  container-type: inline-size;
   display: flex;
   height: 100%;
   min-height: 0;
@@ -54,7 +57,7 @@ const StyledListColumn = styled.div<{ hasSelection: boolean }>`
   min-height: 0;
   min-width: 0;
 
-  @media (max-width: 900px) {
+  @container team-inbox (max-width: 700px) {
     border-right: none;
     display: ${({ hasSelection }) => (hasSelection ? 'none' : 'flex')};
     flex: 1;
@@ -124,7 +127,7 @@ const StyledNoSelection = styled.p`
   padding: ${themeCssVariables.spacing[8]};
   text-align: center;
 
-  @media (max-width: 900px) {
+  @container team-inbox (max-width: 700px) {
     display: none;
   }
 `;
