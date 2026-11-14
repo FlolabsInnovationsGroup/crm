@@ -4,7 +4,7 @@ import { isNonEmptyString } from '@sniptt/guards';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 import { useToast } from 'twenty-ui/components/feedback';
-import { Avatar } from 'twenty-ui/primitives/data-display';
+import { Avatar, Tag } from 'twenty-ui/primitives/data-display';
 import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
 
@@ -63,27 +63,6 @@ const StyledStageRow = styled.div`
   align-items: center;
   display: flex;
   justify-content: space-between;
-`;
-
-const StyledStageName = styled.span`
-  color: ${themeCssVariables.tag.text.turquoise};
-  font-size: ${themeCssVariables.font.size.sm};
-  font-weight: ${themeCssVariables.font.weight.semiBold};
-`;
-
-const StyledProgress = styled.div<{ steps: number }>`
-  display: grid;
-  gap: 4px;
-  grid-template-columns: repeat(${({ steps }) => steps}, minmax(0, 1fr));
-`;
-
-const StyledStep = styled.span<{ isReached: boolean }>`
-  background: ${({ isReached }) =>
-    isReached
-      ? themeCssVariables.color.turquoise
-      : themeCssVariables.background.tertiary};
-  border-radius: 3px;
-  height: 6px;
 `;
 
 const StyledSectionTitle = styled.span`
@@ -202,7 +181,7 @@ export const TeamInboxContactPane = ({
   const currentStage = isDefined(stageField)
     ? person[stageField.name]
     : undefined;
-  const currentStageIndex = stageOptions.findIndex(
+  const currentStageOption = stageOptions.find(
     (option) => option.value === currentStage,
   );
 
@@ -256,19 +235,14 @@ export const TeamInboxContactPane = ({
         <StyledStage>
           <StyledStageRow>
             <StyledMuted>{stageField.label}</StyledMuted>
-            <StyledStageName>
-              {stageOptions[currentStageIndex]?.label ?? t`Not set`}
-            </StyledStageName>
+            {isDefined(currentStageOption) ? (
+              <Tag color={currentStageOption.color}>
+                {currentStageOption.label}
+              </Tag>
+            ) : (
+              <StyledMuted>{t`Not set`}</StyledMuted>
+            )}
           </StyledStageRow>
-          <StyledProgress steps={stageOptions.length}>
-            {stageOptions.map((option, index) => (
-              <StyledStep
-                key={option.id}
-                title={option.label}
-                isReached={index <= currentStageIndex}
-              />
-            ))}
-          </StyledProgress>
           <FormBuilderNativeSelect
             value={isDefined(currentStage) ? String(currentStage) : ''}
             ariaLabel={t`Move stage`}
