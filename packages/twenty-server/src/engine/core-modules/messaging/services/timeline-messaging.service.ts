@@ -5,7 +5,7 @@ import {
   MessageChannelVisibility,
   MessageParticipantRole,
 } from 'twenty-shared/types';
-import { isDefined } from 'twenty-shared/utils';
+import { isDefined, isValidUuid } from 'twenty-shared/utils';
 import { In, type Repository } from 'typeorm';
 
 import { FileUrlService } from 'src/engine/core-modules/file/file-url/file-url.service';
@@ -105,7 +105,8 @@ const applyInboxFilter = (
       {
         readAtByThreadId: JSON.stringify(unreadFor.readAtByThreadId),
         readBefore: unreadFor.readBefore,
-        unreadThreadIds: unreadFor.unreadThreadIds,
+        // Ids stored before the resolver checked them may be malformed.
+        unreadThreadIds: unreadFor.unreadThreadIds.filter(isValidUuid),
       },
     );
   }
