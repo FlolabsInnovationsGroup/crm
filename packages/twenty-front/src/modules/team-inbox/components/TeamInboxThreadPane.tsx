@@ -44,7 +44,7 @@ const StyledBackBar = styled.div`
   display: none;
   padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[4]};
 
-  @media (max-width: 900px) {
+  @container team-inbox (max-width: 700px) {
     display: block;
   }
 `;
@@ -55,7 +55,7 @@ const StyledContactColumn = styled.div`
   min-height: 0;
   overflow-y: auto;
 
-  @media (max-width: 1280px) {
+  @container team-inbox (max-width: 1000px) {
     display: none;
   }
 `;
