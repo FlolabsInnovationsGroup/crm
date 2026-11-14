@@ -35,3 +35,27 @@ describe('getThreadContactName', () => {
     ).toBe('FloLabs HR');
   });
 });
+
+describe('getThreadContactName with team mailboxes', () => {
+  it('skips a mailbox that is not linked to a workspace member', () => {
+    expect(
+      getThreadContactName(
+        {
+          firstParticipant: {
+            displayName: 'FloLabs HR',
+            handle: 'hr@flolabs.com',
+            workspaceMemberId: null,
+          },
+          lastTwoParticipants: [
+            {
+              displayName: 'Ada',
+              handle: 'ada@example.com',
+              workspaceMemberId: null,
+            },
+          ],
+        },
+        ['HR@flolabs.com'],
+      ),
+    ).toBe('Ada');
+  });
+});
