@@ -38,4 +38,8 @@ export class TimelineThreadDTO {
 
   @Field()
   lastMessageIsDraft: boolean;
+
+  // Set by the team inbox only.
+  @Field(() => String, { nullable: true })
+  contactDisplayName?: string | null;
 }
