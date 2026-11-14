@@ -1,0 +1,116 @@
+/* FloLabs brand on top of the Twenty theme: navy sidebar, Plus Jakarta Sans
+   titles and the --fl-* palette the team inbox is drawn with. FLOLABS.md
+   ("Brand") lists what it covers. Unlayered, so it wins over twenty-ui. */
+
+.light {
+  --fl-font-display: 'Plus Jakarta Sans', Inter, sans-serif;
+  --fl-canvas: #eef1f6;
+  --fl-surface: #ffffff;
+  --fl-surface-sunken: #f7f9fc;
+  --fl-chip: #f2f4f8;
+  --fl-chip-strong: #e3e8f0;
+  --fl-line: #e3e8f0;
+  --fl-ink-strong: #0f172a;
+  --fl-ink: #172033;
+  --fl-ink-soft: #3b4660;
+  --fl-ink-quiet: #4b5670;
+  --fl-muted: #6b768c;
+  --fl-faint: #7a8499;
+  --fl-fainter: #94a0b6;
+  --fl-accent: #0f9d8a;
+  --fl-accent-hover: #0b8a79;
+  --fl-on-accent: #ffffff;
+  --fl-accent-soft: #e6f6f3;
+  --fl-accent-tint: #eef8f6;
+  --fl-accent-ink: #0b7a6b;
+  --fl-accent-ink-strong: #0b5f54;
+  --fl-ours-ink: #1b3a35;
+  --fl-warn-soft: #fff3e0;
+  --fl-warn-ink: #b45309;
+  --fl-pdf-soft: #fde2e2;
+  --fl-pdf-ink: #b91c1c;
+  --fl-shadow-card: 0 1px 2px rgba(22, 32, 58, 0.06);
+  --fl-shadow-raised:
+    0 1px 2px rgba(22, 32, 58, 0.06), 0 8px 24px rgba(22, 32, 58, 0.05);
+  --fl-shadow-composer: 0 10px 30px rgba(22, 32, 58, 0.1);
+  --fl-navy: #16203a;
+  --fl-navy-raised: #26335a;
+  --fl-navy-field: #212c49;
+  --fl-navy-line: #364264;
+  --fl-navy-ink: #c3cad9;
+  --fl-navy-muted: #8892a8;
+}
+
+.dark {
+  --fl-font-display: 'Plus Jakarta Sans', Inter, sans-serif;
+  --fl-canvas: #0f1420;
+  --fl-surface: #171d2b;
+  --fl-surface-sunken: #1c2333;
+  --fl-chip: #222a3b;
+  --fl-chip-strong: #2a3346;
+  --fl-line: #2a3346;
+  --fl-ink-strong: #f5f7fb;
+  --fl-ink: #e6eaf2;
+  --fl-ink-soft: #c3cad9;
+  --fl-ink-quiet: #aeb7c9;
+  --fl-muted: #98a2b8;
+  --fl-faint: #8892a8;
+  --fl-fainter: #6b768c;
+  --fl-accent: #0f9d8a;
+  --fl-accent-hover: #13b29c;
+  --fl-on-accent: #ffffff;
+  --fl-accent-soft: #10302c;
+  --fl-accent-tint: #122b28;
+  --fl-accent-ink: #3fd0b9;
+  --fl-accent-ink-strong: #7ce3d1;
+  --fl-ours-ink: #d5f3ec;
+  --fl-warn-soft: #3a2a12;
+  --fl-warn-ink: #f5b55a;
+  --fl-pdf-soft: #3d1c1c;
+  --fl-pdf-ink: #f19a9a;
+  --fl-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --fl-shadow-raised:
+    0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+  --fl-shadow-composer: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --fl-navy: #101830;
+  --fl-navy-raised: #22305a;
+  --fl-navy-field: #1a2442;
+  --fl-navy-line: #2f3b5c;
+  --fl-navy-ink: #c3cad9;
+  --fl-navy-muted: #8892a8;
+}
+
+/* Twenty colours everything in the drawer through these tokens, so
+   redefining them here turns the whole sidebar navy without touching it. */
+[data-click-outside-id='navigation-drawer'] {
+  background: var(--fl-navy);
+  --t-font-color-primary: #ffffff;
+  --t-font-color-secondary: var(--fl-navy-ink);
+  --t-font-color-tertiary: var(--fl-navy-muted);
+  --t-font-color-light: var(--fl-navy-muted);
+  --t-font-color-extra-light: #5f6a85;
+  --t-background-primary: var(--fl-navy-field);
+  --t-background-secondary: var(--fl-navy-field);
+  --t-background-transparent-lighter: rgba(255, 255, 255, 0.03);
+  --t-background-transparent-light: rgba(255, 255, 255, 0.06);
+  --t-background-transparent-medium: rgba(255, 255, 255, 0.1);
+  --t-background-transparent-strong: rgba(255, 255, 255, 0.16);
+  --t-border-color-light: var(--fl-navy-field);
+  --t-border-color-medium: var(--fl-navy-line);
+  --t-border-color-strong: var(--fl-navy-line);
+  --t-background-tertiary: var(--fl-navy-field);
+  --t-background-quaternary: var(--fl-navy-raised);
+}
+
+[data-click-outside-id='navigation-drawer']
+  .navigation-drawer-item[aria-current]:not([aria-current='false']) {
+  background: var(--fl-navy-raised);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+[data-testid='top-bar-title'],
+[data-page-title] {
+  font-family: var(--fl-font-display);
+  font-weight: 700;
+}

@@ -42,7 +42,11 @@ describe('getConversationContact', () => {
         ],
         ['hr@flolabs.com'],
       ),
-    ).toEqual({ personId: 'person-ada', displayName: 'ada' });
+    ).toEqual({
+      personId: 'person-ada',
+      displayName: 'ada',
+      handle: 'ada@example.com',
+    });
   });
 
   it('prefers a sender who wrote to us over other recipients', () => {
@@ -74,7 +78,11 @@ describe('getConversationContact', () => {
         ],
         [],
       ),
-    ).toEqual({ personId: 'person-ada', displayName: 'ada' });
+    ).toEqual({
+      personId: 'person-ada',
+      displayName: 'ada',
+      handle: 'ada@example.com',
+    });
   });
 
   it('is empty when only the team took part', () => {

@@ -6,6 +6,7 @@ import { type EmailThreadMessage } from '@/activities/emails/types/EmailThreadMe
 export type ConversationContact = {
   personId: string | null;
   displayName: string;
+  handle: string;
 };
 
 const ROLE_PRIORITY = [
@@ -40,6 +41,7 @@ export const getConversationContact = (
       return {
         personId: contact.person?.id ?? null,
         displayName: contact.displayName || contact.handle,
+        handle: contact.handle,
       };
     }
   }

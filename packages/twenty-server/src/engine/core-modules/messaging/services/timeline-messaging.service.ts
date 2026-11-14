@@ -67,7 +67,9 @@ const applyInboxFilter = (
         { manualReviewThreadIds },
       )
       .andWhere(
-        'NOT (messageThread.id = ANY(CAST(:doneThreadIds AS uuid[])))',
+        manualReview.showDone === true
+          ? 'messageThread.id = ANY(CAST(:doneThreadIds AS uuid[]))'
+          : 'NOT (messageThread.id = ANY(CAST(:doneThreadIds AS uuid[])))',
         { doneThreadIds: manualReview.doneThreadIds },
       );
   } else {

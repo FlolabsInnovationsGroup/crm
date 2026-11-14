@@ -2,40 +2,36 @@ import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
 import { isDefined } from 'twenty-shared/utils';
-import { Avatar, Tag } from 'twenty-ui/primitives/data-display';
-import { themeCssVariables } from 'twenty-ui/theme';
 
+import { TeamInboxAvatar } from '@/team-inbox/components/TeamInboxAvatar';
+import { TeamInboxStageChip } from '@/team-inbox/components/TeamInboxStageChip';
 import { type InboxContactSummary } from '@/team-inbox/hooks/useInboxContactPeople';
-import { getThreadContactName } from '@/team-inbox/utils/getThreadContactName';
 import { type InboxThread } from '@/team-inbox/types/InboxThread';
+import { getThreadContactName } from '@/team-inbox/utils/getThreadContactName';
 import { MessageChannelVisibility } from '~/generated/graphql';
 import { beautifyPastDateRelativeToNowShort } from '~/utils/date-utils';
 
 const StyledItem = styled.button<{ isSelected: boolean }>`
   align-items: flex-start;
   background: ${({ isSelected }) =>
-    isSelected ? themeCssVariables.tag.background.turquoise : 'none'};
+    isSelected ? 'var(--fl-accent-tint)' : 'transparent'};
   border: none;
-  border-radius: ${themeCssVariables.border.radius.xl};
+  border-radius: 14px;
   box-shadow: ${({ isSelected }) =>
-    isSelected
-      ? `inset 0 0 0 1.5px ${themeCssVariables.color.turquoise}`
-      : 'none'};
-  color: ${themeCssVariables.font.color.primary};
+    isSelected ? 'inset 0 0 0 1.5px var(--fl-accent)' : 'none'};
+  color: var(--fl-ink);
   cursor: pointer;
   display: flex;
+  flex-shrink: 0;
   font-family: inherit;
-  font-size: ${themeCssVariables.font.size.md};
-  gap: ${themeCssVariables.spacing[3]};
-  padding: ${themeCssVariables.spacing[3]};
+  gap: 12px;
+  padding: 14px 12px;
   text-align: start;
   width: 100%;
 
   &:hover {
     background: ${({ isSelected }) =>
-      isSelected
-        ? themeCssVariables.tag.background.turquoise
-        : themeCssVariables.background.transparent.lighter};
+      isSelected ? 'var(--fl-accent-tint)' : 'var(--fl-surface-sunken)'};
   }
 `;
 
@@ -43,55 +39,55 @@ const StyledText = styled.span`
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 `;
 
 const StyledTopLine = styled.span`
   align-items: center;
   display: flex;
-  gap: ${themeCssVariables.spacing[2]};
+  gap: 8px;
 `;
 
 const StyledName = styled.span<{ isUnread: boolean }>`
   color: ${({ isUnread }) =>
-    isUnread
-      ? themeCssVariables.font.color.primary
-      : themeCssVariables.font.color.secondary};
+    isUnread ? 'var(--fl-ink-strong)' : 'var(--fl-ink-soft)'};
   flex: 1;
-  font-size: ${themeCssVariables.font.size.lg};
-  font-weight: ${({ isUnread }) =>
-    isUnread
-      ? themeCssVariables.font.weight.semiBold
-      : themeCssVariables.font.weight.medium};
+  font-size: 15px;
+  font-weight: ${({ isUnread }) => (isUnread ? 700 : 500)};
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
 
 const StyledTime = styled.span`
-  color: ${themeCssVariables.font.color.light};
+  color: var(--fl-faint);
   flex-shrink: 0;
-  font-size: ${themeCssVariables.font.size.sm};
+  font-size: 12px;
 `;
 
 const StyledUnreadDot = styled.span`
-  background: ${themeCssVariables.color.turquoise};
+  background: var(--fl-accent);
   border-radius: 50%;
   flex-shrink: 0;
   height: 9px;
   width: 9px;
 `;
 
-const StyledLine = styled.span<{ isMuted?: boolean; isUnread?: boolean }>`
-  color: ${({ isMuted }) =>
-    isMuted
-      ? themeCssVariables.font.color.tertiary
-      : themeCssVariables.font.color.primary};
-  font-weight: ${({ isUnread }) =>
-    isUnread
-      ? themeCssVariables.font.weight.semiBold
-      : themeCssVariables.font.weight.regular};
+const StyledSubject = styled.span<{ isUnread: boolean }>`
+  color: ${({ isUnread }) =>
+    isUnread ? 'var(--fl-ink)' : 'var(--fl-ink-quiet)'};
+  font-size: 14px;
+  font-weight: ${({ isUnread }) => (isUnread ? 600 : 400)};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const StyledPreview = styled.span`
+  color: var(--fl-faint);
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -100,14 +96,14 @@ const StyledLine = styled.span<{ isMuted?: boolean; isUnread?: boolean }>`
 const StyledMeta = styled.span`
   align-items: center;
   display: flex;
-  gap: ${themeCssVariables.spacing[2]};
-  margin-top: ${themeCssVariables.spacing[1]};
+  gap: 6px;
+  margin-top: 4px;
   min-width: 0;
 `;
 
 const StyledPosition = styled.span`
-  color: ${themeCssVariables.font.color.tertiary};
-  font-size: ${themeCssVariables.font.size.sm};
+  color: var(--fl-faint);
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -141,7 +137,11 @@ export const TeamInboxThreadListItem = ({
       aria-current={isSelected}
       onClick={onSelect}
     >
-      <Avatar name={name} colorSeed={name} shape="circle" size="lg" />
+      <TeamInboxAvatar
+        name={name}
+        colorSeed={thread.contactPersonId ?? name}
+        size={42}
+      />
       <StyledText>
         <StyledTopLine>
           <StyledName isUnread={isUnread} dir="auto">
@@ -152,22 +152,20 @@ export const TeamInboxThreadListItem = ({
           </StyledTime>
           {isUnread && <StyledUnreadDot aria-label={t`Unread`} />}
         </StyledTopLine>
-        <StyledLine isUnread={isUnread} dir="auto">
+        <StyledSubject isUnread={isUnread} dir="auto">
           {isNonEmptyString(thread.subject) ? thread.subject : t`(no subject)`}
-        </StyledLine>
+        </StyledSubject>
         {isBodyVisible && isNonEmptyString(thread.lastMessageBody) && (
-          <StyledLine isMuted dir="auto">
-            {thread.lastMessageBody}
-          </StyledLine>
+          <StyledPreview dir="auto">{thread.lastMessageBody}</StyledPreview>
         )}
         {isDefined(contactSummary) &&
           (isNonEmptyString(contactSummary.stageLabel) ||
             isNonEmptyString(contactSummary.position)) && (
             <StyledMeta>
               {isNonEmptyString(contactSummary.stageLabel) && (
-                <Tag color={contactSummary.stageColor}>
+                <TeamInboxStageChip color={contactSummary.stageColor}>
                   {contactSummary.stageLabel}
-                </Tag>
+                </TeamInboxStageChip>
               )}
               <StyledPosition>{contactSummary.position}</StyledPosition>
             </StyledMeta>
