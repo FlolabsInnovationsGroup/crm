@@ -19,6 +19,7 @@ import { InboxMailboxDTO } from 'src/engine/core-modules/messaging/dtos/inbox-ma
 import { DismissReconnectAccountBannerInput } from 'src/engine/core-modules/messaging/dtos/dismiss-reconnect-account-banner.input';
 import { TimelineThreadsWithTotalDTO } from 'src/engine/core-modules/messaging/dtos/timeline-threads-with-total.dto';
 import { GetMessagesService } from 'src/engine/core-modules/messaging/services/get-messages.service';
+import { TeamInboxManualReviewService } from 'src/engine/core-modules/messaging/services/team-inbox-manual-review.service';
 import { TeamInboxReadStateService } from 'src/engine/core-modules/messaging/services/team-inbox-read-state.service';
 import { TimelineMessagingService } from 'src/engine/core-modules/messaging/services/timeline-messaging.service';
 import { isTeamInboxThreadRead } from 'src/engine/core-modules/messaging/utils/team-inbox-read-state.util';
@@ -77,6 +78,21 @@ class GetInboxThreadsArgs {
   @IsOptional()
   @IsBoolean()
   unreadOnly?: boolean;
+
+  @Field(() => Boolean, { nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  manualReview?: boolean;
+}
+
+@ArgsType()
+class SetManualReviewDoneArgs {
+  @Field(() => UUIDScalarType)
+  messageThreadId: string;
+
+  @Field(() => Boolean)
+  @IsBoolean()
+  isDone: boolean;
 }
 
 @ArgsType()
@@ -154,6 +170,7 @@ export class TimelineMessagingResolver {
     private readonly userService: UserService,
     private readonly accountsToReconnectService: AccountsToReconnectService,
     private readonly teamInboxReadStateService: TeamInboxReadStateService,
+    private readonly teamInboxManualReviewService: TeamInboxManualReviewService,
   ) {}
 
   @Query(() => TimelineThreadsWithTotalDTO)
@@ -201,6 +218,7 @@ export class TimelineMessagingResolver {
       messageChannelId,
       searchTerm,
       unreadOnly,
+      manualReview,
     }: GetInboxThreadsArgs,
   ) {
     const workspaceMember = await this.userService.loadWorkspaceMember(
@@ -227,6 +245,15 @@ export class TimelineMessagingResolver {
         messageChannelId,
         searchTerm,
         unreadFor: unreadOnly === true ? readState : undefined,
+        manualReview:
+          manualReview === true
+            ? {
+                doneThreadIds:
+                  await this.teamInboxManualReviewService.getDoneThreadIds(
+                    workspace.id,
+                  ),
+              }
+            : undefined,
       },
     );
 
@@ -278,6 +305,63 @@ export class TimelineMessagingResolver {
       );
 
     return totalNumberOfThreads;
+  }
+
+  @Query(() => Int)
+  async getManualReviewCount(
+    @AuthUser() user: AuthContextUser,
+    @AuthWorkspace() workspace: WorkspaceEntity,
+  ) {
+    const workspaceMember = await this.userService.loadWorkspaceMember(
+      user,
+      workspace,
+    );
+
+    if (!workspaceMember) {
+      return 0;
+    }
+
+    const { totalNumberOfThreads } =
+      await this.getMessagesFromPersonIdsService.getInboxThreads(
+        workspaceMember.id,
+        workspace.id,
+        1,
+        1,
+        {
+          manualReview: {
+            doneThreadIds:
+              await this.teamInboxManualReviewService.getDoneThreadIds(
+                workspace.id,
+              ),
+          },
+        },
+      );
+
+    return totalNumberOfThreads;
+  }
+
+  @Mutation(() => Boolean)
+  async setManualReviewDone(
+    @AuthUser() user: AuthContextUser,
+    @AuthWorkspace() workspace: WorkspaceEntity,
+    @Args() { messageThreadId, isDone }: SetManualReviewDoneArgs,
+  ) {
+    const workspaceMember = await this.userService.loadWorkspaceMember(
+      user,
+      workspace,
+    );
+
+    if (!workspaceMember) {
+      return false;
+    }
+
+    await this.teamInboxManualReviewService.setDone({
+      workspaceId: workspace.id,
+      messageThreadId,
+      isDone,
+    });
+
+    return true;
   }
 
   @Mutation(() => Boolean)

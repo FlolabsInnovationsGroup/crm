@@ -8,4 +8,6 @@ export type InboxThreadFilter = {
   messageChannelId?: string;
   searchTerm?: string;
   unreadFor?: TeamInboxReadState;
+  // Set: only reply-triage threads not yet done. Unset: none of them.
+  manualReview?: { doneThreadIds: string[] };
 };
