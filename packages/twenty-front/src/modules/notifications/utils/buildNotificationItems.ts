@@ -1,3 +1,4 @@
+import { isNonEmptyString } from '@sniptt/guards';
 import { isDefined } from 'twenty-shared/utils';
 
 import { type NotificationItem } from '@/notifications/types/NotificationItem';
@@ -8,10 +9,15 @@ type ThreadInput = {
   id: string;
   subject: string;
   lastMessageReceivedAt: string;
-  firstParticipant: { displayName: string };
+  contactName: string;
 };
 
-type RecordInput = { id: string; createdAt: string; label: string };
+type RecordInput = {
+  id: string;
+  createdAt: string;
+  label: string;
+  detail?: string;
+};
 
 export const buildNotificationItems = ({
   incomingThreads,
@@ -25,36 +31,32 @@ export const buildNotificationItems = ({
   labels: { formSubmission: string; task: string };
 }): NotificationItem[] =>
   [
-    ...incomingThreads.map(
-      (thread): NotificationItem => ({
-        id: `email-${thread.id}`,
-        kind: 'email',
-        recordId: thread.id,
-        title: thread.firstParticipant.displayName,
-        subtitle: thread.subject,
-        happenedAt: thread.lastMessageReceivedAt,
-      }),
-    ),
-    ...formSubmissions.map(
-      (submission): NotificationItem => ({
-        id: `form-${submission.id}`,
-        kind: 'formSubmission',
-        recordId: submission.id,
-        title: submission.label,
-        subtitle: labels.formSubmission,
-        happenedAt: submission.createdAt,
-      }),
-    ),
-    ...tasks.map(
-      (task): NotificationItem => ({
-        id: `task-${task.id}`,
-        kind: 'task',
-        recordId: task.id,
-        title: task.label,
-        subtitle: labels.task,
-        happenedAt: task.createdAt,
-      }),
-    ),
+    ...incomingThreads.map((thread): NotificationItem => ({
+      id: `email-${thread.id}`,
+      kind: 'email',
+      recordId: thread.id,
+      title: thread.contactName,
+      subtitle: thread.subject,
+      happenedAt: thread.lastMessageReceivedAt,
+    })),
+    ...formSubmissions.map((submission): NotificationItem => ({
+      id: `form-${submission.id}`,
+      kind: 'formSubmission',
+      recordId: submission.id,
+      title: submission.label,
+      subtitle: isNonEmptyString(submission.detail)
+        ? `${labels.formSubmission} · ${submission.detail}`
+        : labels.formSubmission,
+      happenedAt: submission.createdAt,
+    })),
+    ...tasks.map((task): NotificationItem => ({
+      id: `task-${task.id}`,
+      kind: 'task',
+      recordId: task.id,
+      title: task.label,
+      subtitle: labels.task,
+      happenedAt: task.createdAt,
+    })),
   ]
     .sort((first, second) => second.happenedAt.localeCompare(first.happenedAt))
     .slice(0, MAX_NOTIFICATIONS);

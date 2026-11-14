@@ -1,13 +1,18 @@
 import { useQuery } from '@apollo/client/react';
 import { t } from '@lingui/core/macro';
-import { isDefined } from 'twenty-shared/utils';
+import { type PublicFormAnswers, isDefined } from 'twenty-shared/utils';
 
 import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMemberState';
 import {
+  GET_NOTIFICATION_FORM_DEFINITIONS,
   GET_NOTIFICATION_FORM_SUBMISSIONS,
   GET_NOTIFICATION_TASKS,
 } from '@/notifications/graphql/notificationQueries';
+import { type FormBuilderRecord } from '@/form-builder/types/FormBuilderRecord';
+import { parseStoredFormDefinition } from '@/form-builder/utils/parseStoredFormDefinition';
 import { buildNotificationItems } from '@/notifications/utils/buildNotificationItems';
+import { getFormSubmissionDetail } from '@/notifications/utils/getFormSubmissionDetail';
+import { getThreadContactName } from '@/team-inbox/utils/getThreadContactName';
 import { useObjectMetadataItems } from '@/object-metadata/hooks/useObjectMetadataItems';
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
 import { GET_INBOX_THREADS } from '@/team-inbox/graphql/getInboxThreads';
@@ -46,11 +51,55 @@ export const useNotificationFeed = () => {
       id: string;
       name: string | null;
       createdAt: string;
+      formId: string | null;
+      answers: PublicFormAnswers | null;
     }>;
   }>(GET_NOTIFICATION_FORM_SUBMISSIONS, {
     ...pollingOptions,
     skip: !hasFormSubmissions,
   });
+
+  const submissionFormIds = [
+    ...new Set(
+      (formData?.formSubmissions.edges ?? [])
+        .map(({ node }) => node.formId)
+        .filter(isDefined),
+    ),
+  ].sort();
+
+  // Sorted ids keep the variables stable, so polling does not refetch the
+  // definitions. A plain query, because this hook runs before metadata loads.
+  const { data: formDefinitionData } = useQuery<{
+    crmForms: Connection<FormBuilderRecord>;
+  }>(GET_NOTIFICATION_FORM_DEFINITIONS, {
+    client: apolloCoreClient,
+    variables: { formIds: submissionFormIds },
+    skip: submissionFormIds.length === 0,
+  });
+
+  const forms = (formDefinitionData?.crmForms.edges ?? []).map(
+    ({ node }) => node,
+  );
+
+  const definitionByFormId = new Map(
+    forms.map((form) => [
+      form.id,
+      parseStoredFormDefinition(form.definition, form.name ?? ''),
+    ]),
+  );
+
+  const getSubmissionDetail = (
+    formId: string | null,
+    answers: PublicFormAnswers | null,
+  ) => {
+    const definition = isDefined(formId)
+      ? definitionByFormId.get(formId)
+      : undefined;
+
+    return isDefined(definition) && isDefined(answers)
+      ? getFormSubmissionDetail(definition, answers)
+      : '';
+  };
 
   const { data: taskData } = useQuery<{
     tasks: Connection<{ id: string; title: string | null; createdAt: string }>;
@@ -66,7 +115,7 @@ export const useNotificationFeed = () => {
         id: thread.id,
         subject: thread.subject,
         lastMessageReceivedAt: thread.lastMessageReceivedAt,
-        firstParticipant: { displayName: thread.firstParticipant.displayName },
+        contactName: getThreadContactName(thread),
       }),
     ),
     formSubmissions: (formData?.formSubmissions.edges ?? []).map(
@@ -74,6 +123,7 @@ export const useNotificationFeed = () => {
         id: node.id,
         createdAt: node.createdAt,
         label: node.name ?? '',
+        detail: getSubmissionDetail(node.formId, node.answers),
       }),
     ),
     tasks: (taskData?.tasks.edges ?? []).map(({ node }) => ({
