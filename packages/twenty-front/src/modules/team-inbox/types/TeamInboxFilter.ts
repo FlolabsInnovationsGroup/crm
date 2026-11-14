@@ -5,6 +5,7 @@ export type TeamInboxFilter = {
   unreadOnly: boolean;
   manualReview: boolean;
   closedOnly: boolean;
+  manualReviewDoneSince: string | null;
   messageChannelId: string | null;
   searchTerm: string;
 };

@@ -12,6 +12,7 @@ export const GET_INBOX_THREADS = gql`
     $unreadOnly: Boolean
     $manualReview: Boolean
     $closed: Boolean
+    $manualReviewDoneSince: DateTime
   ) {
     getInboxThreads(
       page: $page
@@ -22,6 +23,7 @@ export const GET_INBOX_THREADS = gql`
       unreadOnly: $unreadOnly
       manualReview: $manualReview
       closed: $closed
+      manualReviewDoneSince: $manualReviewDoneSince
     ) {
       ...TimelineThreadsWithTotalFragment
       timelineThreads {

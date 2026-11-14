@@ -27,6 +27,7 @@ export const useTeamInboxThreads = (filter: TeamInboxFilter) => {
     unreadOnly: filter.unreadOnly ? true : null,
     manualReview: filter.manualReview ? true : null,
     closed: filter.closedOnly,
+    manualReviewDoneSince: filter.manualReviewDoneSince,
   };
 
   const { data, loading, error, fetchMore, refetch } =

@@ -82,9 +82,12 @@ The person page has these tabs:
 
 Sidebar → **Team inbox**: email threads from every connected mailbox, newest first. The page has three columns, like the HubSpot inbox: the list on the left, the selected conversation in the middle with **Reply** at the bottom, and the applicant's details and CV on the right. On smaller screens the details column is hidden, and on a phone the list and the conversation take turns.
 
-- Tabs: **All**, **Unread (n)**, **Received**, **Sent**, **Manual review (n)**. The tab and the open conversation are kept in the address, so a link or a reload opens the same view.
-- Opening a thread marks it read. **Mark as unread** in the conversation header undoes it. **Mark all as read** clears the list.
-- **Manual review** lists the emails the n8n reply-triage workflow sends to hr@ when an applicant's reply needs a person (subject starting with `[Reply triage]`). They are kept out of the other tabs. Each item shows the reason and the applicant; **Reply to applicant** opens the applicant's own email, and **Done** removes the item for the whole team. Our own emails to ourselves are skipped by the email sync, so the triage email must also go to an address outside our domain (today the HubSpot inbox), or **Sync Internal Emails** must be turned on (Settings → Communication).
+- Tabs: **All**, **Unread (n)**, **Received**, **Sent**, **Closed**, **Needs review (n)**. The tab and the open conversation are kept in the address, so a link or a reload opens the same view.
+- Opening a thread marks it read. **Mark unread** in the conversation header undoes it. **Mark all as read** clears the list.
+- **Close** finishes a conversation for the whole team and moves to the next one; it moves to **Closed**, where **Reopen** brings it back. A new reply from the applicant reopens it by itself; our own emails do not.
+- The conversation shows as chat bubbles (ours on the right). Long threads open on the last two messages, and quoted earlier emails are folded under **Show quoted text**. The reply box shows the recipient, a template menu, attachments and **Send** (Ctrl + Enter); **Cc/Bcc · Subject** opens the full email fields.
+- The applicant column shows the stage, **Move stage**, **Open profile**, email, phone, the date the person was added and their source, their files (CV), and **Forms**: every form they sent as Done, plus Skills & Experience and General Questions as Waiting until they send them (`TeamInboxFollowUpFormNames.ts`).
+- **Needs review** lists the emails the n8n reply-triage workflow sends to hr@ when an applicant's reply needs a person (subject starting with `[Reply triage]`). They are kept out of the other tabs. Filters: All, Questions, Not interested, **Done today**. Each card shows the applicant, their reply, what to do and a suggested template, picked from the reply's words (`TeamInboxTemplateSuggestions.ts`, matched by template name). **Reply with template** opens the applicant's email with the template filled in; **Done** removes the card for the whole team (Undo under Done today). Our own emails to ourselves are skipped by the email sync, so the triage email must also go to an address outside our domain (today the HubSpot inbox), or **Sync Internal Emails** must be turned on (Settings → Communication).
 - Read state is **per person**: what I read stays unread for my colleagues.
 - Only replies from outside make a thread unread. Our own emails, including automated reminders, never do.
 - On a person's first visit, older mail counts as read, so nobody starts with 30,000 unread threads.
@@ -190,9 +193,9 @@ The first commit of this repository is the unmodified Twenty `v2.48.1` source. E
 
 | Area | Added | Twenty `v2.48.1` |
 |---|---|---|
-| Branding | Product name, logo, app icons, emails, AI prompts and every visible text say **FloLabs CRM** / FloLabs Innovations Group. | Twenty branding. |
+| Branding | Product name, logo, app icons, emails, AI prompts and every visible text say **FloLabs CRM** / FloLabs Innovations Group. Navy sidebar and Plus Jakarta Sans page titles (`packages/twenty-front/src/flolabs-theme.css`, which also holds the team inbox colours). | Twenty branding. |
 | Email | **Reply all**; **Insert template** with `{{firstName}}` / `{{lastName}}`; time on every preview; protection against future-dated IMAP headers; **Send** in the full-screen editor; mailboxes shared with chosen members. | Reply to sender only, no templates. |
-| Team inbox | One inbox for all mailboxes, Unread / Received / Sent tabs, per-person read and unread state, unread count in the sidebar. | No shared inbox, no read state. |
+| Team inbox | One inbox for all mailboxes, Unread / Received / Sent / Closed tabs, per-person read state, Close and Reopen, Needs review with suggested templates, applicant column with stage and forms. | No shared inbox, no read state. |
 | Notifications | Feed of replies, form submissions and assigned tasks, with server-side read state. | None. |
 | Forms | Full form builder (see [Forms](#3-forms)): 21 question types, logic, calculations, endings, actions, design and code tabs, responses and analytics, public pages, embed, prefill, Arabic and RTL, review page, image blocks. | No public forms. |
 | Person page | **Forms** tab with every form's questions and answers; form submissions on the timeline. | Not available. |

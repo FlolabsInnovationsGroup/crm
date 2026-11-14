@@ -132,7 +132,7 @@ export const PageCardHeader = ({
         {isDefined(workspaceSurfaceHeaderPortal.title) &&
           isDefined(surfaceTitleContent) &&
           createPortal(
-            <StyledSurfaceTitle titleColor={titleColor}>
+            <StyledSurfaceTitle titleColor={titleColor} data-page-title>
               {surfaceTitleContent}
             </StyledSurfaceTitle>,
             workspaceSurfaceHeaderPortal.title,
@@ -161,11 +161,13 @@ export const PageCardHeader = ({
           ? breadcrumb
           : isDefined(links) && <Breadcrumb links={links} />}
         {!shouldCenterTitle && hasTitleContent && (
-          <StyledTitle titleColor={titleColor}>{titleContent}</StyledTitle>
+          <StyledTitle titleColor={titleColor} data-page-title>
+            {titleContent}
+          </StyledTitle>
         )}
       </StyledLeft>
       {shouldCenterTitle && (
-        <StyledCenteredTitle titleColor={titleColor}>
+        <StyledCenteredTitle titleColor={titleColor} data-page-title>
           {titleContent}
         </StyledCenteredTitle>
       )}

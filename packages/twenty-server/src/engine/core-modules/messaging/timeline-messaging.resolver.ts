@@ -91,6 +91,16 @@ class GetInboxThreadsArgs {
   @IsOptional()
   @IsBoolean()
   closed?: boolean;
+
+  @Field(() => Date, { nullable: true })
+  @IsOptional()
+  manualReviewDoneSince?: Date;
+}
+
+@ArgsType()
+class GetManualReviewDoneCountArgs {
+  @Field(() => Date)
+  since: Date;
 }
 
 @ArgsType()
@@ -240,6 +250,7 @@ export class TimelineMessagingResolver {
       unreadOnly,
       manualReview,
       closed,
+      manualReviewDoneSince,
     }: GetInboxThreadsArgs,
   ) {
     const workspaceMember = await this.userService.loadWorkspaceMember(
@@ -275,14 +286,23 @@ export class TimelineMessagingResolver {
         searchTerm,
         unreadFor: unreadOnly === true ? readState : undefined,
         manualReview:
-          manualReview === true
-            ? {
-                doneThreadIds:
-                  await this.teamInboxManualReviewService.getDoneThreadIds(
-                    workspace.id,
-                  ),
-              }
-            : undefined,
+          manualReview !== true
+            ? undefined
+            : isDefined(manualReviewDoneSince)
+              ? {
+                  doneThreadIds:
+                    await this.teamInboxManualReviewService.getDoneThreadIdsSince(
+                      workspace.id,
+                      manualReviewDoneSince,
+                    ),
+                  showDone: true,
+                }
+              : {
+                  doneThreadIds:
+                    await this.teamInboxManualReviewService.getDoneThreadIds(
+                      workspace.id,
+                    ),
+                },
         closed: isClosedFilterApplied
           ? { threadIds: closedThreadIds, only: closed === true }
           : undefined,
@@ -385,6 +405,30 @@ export class TimelineMessagingResolver {
       );
 
     return totalNumberOfThreads;
+  }
+
+  @Query(() => Int)
+  async getManualReviewDoneCount(
+    @AuthUser() user: AuthContextUser,
+    @AuthWorkspace() workspace: WorkspaceEntity,
+    @Args() { since }: GetManualReviewDoneCountArgs,
+  ) {
+    const workspaceMember = await this.userService.loadWorkspaceMember(
+      user,
+      workspace,
+    );
+
+    if (!workspaceMember) {
+      return 0;
+    }
+
+    const doneThreadIds =
+      await this.teamInboxManualReviewService.getDoneThreadIdsSince(
+        workspace.id,
+        since,
+      );
+
+    return doneThreadIds.length;
   }
 
   @Mutation(() => Boolean)

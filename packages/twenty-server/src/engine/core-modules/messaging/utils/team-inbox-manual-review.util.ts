@@ -1,3 +1,4 @@
+import { isString } from '@sniptt/guards';
 import { isValidUuid } from 'twenty-shared/utils';
 
 // The n8n reply-triage workflow emails hr@ with this subject prefix when an
@@ -17,3 +18,17 @@ export const getManualReviewDoneThreadIds = (keys: Iterable<string>) =>
     .map((key) => key.slice(MANUAL_REVIEW_DONE_KEY_PREFIX.length))
     // A malformed id would break the uuid[] cast in the review query.
     .filter(isValidUuid);
+
+// Done entries hold the time they were marked done; older ones hold `true`.
+export const getManualReviewDoneThreadIdsSince = (
+  entries: Iterable<[string, unknown]>,
+  since: Date,
+) =>
+  getManualReviewDoneThreadIds(
+    [...entries]
+      .filter(
+        ([, doneAt]) =>
+          isString(doneAt) && new Date(doneAt).getTime() >= since.getTime(),
+      )
+      .map(([key]) => key),
+  );
