@@ -4,7 +4,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { isDefined } from 'twenty-shared/utils';
 import { Repository } from 'typeorm';
 
-import { pickInboxContactName } from 'src/engine/core-modules/messaging/utils/pick-inbox-contact-name.util';
+import {
+  type InboxContact,
+  pickInboxContact,
+} from 'src/engine/core-modules/messaging/utils/pick-inbox-contact.util';
 import { MessageChannelEntity } from 'src/engine/metadata-modules/message-channel/entities/message-channel.entity';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
@@ -20,10 +23,10 @@ export class TeamInboxContactService {
     private readonly messageChannelRepository: Repository<MessageChannelEntity>,
   ) {}
 
-  async getContactNameByThreadId(
+  async getContactByThreadId(
     messageThreadIds: string[],
     workspaceId: string,
-  ): Promise<Record<string, string>> {
+  ): Promise<Record<string, InboxContact>> {
     if (messageThreadIds.length === 0) {
       return {};
     }
@@ -58,7 +61,7 @@ export class TeamInboxContactService {
 
     return Object.fromEntries(
       messageThreadIds.flatMap((messageThreadId) => {
-        const contactName = pickInboxContactName(
+        const contact = pickInboxContact(
           participants
             .filter(
               (participant) =>
@@ -69,11 +72,12 @@ export class TeamInboxContactService {
               displayName: participant.displayName,
               role: participant.role,
               receivedAt: participant.message.receivedAt ?? null,
+              personId: participant.personId ?? null,
             })),
           ownHandles,
         );
 
-        return isDefined(contactName) ? [[messageThreadId, contactName]] : [];
+        return isDefined(contact) ? [[messageThreadId, contact]] : [];
       }),
     );
   }

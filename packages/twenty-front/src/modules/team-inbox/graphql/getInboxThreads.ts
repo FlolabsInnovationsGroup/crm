@@ -25,6 +25,7 @@ export const GET_INBOX_THREADS = gql`
       timelineThreads {
         id
         contactDisplayName
+        contactPersonId
       }
     }
   }

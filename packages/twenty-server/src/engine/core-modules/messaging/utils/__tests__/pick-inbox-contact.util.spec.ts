@@ -1,18 +1,25 @@
 import { MessageParticipantRole } from 'twenty-shared/types';
 
-import { pickInboxContactName } from 'src/engine/core-modules/messaging/utils/pick-inbox-contact-name.util';
+import { pickInboxContact } from 'src/engine/core-modules/messaging/utils/pick-inbox-contact.util';
 
 const participant = (
   handle: string,
   role: MessageParticipantRole,
   receivedAt: string,
   displayName = '',
-) => ({ handle, role, displayName, receivedAt: new Date(receivedAt) });
+  personId: string | null = null,
+) => ({
+  handle,
+  role,
+  displayName,
+  receivedAt: new Date(receivedAt),
+  personId,
+});
 
-describe('pickInboxContactName', () => {
+describe('pickInboxContact', () => {
   it('names the applicant we wrote to when they have not replied', () => {
     expect(
-      pickInboxContactName(
+      pickInboxContact(
         [
           participant(
             'hr@flolabs.com',
@@ -24,16 +31,17 @@ describe('pickInboxContactName', () => {
             MessageParticipantRole.TO,
             '2026-11-01',
             'QIMING XU',
+            'person-1',
           ),
         ],
         ['HR@flolabs.com'],
       ),
-    ).toBe('QIMING XU');
+    ).toEqual({ name: 'QIMING XU', personId: 'person-1' });
   });
 
   it('prefers the person who wrote to us over other recipients', () => {
     expect(
-      pickInboxContactName(
+      pickInboxContact(
         [
           participant(
             'cc@example.com',
@@ -50,12 +58,12 @@ describe('pickInboxContactName', () => {
         ],
         [],
       ),
-    ).toBe('Ada');
+    ).toEqual({ name: 'Ada', personId: null });
   });
 
   it('falls back to the handle and to nothing', () => {
     expect(
-      pickInboxContactName(
+      pickInboxContact(
         [
           participant(
             'ada@example.com',
@@ -65,9 +73,9 @@ describe('pickInboxContactName', () => {
         ],
         [],
       ),
-    ).toBe('ada@example.com');
+    ).toEqual({ name: 'ada@example.com', personId: null });
     expect(
-      pickInboxContactName(
+      pickInboxContact(
         [
           participant(
             'hr@flolabs.com',
