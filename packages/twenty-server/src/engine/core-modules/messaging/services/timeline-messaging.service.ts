@@ -34,6 +34,7 @@ const applyInboxFilter = (
     searchTerm,
     unreadFor,
     manualReview,
+    closed,
   }: InboxThreadFilter,
   // Thread level, so a reply to a triage email stays with it.
   manualReviewThreadIds: string[],
@@ -73,6 +74,15 @@ const applyInboxFilter = (
     queryBuilder.andWhere(
       'NOT (messageThread.id = ANY(CAST(:manualReviewThreadIds AS uuid[])))',
       { manualReviewThreadIds },
+    );
+  }
+
+  if (isDefined(closed)) {
+    queryBuilder.andWhere(
+      closed.only
+        ? 'messageThread.id = ANY(CAST(:closedThreadIds AS uuid[]))'
+        : 'NOT (messageThread.id = ANY(CAST(:closedThreadIds AS uuid[])))',
+      { closedThreadIds: closed.threadIds },
     );
   }
 

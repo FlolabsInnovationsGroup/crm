@@ -11,6 +11,7 @@ export const GET_INBOX_THREADS = gql`
     $searchTerm: String
     $unreadOnly: Boolean
     $manualReview: Boolean
+    $closed: Boolean
   ) {
     getInboxThreads(
       page: $page
@@ -20,6 +21,7 @@ export const GET_INBOX_THREADS = gql`
       searchTerm: $searchTerm
       unreadOnly: $unreadOnly
       manualReview: $manualReview
+      closed: $closed
     ) {
       ...TimelineThreadsWithTotalFragment
       timelineThreads {

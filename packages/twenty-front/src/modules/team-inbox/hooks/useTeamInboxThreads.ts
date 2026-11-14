@@ -26,6 +26,7 @@ export const useTeamInboxThreads = (filter: TeamInboxFilter) => {
     searchTerm: filter.searchTerm.trim() === '' ? null : filter.searchTerm,
     unreadOnly: filter.unreadOnly ? true : null,
     manualReview: filter.manualReview ? true : null,
+    closed: filter.closedOnly,
   };
 
   const { data, loading, error, fetchMore, refetch } =

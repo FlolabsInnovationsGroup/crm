@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { FileUrlModule } from 'src/engine/core-modules/file/file-url/file-url.module';
 import { GetMessagesService } from 'src/engine/core-modules/messaging/services/get-messages.service';
 import { TeamInboxContactService } from 'src/engine/core-modules/messaging/services/team-inbox-contact.service';
+import { TeamInboxClosedService } from 'src/engine/core-modules/messaging/services/team-inbox-closed.service';
 import { TeamInboxManualReviewService } from 'src/engine/core-modules/messaging/services/team-inbox-manual-review.service';
 import { TeamInboxReadStateService } from 'src/engine/core-modules/messaging/services/team-inbox-read-state.service';
 import { TimelineMessagingService } from 'src/engine/core-modules/messaging/services/timeline-messaging.service';
@@ -40,6 +41,7 @@ import { TargetModule } from 'src/engine/core-modules/target/target.module';
     GetMessagesService,
     TeamInboxReadStateService,
     TeamInboxManualReviewService,
+    TeamInboxClosedService,
     TeamInboxContactService,
   ],
 })

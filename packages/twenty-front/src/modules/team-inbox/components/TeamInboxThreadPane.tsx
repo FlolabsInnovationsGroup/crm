@@ -7,8 +7,10 @@ import { isDefined } from 'twenty-shared/utils';
 import {
   IconArrowBackUp,
   IconArrowBackUpDouble,
+  IconCheck,
   IconLayoutSidebarRight,
   IconMail,
+  IconRestore,
 } from 'twenty-ui/icon';
 import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
@@ -143,6 +145,8 @@ type TeamInboxThreadPaneProps = {
   threadId: string;
   fallbackSubject: string;
   ownHandles: string[];
+  isClosed: boolean;
+  onToggleClosed: () => Promise<void>;
   onBack: () => void;
   onMarkUnread: () => void;
 };
@@ -161,6 +165,8 @@ export const TeamInboxThreadPane = ({
   threadId,
   fallbackSubject,
   ownHandles,
+  isClosed,
+  onToggleClosed,
   onBack,
   onMarkUnread,
 }: TeamInboxThreadPaneProps) => {
@@ -170,6 +176,7 @@ export const TeamInboxThreadPane = ({
     useEmailThread(threadId);
   const replyContext = useReplyContext(threadId);
   const [replyMode, setReplyMode] = useState<EmailReplyMode | null>(null);
+  const [isTogglingClosed, setIsTogglingClosed] = useState(false);
   const [draftPrefill, setDraftPrefill] = useState<EmailDraftPrefill | null>(
     null,
   );
@@ -205,6 +212,16 @@ export const TeamInboxThreadPane = ({
   const handleCloseComposer = () => {
     setReplyMode(null);
     setDraftPrefill(null);
+  };
+
+  const handleToggleClosed = async () => {
+    setIsTogglingClosed(true);
+
+    try {
+      await onToggleClosed();
+    } finally {
+      setIsTogglingClosed(false);
+    }
   };
 
   const handleSent = async () => {
@@ -265,6 +282,17 @@ export const TeamInboxThreadPane = ({
             }
           >
             {t`Open in panel`}
+          </Button>
+          <Button
+            variant={isClosed ? 'soft' : 'solid'}
+            color={isClosed ? 'neutral' : 'success'}
+            size="sm"
+            startIcon={isClosed ? <IconRestore /> : <IconCheck />}
+            loading={isTogglingClosed}
+            disabled={isTogglingClosed}
+            onClick={handleToggleClosed}
+          >
+            {isClosed ? t`Reopen` : t`Close conversation`}
           </Button>
         </StyledHeader>
         <StyledMessages>
