@@ -19,13 +19,14 @@ import { TeamInboxManualReviewCard } from '@/team-inbox/components/TeamInboxManu
 import { TeamInboxThreadListItem } from '@/team-inbox/components/TeamInboxThreadListItem';
 import { TeamInboxThreadPane } from '@/team-inbox/components/TeamInboxThreadPane';
 import { useInboxContactPeople } from '@/team-inbox/hooks/useInboxContactPeople';
+import { useInboxThreadClosed } from '@/team-inbox/hooks/useInboxThreadClosed';
 import { useManualReview } from '@/team-inbox/hooks/useManualReview';
 import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
 import { useTeamInboxReadState } from '@/team-inbox/hooks/useTeamInboxReadState';
 import { useTeamInboxThreads } from '@/team-inbox/hooks/useTeamInboxThreads';
 import { type TeamInboxDirection } from '@/team-inbox/types/TeamInboxFilter';
 
-type TeamInboxTab = TeamInboxDirection | 'UNREAD' | 'MANUAL_REVIEW';
+type TeamInboxTab = TeamInboxDirection | 'UNREAD' | 'CLOSED' | 'MANUAL_REVIEW';
 
 const SEARCH_DEBOUNCE_MS = 350;
 const SELECTED_THREAD_PARAM = 'thread';
@@ -36,6 +37,7 @@ const TABS: TeamInboxTab[] = [
   'UNREAD',
   'INCOMING',
   'OUTGOING',
+  'CLOSED',
   'MANUAL_REVIEW',
 ];
 const ALL_MAILBOXES = '';
@@ -201,6 +203,7 @@ export const TeamInboxContent = () => {
     useTeamInboxReadState();
   const { manualReviewCount, markDone, findApplicantThreadId } =
     useManualReview();
+  const { setThreadClosed } = useInboxThreadClosed();
   const [messageChannelId, setMessageChannelId] = useState(ALL_MAILBOXES);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm] = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
@@ -218,10 +221,13 @@ export const TeamInboxContent = () => {
     fetchMoreThreads,
   } = useTeamInboxThreads({
     direction:
-      activeTab === 'UNREAD' || activeTab === 'MANUAL_REVIEW'
+      activeTab === 'UNREAD' ||
+      activeTab === 'CLOSED' ||
+      activeTab === 'MANUAL_REVIEW'
         ? 'ALL'
         : activeTab,
     unreadOnly: activeTab === 'UNREAD',
+    closedOnly: activeTab === 'CLOSED',
     manualReview: activeTab === 'MANUAL_REVIEW',
     messageChannelId:
       messageChannelId === ALL_MAILBOXES ? null : messageChannelId,
@@ -236,6 +242,7 @@ export const TeamInboxContent = () => {
     },
     { id: 'INCOMING', label: t`Received` },
     { id: 'OUTGOING', label: t`Sent` },
+    { id: 'CLOSED', label: t`Closed` },
     {
       id: 'MANUAL_REVIEW',
       label:
@@ -290,6 +297,22 @@ export const TeamInboxContent = () => {
 
     if (!isRead) {
       markThreadRead(threadId);
+    }
+  };
+
+  // Like HubSpot, closing moves on to the next conversation in the list.
+  const handleToggleClosed = async (threadId: string) => {
+    const isClosing = activeTab !== 'CLOSED';
+    const index = threads.findIndex((thread) => thread.id === threadId);
+    const nextThreadId =
+      index < 0
+        ? null
+        : (threads[index + 1]?.id ?? threads[index - 1]?.id ?? null);
+
+    const isSaved = await setThreadClosed(threadId, isClosing);
+
+    if (isSaved) {
+      selectThread(nextThreadId);
     }
   };
 
@@ -411,7 +434,11 @@ export const TeamInboxContent = () => {
               {filters}
               <StyledMetaRow>
                 <StyledCount>
-                  {!isFirstLoad && t`${totalNumberOfThreads} conversations`}
+                  {!isFirstLoad &&
+                    plural(totalNumberOfThreads, {
+                      one: '# conversation',
+                      other: '# conversations',
+                    })}
                 </StyledCount>
               </StyledMetaRow>
             </StyledListHeader>
@@ -452,6 +479,8 @@ export const TeamInboxContent = () => {
               threadId={selectedThreadId}
               fallbackSubject={selectedThread?.subject ?? ''}
               ownHandles={ownHandles}
+              isClosed={activeTab === 'CLOSED'}
+              onToggleClosed={() => handleToggleClosed(selectedThreadId)}
               onBack={() => selectThread(null)}
               onMarkUnread={() => {
                 markThreadUnread(selectedThreadId);

@@ -10,6 +10,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { PermissionFlagType } from 'twenty-shared/constants';
+import { isDefined, isValidUuid } from 'twenty-shared/utils';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 
 import { CoreResolver } from 'src/engine/api/graphql/graphql-config/decorators/core-resolver.decorator';
@@ -20,6 +21,7 @@ import { DismissReconnectAccountBannerInput } from 'src/engine/core-modules/mess
 import { TimelineThreadsWithTotalDTO } from 'src/engine/core-modules/messaging/dtos/timeline-threads-with-total.dto';
 import { GetMessagesService } from 'src/engine/core-modules/messaging/services/get-messages.service';
 import { TeamInboxContactService } from 'src/engine/core-modules/messaging/services/team-inbox-contact.service';
+import { TeamInboxClosedService } from 'src/engine/core-modules/messaging/services/team-inbox-closed.service';
 import { TeamInboxManualReviewService } from 'src/engine/core-modules/messaging/services/team-inbox-manual-review.service';
 import { TeamInboxReadStateService } from 'src/engine/core-modules/messaging/services/team-inbox-read-state.service';
 import { TimelineMessagingService } from 'src/engine/core-modules/messaging/services/timeline-messaging.service';
@@ -84,6 +86,21 @@ class GetInboxThreadsArgs {
   @IsOptional()
   @IsBoolean()
   manualReview?: boolean;
+
+  @Field(() => Boolean, { nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  closed?: boolean;
+}
+
+@ArgsType()
+class SetInboxThreadClosedArgs {
+  @Field(() => UUIDScalarType)
+  messageThreadId: string;
+
+  @Field(() => Boolean)
+  @IsBoolean()
+  isClosed: boolean;
 }
 
 @ArgsType()
@@ -172,6 +189,7 @@ export class TimelineMessagingResolver {
     private readonly accountsToReconnectService: AccountsToReconnectService,
     private readonly teamInboxReadStateService: TeamInboxReadStateService,
     private readonly teamInboxManualReviewService: TeamInboxManualReviewService,
+    private readonly teamInboxClosedService: TeamInboxClosedService,
     private readonly teamInboxContactService: TeamInboxContactService,
   ) {}
 
@@ -221,6 +239,7 @@ export class TimelineMessagingResolver {
       searchTerm,
       unreadOnly,
       manualReview,
+      closed,
     }: GetInboxThreadsArgs,
   ) {
     const workspaceMember = await this.userService.loadWorkspaceMember(
@@ -232,10 +251,18 @@ export class TimelineMessagingResolver {
       return;
     }
 
-    const readState = await this.teamInboxReadStateService.getState({
-      userId: user.id,
-      workspaceId: workspace.id,
-    });
+    // Unset `closed` (notifications, applicant lookup) keeps closed threads.
+    const isClosedFilterApplied = isDefined(closed) && manualReview !== true;
+
+    const [readState, closedThreadIds] = await Promise.all([
+      this.teamInboxReadStateService.getState({
+        userId: user.id,
+        workspaceId: workspace.id,
+      }),
+      isClosedFilterApplied
+        ? this.teamInboxClosedService.getClosedThreadIds(workspace.id)
+        : [],
+    ]);
 
     const result = await this.getMessagesFromPersonIdsService.getInboxThreads(
       workspaceMember.id,
@@ -256,6 +283,9 @@ export class TimelineMessagingResolver {
                   ),
               }
             : undefined,
+        closed: isClosedFilterApplied
+          ? { threadIds: closedThreadIds, only: closed === true }
+          : undefined,
       },
     );
 
@@ -301,10 +331,13 @@ export class TimelineMessagingResolver {
       return 0;
     }
 
-    const readState = await this.teamInboxReadStateService.getState({
-      userId: user.id,
-      workspaceId: workspace.id,
-    });
+    const [readState, closedThreadIds] = await Promise.all([
+      this.teamInboxReadStateService.getState({
+        userId: user.id,
+        workspaceId: workspace.id,
+      }),
+      this.teamInboxClosedService.getClosedThreadIds(workspace.id),
+    ]);
 
     const { totalNumberOfThreads } =
       await this.getMessagesFromPersonIdsService.getInboxThreads(
@@ -312,7 +345,10 @@ export class TimelineMessagingResolver {
         workspace.id,
         1,
         1,
-        { unreadFor: readState },
+        {
+          unreadFor: readState,
+          closed: { threadIds: closedThreadIds, only: false },
+        },
       );
 
     return totalNumberOfThreads;
@@ -370,6 +406,31 @@ export class TimelineMessagingResolver {
       workspaceId: workspace.id,
       messageThreadId,
       isDone,
+    });
+
+    return true;
+  }
+
+  @Mutation(() => Boolean)
+  async setInboxThreadClosed(
+    @AuthUser() user: AuthContextUser,
+    @AuthWorkspace() workspace: WorkspaceEntity,
+    @Args() { messageThreadId, isClosed }: SetInboxThreadClosedArgs,
+  ) {
+    const workspaceMember = await this.userService.loadWorkspaceMember(
+      user,
+      workspace,
+    );
+
+    // The UUID scalar skips validation for inline literals.
+    if (!workspaceMember || !isValidUuid(messageThreadId)) {
+      return false;
+    }
+
+    await this.teamInboxClosedService.setClosed({
+      workspaceId: workspace.id,
+      messageThreadId,
+      isClosed,
     });
 
     return true;
