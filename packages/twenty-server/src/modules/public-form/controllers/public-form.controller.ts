@@ -18,7 +18,7 @@ import {
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 
-import { isNonEmptyString } from '@sniptt/guards';
+import { isNonEmptyString, isString } from '@sniptt/guards';
 import { randomBytes } from 'crypto';
 import { type Request, type Response } from 'express';
 import { ApiPath } from 'twenty-shared/types';
@@ -26,6 +26,7 @@ import {
   buildPublicFormContentSecurityPolicy,
   buildPublicFormPage,
   isPlainObject,
+  isValidUuid,
   PUBLIC_FORM_HONEYPOT_FIELD,
   PUBLIC_FORM_MAX_FILES,
   PUBLIC_FORM_MAX_FILE_SIZE_MB,
@@ -44,6 +45,7 @@ import { PUBLIC_FORM_EVENT_TYPES } from 'src/modules/public-form/constants/publi
 import { PUBLIC_FORM_EVENTS_RATE_LIMIT } from 'src/modules/public-form/constants/public-form-events-rate-limit.constant';
 import { PUBLIC_FORM_RATE_LIMIT } from 'src/modules/public-form/constants/public-form.constants';
 import { PublicFormStatsService } from 'src/modules/public-form/services/public-form-stats.service';
+import { PublicFormSubmissionDedupService } from 'src/modules/public-form/services/public-form-submission-dedup.service';
 import { type PublicFormEventType } from 'src/modules/public-form/types/public-form-event-type.type';
 import { PublicFormService } from 'src/modules/public-form/services/public-form.service';
 import { buildPublicFormEmbedScript } from 'src/modules/public-form/utils/build-public-form-embed-script.util';
@@ -58,7 +60,13 @@ type MulterFile = {
 type SubmissionBody = Record<string, unknown> & {
   answers?: unknown;
   sourceUrl?: unknown;
+  clientSubmissionId?: unknown;
 };
+
+const CLIENT_ERROR_TEXT_MAX_LENGTH = 200;
+
+const truncateClientText = (value: unknown) =>
+  isString(value) ? value.slice(0, CLIENT_ERROR_TEXT_MAX_LENGTH) : undefined;
 
 const safeJsonParse = (value: string): unknown => {
   try {
@@ -95,6 +103,7 @@ export class PublicFormController {
   constructor(
     private readonly publicFormService: PublicFormService,
     private readonly publicFormStatsService: PublicFormStatsService,
+    private readonly publicFormSubmissionDedupService: PublicFormSubmissionDedupService,
     private readonly throttlerService: ThrottlerService,
     private readonly twentyConfigService: TwentyConfigService,
   ) {}
@@ -224,6 +233,45 @@ export class PublicFormController {
     }
   }
 
+  // Failures the visitor's browser saw before or instead of a response, such
+  // as a CV that could not be read on a phone. Logged only, never stored.
+  @Post(':workspaceId/:formId/client-errors')
+  @HttpCode(204)
+  async recordClientError(
+    @Param('workspaceId') workspaceId: string,
+    @Param('formId') formId: string,
+    @Query() query: Record<string, unknown>,
+    @Req() request: Request,
+  ): Promise<void> {
+    if (!isValidUuid(workspaceId) || !isValidUuid(formId)) {
+      return;
+    }
+
+    try {
+      await this.throttlerService.tokenBucketThrottleOrThrow(
+        `public-form-client-errors:${request.ip ?? ''}`,
+        1,
+        PUBLIC_FORM_EVENTS_RATE_LIMIT.maxRequests,
+        PUBLIC_FORM_EVENTS_RATE_LIMIT.windowMs,
+      );
+    } catch {
+      return;
+    }
+
+    this.logger.warn(
+      `Public form client error ${JSON.stringify({
+        workspaceId,
+        formId,
+        stage: truncateClientText(query.stage),
+        reason: truncateClientText(query.reason),
+        online: truncateClientText(query.online),
+        fileSize: truncateClientText(query.size),
+        fileType: truncateClientText(query.fileType),
+        userAgent: truncateClientText(request.headers['user-agent']),
+      })}`,
+    );
+  }
+
   @Post(':workspaceId/:formId')
   @HttpCode(200)
   @UseInterceptors(
@@ -247,18 +295,31 @@ export class PublicFormController {
       return { success: true };
     }
 
-    const { submissionId } = await this.publicFormService.submit({
-      workspaceId,
-      formId,
-      answers: parseAnswers(body.answers),
-      files: (uploadedFiles ?? []).map((file) => ({
-        fieldName: file.fieldname,
-        originalName: file.originalname,
-        buffer: file.buffer,
-        size: file.size,
-      })),
-      sourceUrl: isNonEmptyString(body.sourceUrl) ? body.sourceUrl : undefined,
-    });
+    const answers = parseAnswers(body.answers);
+
+    const { submissionId } =
+      await this.publicFormSubmissionDedupService.submitOnce({
+        workspaceId,
+        formId,
+        clientSubmissionId: isNonEmptyString(body.clientSubmissionId)
+          ? body.clientSubmissionId
+          : undefined,
+        submit: () =>
+          this.publicFormService.submit({
+            workspaceId,
+            formId,
+            answers,
+            files: (uploadedFiles ?? []).map((file) => ({
+              fieldName: file.fieldname,
+              originalName: file.originalname,
+              buffer: file.buffer,
+              size: file.size,
+            })),
+            sourceUrl: isNonEmptyString(body.sourceUrl)
+              ? body.sourceUrl
+              : undefined,
+          }),
+      });
 
     return { success: true, submissionId };
   }

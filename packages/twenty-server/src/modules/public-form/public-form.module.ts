@@ -10,6 +10,7 @@ import { PublicFormController } from 'src/modules/public-form/controllers/public
 import { PublicFormStatsResolver } from 'src/modules/public-form/resolvers/public-form-stats.resolver';
 import { PublicFormActionsService } from 'src/modules/public-form/services/public-form-actions.service';
 import { PublicFormStatsService } from 'src/modules/public-form/services/public-form-stats.service';
+import { PublicFormSubmissionDedupService } from 'src/modules/public-form/services/public-form-submission-dedup.service';
 import { PublicFormService } from 'src/modules/public-form/services/public-form.service';
 
 @Module({
@@ -25,6 +26,7 @@ import { PublicFormService } from 'src/modules/public-form/services/public-form.
     PublicFormService,
     PublicFormActionsService,
     PublicFormStatsService,
+    PublicFormSubmissionDedupService,
     PublicFormStatsResolver,
   ],
 })
