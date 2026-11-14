@@ -1,3 +1,5 @@
+import { isValidUuid } from 'twenty-shared/utils';
+
 // The n8n reply-triage workflow emails hr@ with this subject prefix when an
 // applicant's reply needs a person to answer it.
 export const MANUAL_REVIEW_SUBJECT_PREFIX = '[Reply triage]';
@@ -12,4 +14,6 @@ export const getManualReviewDoneKey = (messageThreadId: string) =>
 export const getManualReviewDoneThreadIds = (keys: Iterable<string>) =>
   [...keys]
     .filter((key) => key.startsWith(MANUAL_REVIEW_DONE_KEY_PREFIX))
-    .map((key) => key.slice(MANUAL_REVIEW_DONE_KEY_PREFIX.length));
+    .map((key) => key.slice(MANUAL_REVIEW_DONE_KEY_PREFIX.length))
+    // A malformed id would break the uuid[] cast in the review query.
+    .filter(isValidUuid);

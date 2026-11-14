@@ -398,7 +398,7 @@ export class TimelineMessagingResolver {
       workspace,
     );
 
-    if (!workspaceMember) {
+    if (!workspaceMember || !isValidUuid(messageThreadId)) {
       return false;
     }
 
@@ -456,6 +456,10 @@ export class TimelineMessagingResolver {
     @AuthWorkspace() workspace: WorkspaceEntity,
     @Args() { messageThreadId }: MarkInboxThreadUnreadArgs,
   ) {
+    if (!isValidUuid(messageThreadId)) {
+      return false;
+    }
+
     await this.teamInboxReadStateService.markUnread(
       { userId: user.id, workspaceId: workspace.id },
       messageThreadId,
