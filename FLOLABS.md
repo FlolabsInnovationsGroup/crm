@@ -80,10 +80,11 @@ The person page has these tabs:
 
 ### Team inbox
 
-Sidebar → **Team inbox**: email threads from every connected mailbox, newest first.
+Sidebar → **Team inbox**: email threads from every connected mailbox, newest first. The page has three columns, like the HubSpot inbox: the list on the left, the selected conversation in the middle with **Reply** at the bottom, and the applicant's details and CV on the right. On smaller screens the details column is hidden, and on a phone the list and the conversation take turns.
 
-- Tabs: **All**, **Unread (n)**, **Received**, **Sent**.
-- Opening a thread marks it read. The icon on each row marks it unread again. **Mark all as read** clears the list.
+- Tabs: **All**, **Unread (n)**, **Received**, **Sent**, **Manual review (n)**. The tab and the open conversation are kept in the address, so a link or a reload opens the same view.
+- Opening a thread marks it read. **Mark as unread** in the conversation header undoes it. **Mark all as read** clears the list.
+- **Manual review** lists the emails the n8n reply-triage workflow sends to hr@ when an applicant's reply needs a person (subject starting with `[Reply triage]`). They are kept out of the other tabs. Each item shows the reason and the applicant; **Reply to applicant** opens the applicant's own email, and **Done** removes the item for the whole team. Our own emails to ourselves are skipped by the email sync, so the triage email must also go to an address outside our domain (today the HubSpot inbox), or **Sync Internal Emails** must be turned on (Settings → Communication).
 - Read state is **per person**: what I read stays unread for my colleagues.
 - Only replies from outside make a thread unread. Our own emails, including automated reminders, never do.
 - On a person's first visit, older mail counts as read, so nobody starts with 30,000 unread threads.
@@ -97,7 +98,7 @@ Sidebar → **Notifications**, with an unread count. It lists:
 - new form submissions,
 - tasks assigned to you.
 
-Each item leads with the person's name and opens the record. Read state is stored on the server, so it follows you across devices.
+Each item leads with the person's name and opens the record. For a reply, that is the person who wrote to us, not our own mailbox. A form submission also shows the position or program applied for, so two applications from one person to two positions are told apart. Read state is stored on the server, so it follows you across devices.
 
 ### AI assistant
 

@@ -2,20 +2,21 @@ import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { useQuery } from '@apollo/client/react';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { isDefined } from 'twenty-shared/utils';
 import { Button, Input } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
 import { useDebounce } from 'use-debounce';
 
-import { ActivityList } from '@/activities/components/ActivityList';
 import { CustomResolverFetchMoreLoader } from '@/activities/components/CustomResolverFetchMoreLoader';
 import { SkeletonLoader } from '@/activities/components/SkeletonLoader';
-import { EmailThreadPreview } from '@/activities/emails/components/EmailThreadPreview';
 import { ToastOnQueryErrorEffect } from '@/apollo/components/ToastOnQueryErrorEffect';
 import { FormBuilderNativeSelect } from '@/form-builder/components/FormBuilderNativeSelect';
 import { useFormBuilderFocusHandlers } from '@/form-builder/hooks/useFormBuilderFocusHandlers';
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
 import { GET_INBOX_MAILBOXES } from '@/team-inbox/graphql/getInboxMailboxes';
-import { ManualReviewThreadRow } from '@/team-inbox/components/ManualReviewThreadRow';
+import { TeamInboxThreadListItem } from '@/team-inbox/components/TeamInboxThreadListItem';
+import { TeamInboxThreadPane } from '@/team-inbox/components/TeamInboxThreadPane';
 import { useManualReview } from '@/team-inbox/hooks/useManualReview';
 import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
 import { useTeamInboxReadState } from '@/team-inbox/hooks/useTeamInboxReadState';
@@ -25,13 +26,39 @@ import { type TeamInboxDirection } from '@/team-inbox/types/TeamInboxFilter';
 type TeamInboxTab = TeamInboxDirection | 'UNREAD' | 'MANUAL_REVIEW';
 
 const SEARCH_DEBOUNCE_MS = 350;
+const SELECTED_THREAD_PARAM = 'thread';
+const TAB_PARAM = 'tab';
+const TABS: TeamInboxTab[] = [
+  // oxlint-disable-next-line lingui/no-unlocalized-strings -- A tab id, not text.
+  'ALL',
+  'UNREAD',
+  'INCOMING',
+  'OUTGOING',
+  'MANUAL_REVIEW',
+];
 const ALL_MAILBOXES = '';
 
+// List, conversation and contact side by side, like the HubSpot inbox the
+// HR team came from. Narrow screens drop the contact, then show one pane.
 const StyledContainer = styled.div`
   display: flex;
-  flex-direction: column;
   height: 100%;
   min-height: 0;
+`;
+
+const StyledListColumn = styled.div<{ hasSelection: boolean }>`
+  border-right: 1px solid ${themeCssVariables.border.color.light};
+  display: flex;
+  flex: 0 0 380px;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+
+  @media (max-width: 900px) {
+    border-right: none;
+    display: ${({ hasSelection }) => (hasSelection ? 'none' : 'flex')};
+    flex: 1;
+  }
 `;
 
 const StyledToolbar = styled.div`
@@ -39,13 +66,15 @@ const StyledToolbar = styled.div`
   border-bottom: 1px solid ${themeCssVariables.border.color.light};
   display: flex;
   flex-wrap: wrap;
-  gap: ${themeCssVariables.spacing[3]};
-  padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[4]};
+  gap: ${themeCssVariables.spacing[2]};
+  padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[3]};
 `;
 
 const StyledTabs = styled.div`
   display: flex;
+  flex-wrap: wrap;
   gap: ${themeCssVariables.spacing[1]};
+  width: 100%;
 `;
 
 const StyledTab = styled.button<{ isActive: boolean }>`
@@ -61,7 +90,7 @@ const StyledTab = styled.button<{ isActive: boolean }>`
   font-family: inherit;
   font-size: ${themeCssVariables.font.size.md};
   font-weight: ${themeCssVariables.font.weight.medium};
-  padding: ${themeCssVariables.spacing[1]} ${themeCssVariables.spacing[3]};
+  padding: ${themeCssVariables.spacing[1]} ${themeCssVariables.spacing[2]};
 
   &:hover {
     background: ${themeCssVariables.background.transparent.light};
@@ -69,26 +98,35 @@ const StyledTab = styled.button<{ isActive: boolean }>`
 `;
 
 const StyledMailbox = styled.div`
-  width: 240px;
+  width: 100%;
 `;
 
 const StyledSearch = styled.div`
-  flex: 1;
-  max-width: 320px;
-  min-width: 180px;
+  width: 100%;
 `;
 
 const StyledCount = styled.span`
   color: ${themeCssVariables.font.color.light};
+  flex: 1;
   font-size: ${themeCssVariables.font.size.sm};
-  margin-left: auto;
 `;
 
 const StyledList = styled.div`
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[4]};
+`;
+
+const StyledNoSelection = styled.p`
+  color: ${themeCssVariables.font.color.tertiary};
+  flex: 1;
+  margin: auto;
+  padding: ${themeCssVariables.spacing[8]};
+  text-align: center;
+
+  @media (max-width: 900px) {
+    display: none;
+  }
 `;
 
 const StyledEmpty = styled.p`
@@ -100,10 +138,12 @@ const StyledEmpty = styled.p`
 export const TeamInboxContent = () => {
   const apolloCoreClient = useApolloCoreClient();
   const focusHandlers = useFormBuilderFocusHandlers();
-  const [activeTab, setActiveTab] = useState<TeamInboxTab>('ALL');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get(TAB_PARAM);
+  const activeTab = TABS.find((tab) => tab === tabParam) ?? TABS[0];
   const { unreadCount, markThreadRead, markThreadUnread, markAllRead } =
     useTeamInboxReadState();
-  const { manualReviewCount, markDone, openApplicantThread } =
+  const { manualReviewCount, markDone, findApplicantThreadId } =
     useManualReview();
   const [messageChannelId, setMessageChannelId] = useState(ALL_MAILBOXES);
   const [searchInput, setSearchInput] = useState('');
@@ -150,6 +190,66 @@ export const TeamInboxContent = () => {
   ];
 
   const mailboxes = mailboxData?.getInboxMailboxes ?? [];
+  const ownHandles = mailboxes.map((mailbox) => mailbox.handle);
+  const isManualReview = activeTab === 'MANUAL_REVIEW';
+
+  const selectedThreadId = searchParams.get(SELECTED_THREAD_PARAM);
+  const selectedThread = threads.find(
+    (thread) => thread.id === selectedThreadId,
+  );
+
+  const updateParams = (params: {
+    tab?: TeamInboxTab;
+    threadId: string | null;
+  }) =>
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+
+        if (isDefined(params.tab)) {
+          next.set(TAB_PARAM, params.tab);
+        }
+
+        if (isDefined(params.threadId)) {
+          next.set(SELECTED_THREAD_PARAM, params.threadId);
+        } else {
+          next.delete(SELECTED_THREAD_PARAM);
+        }
+
+        return next;
+      },
+      { replace: true },
+    );
+
+  const selectThread = (threadId: string | null) => updateParams({ threadId });
+
+  const handleSelectThread = (threadId: string, isRead: boolean) => {
+    selectThread(threadId);
+
+    if (!isRead) {
+      markThreadRead(threadId);
+    }
+  };
+
+  const handleTabChange = (tab: TeamInboxTab) =>
+    updateParams({ tab, threadId: null });
+
+  const handleManualReviewDone = async (threadId: string) => {
+    const index = threads.findIndex((thread) => thread.id === threadId);
+    const nextThread = index >= 0 ? threads[index + 1] : undefined;
+
+    if (await markDone(threadId)) {
+      selectThread(nextThread?.id ?? null);
+    }
+  };
+
+  const handleOpenApplicantThread = async (applicantEmail: string) => {
+    const threadId = await findApplicantThreadId(applicantEmail);
+
+    if (isDefined(threadId)) {
+      updateParams({ tab: TABS[0], threadId });
+    }
+  };
 
   return (
     <StyledContainer
@@ -157,107 +257,107 @@ export const TeamInboxContent = () => {
       onBlurCapture={focusHandlers.onBlurCapture}
     >
       <ToastOnQueryErrorEffect error={error} />
-      <StyledToolbar>
-        <StyledTabs role="tablist">
-          {tabs.map((tab) => (
-            <StyledTab
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              isActive={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </StyledTab>
-          ))}
-        </StyledTabs>
-        {mailboxes.length > 1 && (
-          <StyledMailbox>
-            <FormBuilderNativeSelect
-              value={messageChannelId}
-              ariaLabel={t`Mailbox`}
-              options={[
-                { value: ALL_MAILBOXES, label: t`All mailboxes` },
-                ...mailboxes.map((mailbox) => ({
-                  value: mailbox.id,
-                  label: mailbox.handle,
-                })),
-              ]}
-              onChange={setMessageChannelId}
-            />
-          </StyledMailbox>
-        )}
-        <StyledSearch>
-          <Input
-            value={searchInput}
-            aria-label={t`Search emails`}
-            placeholder={t`Search subject, name or email`}
-            onChange={(event) => setSearchInput(event.target.value)}
-          />
-        </StyledSearch>
-        {!isFirstLoad && (
-          <StyledCount>{t`${totalNumberOfThreads} conversations`}</StyledCount>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={unreadCount === 0}
-          onClick={markAllRead}
-        >
-          {t`Mark all as read`}
-        </Button>
-      </StyledToolbar>
-      <StyledList>
-        {isFirstLoad ? (
-          <SkeletonLoader />
-        ) : threads.length === 0 ? (
-          <StyledEmpty>
-            {activeTab === 'MANUAL_REVIEW'
-              ? t`Nothing needs a manual review.`
-              : t`No emails match these filters.`}
-          </StyledEmpty>
-        ) : activeTab === 'MANUAL_REVIEW' ? (
-          <div>
-            {threads.map((thread) => (
-              <ManualReviewThreadRow
-                key={thread.id}
-                thread={thread}
-                onOpenApplicantThread={openApplicantThread}
-                onDone={() => markDone(thread.id)}
-              />
+      <StyledListColumn hasSelection={isDefined(selectedThreadId)}>
+        <StyledToolbar>
+          <StyledTabs role="tablist">
+            {tabs.map((tab) => (
+              <StyledTab
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                isActive={activeTab === tab.id}
+                onClick={() => handleTabChange(tab.id)}
+              >
+                {tab.label}
+              </StyledTab>
             ))}
-            <CustomResolverFetchMoreLoader
-              loading={isFetchingMore}
-              onLastRowVisible={fetchMoreThreads}
-            />
-          </div>
-        ) : (
-          <ActivityList>
-            {threads.map((thread) => (
-              <EmailThreadPreview
-                key={thread.id}
-                thread={thread}
-                divider
-                onOpen={() => {
-                  if (!thread.read) {
-                    markThreadRead(thread.id);
-                  }
-                }}
-                onToggleRead={() =>
-                  thread.read
-                    ? markThreadUnread(thread.id)
-                    : markThreadRead(thread.id)
-                }
+          </StyledTabs>
+          {mailboxes.length > 1 && (
+            <StyledMailbox>
+              <FormBuilderNativeSelect
+                value={messageChannelId}
+                ariaLabel={t`Mailbox`}
+                options={[
+                  { value: ALL_MAILBOXES, label: t`All mailboxes` },
+                  ...mailboxes.map((mailbox) => ({
+                    value: mailbox.id,
+                    label: mailbox.handle,
+                  })),
+                ]}
+                onChange={setMessageChannelId}
               />
-            ))}
-            <CustomResolverFetchMoreLoader
-              loading={isFetchingMore}
-              onLastRowVisible={fetchMoreThreads}
+            </StyledMailbox>
+          )}
+          <StyledSearch>
+            <Input
+              value={searchInput}
+              aria-label={t`Search emails`}
+              placeholder={t`Search subject, name or email`}
+              onChange={(event) => setSearchInput(event.target.value)}
             />
-          </ActivityList>
-        )}
-      </StyledList>
+          </StyledSearch>
+          <StyledCount>
+            {!isFirstLoad && t`${totalNumberOfThreads} conversations`}
+          </StyledCount>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={unreadCount === 0}
+            onClick={markAllRead}
+          >
+            {t`Mark all as read`}
+          </Button>
+        </StyledToolbar>
+        <StyledList>
+          {isFirstLoad ? (
+            <SkeletonLoader />
+          ) : threads.length === 0 ? (
+            <StyledEmpty>
+              {isManualReview
+                ? t`Nothing needs a manual review.`
+                : t`No emails match these filters.`}
+            </StyledEmpty>
+          ) : (
+            <>
+              {threads.map((thread) => (
+                <TeamInboxThreadListItem
+                  key={thread.id}
+                  thread={thread}
+                  isSelected={thread.id === selectedThreadId}
+                  isManualReview={isManualReview}
+                  ownHandles={ownHandles}
+                  onSelect={() => handleSelectThread(thread.id, thread.read)}
+                />
+              ))}
+              <CustomResolverFetchMoreLoader
+                loading={isFetchingMore}
+                onLastRowVisible={fetchMoreThreads}
+              />
+            </>
+          )}
+        </StyledList>
+      </StyledListColumn>
+      {isDefined(selectedThreadId) ? (
+        <TeamInboxThreadPane
+          key={selectedThreadId}
+          threadId={selectedThreadId}
+          fallbackSubject={selectedThread?.subject ?? ''}
+          ownHandles={ownHandles}
+          isManualReview={isManualReview}
+          onBack={() => selectThread(null)}
+          onMarkUnread={() => {
+            markThreadUnread(selectedThreadId);
+            selectThread(null);
+          }}
+          onOpenApplicantThread={handleOpenApplicantThread}
+          onManualReviewDone={() => handleManualReviewDone(selectedThreadId)}
+        />
+      ) : (
+        <StyledNoSelection>
+          {t`Select a conversation to read it here.`}
+        </StyledNoSelection>
+      )}
     </StyledContainer>
   );
 };

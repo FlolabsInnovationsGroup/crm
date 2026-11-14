@@ -1,11 +1,9 @@
 import { useMutation, useQuery } from '@apollo/client/react';
 import { t } from '@lingui/core/macro';
-import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 import { useToast } from 'twenty-ui/components/feedback';
 
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
-import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { GET_INBOX_THREADS } from '@/team-inbox/graphql/getInboxThreads';
 import {
   GET_MANUAL_REVIEW_COUNT,
@@ -17,7 +15,6 @@ const MANUAL_REVIEW_COUNT_POLL_INTERVAL_MS = 60_000;
 
 export const useManualReview = () => {
   const apolloCoreClient = useApolloCoreClient();
-  const { openRecordInSidePanel } = useOpenRecordInSidePanel();
   const { enqueueToast } = useToast();
 
   const { data } = useQuery<{ getManualReviewCount: number }>(
@@ -33,12 +30,24 @@ export const useManualReview = () => {
     refetchQueries: ['GetManualReviewCount', 'GetInboxThreads'],
   });
 
-  const markDone = (messageThreadId: string) =>
-    setManualReviewDoneMutation({
-      variables: { messageThreadId, isDone: true },
-    });
+  const markDone = async (messageThreadId: string) => {
+    try {
+      await setManualReviewDoneMutation({
+        variables: { messageThreadId, isDone: true },
+      });
 
-  const openApplicantThread = async (applicantEmail: string) => {
+      return true;
+    } catch {
+      enqueueToast({
+        status: 'error',
+        children: t`Could not mark this reply as done. Please try again.`,
+      });
+
+      return false;
+    }
+  };
+
+  const findApplicantThreadId = async (applicantEmail: string) => {
     const { data: threadData } = await apolloCoreClient.query<{
       getInboxThreads: TimelineThreadsWithTotal;
     }>({
@@ -60,18 +69,15 @@ export const useManualReview = () => {
         children: t`No email from ${applicantEmail} in the inbox.`,
       });
 
-      return;
+      return null;
     }
 
-    openRecordInSidePanel({
-      recordId: thread.id,
-      objectNameSingular: CoreObjectNameSingular.MessageThread,
-    });
+    return thread.id;
   };
 
   return {
     manualReviewCount: data?.getManualReviewCount ?? 0,
     markDone,
-    openApplicantThread,
+    findApplicantThreadId,
   };
 };
