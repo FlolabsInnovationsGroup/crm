@@ -27,6 +27,14 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   var success = document.getElementById('ff-success');
   var params = new URLSearchParams(window.location.search);
   var isEmbedded = window.parent !== window;
+  // On phones a picked file can live in iCloud, OneDrive or a mail app and
+  // vanish before Submit, so each file is copied into memory when chosen.
+  var fileCopies = {};
+  var fileReads = {};
+  var unreadableFileFieldIds = {};
+  var clientSubmissionId = window.crypto && window.crypto.randomUUID
+    ? window.crypto.randomUUID()
+    : String(Date.now()) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 
   var TEXT_TYPES = ['shortText', 'longText', 'email', 'phone', 'number', 'url', 'date', 'time', 'hidden'];
   var SINGLE_CHOICE_TYPES = ['select', 'yesNo', 'rating', 'scale'];
@@ -299,6 +307,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
   function validateFile(field, isRequired) {
     var input = wrapperOf(field).querySelector('input[type=file]');
     var file = input.files && input.files[0];
+    if (!file && unreadableFileFieldIds[field.id]) return messages.fileUnreadable;
     if (!file) return isRequired ? messages.fileRequired : null;
     var maxMb = Math.min(field.maxFileSizeMb || config.maxFileSizeMb, config.maxFileSizeMb);
     if (file.size > maxMb * 1024 * 1024) return messages.fileTooLarge;
@@ -386,6 +395,70 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     } catch (error) {
       return;
     }
+  }
+
+  // Diagnostics only, like track: the visitor never waits on it.
+  function reportFailure(stage, error, file) {
+    if (config.isPreview || !config.clientErrorsUrl) return;
+    try {
+      var reason = error && error.message ? error.message : String(error || '');
+      var url = config.clientErrorsUrl +
+        '?stage=' + encodeURIComponent(stage) +
+        '&reason=' + encodeURIComponent(reason.slice(0, 200)) +
+        '&online=' + String(navigator.onLine) +
+        (file ? '&size=' + file.size + '&fileType=' + encodeURIComponent(file.type || '') : '');
+      if (navigator.sendBeacon && navigator.sendBeacon(url)) return;
+      fetch(url, { method: 'POST', credentials: 'omit', keepalive: true }).catch(function () {});
+    } catch (ignored) {
+      return;
+    }
+  }
+
+  function readFileCopy(file) {
+    var read = typeof file.arrayBuffer === 'function'
+      ? file.arrayBuffer()
+      : new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onload = function () { resolve(reader.result); };
+          reader.onerror = function () { reject(reader.error); };
+          reader.readAsArrayBuffer(file);
+        });
+    return read.then(function (buffer) {
+      return new File([buffer], file.name, { type: file.type, lastModified: file.lastModified });
+    });
+  }
+
+  function onFileChosen(input) {
+    var wrapper = input.closest('[data-field-id]');
+    var fieldId = wrapper && wrapper.getAttribute('data-field-id');
+    if (!fieldId) return;
+    var field = definition.fields.find(function (candidate) { return candidate.id === fieldId; });
+    var file = input.files && input.files[0];
+    delete fileCopies[fieldId];
+    delete unreadableFileFieldIds[fieldId];
+    var maxMb = Math.min((field && field.maxFileSizeMb) || config.maxFileSizeMb, config.maxFileSizeMb);
+    if (!file || file.size > maxMb * 1024 * 1024) {
+      delete fileReads[fieldId];
+      return;
+    }
+    fileReads[fieldId] = readFileCopy(file).then(
+      function (copy) {
+        if (input.files && input.files[0] === file) fileCopies[fieldId] = copy;
+      },
+      function (error) {
+        if (!input.files || input.files[0] !== file) return;
+        unreadableFileFieldIds[fieldId] = true;
+        input.value = '';
+        var nameElement = input.parentNode.querySelector('.ff-file-name');
+        if (nameElement) nameElement.textContent = nameElement.getAttribute('data-empty');
+        if (field) setFieldError(field, messages.fileUnreadable);
+        reportFailure('file-read', error, file);
+      }
+    );
+  }
+
+  function waitForFileReads() {
+    return Promise.all(Object.keys(fileReads).map(function (fieldId) { return fileReads[fieldId]; }));
   }
 
   function announce(type, detail) {
@@ -520,6 +593,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     var nameElement = event.target.parentNode.querySelector('.ff-file-name');
     var file = event.target.files && event.target.files[0];
     nameElement.textContent = file ? file.name : nameElement.getAttribute('data-empty');
+    onFileChosen(event.target);
   });
 
   nextButton.addEventListener('click', function () {
@@ -562,53 +636,83 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
       if (visible[field.id] && answers[field.id] !== undefined) visibleAnswers[field.id] = answers[field.id];
     });
 
-    var body = new FormData();
-    body.append('answers', JSON.stringify(visibleAnswers));
-    body.append('sourceUrl', params.get('sourceUrl') || document.referrer || window.location.href);
-    body.append(config.honeypotField, form.querySelector('[name="' + config.honeypotField + '"]').value);
-    definition.fields.forEach(function (field) {
-      if (FILE_TYPES.indexOf(field.type) === -1 || !visible[field.id]) return;
-      if (field.type === 'signature') {
-        var pad = wrapperOf(field).querySelector('canvas');
-        if (pad.getAttribute('data-signed') === 'true') {
-          body.append('file:' + field.id, dataUrlToBlob(pad.toDataURL('image/png')), 'signature.png');
-        }
-        return;
-      }
-      var input = wrapperOf(field).querySelector('input[type=file]');
-      if (input.files && input.files[0]) body.append('file:' + field.id, input.files[0]);
-    });
-
     if (config.isPreview) return onSubmitted(evaluation);
 
     setSending(true);
-    fetch(config.submitUrl, { method: 'POST', body: body, credentials: 'omit' })
-      .then(function (response) {
-        return response.json().catch(function () { return {}; }).then(function (data) {
-          return { response: response, data: data };
-        });
-      })
-      .then(function (result) {
+    waitForFileReads().then(function () {
+      if (validateVisibleFields(evaluation, answers, function () { return true; })) {
         setSending(false);
-        if (result.response.ok) return onSubmitted(evaluation);
-        if (result.response.status === 429) return showFormError(messages.tooManyRequests);
-        var errors = result.data && Array.isArray(result.data.errors) ? result.data.errors : [];
-        var hasFieldErrors = false;
-        errors.forEach(function (error) {
-          var field = definition.fields.find(function (candidate) { return candidate.id === error.fieldId; });
-          if (field) {
-            hasFieldErrors = true;
-            setFieldError(field, error.code && messages[error.code] ? formatError(error) : translateServerMessage(error.message));
-          }
-        });
-        showFormError(hasFieldErrors ? messages.fixErrors : (errors[0] ? translateServerMessage(errors[0].message) : messages.genericError));
+        showFormError(messages.fixErrors);
         focusFirstError();
-      })
-      .catch(function () {
-        setSending(false);
-        showFormError(messages.genericError);
+        return;
+      }
+      var attachedFiles = [];
+      var body = new FormData();
+      body.append('answers', JSON.stringify(visibleAnswers));
+      body.append('sourceUrl', params.get('sourceUrl') || document.referrer || window.location.href);
+      body.append('clientSubmissionId', clientSubmissionId);
+      body.append(config.honeypotField, form.querySelector('[name="' + config.honeypotField + '"]').value);
+      definition.fields.forEach(function (field) {
+        if (FILE_TYPES.indexOf(field.type) === -1 || !visible[field.id]) return;
+        if (field.type === 'signature') {
+          var pad = wrapperOf(field).querySelector('canvas');
+          if (pad.getAttribute('data-signed') === 'true') {
+            body.append('file:' + field.id, dataUrlToBlob(pad.toDataURL('image/png')), 'signature.png');
+          }
+          return;
+        }
+        var input = wrapperOf(field).querySelector('input[type=file]');
+        var file = fileCopies[field.id] || (input.files && input.files[0]);
+        if (file) {
+          attachedFiles.push(file);
+          body.append('file:' + field.id, file, file.name);
+        }
       });
+      sendSubmission(body, evaluation, attachedFiles[0], 0);
+    }).catch(function (error) {
+      setSending(false);
+      reportFailure('prepare', error);
+      showFormError(messages.genericError);
+    });
   });
+
+  function handleSubmitResponse(response, data, evaluation) {
+    setSending(false);
+    if (response.ok) return onSubmitted(evaluation);
+    if (response.status === 429) return showFormError(messages.tooManyRequests);
+    var errors = data && Array.isArray(data.errors) ? data.errors : [];
+    var hasFieldErrors = false;
+    errors.forEach(function (error) {
+      var field = definition.fields.find(function (candidate) { return candidate.id === error.fieldId; });
+      if (field) {
+        hasFieldErrors = true;
+        setFieldError(field, error.code && messages[error.code] ? formatError(error) : translateServerMessage(error.message));
+      }
+    });
+    if (errors.length === 0) reportFailure('server-' + response.status, '');
+    showFormError(hasFieldErrors ? messages.fixErrors : (errors[0] ? translateServerMessage(errors[0].message) : messages.genericError));
+    focusFirstError();
+  }
+
+  // The body holds in-memory copies of the files, so it can be sent again.
+  function sendSubmission(body, evaluation, file, attempt) {
+    fetch(config.submitUrl, { method: 'POST', body: body, credentials: 'omit' }).then(
+      function (response) {
+        return response.json().catch(function () { return {}; }).then(function (data) {
+          handleSubmitResponse(response, data, evaluation);
+        });
+      },
+      function (error) {
+        if (attempt === 0) {
+          setTimeout(function () { sendSubmission(body, evaluation, file, 1); }, 1500);
+          return;
+        }
+        setSending(false);
+        reportFailure('submit', error, file);
+        showFormError(messages.connectionFailed);
+      }
+    );
+  }
 
   if (isEmbedded && 'ResizeObserver' in window) {
     new ResizeObserver(function () {

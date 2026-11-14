@@ -31,8 +31,10 @@ export type PublicFormPageMessages = {
   fileRequired: string;
   fileTooLarge: string;
   fileTypes: string;
+  fileUnreadable: string;
   sending: string;
   genericError: string;
+  connectionFailed: string;
   tooManyRequests: string;
   fixErrors: string;
   selectPlaceholder: string;
@@ -82,8 +84,12 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     fileRequired: 'Please attach a file',
     fileTooLarge: 'This file is too large',
     fileTypes: 'Allowed file types: ',
+    fileUnreadable:
+      'This file could not be opened. If it is in iCloud, OneDrive or an email, save it to your device first, then choose it again.',
     sending: 'Sending…',
     genericError: 'Something went wrong. Please try again.',
+    connectionFailed:
+      'Your application could not be sent. Check your internet connection and try again. If it keeps failing, open this page directly in Safari or Chrome, not inside another app.',
     tooManyRequests: 'Too many attempts. Please wait a minute and try again.',
     fixErrors: 'Please check the highlighted fields.',
     selectPlaceholder: 'Select…',
@@ -129,8 +135,12 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     fileRequired: 'يرجى إرفاق ملف',
     fileTooLarge: 'حجم الملف كبير جدًا',
     fileTypes: 'أنواع الملفات المسموح بها: ',
+    fileUnreadable:
+      'تعذر فتح هذا الملف. إذا كان على iCloud أو OneDrive أو في رسالة بريد، احفظه على جهازك أولًا ثم اختره مرة أخرى.',
     sending: 'جارٍ الإرسال…',
     genericError: 'حدث خطأ ما. حاول مرة أخرى.',
+    connectionFailed:
+      'تعذر إرسال طلبك. تحقق من اتصالك بالإنترنت وحاول مرة أخرى. إذا تكرر ذلك، افتح هذه الصفحة مباشرة في Safari أو Chrome وليس داخل تطبيق آخر.',
     tooManyRequests: 'محاولات كثيرة. انتظر دقيقة ثم حاول مرة أخرى.',
     fixErrors: 'يرجى مراجعة الحقول المظللة.',
     selectPlaceholder: 'اختر…',

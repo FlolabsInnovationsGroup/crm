@@ -19,6 +19,7 @@ import { InboxMailboxDTO } from 'src/engine/core-modules/messaging/dtos/inbox-ma
 import { DismissReconnectAccountBannerInput } from 'src/engine/core-modules/messaging/dtos/dismiss-reconnect-account-banner.input';
 import { TimelineThreadsWithTotalDTO } from 'src/engine/core-modules/messaging/dtos/timeline-threads-with-total.dto';
 import { GetMessagesService } from 'src/engine/core-modules/messaging/services/get-messages.service';
+import { TeamInboxContactService } from 'src/engine/core-modules/messaging/services/team-inbox-contact.service';
 import { TeamInboxManualReviewService } from 'src/engine/core-modules/messaging/services/team-inbox-manual-review.service';
 import { TeamInboxReadStateService } from 'src/engine/core-modules/messaging/services/team-inbox-read-state.service';
 import { TimelineMessagingService } from 'src/engine/core-modules/messaging/services/timeline-messaging.service';
@@ -171,6 +172,7 @@ export class TimelineMessagingResolver {
     private readonly accountsToReconnectService: AccountsToReconnectService,
     private readonly teamInboxReadStateService: TeamInboxReadStateService,
     private readonly teamInboxManualReviewService: TeamInboxManualReviewService,
+    private readonly teamInboxContactService: TeamInboxContactService,
   ) {}
 
   @Query(() => TimelineThreadsWithTotalDTO)
@@ -257,16 +259,26 @@ export class TimelineMessagingResolver {
       },
     );
 
-    const lastIncomingAtByThreadId =
-      await this.timelineMessagingService.getLastIncomingAtByThreadId(
-        result.timelineThreads.map((thread) => thread.id),
-        workspace.id,
-      );
+    const threadIds = result.timelineThreads.map((thread) => thread.id);
+
+    const [lastIncomingAtByThreadId, contactNameByThreadId] = await Promise.all(
+      [
+        this.timelineMessagingService.getLastIncomingAtByThreadId(
+          threadIds,
+          workspace.id,
+        ),
+        this.teamInboxContactService.getContactNameByThreadId(
+          threadIds,
+          workspace.id,
+        ),
+      ],
+    );
 
     return {
       ...result,
       timelineThreads: result.timelineThreads.map((thread) => ({
         ...thread,
+        contactDisplayName: contactNameByThreadId[thread.id] ?? null,
         read: isTeamInboxThreadRead(
           readState,
           thread.id,

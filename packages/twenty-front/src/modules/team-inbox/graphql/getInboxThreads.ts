@@ -22,6 +22,10 @@ export const GET_INBOX_THREADS = gql`
       manualReview: $manualReview
     ) {
       ...TimelineThreadsWithTotalFragment
+      timelineThreads {
+        id
+        contactDisplayName
+      }
     }
   }
   ${timelineThreadWithTotalFragment}

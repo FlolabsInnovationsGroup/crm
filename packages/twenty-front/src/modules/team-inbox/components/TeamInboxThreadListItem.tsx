@@ -81,7 +81,7 @@ const StyledLine = styled.span<{ isMuted?: boolean; isUnread?: boolean }>`
 `;
 
 type TeamInboxThreadListItemProps = {
-  thread: TimelineThread;
+  thread: TimelineThread & { contactDisplayName?: string | null };
   isSelected: boolean;
   isManualReview: boolean;
   ownHandles: string[];
@@ -123,6 +123,7 @@ export const TeamInboxThreadListItem = ({
         )}
         <StyledName isUnread={isUnread} dir="auto">
           {manualReview?.applicantEmail ??
+            thread.contactDisplayName ??
             getThreadContactName(thread, ownHandles)}
         </StyledName>
         {thread.numberOfMessagesInThread > 1 && (

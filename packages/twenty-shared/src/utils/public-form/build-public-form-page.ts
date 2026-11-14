@@ -49,7 +49,12 @@ const renderRichText = (text: string) =>
     .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
     .replace(
       /\[([^\]]+)\]\((https:\/\/[^\s)]+)\)|(https:\/\/[^\s<]+[^\s<.,;:!?)])/g,
-      (_match, label: string | undefined, url: string | undefined, bareUrl: string | undefined) =>
+      (
+        _match,
+        label: string | undefined,
+        url: string | undefined,
+        bareUrl: string | undefined,
+      ) =>
         `<a href="${url ?? bareUrl}" target="_blank" rel="noopener noreferrer">${label ?? bareUrl}</a>`,
     );
 
@@ -597,6 +602,7 @@ export const buildPublicFormPage = ({
     maxFileSizeMb: PUBLIC_FORM_MAX_FILE_SIZE_MB,
     showProgressBar: theme.showProgressBar,
     eventsUrl: `${submitUrl}/events`,
+    clientErrorsUrl: `${submitUrl}/client-errors`,
     messages,
     englishMessages: PUBLIC_FORM_PAGE_MESSAGES.en,
   };
