@@ -35,6 +35,8 @@ export type PublicFormPageMessages = {
   sending: string;
   genericError: string;
   connectionFailed: string;
+  stillSending: string;
+  serverUnavailable: string;
   tooManyRequests: string;
   fixErrors: string;
   selectPlaceholder: string;
@@ -90,6 +92,9 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     genericError: 'Something went wrong. Please try again.',
     connectionFailed:
       'Your application could not be sent. Check your internet connection and try again. If it keeps failing, open this page directly in Safari or Chrome, not inside another app.',
+    stillSending: 'Still sending… please keep this page open.',
+    serverUnavailable:
+      'We could not reach our server just now. Please try again in a few minutes. Your answers are still here.',
     tooManyRequests: 'Too many attempts. Please wait a minute and try again.',
     fixErrors: 'Please check the highlighted fields.',
     selectPlaceholder: 'Select…',
@@ -141,6 +146,9 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     genericError: 'حدث خطأ ما. حاول مرة أخرى.',
     connectionFailed:
       'تعذر إرسال طلبك. تحقق من اتصالك بالإنترنت وحاول مرة أخرى. إذا تكرر ذلك، افتح هذه الصفحة مباشرة في Safari أو Chrome وليس داخل تطبيق آخر.',
+    stillSending: 'ما زال الإرسال جاريًا… يُرجى إبقاء هذه الصفحة مفتوحة.',
+    serverUnavailable:
+      'تعذر الوصول إلى الخادم الآن. حاول مرة أخرى بعد بضع دقائق. إجاباتك ما زالت محفوظة هنا.',
     tooManyRequests: 'محاولات كثيرة. انتظر دقيقة ثم حاول مرة أخرى.',
     fixErrors: 'يرجى مراجعة الحقول المظللة.',
     selectPlaceholder: 'اختر…',

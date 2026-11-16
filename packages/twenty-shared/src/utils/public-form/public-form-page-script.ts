@@ -668,7 +668,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
           body.append('file:' + field.id, file, file.name);
         }
       });
-      sendSubmission(body, evaluation, attachedFiles[0], 0);
+      sendSubmission(body, evaluation, attachedFiles[0], 0, false);
     }).catch(function (error) {
       setSending(false);
       reportFailure('prepare', error);
@@ -694,17 +694,39 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     focusFirstError();
   }
 
+  // A deploy restarts the server for about a minute and the proxy answers
+  // 502/503/504 meanwhile, so the form waits it out (about 2 minutes in all)
+  // instead of failing. The same clientSubmissionId keeps the retries single.
+  var RESTART_RETRY_DELAYS_MS = [1500, 3000, 6000, 10000, 15000, 20000, 30000, 30000];
+
+  function isServerRestarting(status) {
+    return status === 502 || status === 503 || status === 504;
+  }
+
   // The body holds in-memory copies of the files, so it can be sent again.
-  function sendSubmission(body, evaluation, file, attempt) {
+  function sendSubmission(body, evaluation, file, attempt, isWaitingForRestart) {
+    function retryAfterRestart() {
+      if (attempt > 0) submitButton.textContent = messages.stillSending;
+      setTimeout(function () { sendSubmission(body, evaluation, file, attempt + 1, true); }, RESTART_RETRY_DELAYS_MS[attempt]);
+    }
     fetch(config.submitUrl, { method: 'POST', body: body, credentials: 'omit' }).then(
       function (response) {
+        if (isServerRestarting(response.status)) {
+          if (attempt < RESTART_RETRY_DELAYS_MS.length) return retryAfterRestart();
+          setSending(false);
+          reportFailure('server-' + response.status, '', file);
+          showFormError(messages.serverUnavailable);
+          return;
+        }
         return response.json().catch(function () { return {}; }).then(function (data) {
           handleSubmitResponse(response, data, evaluation);
         });
       },
       function (error) {
+        // While the server restarts, the connection itself can be refused.
+        if (isWaitingForRestart && attempt < RESTART_RETRY_DELAYS_MS.length) return retryAfterRestart();
         if (attempt === 0) {
-          setTimeout(function () { sendSubmission(body, evaluation, file, 1); }, 1500);
+          setTimeout(function () { sendSubmission(body, evaluation, file, 1, false); }, 1500);
           return;
         }
         setSending(false);

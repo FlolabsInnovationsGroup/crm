@@ -1,4 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 import { isDefined } from 'twenty-shared/utils';
 
@@ -10,8 +16,11 @@ const CLIENT_SUBMISSION_ID_PATTERN = /^[A-Za-z0-9-]{16,64}$/;
 const CLIENT_SUBMISSION_TTL_MS = 30 * 60 * 1000;
 const PENDING_POLL_INTERVAL_MS = 500;
 const PENDING_WAIT_MS = 20 * 1000;
+// A deploy can kill the server mid-submit, leaving its pending marker behind.
+// Markers name the process that wrote them, so the next one can take over.
+const PROCESS_ID = randomUUID();
 
-type StoredSubmission = { submissionId?: string };
+type StoredSubmission = { submissionId?: string; pendingOn?: string };
 
 type SubmitOnceArgs<TResult> = {
   workspaceId: string;
@@ -51,7 +60,7 @@ export class PublicFormSubmissionDedupService {
     const isFirstAttempt =
       await this.cacheStorage.setIfAbsent<StoredSubmission>(
         key,
-        {},
+        { pendingOn: PROCESS_ID },
         CLIENT_SUBMISSION_TTL_MS,
       );
 
@@ -102,9 +111,18 @@ export class PublicFormSubmissionDedupService {
         return { submissionId: stored.submissionId };
       }
 
+      if (stored.pendingOn !== PROCESS_ID) {
+        await this.cacheStorage.del(key);
+
+        return this.submitOnce(args);
+      }
+
       await wait(PENDING_POLL_INTERVAL_MS);
     }
 
-    throw new Error(`Form submission ${key} is still being processed`);
+    // 503 makes the form page try again a little later.
+    throw new ServiceUnavailableException(
+      `Form submission ${key} is still being processed`,
+    );
   }
 }

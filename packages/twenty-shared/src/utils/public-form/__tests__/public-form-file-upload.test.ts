@@ -162,4 +162,73 @@ describe('public form file upload', () => {
       ),
     ).toBe(true);
   });
+
+  it('waits out a server restart instead of showing an error', async () => {
+    renderForm();
+    fillEmail();
+    chooseFile(new File(['%PDF'], 'cv.pdf', { type: 'application/pdf' }));
+    fetchMock.mockImplementation((url: string) =>
+      url === SUBMIT_URL && submitCalls().length === 1
+        ? Promise.resolve({
+            ok: false,
+            status: 502,
+            json: () => Promise.reject(new SyntaxError('Not JSON')),
+          })
+        : okResponse(),
+    );
+
+    submit();
+
+    await waitFor(
+      () => document.getElementById('ff-success')?.hidden === false,
+    );
+    const [first, second] = submitCalls().map(
+      ([, init]) => (init as { body: FormData }).body,
+    );
+
+    expect(submitCalls()).toHaveLength(2);
+    expect(second?.get('clientSubmissionId')).toBe(
+      first?.get('clientSubmissionId'),
+    );
+    expect(document.getElementById('ff-form-error')?.textContent).toBe('');
+  });
+
+  it('asks to try again later when the server stays down', async () => {
+    jest.useFakeTimers();
+
+    try {
+      renderForm();
+      fillEmail();
+      chooseFile(new File(['%PDF'], 'cv.pdf', { type: 'application/pdf' }));
+      fetchMock.mockImplementation((url: string) =>
+        url === SUBMIT_URL
+          ? Promise.resolve({
+              ok: false,
+              status: 503,
+              json: () => Promise.reject(new SyntaxError('Not JSON')),
+            })
+          : okResponse(),
+      );
+
+      submit();
+
+      for (let step = 0; step < 12; step++) {
+        await jest.advanceTimersByTimeAsync(30000);
+      }
+
+      expect(document.getElementById('ff-form-error')?.textContent).toBe(
+        PUBLIC_FORM_PAGE_MESSAGES.en.serverUnavailable,
+      );
+      expect(submitCalls()).toHaveLength(9);
+      expect(
+        fetchMock.mock.calls.some(([url]) =>
+          String(url).startsWith(
+            `${SUBMIT_URL}/client-errors?stage=server-503`,
+          ),
+        ),
+      ).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
