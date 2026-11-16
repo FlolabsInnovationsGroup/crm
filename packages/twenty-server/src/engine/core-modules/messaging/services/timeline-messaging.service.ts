@@ -12,7 +12,7 @@ import { FileUrlService } from 'src/engine/core-modules/file/file-url/file-url.s
 import { type InboxMailboxDTO } from 'src/engine/core-modules/messaging/dtos/inbox-mailbox.dto';
 import { type TimelineThreadDTO } from 'src/engine/core-modules/messaging/dtos/timeline-thread.dto';
 import { type InboxThreadFilter } from 'src/engine/core-modules/messaging/types/inbox-thread-filter.type';
-import { MANUAL_REVIEW_SUBJECT_PREFIX } from 'src/engine/core-modules/messaging/utils/team-inbox-manual-review.util';
+import { MANUAL_REVIEW_SUBJECT_PREFIXES } from 'src/engine/core-modules/messaging/utils/team-inbox-manual-review.util';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { type TargetFilter } from 'src/engine/core-modules/target/utils/get-target-field-name-for-object-record.util';
 import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
@@ -174,9 +174,14 @@ export class TimelineMessagingService {
               .createQueryBuilder('messageThread')
               .select('messageThread.id', 'id')
               .innerJoin('messageThread.messages', 'messages')
-              .where('messages.subject ILIKE :manualReviewPattern', {
-                manualReviewPattern: `${escapeLikePattern(MANUAL_REVIEW_SUBJECT_PREFIX)}%`,
-              })
+              .where(
+                'messages.subject ILIKE ANY(CAST(:manualReviewPatterns AS text[]))',
+                {
+                  manualReviewPatterns: MANUAL_REVIEW_SUBJECT_PREFIXES.map(
+                    (prefix) => `${escapeLikePattern(prefix)}%`,
+                  ),
+                },
+              )
               .groupBy('messageThread.id')
               .getRawMany()
           ).map((thread) => thread.id)

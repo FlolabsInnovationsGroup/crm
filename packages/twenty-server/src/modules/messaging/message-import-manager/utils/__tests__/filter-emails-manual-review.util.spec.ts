@@ -27,7 +27,7 @@ const buildInternalMessage = (
   ],
 });
 
-describe('filterEmails reply triage', () => {
+describe('filterEmails manual review', () => {
   it('keeps an internal reply-triage email', () => {
     const message = buildInternalMessage(
       '[Reply triage] question: applicant@gmail.com - Re: Internship',
@@ -53,10 +53,32 @@ describe('filterEmails reply triage', () => {
     expect(filterEmails(PRIMARY_HANDLE, [], [message], [])).toEqual([message]);
   });
 
+  it.each([
+    'APPROVAL NEEDED (Form 1): send "BEFORE MEETING" to applicant@gmail.com',
+    'APPROVAL NEEDED (orientation): choose a date for Ada Lovelace (applicant@gmail.com)',
+    'approval needed (ORIENTATION): choose a date for Ada Lovelace (applicant@gmail.com)',
+    '[Stuck applicant] Ada Lovelace (applicant@gmail.com)',
+    '[n8n] Recruitment automation needs attention: applicant@gmail.com',
+    '[n8n] Email SENT but CRM not updated: applicant@gmail.com',
+    '[n8n] CRM application not queued: applicant@gmail.com',
+    '[n8n] CRM first email step failed: applicant@gmail.com',
+  ])('keeps the internal automation email "%s"', (subject) => {
+    const message = buildInternalMessage(subject);
+
+    expect(filterEmails(PRIMARY_HANDLE, [], [message], [])).toEqual([message]);
+  });
+
   it('still drops other internal emails', () => {
     const messages = [
       buildInternalMessage('Weekly sync'),
       buildInternalMessage('Re: [Reply triage] question: a@b.co - Re: x'),
+      buildInternalMessage('Approval needed: team budget'),
+      buildInternalMessage(
+        'Re: APPROVAL NEEDED (Form 1): send "BEFORE MEETING" to a@b.co',
+      ),
+      buildInternalMessage('[n8n] Recruitment automation summary'),
+      buildInternalMessage('[n8n] WARNING: workflow stopped'),
+      buildInternalMessage('[n8n] Recovery Check: 2 items'),
       buildInternalMessage(null),
     ];
 
