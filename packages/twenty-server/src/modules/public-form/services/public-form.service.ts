@@ -489,7 +489,14 @@ export class PublicFormService {
 
       return fieldFiles.flatMap((file) => {
         if (file.size > maxBytes) {
-          return [{ fieldId: field.id, message: 'This file is too large' }];
+          return [
+            {
+              fieldId: field.id,
+              code: 'fileTooLargeLimit',
+              params: { n: String(maxBytes / 1024 / 1024) },
+              message: 'This file is too large',
+            },
+          ];
         }
 
         if (

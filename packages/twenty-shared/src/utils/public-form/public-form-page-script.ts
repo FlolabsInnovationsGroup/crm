@@ -310,7 +310,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     if (!file && unreadableFileFieldIds[field.id]) return messages.fileUnreadable;
     if (!file) return isRequired ? messages.fileRequired : null;
     var maxMb = Math.min(field.maxFileSizeMb || config.maxFileSizeMb, config.maxFileSizeMb);
-    if (file.size > maxMb * 1024 * 1024) return messages.fileTooLarge;
+    if (file.size > maxMb * 1024 * 1024) return messages.fileTooLargeLimit.replace('{n}', maxMb);
     var accepted = (field.acceptedFileExtensions || []).map(function (extension) {
       return extension.replace(/^\\./, '').toLowerCase();
     });
@@ -351,6 +351,39 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
       }
     }
     return message;
+  }
+
+  // Server errors carry English text plus a code; the code picks the
+  // message in the form's own language.
+  function formatServerError(error) {
+    var hasTemplate = typeof error.code === 'string' && Object.prototype.hasOwnProperty.call(messages, error.code) && typeof messages[error.code] === 'string';
+    if (hasTemplate) return messages[error.code].replace('{n}', error.params && error.params.n ? error.params.n : '');
+    return translateServerMessage(error.message);
+  }
+
+  // Raw server text can name routes or fields, so only reasons we wrote
+  // ourselves reach the applicant, in the form's language.
+  function knownReason(status, reason) {
+    if (status === 404) return messages.formUnavailable;
+    if (status === 413) return messages.fileTooLargeLimit.replace('{n}', config.maxFileSizeMb);
+    var keys = Object.keys(englishMessages);
+    for (var index = 0; index < keys.length; index++) {
+      if (englishMessages[keys[index]] === reason) return messages[keys[index]];
+    }
+    return null;
+  }
+
+  // The upload limit can stop a file before our own checks run (413).
+  function markOversizedFile() {
+    var largest = null;
+    definition.fields.forEach(function (field) {
+      if (field.type !== 'file' || !wrapperOf(field)) return;
+      var input = wrapperOf(field).querySelector('input[type=file]');
+      var file = fileCopies[field.id] || (input && input.files && input.files[0]);
+      if (file && (!largest || file.size > largest.size)) largest = { field: field, size: file.size };
+    });
+    if (largest) setFieldError(largest.field, messages.fileTooLargeLimit.replace('{n}', config.maxFileSizeMb));
+    return Boolean(largest);
   }
 
   function showFormError(message) {
@@ -668,7 +701,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
           body.append('file:' + field.id, file, file.name);
         }
       });
-      sendSubmission(body, evaluation, attachedFiles[0], 0);
+      sendSubmission(body, evaluation, attachedFiles[0], 0, false);
     }).catch(function (error) {
       setSending(false);
       reportFailure('prepare', error);
@@ -680,31 +713,64 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     setSending(false);
     if (response.ok) return onSubmitted(evaluation);
     if (response.status === 429) return showFormError(messages.tooManyRequests);
+    if (response.status === 413 && markOversizedFile()) {
+      showFormError(messages.fixErrors);
+      focusFirstError();
+      return;
+    }
     var errors = data && Array.isArray(data.errors) ? data.errors : [];
     var hasFieldErrors = false;
     errors.forEach(function (error) {
       var field = definition.fields.find(function (candidate) { return candidate.id === error.fieldId; });
       if (field) {
         hasFieldErrors = true;
-        setFieldError(field, error.code && messages[error.code] ? formatError(error) : translateServerMessage(error.message));
+        setFieldError(field, formatServerError(error));
       }
     });
-    if (errors.length === 0) reportFailure('server-' + response.status, '');
-    showFormError(hasFieldErrors ? messages.fixErrors : (errors[0] ? translateServerMessage(errors[0].message) : messages.genericError));
+    // Nest puts a plain rejection's reason in "message" (a string or a list).
+    var reason = data && (Array.isArray(data.message) ? data.message[0] : data.message);
+    if (errors.length === 0) reportFailure('server-' + response.status, reason || '');
+    showFormError(
+      hasFieldErrors ? messages.fixErrors
+        : errors[0] ? formatServerError(errors[0])
+        : knownReason(response.status, reason) || messages.genericError
+    );
     focusFirstError();
   }
 
+  // A deploy restarts the server for about a minute and the proxy answers
+  // 502/503/504 meanwhile, so the form waits it out (about 2 minutes in all)
+  // instead of failing. The same clientSubmissionId keeps the retries single.
+  var RESTART_RETRY_DELAYS_MS = [1500, 3000, 6000, 10000, 15000, 20000, 30000, 30000];
+
+  function isServerRestarting(status) {
+    return status === 502 || status === 503 || status === 504;
+  }
+
   // The body holds in-memory copies of the files, so it can be sent again.
-  function sendSubmission(body, evaluation, file, attempt) {
+  function sendSubmission(body, evaluation, file, attempt, isWaitingForRestart) {
+    function retryAfterRestart() {
+      if (attempt > 0) submitButton.textContent = messages.stillSending;
+      setTimeout(function () { sendSubmission(body, evaluation, file, attempt + 1, true); }, RESTART_RETRY_DELAYS_MS[attempt]);
+    }
     fetch(config.submitUrl, { method: 'POST', body: body, credentials: 'omit' }).then(
       function (response) {
+        if (isServerRestarting(response.status)) {
+          if (attempt < RESTART_RETRY_DELAYS_MS.length) return retryAfterRestart();
+          setSending(false);
+          reportFailure('server-' + response.status, '', file);
+          showFormError(messages.serverUnavailable);
+          return;
+        }
         return response.json().catch(function () { return {}; }).then(function (data) {
           handleSubmitResponse(response, data, evaluation);
         });
       },
       function (error) {
+        // While the server restarts, the connection itself can be refused.
+        if (isWaitingForRestart && attempt < RESTART_RETRY_DELAYS_MS.length) return retryAfterRestart();
         if (attempt === 0) {
-          setTimeout(function () { sendSubmission(body, evaluation, file, 1); }, 1500);
+          setTimeout(function () { sendSubmission(body, evaluation, file, 1, false); }, 1500);
           return;
         }
         setSending(false);

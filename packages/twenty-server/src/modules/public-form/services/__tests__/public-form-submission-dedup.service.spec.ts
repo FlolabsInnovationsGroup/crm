@@ -66,50 +66,90 @@ describe('PublicFormSubmissionDedupService', () => {
   });
 
   it('makes a retry wait for the first attempt that is still running', async () => {
-    const { cacheStorage, store } = createInMemoryCache();
+    const { cacheStorage } = createInMemoryCache();
     const service = new PublicFormSubmissionDedupService(cacheStorage);
-    const key = `client-submission:workspace-1:form-1:${CLIENT_SUBMISSION_ID}`;
-    const submit = jest.fn();
+    let finishFirst: (value: { submissionId: string }) => void = () => {};
+    const submit = jest.fn(
+      () =>
+        new Promise<{ submissionId: string }>((resolve) => {
+          finishFirst = resolve;
+        }),
+    );
+    const attempt = () =>
+      service.submitOnce({
+        workspaceId: 'workspace-1',
+        formId: 'form-1',
+        clientSubmissionId: CLIENT_SUBMISSION_ID,
+        submit,
+      });
 
-    store.set(key, {});
+    const first = attempt();
 
-    const result = service.submitOnce({
-      workspaceId: 'workspace-1',
-      formId: 'form-1',
-      clientSubmissionId: CLIENT_SUBMISSION_ID,
-      submit,
-    });
+    await jest.advanceTimersByTimeAsync(0);
+    const retry = attempt();
 
     await jest.advanceTimersByTimeAsync(100);
-    store.set(key, { submissionId: 'submission-4' });
+    finishFirst({ submissionId: 'submission-4' });
     await jest.advanceTimersByTimeAsync(500);
 
-    expect(await result).toEqual({ submissionId: 'submission-4' });
-    expect(submit).not.toHaveBeenCalled();
+    expect(await first).toEqual({ submissionId: 'submission-4' });
+    expect(await retry).toEqual({ submissionId: 'submission-4' });
+    expect(submit).toHaveBeenCalledTimes(1);
   });
 
   it('submits the retry itself when the first attempt failed meanwhile', async () => {
+    const { cacheStorage } = createInMemoryCache();
+    const service = new PublicFormSubmissionDedupService(cacheStorage);
+    let failFirst: (error: Error) => void = () => {};
+    const submit = jest
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            failFirst = reject;
+          }),
+      )
+      .mockResolvedValueOnce({ submissionId: 'submission-5' });
+    const attempt = () =>
+      service.submitOnce({
+        workspaceId: 'workspace-1',
+        formId: 'form-1',
+        clientSubmissionId: CLIENT_SUBMISSION_ID,
+        submit,
+      });
+
+    const first = attempt().catch((error: Error) => error.message);
+
+    await jest.advanceTimersByTimeAsync(0);
+    const retry = attempt();
+
+    await jest.advanceTimersByTimeAsync(100);
+    failFirst(new Error('database busy'));
+    await jest.advanceTimersByTimeAsync(500);
+
+    expect(await first).toBe('database busy');
+    expect(await retry).toEqual({ submissionId: 'submission-5' });
+    expect(submit).toHaveBeenCalledTimes(2);
+  });
+
+  it('takes over a marker left by a server that restarted mid-submit', async () => {
     const { cacheStorage, store } = createInMemoryCache();
     const service = new PublicFormSubmissionDedupService(cacheStorage);
     const key = `client-submission:workspace-1:form-1:${CLIENT_SUBMISSION_ID}`;
     const submit = jest
       .fn()
-      .mockResolvedValue({ submissionId: 'submission-5' });
+      .mockResolvedValue({ submissionId: 'submission-7' });
 
-    store.set(key, {});
+    store.set(key, { pendingOn: 'process-before-the-deploy' });
 
-    const result = service.submitOnce({
-      workspaceId: 'workspace-1',
-      formId: 'form-1',
-      clientSubmissionId: CLIENT_SUBMISSION_ID,
-      submit,
-    });
-
-    await jest.advanceTimersByTimeAsync(100);
-    store.delete(key);
-    await jest.advanceTimersByTimeAsync(500);
-
-    expect(await result).toEqual({ submissionId: 'submission-5' });
+    expect(
+      await service.submitOnce({
+        workspaceId: 'workspace-1',
+        formId: 'form-1',
+        clientSubmissionId: CLIENT_SUBMISSION_ID,
+        submit,
+      }),
+    ).toEqual({ submissionId: 'submission-7' });
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
