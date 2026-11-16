@@ -30,11 +30,13 @@ export type PublicFormPageMessages = {
   country: string;
   fileRequired: string;
   fileTooLarge: string;
+  fileTooLargeLimit: string;
   fileTypes: string;
   fileUnreadable: string;
   sending: string;
   genericError: string;
   connectionFailed: string;
+  formUnavailable: string;
   stillSending: string;
   serverUnavailable: string;
   tooManyRequests: string;
@@ -85,6 +87,7 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     country: 'Country',
     fileRequired: 'Please attach a file',
     fileTooLarge: 'This file is too large',
+    fileTooLargeLimit: 'This file is too large. The limit is {n} MB.',
     fileTypes: 'Allowed file types: ',
     fileUnreadable:
       'This file could not be opened. If it is in iCloud, OneDrive or an email, save it to your device first, then choose it again.',
@@ -92,6 +95,7 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     genericError: 'Something went wrong. Please try again.',
     connectionFailed:
       'Your application could not be sent. Check your internet connection and try again. If it keeps failing, open this page directly in Safari or Chrome, not inside another app.',
+    formUnavailable: 'This form is no longer accepting answers.',
     stillSending: 'Still sending… please keep this page open.',
     serverUnavailable:
       'We could not reach our server just now. Please try again in a few minutes. Your answers are still here.',
@@ -139,6 +143,7 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     country: 'الدولة',
     fileRequired: 'يرجى إرفاق ملف',
     fileTooLarge: 'حجم الملف كبير جدًا',
+    fileTooLargeLimit: 'حجم الملف كبير جدًا. الحد الأقصى {n} ميجابايت.',
     fileTypes: 'أنواع الملفات المسموح بها: ',
     fileUnreadable:
       'تعذر فتح هذا الملف. إذا كان على iCloud أو OneDrive أو في رسالة بريد، احفظه على جهازك أولًا ثم اختره مرة أخرى.',
@@ -146,6 +151,7 @@ export const PUBLIC_FORM_PAGE_MESSAGES: Record<
     genericError: 'حدث خطأ ما. حاول مرة أخرى.',
     connectionFailed:
       'تعذر إرسال طلبك. تحقق من اتصالك بالإنترنت وحاول مرة أخرى. إذا تكرر ذلك، افتح هذه الصفحة مباشرة في Safari أو Chrome وليس داخل تطبيق آخر.',
+    formUnavailable: 'لم يعد هذا النموذج يستقبل الإجابات.',
     stillSending: 'ما زال الإرسال جاريًا… يُرجى إبقاء هذه الصفحة مفتوحة.',
     serverUnavailable:
       'تعذر الوصول إلى الخادم الآن. حاول مرة أخرى بعد بضع دقائق. إجاباتك ما زالت محفوظة هنا.',

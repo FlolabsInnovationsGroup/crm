@@ -231,4 +231,84 @@ describe('public form file upload', () => {
       jest.useRealTimers();
     }
   });
+
+  const respondWith = (status: number, data: unknown) =>
+    fetchMock.mockImplementation((url: string) =>
+      url === SUBMIT_URL
+        ? Promise.resolve({
+            ok: false,
+            status,
+            json: () => Promise.resolve(data),
+          })
+        : okResponse(),
+    );
+
+  const fieldError = (fieldId: string) =>
+    document.querySelector(`[data-field-id="${fieldId}"] .ff-error`)
+      ?.textContent;
+
+  it('shows a server error under its field, in the form language', async () => {
+    renderForm();
+    fillEmail();
+    chooseFile(new File(['%PDF'], 'cv.pdf', { type: 'application/pdf' }));
+    respondWith(400, {
+      errors: [
+        {
+          fieldId: 'cv',
+          code: 'fileTooLargeLimit',
+          params: { n: '10' },
+          message: 'This file is too large',
+        },
+      ],
+    });
+
+    submit();
+
+    await waitFor(
+      () => fieldError('cv') === 'This file is too large. The limit is 10 MB.',
+    );
+    expect(document.getElementById('ff-form-error')?.textContent).toBe(
+      PUBLIC_FORM_PAGE_MESSAGES.en.fixErrors,
+    );
+  });
+
+  it('points at the file when the upload limit rejects it', async () => {
+    renderForm();
+    fillEmail();
+    chooseFile(new File(['%PDF'], 'cv.pdf', { type: 'application/pdf' }));
+    respondWith(413, { message: 'File too large', statusCode: 413 });
+
+    submit();
+
+    await waitFor(
+      () => fieldError('cv') === 'This file is too large. The limit is 10 MB.',
+    );
+  });
+
+  it('says why the server refused, without raw server text', async () => {
+    renderForm();
+    fillEmail();
+    chooseFile(new File(['%PDF'], 'cv.pdf', { type: 'application/pdf' }));
+    respondWith(404, { message: 'Form not found', statusCode: 404 });
+
+    submit();
+
+    await waitFor(
+      () =>
+        document.getElementById('ff-form-error')?.textContent ===
+        PUBLIC_FORM_PAGE_MESSAGES.en.formUnavailable,
+    );
+
+    respondWith(400, {
+      message: 'Cannot POST /internal/route',
+      statusCode: 400,
+    });
+    submit();
+
+    await waitFor(
+      () =>
+        document.getElementById('ff-form-error')?.textContent ===
+        PUBLIC_FORM_PAGE_MESSAGES.en.genericError,
+    );
+  });
 });

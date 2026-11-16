@@ -310,7 +310,7 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     if (!file && unreadableFileFieldIds[field.id]) return messages.fileUnreadable;
     if (!file) return isRequired ? messages.fileRequired : null;
     var maxMb = Math.min(field.maxFileSizeMb || config.maxFileSizeMb, config.maxFileSizeMb);
-    if (file.size > maxMb * 1024 * 1024) return messages.fileTooLarge;
+    if (file.size > maxMb * 1024 * 1024) return messages.fileTooLargeLimit.replace('{n}', maxMb);
     var accepted = (field.acceptedFileExtensions || []).map(function (extension) {
       return extension.replace(/^\\./, '').toLowerCase();
     });
@@ -351,6 +351,39 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
       }
     }
     return message;
+  }
+
+  // Server errors carry English text plus a code; the code picks the
+  // message in the form's own language.
+  function formatServerError(error) {
+    var hasTemplate = typeof error.code === 'string' && Object.prototype.hasOwnProperty.call(messages, error.code) && typeof messages[error.code] === 'string';
+    if (hasTemplate) return messages[error.code].replace('{n}', error.params && error.params.n ? error.params.n : '');
+    return translateServerMessage(error.message);
+  }
+
+  // Raw server text can name routes or fields, so only reasons we wrote
+  // ourselves reach the applicant, in the form's language.
+  function knownReason(status, reason) {
+    if (status === 404) return messages.formUnavailable;
+    if (status === 413) return messages.fileTooLargeLimit.replace('{n}', config.maxFileSizeMb);
+    var keys = Object.keys(englishMessages);
+    for (var index = 0; index < keys.length; index++) {
+      if (englishMessages[keys[index]] === reason) return messages[keys[index]];
+    }
+    return null;
+  }
+
+  // The upload limit can stop a file before our own checks run (413).
+  function markOversizedFile() {
+    var largest = null;
+    definition.fields.forEach(function (field) {
+      if (field.type !== 'file' || !wrapperOf(field)) return;
+      var input = wrapperOf(field).querySelector('input[type=file]');
+      var file = fileCopies[field.id] || (input && input.files && input.files[0]);
+      if (file && (!largest || file.size > largest.size)) largest = { field: field, size: file.size };
+    });
+    if (largest) setFieldError(largest.field, messages.fileTooLargeLimit.replace('{n}', config.maxFileSizeMb));
+    return Boolean(largest);
   }
 
   function showFormError(message) {
@@ -680,17 +713,28 @@ export const PUBLIC_FORM_PAGE_SCRIPT = `
     setSending(false);
     if (response.ok) return onSubmitted(evaluation);
     if (response.status === 429) return showFormError(messages.tooManyRequests);
+    if (response.status === 413 && markOversizedFile()) {
+      showFormError(messages.fixErrors);
+      focusFirstError();
+      return;
+    }
     var errors = data && Array.isArray(data.errors) ? data.errors : [];
     var hasFieldErrors = false;
     errors.forEach(function (error) {
       var field = definition.fields.find(function (candidate) { return candidate.id === error.fieldId; });
       if (field) {
         hasFieldErrors = true;
-        setFieldError(field, error.code && messages[error.code] ? formatError(error) : translateServerMessage(error.message));
+        setFieldError(field, formatServerError(error));
       }
     });
-    if (errors.length === 0) reportFailure('server-' + response.status, '');
-    showFormError(hasFieldErrors ? messages.fixErrors : (errors[0] ? translateServerMessage(errors[0].message) : messages.genericError));
+    // Nest puts a plain rejection's reason in "message" (a string or a list).
+    var reason = data && (Array.isArray(data.message) ? data.message[0] : data.message);
+    if (errors.length === 0) reportFailure('server-' + response.status, reason || '');
+    showFormError(
+      hasFieldErrors ? messages.fixErrors
+        : errors[0] ? formatServerError(errors[0])
+        : knownReason(response.status, reason) || messages.genericError
+    );
     focusFirstError();
   }
 
