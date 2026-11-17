@@ -30,6 +30,8 @@ export const useEmailForm = ({
       body: action.settings.input.body ?? '',
       files: action.settings.input.files ?? [],
       inReplyTo: action.settings.input.inReplyTo ?? '',
+      replyToLatestConversation:
+        action.settings.input.replyToLatestConversation === true,
     };
   });
 
@@ -50,6 +52,7 @@ export const useEmailForm = ({
           body: formData.body,
           files: formData.files,
           inReplyTo: formData.inReplyTo,
+          replyToLatestConversation: formData.replyToLatestConversation,
         },
       },
     });

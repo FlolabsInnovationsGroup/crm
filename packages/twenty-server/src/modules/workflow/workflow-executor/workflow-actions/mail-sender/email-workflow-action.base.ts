@@ -23,6 +23,7 @@ import { WorkflowExecutionContextService } from 'src/modules/workflow/workflow-e
 import { type WorkflowRunInfo } from 'src/modules/workflow/workflow-executor/types/workflow-action-input.type';
 import { getUserFromAuthContext } from 'src/modules/workflow/workflow-executor/utils/get-user-from-auth-context.util';
 import { type WorkflowSendEmailActionInput } from 'src/modules/workflow/workflow-executor/workflow-actions/mail-sender/types/workflow-send-email-action-input.type';
+import { applyLatestConversationReply } from 'src/modules/workflow/workflow-executor/workflow-actions/mail-sender/utils/apply-latest-conversation-reply.util';
 import { buildEmailStepLog } from 'src/modules/workflow/workflow-executor/workflow-actions/mail-sender/utils/build-email-step-log.util';
 import { resolveEmailBody } from 'src/modules/workflow/workflow-executor/workflow-actions/mail-sender/utils/resolve-email-body.util';
 import { resolveEmailFiles } from 'src/modules/workflow/workflow-executor/workflow-actions/mail-sender/utils/resolve-email-files.util';
@@ -88,16 +89,19 @@ export abstract class EmailWorkflowActionBase extends ToolBackedWorkflowAction<W
     resolvedInput: WorkflowSendEmailActionInput,
     workspaceId: string,
   ): Promise<WorkflowSendEmailActionInput> {
-    if (!isDefined(resolvedInput.connectedAccountId)) {
-      return resolvedInput;
-    }
+    const connectedAccountId = isDefined(resolvedInput.connectedAccountId)
+      ? await this.resolveSenderConnectedAccountId(
+          resolvedInput.connectedAccountId,
+          workspaceId,
+        )
+      : resolvedInput.connectedAccountId;
 
-    const connectedAccountId = await this.resolveSenderConnectedAccountId(
-      resolvedInput.connectedAccountId,
+    return applyLatestConversationReply({
+      input: { ...resolvedInput, connectedAccountId },
       workspaceId,
-    );
-
-    return { ...resolvedInput, connectedAccountId };
+      workspaceOrmManager: this.workspaceOrmManager,
+      connectedAccountRepository: this.connectedAccountRepository,
+    });
   }
 
   // The sender is a connected account id or, from a workflow variable, a workspace member id; a member id resolves

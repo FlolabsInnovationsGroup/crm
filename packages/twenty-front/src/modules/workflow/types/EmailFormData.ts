@@ -11,4 +11,5 @@ export type EmailFormData = {
   body: string;
   files: WorkflowEmailFiles;
   inReplyTo: string;
+  replyToLatestConversation: boolean;
 };

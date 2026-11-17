@@ -36,5 +36,6 @@ export const workflowSendEmailActionSettingsSchema =
         ),
       files: workflowEmailFilesSchema,
       inReplyTo: z.string().trim().optional(),
+      replyToLatestConversation: z.boolean().optional(),
     }),
   });
