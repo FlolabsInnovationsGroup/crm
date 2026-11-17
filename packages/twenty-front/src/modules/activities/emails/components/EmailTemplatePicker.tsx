@@ -1,5 +1,6 @@
 import { isNonEmptyString } from '@sniptt/guards';
 import { t } from '@lingui/core/macro';
+import { useState } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 
 import { ComposerFieldRow } from '@/activities/components/ComposerFieldRow';
@@ -11,6 +12,7 @@ import {
   getEmailTemplateBody,
   type EmailTemplateBodySource,
 } from '@/activities/emails/utils/getEmailTemplateBody';
+import { getSubjectAfterTemplateChange } from '@/activities/emails/utils/getSubjectAfterTemplateChange';
 import { useObjectMetadataItems } from '@/object-metadata/hooks/useObjectMetadataItems';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { useFindOneRecord } from '@/object-record/hooks/useFindOneRecord';
@@ -54,6 +56,10 @@ const EmailTemplatePickerContent = ({
     limit: 200,
   });
 
+  const [previousTemplateSubject, setPreviousTemplateSubject] = useState<
+    string | null
+  >(null);
+
   const isPersonContext =
     contextRecord?.objectNameSingular === CoreObjectNameSingular.Person;
 
@@ -83,11 +89,19 @@ const EmailTemplatePickerContent = ({
     }
 
     const recipientName = getRecipientName();
+    const templateSubject = fillEmailTemplateVariables(
+      template.subject ?? '',
+      recipientName,
+    );
+    const subject = getSubjectAfterTemplateChange({
+      currentSubject: composerState.subject,
+      previousTemplateSubject,
+      templateSubject,
+    });
 
+    setPreviousTemplateSubject(subject === templateSubject ? subject : null);
     composerState.applyTemplate({
-      subject: isNonEmptyString(composerState.subject)
-        ? composerState.subject
-        : fillEmailTemplateVariables(template.subject ?? '', recipientName),
+      subject,
       body: fillEmailTemplateVariables(
         getEmailTemplateBody(template),
         recipientName,
