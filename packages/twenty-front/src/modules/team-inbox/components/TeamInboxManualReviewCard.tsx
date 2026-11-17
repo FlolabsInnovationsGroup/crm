@@ -1,5 +1,5 @@
 import { styled } from '@linaria/react';
-import { t } from '@lingui/core/macro';
+import { plural, t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
 import { useState } from 'react';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
@@ -62,6 +62,24 @@ const StyledName = styled.div`
 const StyledMeta = styled.div`
   color: var(--fl-faint);
   font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const StyledEarlierToggle = styled.button`
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--fl-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 0;
+
+  &:hover {
+    color: var(--fl-ink-soft);
+  }
 `;
 
 const StyledReason = styled.span<{ tone: 'warn' | 'quiet' }>`
@@ -166,6 +184,7 @@ const StyledSecondaryButton = styled.button`
 type TeamInboxManualReviewCardProps = {
   thread: TimelineThread;
   item: TeamInboxReviewItem;
+  earlierReplies: string[];
   person: InboxPersonByEmail | undefined;
   suggestedTemplate: { id: string; name: string | null } | null;
   isDone: boolean;
@@ -206,6 +225,7 @@ const getReasonBadge = (
 export const TeamInboxManualReviewCard = ({
   thread,
   item,
+  earlierReplies,
   person,
   suggestedTemplate,
   isDone,
@@ -219,6 +239,7 @@ export const TeamInboxManualReviewCard = ({
       objectNameSingular: CoreObjectNameSingular.MessageThread,
     });
   const [isSaving, setIsSaving] = useState(false);
+  const [isShowingEarlier, setIsShowingEarlier] = useState(false);
   const isTriage = item.kind === 'REPLY_TRIAGE';
   const body = parseManualReviewBody(thread.lastMessageBody);
   const quote = isTriage
@@ -263,7 +284,9 @@ export const TeamInboxManualReviewCard = ({
         />
         <StyledWho type="button" title={t`Open the email`} onClick={openEmail}>
           <StyledName dir="auto">{name}</StyledName>
-          <StyledMeta dir="auto">{meta}</StyledMeta>
+          <StyledMeta dir="auto" title={meta}>
+            {meta}
+          </StyledMeta>
         </StyledWho>
         {isDefined(badge) && (
           <StyledReason tone={badge.tone}>{badge.label}</StyledReason>
@@ -272,6 +295,31 @@ export const TeamInboxManualReviewCard = ({
       {isNonEmptyString(quote) && (
         <StyledQuote dir="auto">{isTriage ? `“${quote}”` : quote}</StyledQuote>
       )}
+      {earlierReplies.length > 0 && (
+        <StyledEarlierToggle
+          type="button"
+          aria-expanded={isShowingEarlier}
+          onClick={() => setIsShowingEarlier(!isShowingEarlier)}
+        >
+          {plural(earlierReplies.length, {
+            one: '+ # earlier item from this applicant, marked done together',
+            other:
+              '+ # earlier items from this applicant, marked done together',
+          })}
+        </StyledEarlierToggle>
+      )}
+      {isShowingEarlier &&
+        earlierReplies.map((earlierReply, index) =>
+          isNonEmptyString(earlierReply) ? (
+            <StyledQuote key={index} dir="auto">
+              “{earlierReply}”
+            </StyledQuote>
+          ) : (
+            <StyledAdviceText key={index}>
+              {t`The text of this earlier email was not saved. Open it in the hr@ mailbox.`}
+            </StyledAdviceText>
+          ),
+        )}
       <StyledAdvice>
         <StyledLabel>{t`What to do`}</StyledLabel>
         <StyledAdviceText>{getTeamInboxReviewAdvice(item)}</StyledAdviceText>

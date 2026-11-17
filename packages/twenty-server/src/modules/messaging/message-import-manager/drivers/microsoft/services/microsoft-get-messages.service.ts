@@ -11,7 +11,7 @@ import { MicrosoftImportDriverException } from 'src/modules/messaging/message-im
 import { type MicrosoftGraphBatchResponse } from 'src/modules/messaging/message-import-manager/drivers/microsoft/services/microsoft-get-messages.interface';
 import { type MessageWithParticipants } from 'src/modules/messaging/message-import-manager/types/message.type';
 import { buildReplyToParticipants } from 'src/modules/messaging/message-import-manager/utils/build-reply-to-participants.util';
-import { extractMessageTextWithoutQuotedHistory } from 'src/modules/messaging/message-import-manager/utils/extract-message-text-without-quoted-history.util';
+import { extractImportedMessageText } from 'src/modules/messaging/message-import-manager/utils/extract-imported-message-text.util';
 import { formatAddressObjectAsParticipants } from 'src/modules/messaging/message-import-manager/utils/format-address-object-as-participants.util';
 import { safeParseEmailAddress } from 'src/modules/messaging/message-import-manager/utils/safe-parse-email-address.util';
 
@@ -143,11 +143,12 @@ export class MicrosoftGetMessagesService {
           : []),
       ];
 
-      const text = extractMessageTextWithoutQuotedHistory(
-        response.body?.contentType === 'text'
+      const text = extractImportedMessageText({
+        subject: response.subject,
+        ...(response.body?.contentType === 'text'
           ? { text: response.body?.content }
-          : { html: response.body?.content },
-      );
+          : { html: response.body?.content }),
+      });
 
       return {
         externalId: response.id,
