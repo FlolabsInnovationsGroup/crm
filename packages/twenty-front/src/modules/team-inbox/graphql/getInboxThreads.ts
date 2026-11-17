@@ -11,6 +11,7 @@ export const GET_INBOX_THREADS = gql`
     $searchTerm: String
     $unreadOnly: Boolean
     $manualReview: Boolean
+    $system: Boolean
     $closed: Boolean
     $manualReviewDoneSince: DateTime
   ) {
@@ -22,6 +23,7 @@ export const GET_INBOX_THREADS = gql`
       searchTerm: $searchTerm
       unreadOnly: $unreadOnly
       manualReview: $manualReview
+      system: $system
       closed: $closed
       manualReviewDoneSince: $manualReviewDoneSince
     ) {

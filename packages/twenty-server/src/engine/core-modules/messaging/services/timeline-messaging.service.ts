@@ -13,6 +13,7 @@ import { type InboxMailboxDTO } from 'src/engine/core-modules/messaging/dtos/inb
 import { type TimelineThreadDTO } from 'src/engine/core-modules/messaging/dtos/timeline-thread.dto';
 import { type InboxThreadFilter } from 'src/engine/core-modules/messaging/types/inbox-thread-filter.type';
 import { MANUAL_REVIEW_SUBJECT_PREFIXES } from 'src/engine/core-modules/messaging/utils/team-inbox-manual-review.util';
+import { TEAM_INBOX_SYSTEM_SUBJECT_PREFIX } from 'src/engine/core-modules/messaging/utils/team-inbox-system.util';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { type TargetFilter } from 'src/engine/core-modules/target/utils/get-target-field-name-for-object-record.util';
 import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
@@ -34,10 +35,14 @@ const applyInboxFilter = (
     searchTerm,
     unreadFor,
     manualReview,
+    system,
     closed,
   }: InboxThreadFilter,
   // Thread level, so a reply to a triage email stays with it.
-  manualReviewThreadIds: string[],
+  {
+    manualReviewThreadIds,
+    systemThreadIds,
+  }: { manualReviewThreadIds: string[]; systemThreadIds: string[] },
 ): void => {
   queryBuilder
     .innerJoin(
@@ -78,6 +83,13 @@ const applyInboxFilter = (
       { manualReviewThreadIds },
     );
   }
+
+  queryBuilder.andWhere(
+    system === true
+      ? 'messageThread.id = ANY(CAST(:systemThreadIds AS uuid[]))'
+      : 'NOT (messageThread.id = ANY(CAST(:systemThreadIds AS uuid[])))',
+    { systemThreadIds },
+  );
 
   if (isDefined(closed)) {
     queryBuilder.andWhere(
@@ -168,30 +180,75 @@ export class TimelineMessagingService {
         .offset(offset)
         .limit(pageSize);
 
-      const manualReviewThreadIds: string[] = isDefined(inboxFilter)
+      const toPatterns = (prefixes: string[]) =>
+        prefixes.map((prefix) => `${escapeLikePattern(prefix)}%`);
+
+      const candidateThreadIds = isDefined(inboxFilter)
         ? (
             await messageThreadRepository
               .createQueryBuilder('messageThread')
               .select('messageThread.id', 'id')
               .innerJoin('messageThread.messages', 'messages')
+              .where('messages.subject ILIKE ANY(CAST(:patterns AS text[]))', {
+                patterns: toPatterns([
+                  ...MANUAL_REVIEW_SUBJECT_PREFIXES,
+                  TEAM_INBOX_SYSTEM_SUBJECT_PREFIX,
+                ]),
+              })
+              .groupBy('messageThread.id')
+              .getRawMany<{ id: string }>()
+          ).map((thread) => thread.id)
+        : [];
+
+      // A thread is a system report only while every message in it is one,
+      // so a person's reply turns it back into a normal conversation.
+      const sectionRows =
+        candidateThreadIds.length > 0
+          ? await messageThreadRepository
+              .createQueryBuilder('messageThread')
+              .select('messageThread.id', 'id')
+              .addSelect(
+                'BOOL_OR(messages.subject ILIKE ANY(CAST(:manualReviewPatterns AS text[])))',
+                'isManualReview',
+              )
+              .addSelect(
+                "BOOL_AND(COALESCE(messages.subject, '') ILIKE :systemPattern)",
+                'isSystem',
+              )
+              .innerJoin('messageThread.messages', 'messages')
               .where(
-                'messages.subject ILIKE ANY(CAST(:manualReviewPatterns AS text[]))',
+                'messageThread.id = ANY(CAST(:candidateThreadIds AS uuid[]))',
                 {
-                  manualReviewPatterns: MANUAL_REVIEW_SUBJECT_PREFIXES.map(
-                    (prefix) => `${escapeLikePattern(prefix)}%`,
+                  candidateThreadIds,
+                  manualReviewPatterns: toPatterns(
+                    MANUAL_REVIEW_SUBJECT_PREFIXES,
                   ),
+                  systemPattern: toPatterns([
+                    TEAM_INBOX_SYSTEM_SUBJECT_PREFIX,
+                  ])[0],
                 },
               )
               .groupBy('messageThread.id')
-              .getRawMany()
-          ).map((thread) => thread.id)
-        : [];
+              .getRawMany<{
+                id: string;
+                isManualReview: boolean;
+                isSystem: boolean;
+              }>()
+          : [];
+      const threadIdsBySection = {
+        manualReviewThreadIds: sectionRows
+          .filter((row) => row.isManualReview)
+          .map((row) => row.id),
+        systemThreadIds: sectionRows
+          .filter((row) => row.isSystem && !row.isManualReview)
+          .map((row) => row.id),
+      };
 
       const applyRecordFilter = (
         queryBuilder: WorkspaceSelectQueryBuilder,
       ): void => {
         if (isDefined(inboxFilter)) {
-          applyInboxFilter(queryBuilder, inboxFilter, manualReviewThreadIds);
+          applyInboxFilter(queryBuilder, inboxFilter, threadIdsBySection);
 
           return;
         }

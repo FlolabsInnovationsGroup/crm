@@ -68,6 +68,25 @@ describe('filterEmails manual review', () => {
     expect(filterEmails(PRIMARY_HANDLE, [], [message], [])).toEqual([message]);
   });
 
+  it.each([
+    '[n8n] Recruitment automation summary',
+    '[n8n] WARNING: workflow stopped',
+    '[N8N] Recovery Check: 2 items',
+  ])('keeps the internal system report "%s"', (subject) => {
+    const message = buildInternalMessage(subject);
+
+    expect(filterEmails(PRIMARY_HANDLE, [], [message], [])).toEqual([message]);
+  });
+
+  it('drops a system-looking email a teammate sent', () => {
+    const message = buildInternalMessage(
+      '[n8n] Gmail node credentials',
+      'teammate@acme.com',
+    );
+
+    expect(filterEmails(PRIMARY_HANDLE, [], [message], [])).toEqual([]);
+  });
+
   it('still drops other internal emails', () => {
     const messages = [
       buildInternalMessage('Weekly sync'),
@@ -76,9 +95,8 @@ describe('filterEmails manual review', () => {
       buildInternalMessage(
         'Re: APPROVAL NEEDED (Form 1): send "BEFORE MEETING" to a@b.co',
       ),
-      buildInternalMessage('[n8n] Recruitment automation summary'),
-      buildInternalMessage('[n8n] WARNING: workflow stopped'),
-      buildInternalMessage('[n8n] Recovery Check: 2 items'),
+      buildInternalMessage('Re: [n8n] WARNING: workflow stopped'),
+      buildInternalMessage('n8n weekly sync'),
       buildInternalMessage(null),
     ];
 

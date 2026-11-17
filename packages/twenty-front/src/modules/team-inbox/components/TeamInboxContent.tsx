@@ -38,7 +38,12 @@ import {
 } from '@/team-inbox/utils/parseTeamInboxReviewItem';
 import { suggestInboxTemplate } from '@/team-inbox/utils/suggestInboxTemplate';
 
-type TeamInboxTab = TeamInboxDirection | 'UNREAD' | 'CLOSED' | 'MANUAL_REVIEW';
+type TeamInboxTab =
+  | TeamInboxDirection
+  | 'UNREAD'
+  | 'CLOSED'
+  | 'SYSTEM'
+  | 'MANUAL_REVIEW';
 type ReviewFilter =
   | 'ALL'
   | 'QUESTION'
@@ -72,6 +77,7 @@ const TABS: TeamInboxTab[] = [
   'INCOMING',
   'OUTGOING',
   'CLOSED',
+  'SYSTEM',
   'MANUAL_REVIEW',
 ];
 const ALL_MAILBOXES = '';
@@ -316,6 +322,7 @@ export const TeamInboxContent = () => {
   const tabParam = searchParams.get(TAB_PARAM);
   const activeTab = TABS.find((tab) => tab === tabParam) ?? TABS[0];
   const isManualReview = activeTab === 'MANUAL_REVIEW';
+  const isSystem = activeTab === 'SYSTEM';
   const [reviewFilter, setReviewFilter] =
     useState<ReviewFilter>(ALL_REVIEW_ITEMS);
   const [doneSince] = useState(() => startOfDay(new Date()).toISOString());
@@ -356,12 +363,14 @@ export const TeamInboxContent = () => {
     direction:
       activeTab === 'UNREAD' ||
       activeTab === 'CLOSED' ||
+      activeTab === 'SYSTEM' ||
       activeTab === 'MANUAL_REVIEW'
         ? 'ALL'
         : activeTab,
     unreadOnly: activeTab === 'UNREAD',
     closedOnly: activeTab === 'CLOSED',
     manualReview: isManualReview,
+    system: isSystem,
     manualReviewDoneSince: isShowingDoneToday ? doneSince : null,
     messageChannelId:
       messageChannelId === ALL_MAILBOXES ? null : messageChannelId,
@@ -484,6 +493,7 @@ export const TeamInboxContent = () => {
     { id: 'INCOMING', label: t`Received`, tone: 'neutral' },
     { id: 'OUTGOING', label: t`Sent`, tone: 'neutral' },
     { id: 'CLOSED', label: t`Closed`, tone: 'neutral' },
+    { id: 'SYSTEM', label: t`System`, tone: 'neutral' },
     {
       id: 'MANUAL_REVIEW',
       label:
@@ -741,7 +751,13 @@ export const TeamInboxContent = () => {
           {isFirstLoad ? (
             <SkeletonLoader />
           ) : threads.length === 0 ? (
-            <StyledEmpty>{t`No emails match these filters.`}</StyledEmpty>
+            <StyledEmpty>
+              {isSystem &&
+              searchTerm.trim() === '' &&
+              messageChannelId === ALL_MAILBOXES
+                ? t`No automation reports yet.`
+                : t`No emails match these filters.`}
+            </StyledEmpty>
           ) : (
             <>
               {threads.map((thread) => (
@@ -774,6 +790,7 @@ export const TeamInboxContent = () => {
           ownHandles={ownHandles}
           mailboxes={mailboxes}
           isClosed={activeTab === 'CLOSED'}
+          isReadOnly={isSystem}
           initialTemplateId={
             pendingTemplate?.threadId === selectedThreadId
               ? pendingTemplate.templateId

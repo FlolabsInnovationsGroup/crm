@@ -90,6 +90,11 @@ class GetInboxThreadsArgs {
   @Field(() => Boolean, { nullable: true })
   @IsOptional()
   @IsBoolean()
+  system?: boolean;
+
+  @Field(() => Boolean, { nullable: true })
+  @IsOptional()
+  @IsBoolean()
   closed?: boolean;
 
   @Field(() => Date, { nullable: true })
@@ -249,6 +254,7 @@ export class TimelineMessagingResolver {
       searchTerm,
       unreadOnly,
       manualReview,
+      system,
       closed,
       manualReviewDoneSince,
     }: GetInboxThreadsArgs,
@@ -263,7 +269,9 @@ export class TimelineMessagingResolver {
     }
 
     // Unset `closed` (notifications, applicant lookup) keeps closed threads.
-    const isClosedFilterApplied = isDefined(closed) && manualReview !== true;
+    // System reports are a log, never closed.
+    const isClosedFilterApplied =
+      isDefined(closed) && manualReview !== true && system !== true;
 
     const [readState, closedThreadIds] = await Promise.all([
       this.teamInboxReadStateService.getState({
@@ -303,6 +311,7 @@ export class TimelineMessagingResolver {
                       workspace.id,
                     ),
                 },
+        system: system === true,
         closed: isClosedFilterApplied
           ? { threadIds: closedThreadIds, only: closed === true }
           : undefined,

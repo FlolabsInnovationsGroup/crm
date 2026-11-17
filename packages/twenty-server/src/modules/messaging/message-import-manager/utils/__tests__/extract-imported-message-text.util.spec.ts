@@ -44,6 +44,15 @@ describe('extractImportedMessageText', () => {
     );
   });
 
+  it('keeps the whole body of a system report', () => {
+    const text = extractImportedMessageText({
+      subject: '[n8n] Recruitment automation summary',
+      text: TRIAGE_BODY,
+    });
+
+    expect(text).toContain('> Thank you for applying to FloLabs.');
+  });
+
   it('still strips quoted history from other emails', () => {
     const text = extractImportedMessageText({
       subject: 'Re: Internship',
