@@ -333,7 +333,7 @@ export const WorkflowEditActionEmailBase = ({
           <FormBooleanFieldSwitchInput
             label={t`Conversation`}
             description={t`Reply in the latest conversation with the recipient`}
-            hint={t`Sends the email as a reply to the last email with the first recipient, with the subject "Re: <that subject>", so it stays in one conversation. If there is no earlier email, it is sent as written.`}
+            hint={t`Sends the email as a reply to the last email this account sent the first recipient, with the subject "Re: <that subject>", so it stays in one conversation. Needs a selected account and an empty In-Reply-To. If there is no earlier email, it is sent as written.`}
             value={formData.replyToLatestConversation}
             disabled={actionOptions.readonly}
             onChange={(value) => {

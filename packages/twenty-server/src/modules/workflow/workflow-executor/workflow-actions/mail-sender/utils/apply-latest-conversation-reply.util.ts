@@ -1,10 +1,15 @@
-import { isNonEmptyString } from '@sniptt/guards';
+import { Logger } from '@nestjs/common';
+
+import { isNonEmptyString, isString } from '@sniptt/guards';
+import { ConnectedAccountProvider } from 'twenty-shared/types';
 import { escapeForIlike, isDefined } from 'twenty-shared/utils';
 import { ILike, In, IsNull, Not, type Repository } from 'typeorm';
 
+import { parseCommaSeparatedEmails } from 'src/engine/core-modules/tool/tools/email-tool/utils/parse-comma-separated-emails.util';
 import { type ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
 import { type WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
+import { MessageDirection } from 'src/modules/messaging/common/enums/message-direction.enum';
 import { type MessageChannelMessageAssociationWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-channel-message-association.workspace-entity';
 import { type MessageParticipantWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-participant.workspace-entity';
 import { type MessageWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message.workspace-entity';
@@ -12,25 +17,34 @@ import { type WorkflowSendEmailActionInput } from 'src/modules/workflow/workflow
 
 const REPLY_PREFIXES_REGEX = /^(\s*(re|fwd?|aw|sv)\s*:\s*)+/i;
 
+// Keeps the In() lists well under Postgres' bind-parameter limit.
+const MAX_CANDIDATE_MESSAGES = 500;
+
+const logger = new Logger('ApplyLatestConversationReply');
+
 // Gmail splits a conversation when the subject changes, so a reply must keep it.
 export const buildReplySubject = (conversationSubject: string) =>
   `Re: ${conversationSubject.replace(REPLY_PREFIXES_REGEX, '').trim()}`;
 
-export const getFirstRecipientHandle = (to: string | undefined) =>
-  (to ?? '')
-    .split(/[,;]/)
-    .map((handle) => handle.trim().toLowerCase())
-    .find(isNonEmptyString);
+// Same channel the email composer threads on, so the anchor is found again.
+const getSendingChannelId = (connectedAccount: ConnectedAccountEntity) =>
+  connectedAccount.provider === ConnectedAccountProvider.EMAIL_GROUP
+    ? connectedAccount.messageChannels[0]?.id
+    : connectedAccount.messageChannels.find(
+        (channel) => channel.handle === connectedAccount.handle,
+      )?.id;
 
-const findLatestConversationMessage = async ({
+// The anchor is the latest email this mailbox sent the recipient, so a reminder
+// follows our own earlier email rather than whatever the applicant wrote about.
+const findLatestSentMessage = async ({
   workspaceOrmManager,
   workspaceId,
-  messageChannelIds,
+  messageChannelId,
   recipientHandle,
 }: {
   workspaceOrmManager: WorkspaceOrmManager;
   workspaceId: string;
-  messageChannelIds: string[];
+  messageChannelId: string;
   recipientHandle: string;
 }) =>
   workspaceOrmManager.executeInWorkspaceContext(async () => {
@@ -50,10 +64,10 @@ const findLatestConversationMessage = async ({
       });
 
     const participants = await participantRepository.find({
-      where: {
-        handle: ILike(escapeForIlike(recipientHandle)),
-      },
+      where: { handle: ILike(escapeForIlike(recipientHandle)) },
       select: { messageId: true },
+      order: { createdAt: 'DESC' },
+      take: MAX_CANDIDATE_MESSAGES,
     });
     const participantMessageIds = [
       ...new Set(participants.map(({ messageId }) => messageId)),
@@ -66,7 +80,8 @@ const findLatestConversationMessage = async ({
     const associations = await associationRepository.find({
       where: {
         messageId: In(participantMessageIds),
-        messageChannelId: In(messageChannelIds),
+        messageChannelId,
+        direction: MessageDirection.OUTGOING,
       },
       select: { messageId: true },
     });
@@ -79,6 +94,8 @@ const findLatestConversationMessage = async ({
       where: {
         id: In(associations.map(({ messageId }) => messageId)),
         headerMessageId: Not(IsNull()),
+        receivedAt: Not(IsNull()),
+        isDraft: false,
       },
       select: { headerMessageId: true, subject: true },
       order: { receivedAt: 'DESC' },
@@ -99,44 +116,60 @@ export const applyLatestConversationReply = async ({
   connectedAccountRepository: Repository<ConnectedAccountEntity>;
 }): Promise<WorkflowSendEmailActionInput> => {
   const { replyToLatestConversation, ...inputWithoutOption } = input;
-  const recipientHandle = getFirstRecipientHandle(input.recipients?.to);
 
   if (
     replyToLatestConversation !== true ||
     isNonEmptyString(input.inReplyTo) ||
-    !isNonEmptyString(input.connectedAccountId) ||
-    !isDefined(recipientHandle)
+    !isNonEmptyString(input.connectedAccountId)
   ) {
     return inputWithoutOption;
   }
 
-  const connectedAccount = await connectedAccountRepository.findOne({
-    where: { id: input.connectedAccountId, workspaceId },
-    relations: { messageChannels: true },
-  });
-  const messageChannelIds =
-    connectedAccount?.messageChannels.map(({ id }) => id) ?? [];
+  const recipientTo = input.recipients?.to;
+  const [recipientHandle] = isString(recipientTo)
+    ? parseCommaSeparatedEmails(recipientTo)
+    : [];
 
-  if (messageChannelIds.length === 0) {
+  if (!isDefined(recipientHandle)) {
     return inputWithoutOption;
   }
 
-  const latestMessage = await findLatestConversationMessage({
-    workspaceOrmManager,
-    workspaceId,
-    messageChannelIds,
-    recipientHandle,
-  });
+  try {
+    const connectedAccount = await connectedAccountRepository.findOne({
+      where: { id: input.connectedAccountId, workspaceId },
+      relations: { messageChannels: true },
+    });
+    const messageChannelId = isDefined(connectedAccount)
+      ? getSendingChannelId(connectedAccount)
+      : undefined;
 
-  if (!isNonEmptyString(latestMessage?.headerMessageId)) {
+    if (!isDefined(messageChannelId)) {
+      return inputWithoutOption;
+    }
+
+    const latestMessage = await findLatestSentMessage({
+      workspaceOrmManager,
+      workspaceId,
+      messageChannelId,
+      recipientHandle,
+    });
+
+    if (!isNonEmptyString(latestMessage?.headerMessageId)) {
+      return inputWithoutOption;
+    }
+
+    return {
+      ...inputWithoutOption,
+      inReplyTo: latestMessage.headerMessageId,
+      subject: isNonEmptyString(latestMessage.subject)
+        ? buildReplySubject(latestMessage.subject)
+        : inputWithoutOption.subject,
+    };
+  } catch (error) {
+    logger.warn(
+      `Could not find the latest conversation, sending as written: ${String(error)}`,
+    );
+
     return inputWithoutOption;
   }
-
-  return {
-    ...inputWithoutOption,
-    inReplyTo: latestMessage.headerMessageId,
-    subject: isNonEmptyString(latestMessage.subject)
-      ? buildReplySubject(latestMessage.subject)
-      : inputWithoutOption.subject,
-  };
 };
