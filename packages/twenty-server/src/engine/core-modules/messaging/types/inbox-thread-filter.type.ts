@@ -11,7 +11,7 @@ export type InboxThreadFilter = {
   // Set: only reply-triage threads not yet done. Unset: none of them.
   // `showDone` lists those done threads instead of hiding them.
   manualReview?: { doneThreadIds: string[]; showDone?: boolean };
-  // True: only n8n system reports. Unset: none of them.
+  // True: only n8n system reports. Otherwise none of them.
   system?: boolean;
   // Set: only closed threads when `only`, otherwise none of them.
   closed?: { threadIds: string[]; only: boolean };

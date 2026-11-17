@@ -180,35 +180,68 @@ export class TimelineMessagingService {
         .offset(offset)
         .limit(pageSize);
 
-      const findThreadIdsBySubjectPrefixes = async (
-        prefixes: string[],
-      ): Promise<string[]> =>
-        (
-          await messageThreadRepository
-            .createQueryBuilder('messageThread')
-            .select('messageThread.id', 'id')
-            .innerJoin('messageThread.messages', 'messages')
-            .where('messages.subject ILIKE ANY(CAST(:patterns AS text[]))', {
-              patterns: prefixes.map(
-                (prefix) => `${escapeLikePattern(prefix)}%`,
-              ),
-            })
-            .groupBy('messageThread.id')
-            .getRawMany<{ id: string }>()
-        ).map((thread) => thread.id);
+      const toPatterns = (prefixes: string[]) =>
+        prefixes.map((prefix) => `${escapeLikePattern(prefix)}%`);
 
-      const [manualReviewThreadIds, n8nThreadIds] = isDefined(inboxFilter)
-        ? await Promise.all([
-            findThreadIdsBySubjectPrefixes(MANUAL_REVIEW_SUBJECT_PREFIXES),
-            findThreadIdsBySubjectPrefixes([TEAM_INBOX_SYSTEM_SUBJECT_PREFIX]),
-          ])
-        : [[], []];
-      const manualReviewThreadIdSet = new Set(manualReviewThreadIds);
+      const candidateThreadIds = isDefined(inboxFilter)
+        ? (
+            await messageThreadRepository
+              .createQueryBuilder('messageThread')
+              .select('messageThread.id', 'id')
+              .innerJoin('messageThread.messages', 'messages')
+              .where('messages.subject ILIKE ANY(CAST(:patterns AS text[]))', {
+                patterns: toPatterns([
+                  ...MANUAL_REVIEW_SUBJECT_PREFIXES,
+                  TEAM_INBOX_SYSTEM_SUBJECT_PREFIX,
+                ]),
+              })
+              .groupBy('messageThread.id')
+              .getRawMany<{ id: string }>()
+          ).map((thread) => thread.id)
+        : [];
+
+      // A thread is a system report only while every message in it is one,
+      // so a person's reply turns it back into a normal conversation.
+      const sectionRows =
+        candidateThreadIds.length > 0
+          ? await messageThreadRepository
+              .createQueryBuilder('messageThread')
+              .select('messageThread.id', 'id')
+              .addSelect(
+                'BOOL_OR(messages.subject ILIKE ANY(CAST(:manualReviewPatterns AS text[])))',
+                'isManualReview',
+              )
+              .addSelect(
+                "BOOL_AND(COALESCE(messages.subject, '') ILIKE :systemPattern)",
+                'isSystem',
+              )
+              .innerJoin('messageThread.messages', 'messages')
+              .where(
+                'messageThread.id = ANY(CAST(:candidateThreadIds AS uuid[]))',
+                {
+                  candidateThreadIds,
+                  manualReviewPatterns: toPatterns(
+                    MANUAL_REVIEW_SUBJECT_PREFIXES,
+                  ),
+                  systemPattern: toPatterns([
+                    TEAM_INBOX_SYSTEM_SUBJECT_PREFIX,
+                  ])[0],
+                },
+              )
+              .groupBy('messageThread.id')
+              .getRawMany<{
+                id: string;
+                isManualReview: boolean;
+                isSystem: boolean;
+              }>()
+          : [];
       const threadIdsBySection = {
-        manualReviewThreadIds,
-        systemThreadIds: n8nThreadIds.filter(
-          (threadId) => !manualReviewThreadIdSet.has(threadId),
-        ),
+        manualReviewThreadIds: sectionRows
+          .filter((row) => row.isManualReview)
+          .map((row) => row.id),
+        systemThreadIds: sectionRows
+          .filter((row) => row.isSystem && !row.isManualReview)
+          .map((row) => row.id),
       };
 
       const applyRecordFilter = (

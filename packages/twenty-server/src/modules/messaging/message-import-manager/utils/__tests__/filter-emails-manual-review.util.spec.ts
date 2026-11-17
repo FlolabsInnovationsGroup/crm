@@ -78,6 +78,15 @@ describe('filterEmails manual review', () => {
     expect(filterEmails(PRIMARY_HANDLE, [], [message], [])).toEqual([message]);
   });
 
+  it('drops a system-looking email a teammate sent', () => {
+    const message = buildInternalMessage(
+      '[n8n] Gmail node credentials',
+      'teammate@acme.com',
+    );
+
+    expect(filterEmails(PRIMARY_HANDLE, [], [message], [])).toEqual([]);
+  });
+
   it('still drops other internal emails', () => {
     const messages = [
       buildInternalMessage('Weekly sync'),

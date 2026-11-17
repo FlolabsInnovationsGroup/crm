@@ -752,7 +752,9 @@ export const TeamInboxContent = () => {
             <SkeletonLoader />
           ) : threads.length === 0 ? (
             <StyledEmpty>
-              {isSystem && searchTerm.trim() === ''
+              {isSystem &&
+              searchTerm.trim() === '' &&
+              messageChannelId === ALL_MAILBOXES
                 ? t`No automation reports yet.`
                 : t`No emails match these filters.`}
             </StyledEmpty>
