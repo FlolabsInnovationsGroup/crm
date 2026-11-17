@@ -1,7 +1,7 @@
 import { isDefined } from 'twenty-shared/utils';
 
 import { type MessageWithParticipants } from 'src/modules/messaging/message-import-manager/types/message.type';
-import { isReplyTriageMessage } from 'src/modules/messaging/message-import-manager/utils/is-reply-triage-message.util';
+import { isManualReviewMessage } from 'src/modules/messaging/message-import-manager/utils/is-manual-review-message.util';
 import { getDomainFromEmailOrThrow } from 'src/utils/get-domain-from-email-or-throw';
 
 export const filterOutInternals = (
@@ -13,8 +13,8 @@ export const filterOutInternals = (
       return true;
     }
 
-    // n8n sends reply-triage emails hr@ to hr@; Needs review depends on them.
-    if (isReplyTriageMessage(message)) {
+    // These n8n emails go hr@ to hr@, so they always look internal.
+    if (isManualReviewMessage(message)) {
       return true;
     }
 

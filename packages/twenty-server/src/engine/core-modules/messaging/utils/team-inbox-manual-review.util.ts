@@ -1,9 +1,18 @@
 import { isString } from '@sniptt/guards';
 import { isValidUuid } from 'twenty-shared/utils';
 
-// The n8n reply-triage workflow emails hr@ with this subject prefix when an
-// applicant's reply needs a person to answer it.
-export const MANUAL_REVIEW_SUBJECT_PREFIX = '[Reply triage]';
+// The n8n recruitment workflows email hr@ with these subject prefixes when a
+// person has to act; Needs review lists them.
+export const MANUAL_REVIEW_SUBJECT_PREFIXES = [
+  '[Reply triage]',
+  'APPROVAL NEEDED (Form 1)',
+  'APPROVAL NEEDED (orientation)',
+  '[Stuck applicant]',
+  '[n8n] Recruitment automation needs attention',
+  '[n8n] Email SENT but CRM not updated',
+  '[n8n] CRM application not queued',
+  '[n8n] CRM first email step failed',
+];
 
 // One key per thread, so two teammates marking items done at the same time
 // never overwrite each other.

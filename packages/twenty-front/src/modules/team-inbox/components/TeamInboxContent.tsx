@@ -28,11 +28,35 @@ import { useTeamInboxThreads } from '@/team-inbox/hooks/useTeamInboxThreads';
 import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
 import { type TeamInboxDirection } from '@/team-inbox/types/TeamInboxFilter';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
-import { parseManualReviewSubject } from '@/team-inbox/utils/parseManualReviewSubject';
+import {
+  isTeamInboxApproval,
+  isTeamInboxAutomationIssue,
+  isTeamInboxQuestion,
+  parseTeamInboxReviewItem,
+  type TeamInboxReviewItem,
+} from '@/team-inbox/utils/parseTeamInboxReviewItem';
 import { suggestInboxTemplate } from '@/team-inbox/utils/suggestInboxTemplate';
 
 type TeamInboxTab = TeamInboxDirection | 'UNREAD' | 'CLOSED' | 'MANUAL_REVIEW';
-type ReviewFilter = 'ALL' | 'QUESTION' | 'NOT_INTERESTED' | 'DONE_TODAY';
+type ReviewFilter =
+  | 'ALL'
+  | 'QUESTION'
+  | 'NOT_INTERESTED'
+  | 'APPROVAL'
+  | 'AUTOMATION'
+  | 'DONE_TODAY';
+
+const isNotInterested = (item: TeamInboxReviewItem) =>
+  item.triage?.reason === 'not interested';
+
+const REVIEW_FILTER_MATCHERS: Partial<
+  Record<ReviewFilter, (item: TeamInboxReviewItem) => boolean>
+> = {
+  QUESTION: isTeamInboxQuestion,
+  NOT_INTERESTED: isNotInterested,
+  APPROVAL: isTeamInboxApproval,
+  AUTOMATION: isTeamInboxAutomationIssue,
+};
 
 // oxlint-disable-next-line lingui/no-unlocalized-strings -- A filter id, not text.
 const ALL_REVIEW_ITEMS: ReviewFilter = 'ALL';
@@ -346,31 +370,20 @@ export const TeamInboxContent = () => {
   const ownHandles = mailboxes.map((mailbox) => mailbox.handle);
 
   const reviewItems = isManualReview
-    ? threads.map((thread) => {
-        const subject = parseManualReviewSubject(thread.subject);
-
-        return {
-          thread,
-          subject,
-          reply: parseManualReviewBody(thread.lastMessageBody).reply,
-        };
-      })
+    ? threads.map((thread) => ({
+        thread,
+        item: parseTeamInboxReviewItem(thread.subject, thread.lastMessageBody),
+        reply: parseManualReviewBody(thread.lastMessageBody).reply,
+      }))
     : [];
-  const questionCount = reviewItems.filter(
-    ({ subject }) => subject.reason === 'question',
-  ).length;
-  const notInterestedCount = reviewItems.filter(
-    ({ subject }) => subject.reason === 'not interested',
-  ).length;
-  const visibleReviewItems = reviewItems.filter(({ subject }) =>
-    reviewFilter === 'QUESTION'
-      ? subject.reason === 'question'
-      : reviewFilter === 'NOT_INTERESTED'
-        ? subject.reason === 'not interested'
-        : true,
-  );
+  const countReviewItems = (matches: (item: TeamInboxReviewItem) => boolean) =>
+    reviewItems.filter(({ item }) => matches(item)).length;
+  const activeReviewMatcher = REVIEW_FILTER_MATCHERS[reviewFilter];
+  const visibleReviewItems = isDefined(activeReviewMatcher)
+    ? reviewItems.filter(({ item }) => activeReviewMatcher(item))
+    : reviewItems;
   const peopleByEmail = useInboxPeopleByEmail(
-    reviewItems.map(({ subject }) => subject.applicantEmail).filter(isDefined),
+    reviewItems.map(({ item }) => item.applicantEmail).filter(isDefined),
   );
 
   const contactPeople = useInboxContactPeople(
@@ -481,6 +494,11 @@ export const TeamInboxContent = () => {
   const areReasonCountsExact =
     !isShowingDoneToday && threads.length >= totalNumberOfThreads;
 
+  const questionCount = countReviewItems(isTeamInboxQuestion);
+  const notInterestedCount = countReviewItems(isNotInterested);
+  const approvalCount = countReviewItems(isTeamInboxApproval);
+  const automationCount = countReviewItems(isTeamInboxAutomationIssue);
+
   const reviewFilters: { id: ReviewFilter; label: string }[] = [
     { id: ALL_REVIEW_ITEMS, label: t`All · ${manualReviewCount}` },
     {
@@ -494,6 +512,18 @@ export const TeamInboxContent = () => {
       label: areReasonCountsExact
         ? t`Not interested · ${notInterestedCount}`
         : t`Not interested`,
+    },
+    {
+      id: 'APPROVAL',
+      label: areReasonCountsExact
+        ? t`Approvals · ${approvalCount}`
+        : t`Approvals`,
+    },
+    {
+      id: 'AUTOMATION',
+      label: areReasonCountsExact
+        ? t`Automation issues · ${automationCount}`
+        : t`Automation issues`,
     },
     { id: 'DONE_TODAY', label: t`Done today · ${doneSinceCount}` },
   ];
@@ -525,13 +555,13 @@ export const TeamInboxContent = () => {
               <StyledTitle size={28}>
                 {manualReviewCount > 0
                   ? plural(manualReviewCount, {
-                      one: '# reply needs a person',
-                      other: '# replies need a person',
+                      one: '# item needs a person',
+                      other: '# items need a person',
                     })
                   : t`Nothing needs a person`}
               </StyledTitle>
               <StyledReviewDescription>
-                {t`The automation read these applicant replies and did not answer them. Reply, then mark each one done so the rest of the team skips it.`}
+                {t`The automation could not finish these on its own: applicant replies, approvals and failed steps. Handle each one, then mark it done so the rest of the team skips it.`}
               </StyledReviewDescription>
             </StyledReviewIntro>
             <StyledTabs role="tablist">
@@ -560,20 +590,25 @@ export const TeamInboxContent = () => {
             </StyledEmpty>
           ) : (
             <StyledCardGrid>
-              {visibleReviewItems.map(({ thread, subject, reply }) => (
+              {visibleReviewItems.map(({ thread, item, reply }) => (
                 <TeamInboxManualReviewCard
                   key={thread.id}
                   thread={thread}
+                  item={item}
                   person={
-                    isDefined(subject.applicantEmail)
-                      ? peopleByEmail.get(subject.applicantEmail.toLowerCase())
+                    isDefined(item.applicantEmail)
+                      ? peopleByEmail.get(item.applicantEmail.toLowerCase())
                       : undefined
                   }
-                  suggestedTemplate={suggestInboxTemplate({
-                    reason: subject.reason,
-                    replyText: reply,
-                    templates,
-                  })}
+                  suggestedTemplate={
+                    isDefined(item.triage)
+                      ? suggestInboxTemplate({
+                          reason: item.triage.reason,
+                          replyText: reply,
+                          templates,
+                        })
+                      : null
+                  }
                   isDone={isShowingDoneToday}
                   onReply={handleReplyToApplicant}
                   onToggleDone={async () => {

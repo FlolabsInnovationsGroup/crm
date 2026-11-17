@@ -9,11 +9,17 @@ import { IconFileText } from 'twenty-ui/icon';
 import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { TeamInboxAvatar } from '@/team-inbox/components/TeamInboxAvatar';
 import { type InboxPersonByEmail } from '@/team-inbox/hooks/useInboxPeopleByEmail';
-import { getManualReviewAdvice } from '@/team-inbox/utils/getManualReviewAdvice';
+import { getTeamInboxReviewAdvice } from '@/team-inbox/utils/getTeamInboxReviewAdvice';
+import { getTeamInboxReviewExcerpt } from '@/team-inbox/utils/getTeamInboxReviewExcerpt';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
-import { parseManualReviewSubject } from '@/team-inbox/utils/parseManualReviewSubject';
+import {
+  isTeamInboxApproval,
+  isTeamInboxAutomationIssue,
+  type TeamInboxReviewItem,
+} from '@/team-inbox/utils/parseTeamInboxReviewItem';
 import { type TimelineThread } from '~/generated/graphql';
 import { beautifyPastDateRelativeToNow } from '~/utils/date-utils';
+import { openUrlInNewTab } from '~/utils/openUrlInNewTab';
 
 const StyledCard = styled.article`
   background: var(--fl-surface);
@@ -159,6 +165,7 @@ const StyledSecondaryButton = styled.button`
 
 type TeamInboxManualReviewCardProps = {
   thread: TimelineThread;
+  item: TeamInboxReviewItem;
   person: InboxPersonByEmail | undefined;
   suggestedTemplate: { id: string; name: string | null } | null;
   isDone: boolean;
@@ -166,8 +173,39 @@ type TeamInboxManualReviewCardProps = {
   onToggleDone: () => Promise<void>;
 };
 
+const getReasonBadge = (
+  item: TeamInboxReviewItem,
+): { label: string; tone: 'warn' | 'quiet' } | null => {
+  switch (item.kind) {
+    case 'REPLY_TRIAGE': {
+      const reason = item.triage?.reason ?? '';
+
+      if (!isNonEmptyString(reason)) {
+        return null;
+      }
+
+      return reason === 'question'
+        ? { label: t`Question`, tone: 'warn' }
+        : reason === 'not interested'
+          ? { label: t`Not interested`, tone: 'quiet' }
+          : { label: reason, tone: 'warn' };
+    }
+    case 'STUCK_APPLICANT':
+      return { label: t`Stuck`, tone: 'warn' };
+    case 'FORM_1_APPROVAL':
+      return { label: t`Form 1 approval`, tone: 'warn' };
+    case 'ORIENTATION_APPROVAL':
+      return { label: t`Orientation approval`, tone: 'warn' };
+    case 'OTHER':
+      return null;
+    default:
+      return { label: t`Automation issue`, tone: 'warn' };
+  }
+};
+
 export const TeamInboxManualReviewCard = ({
   thread,
+  item,
   person,
   suggestedTemplate,
   isDone,
@@ -175,16 +213,30 @@ export const TeamInboxManualReviewCard = ({
   onToggleDone,
 }: TeamInboxManualReviewCardProps) => {
   const { openRecordInSidePanel } = useOpenRecordInSidePanel();
+  const openEmail = () =>
+    openRecordInSidePanel({
+      recordId: thread.id,
+      objectNameSingular: CoreObjectNameSingular.MessageThread,
+    });
   const [isSaving, setIsSaving] = useState(false);
-  const subject = parseManualReviewSubject(thread.subject);
+  const isTriage = item.kind === 'REPLY_TRIAGE';
   const body = parseManualReviewBody(thread.lastMessageBody);
-  const applicantEmail = subject.applicantEmail;
+  const quote = isTriage
+    ? body.reply
+    : getTeamInboxReviewExcerpt(thread.lastMessageBody);
+  const applicantEmail = item.applicantEmail;
+  const canReply = isTriage || item.kind === 'STUCK_APPLICANT';
+  const badge = getReasonBadge(item);
   const name = isNonEmptyString(person?.name)
     ? person.name
-    : (applicantEmail ?? t`Applicant reply`);
+    : (applicantEmail ?? t`Applicant`);
 
   const meta = [
-    isNonEmptyString(person?.stageLabel) ? person.stageLabel : body.stage,
+    isNonEmptyString(person?.stageLabel)
+      ? person.stageLabel
+      : isTriage
+        ? body.stage
+        : null,
     person?.position,
     beautifyPastDateRelativeToNow(thread.lastMessageReceivedAt),
   ]
@@ -209,39 +261,20 @@ export const TeamInboxManualReviewCard = ({
           colorSeed={person?.personId ?? name}
           size={42}
         />
-        <StyledWho
-          type="button"
-          title={t`Open the triage email`}
-          onClick={() =>
-            openRecordInSidePanel({
-              recordId: thread.id,
-              objectNameSingular: CoreObjectNameSingular.MessageThread,
-            })
-          }
-        >
+        <StyledWho type="button" title={t`Open the email`} onClick={openEmail}>
           <StyledName dir="auto">{name}</StyledName>
           <StyledMeta dir="auto">{meta}</StyledMeta>
         </StyledWho>
-        {isNonEmptyString(subject.reason) && (
-          <StyledReason
-            tone={subject.reason === 'not interested' ? 'quiet' : 'warn'}
-          >
-            {subject.reason === 'question'
-              ? t`Question`
-              : subject.reason === 'not interested'
-                ? t`Not interested`
-                : subject.reason}
-          </StyledReason>
+        {isDefined(badge) && (
+          <StyledReason tone={badge.tone}>{badge.label}</StyledReason>
         )}
       </StyledHeader>
-      {isNonEmptyString(body.reply) && (
-        <StyledQuote dir="auto">“{body.reply}”</StyledQuote>
+      {isNonEmptyString(quote) && (
+        <StyledQuote dir="auto">{isTriage ? `“${quote}”` : quote}</StyledQuote>
       )}
       <StyledAdvice>
         <StyledLabel>{t`What to do`}</StyledLabel>
-        <StyledAdviceText>
-          {getManualReviewAdvice(subject.reason, subject.note)}
-        </StyledAdviceText>
+        <StyledAdviceText>{getTeamInboxReviewAdvice(item)}</StyledAdviceText>
       </StyledAdvice>
       {isDefined(suggestedTemplate) && (
         <StyledTemplate title={t`Suggested template`}>
@@ -250,7 +283,39 @@ export const TeamInboxManualReviewCard = ({
         </StyledTemplate>
       )}
       <StyledActions>
-        {isDefined(applicantEmail) && (
+        {isDefined(item.approvalUrl) && (
+          <StyledPrimaryButton
+            type="button"
+            onClick={() => {
+              if (isDefined(item.approvalUrl)) {
+                openUrlInNewTab(item.approvalUrl);
+              }
+            }}
+          >
+            {item.kind === 'ORIENTATION_APPROVAL'
+              ? t`Choose date and send`
+              : t`Review and send`}
+          </StyledPrimaryButton>
+        )}
+        {isTeamInboxApproval(item) && !isDefined(item.approvalUrl) && (
+          <StyledPrimaryButton type="button" onClick={openEmail}>
+            {t`Open the email`}
+          </StyledPrimaryButton>
+        )}
+        {isTeamInboxAutomationIssue(item) && isDefined(person) && (
+          <StyledPrimaryButton
+            type="button"
+            onClick={() =>
+              openRecordInSidePanel({
+                recordId: person.personId,
+                objectNameSingular: CoreObjectNameSingular.Person,
+              })
+            }
+          >
+            {t`Open profile`}
+          </StyledPrimaryButton>
+        )}
+        {canReply && isDefined(applicantEmail) && (
           <StyledPrimaryButton
             type="button"
             onClick={() =>
