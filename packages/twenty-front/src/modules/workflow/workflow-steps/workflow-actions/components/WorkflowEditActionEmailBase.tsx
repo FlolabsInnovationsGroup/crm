@@ -2,6 +2,7 @@ import { type ConnectedAccount } from '@/accounts/types/ConnectedAccount';
 import { buildConnectedAccountSenderOptions } from '@/accounts/utils/buildConnectedAccountSenderOptions';
 import { getMissingDraftEmailScopes } from '@/accounts/utils/hasMissingDraftEmailScopes';
 import { FormAdvancedTextFieldInput } from '@/advanced-text-editor/components/FormAdvancedTextFieldInput';
+import { FormBooleanFieldSwitchInput } from '@/object-record/record-field/ui/form-types/components/FormBooleanFieldSwitchInput';
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
 import { FormMultiTextFieldInput } from '@/object-record/record-field/ui/form-types/components/FormMultiTextFieldInput';
 import { FormSelectFieldInput } from '@/object-record/record-field/ui/form-types/components/FormSelectFieldInput';
@@ -329,6 +330,16 @@ export const WorkflowEditActionEmailBase = ({
               VariablePicker={WorkflowVariablePicker}
             />
           )}
+          <FormBooleanFieldSwitchInput
+            label={t`Conversation`}
+            description={t`Reply in the latest conversation with the recipient`}
+            hint={t`Sends the email as a reply to the last email with the first recipient, with the subject "Re: <that subject>", so it stays in one conversation. If there is no earlier email, it is sent as written.`}
+            value={formData.replyToLatestConversation}
+            disabled={actionOptions.readonly}
+            onChange={(value) => {
+              handleFieldChange('replyToLatestConversation', value);
+            }}
+          />
           {!actionOptions.readonly && hasAvailableAdvancedOptions && (
             <DropdownRoot dropdownId={advancedOptionsDropdownId} type="menu">
               <Dropdown.Trigger render={<Button size="sm" variant="outline" />}>

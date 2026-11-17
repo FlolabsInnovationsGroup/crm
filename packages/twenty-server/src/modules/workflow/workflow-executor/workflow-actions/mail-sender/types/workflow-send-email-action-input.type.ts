@@ -9,4 +9,5 @@ export type WorkflowSendEmailActionInput = {
   body?: string;
   files?: EmailAttachment[];
   inReplyTo?: string;
+  replyToLatestConversation?: boolean;
 };
