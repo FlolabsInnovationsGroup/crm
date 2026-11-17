@@ -13,6 +13,7 @@ import { type InboxMailboxDTO } from 'src/engine/core-modules/messaging/dtos/inb
 import { type TimelineThreadDTO } from 'src/engine/core-modules/messaging/dtos/timeline-thread.dto';
 import { type InboxThreadFilter } from 'src/engine/core-modules/messaging/types/inbox-thread-filter.type';
 import { MANUAL_REVIEW_SUBJECT_PREFIXES } from 'src/engine/core-modules/messaging/utils/team-inbox-manual-review.util';
+import { TEAM_INBOX_SYSTEM_SUBJECT_PREFIX } from 'src/engine/core-modules/messaging/utils/team-inbox-system.util';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { type TargetFilter } from 'src/engine/core-modules/target/utils/get-target-field-name-for-object-record.util';
 import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
@@ -34,10 +35,14 @@ const applyInboxFilter = (
     searchTerm,
     unreadFor,
     manualReview,
+    system,
     closed,
   }: InboxThreadFilter,
   // Thread level, so a reply to a triage email stays with it.
-  manualReviewThreadIds: string[],
+  {
+    manualReviewThreadIds,
+    systemThreadIds,
+  }: { manualReviewThreadIds: string[]; systemThreadIds: string[] },
 ): void => {
   queryBuilder
     .innerJoin(
@@ -78,6 +83,13 @@ const applyInboxFilter = (
       { manualReviewThreadIds },
     );
   }
+
+  queryBuilder.andWhere(
+    system === true
+      ? 'messageThread.id = ANY(CAST(:systemThreadIds AS uuid[]))'
+      : 'NOT (messageThread.id = ANY(CAST(:systemThreadIds AS uuid[])))',
+    { systemThreadIds },
+  );
 
   if (isDefined(closed)) {
     queryBuilder.andWhere(
@@ -168,30 +180,42 @@ export class TimelineMessagingService {
         .offset(offset)
         .limit(pageSize);
 
-      const manualReviewThreadIds: string[] = isDefined(inboxFilter)
-        ? (
-            await messageThreadRepository
-              .createQueryBuilder('messageThread')
-              .select('messageThread.id', 'id')
-              .innerJoin('messageThread.messages', 'messages')
-              .where(
-                'messages.subject ILIKE ANY(CAST(:manualReviewPatterns AS text[]))',
-                {
-                  manualReviewPatterns: MANUAL_REVIEW_SUBJECT_PREFIXES.map(
-                    (prefix) => `${escapeLikePattern(prefix)}%`,
-                  ),
-                },
-              )
-              .groupBy('messageThread.id')
-              .getRawMany()
-          ).map((thread) => thread.id)
-        : [];
+      const findThreadIdsBySubjectPrefixes = async (
+        prefixes: string[],
+      ): Promise<string[]> =>
+        (
+          await messageThreadRepository
+            .createQueryBuilder('messageThread')
+            .select('messageThread.id', 'id')
+            .innerJoin('messageThread.messages', 'messages')
+            .where('messages.subject ILIKE ANY(CAST(:patterns AS text[]))', {
+              patterns: prefixes.map(
+                (prefix) => `${escapeLikePattern(prefix)}%`,
+              ),
+            })
+            .groupBy('messageThread.id')
+            .getRawMany<{ id: string }>()
+        ).map((thread) => thread.id);
+
+      const [manualReviewThreadIds, n8nThreadIds] = isDefined(inboxFilter)
+        ? await Promise.all([
+            findThreadIdsBySubjectPrefixes(MANUAL_REVIEW_SUBJECT_PREFIXES),
+            findThreadIdsBySubjectPrefixes([TEAM_INBOX_SYSTEM_SUBJECT_PREFIX]),
+          ])
+        : [[], []];
+      const manualReviewThreadIdSet = new Set(manualReviewThreadIds);
+      const threadIdsBySection = {
+        manualReviewThreadIds,
+        systemThreadIds: n8nThreadIds.filter(
+          (threadId) => !manualReviewThreadIdSet.has(threadId),
+        ),
+      };
 
       const applyRecordFilter = (
         queryBuilder: WorkspaceSelectQueryBuilder,
       ): void => {
         if (isDefined(inboxFilter)) {
-          applyInboxFilter(queryBuilder, inboxFilter, manualReviewThreadIds);
+          applyInboxFilter(queryBuilder, inboxFilter, threadIdsBySection);
 
           return;
         }

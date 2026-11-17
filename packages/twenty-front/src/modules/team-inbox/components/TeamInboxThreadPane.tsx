@@ -219,6 +219,8 @@ type TeamInboxThreadPaneProps = {
   ownHandles: string[];
   mailboxes: InboxMailbox[];
   isClosed: boolean;
+  // System reports: read them, nothing to answer or close.
+  isReadOnly: boolean;
   initialTemplateId: string | null;
   onInitialTemplateApplied: () => void;
   onToggleClosed: () => Promise<void>;
@@ -241,6 +243,7 @@ export const TeamInboxThreadPane = ({
   ownHandles,
   mailboxes,
   isClosed,
+  isReadOnly,
   initialTemplateId,
   onInitialTemplateApplied,
   onToggleClosed,
@@ -318,7 +321,8 @@ export const TeamInboxThreadPane = ({
     }
   };
 
-  const canReply = isDefined(replyContext) && replyContext.loading === false;
+  const canReply =
+    !isReadOnly && isDefined(replyContext) && replyContext.loading === false;
   const canReplyAll = canReply && isNonEmptyString(replyContext.replyAllCc);
   const contactName = contact?.displayName ?? '';
   const fromHandle = canReply
@@ -354,18 +358,26 @@ export const TeamInboxThreadPane = ({
             <StyledSubtitle dir="auto">{subtitle}</StyledSubtitle>
           </StyledHeading>
           <StyledHeaderActions>
-            <StyledChipButton type="button" onClick={onMarkUnread}>
-              {t`Mark unread`}
-            </StyledChipButton>
-            <StyledChipButton
-              type="button"
-              tone={isClosed ? undefined : 'accent'}
-              disabled={isTogglingClosed}
-              onClick={handleToggleClosed}
-            >
-              {isClosed ? <IconRestore size={15} /> : <IconCheck size={15} />}
-              {isClosed ? t`Reopen` : t`Close`}
-            </StyledChipButton>
+            {!isReadOnly && (
+              <>
+                <StyledChipButton type="button" onClick={onMarkUnread}>
+                  {t`Mark unread`}
+                </StyledChipButton>
+                <StyledChipButton
+                  type="button"
+                  tone={isClosed ? undefined : 'accent'}
+                  disabled={isTogglingClosed}
+                  onClick={handleToggleClosed}
+                >
+                  {isClosed ? (
+                    <IconRestore size={15} />
+                  ) : (
+                    <IconCheck size={15} />
+                  )}
+                  {isClosed ? t`Reopen` : t`Close`}
+                </StyledChipButton>
+              </>
+            )}
             <TeamInboxMenu
               dropdownId={`team-inbox-thread-actions-${threadId}`}
               placement="bottom-end"

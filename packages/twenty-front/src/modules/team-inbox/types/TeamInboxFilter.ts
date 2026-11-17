@@ -4,6 +4,7 @@ export type TeamInboxFilter = {
   direction: TeamInboxDirection;
   unreadOnly: boolean;
   manualReview: boolean;
+  system: boolean;
   closedOnly: boolean;
   manualReviewDoneSince: string | null;
   messageChannelId: string | null;
