@@ -14,8 +14,8 @@ describe('getSubjectAfterTemplateChange', () => {
   it('replaces the subject the previous template filled in', () => {
     expect(
       getSubjectAfterTemplateChange({
-        currentSubject: 'FloLabs Internship - Next Steps',
-        previousTemplateSubject: 'FloLabs Internship - Next Steps',
+        currentSubject: 'RE: FloLabs Internship - Next Steps',
+        previousTemplateSubject: 'RE: FloLabs Internship - Next Steps',
         templateSubject: 'Reminder: Program Agreement',
       }),
     ).toBe('Reminder: Program Agreement');
