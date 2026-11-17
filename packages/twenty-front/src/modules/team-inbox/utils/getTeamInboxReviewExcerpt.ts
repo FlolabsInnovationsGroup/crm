@@ -1,9 +1,13 @@
 const EXCERPT_MAX_LENGTH = 320;
 
-// Link targets are long and the card has its own button for the one that matters.
+const LINK_LINE_REGEX = /\[https?:\/\/[^\]\s]+\]/;
+
+// Button lines ("Label [url]") repeat what the card's own buttons do.
 export const getTeamInboxReviewExcerpt = (body: string) => {
   const text = body
-    .replace(/\s*\[https?:\/\/[^\]\s]+\]/g, '')
+    .split('\n')
+    .filter((line) => !LINK_LINE_REGEX.test(line))
+    .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 

@@ -1,5 +1,5 @@
 import { styled } from '@linaria/react';
-import { t } from '@lingui/core/macro';
+import { plural, t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
 import { useState } from 'react';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
@@ -61,6 +61,14 @@ const StyledName = styled.div`
 
 const StyledMeta = styled.div`
   color: var(--fl-faint);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const StyledEarlier = styled.span`
+  color: var(--fl-muted);
   font-size: 12px;
 `;
 
@@ -166,6 +174,7 @@ const StyledSecondaryButton = styled.button`
 type TeamInboxManualReviewCardProps = {
   thread: TimelineThread;
   item: TeamInboxReviewItem;
+  earlierCount: number;
   person: InboxPersonByEmail | undefined;
   suggestedTemplate: { id: string; name: string | null } | null;
   isDone: boolean;
@@ -206,6 +215,7 @@ const getReasonBadge = (
 export const TeamInboxManualReviewCard = ({
   thread,
   item,
+  earlierCount,
   person,
   suggestedTemplate,
   isDone,
@@ -263,7 +273,9 @@ export const TeamInboxManualReviewCard = ({
         />
         <StyledWho type="button" title={t`Open the email`} onClick={openEmail}>
           <StyledName dir="auto">{name}</StyledName>
-          <StyledMeta dir="auto">{meta}</StyledMeta>
+          <StyledMeta dir="auto" title={meta}>
+            {meta}
+          </StyledMeta>
         </StyledWho>
         {isDefined(badge) && (
           <StyledReason tone={badge.tone}>{badge.label}</StyledReason>
@@ -271,6 +283,15 @@ export const TeamInboxManualReviewCard = ({
       </StyledHeader>
       {isNonEmptyString(quote) && (
         <StyledQuote dir="auto">{isTriage ? `“${quote}”` : quote}</StyledQuote>
+      )}
+      {earlierCount > 0 && (
+        <StyledEarlier>
+          {plural(earlierCount, {
+            one: '+ # earlier reply from this applicant, marked done together',
+            other:
+              '+ # earlier replies from this applicant, marked done together',
+          })}
+        </StyledEarlier>
       )}
       <StyledAdvice>
         <StyledLabel>{t`What to do`}</StyledLabel>

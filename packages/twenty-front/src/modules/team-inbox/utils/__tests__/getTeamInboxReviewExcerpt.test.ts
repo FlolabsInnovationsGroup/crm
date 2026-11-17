@@ -1,12 +1,12 @@
 import { getTeamInboxReviewExcerpt } from '@/team-inbox/utils/getTeamInboxReviewExcerpt';
 
 describe('getTeamInboxReviewExcerpt', () => {
-  it('drops link targets and extra blank lines', () => {
+  it('drops button lines and extra blank lines', () => {
     expect(
       getTeamInboxReviewExcerpt(
-        'Step failed: send first email\n\n\n\nOpen the workflow [https://searchcompareshare.com/workflow/1]',
+        'Step failed: send first email\n\n\n\nOpen the workflow [https://searchcompareshare.com/workflow/1]\nCheck the stage.',
       ),
-    ).toBe('Step failed: send first email\n\nOpen the workflow');
+    ).toBe('Step failed: send first email\n\nCheck the stage.');
   });
 
   it('shortens long emails', () => {

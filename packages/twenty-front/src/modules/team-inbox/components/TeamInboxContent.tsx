@@ -28,6 +28,7 @@ import { useTeamInboxThreads } from '@/team-inbox/hooks/useTeamInboxThreads';
 import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
 import { type TeamInboxDirection } from '@/team-inbox/types/TeamInboxFilter';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
+import { groupReviewItemsByApplicant } from '@/team-inbox/utils/groupReviewItemsByApplicant';
 import {
   isTeamInboxApproval,
   isTeamInboxAutomationIssue,
@@ -305,7 +306,7 @@ const StyledCardGrid = styled.div`
   align-items: start;
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
 `;
 
 export const TeamInboxContent = () => {
@@ -326,6 +327,7 @@ export const TeamInboxContent = () => {
     useTeamInboxReadState();
   const {
     manualReviewCount,
+    isManualReviewCountLoaded,
     doneSinceCount,
     markDone,
     undoDone,
@@ -492,7 +494,9 @@ export const TeamInboxContent = () => {
   // Reason counts come from the loaded cards, so they show only when every
   // open card is loaded.
   const areReasonCountsExact =
-    !isShowingDoneToday && threads.length >= totalNumberOfThreads;
+    !isFirstLoad &&
+    !isShowingDoneToday &&
+    threads.length >= totalNumberOfThreads;
 
   const questionCount = countReviewItems(isTeamInboxQuestion);
   const notInterestedCount = countReviewItems(isNotInterested);
@@ -500,7 +504,10 @@ export const TeamInboxContent = () => {
   const automationCount = countReviewItems(isTeamInboxAutomationIssue);
 
   const reviewFilters: { id: ReviewFilter; label: string }[] = [
-    { id: ALL_REVIEW_ITEMS, label: t`All · ${manualReviewCount}` },
+    {
+      id: ALL_REVIEW_ITEMS,
+      label: isManualReviewCountLoaded ? t`All · ${manualReviewCount}` : t`All`,
+    },
     {
       id: 'QUESTION',
       label: areReasonCountsExact
@@ -553,12 +560,14 @@ export const TeamInboxContent = () => {
                 <strong>{t`Needs review`}</strong>
               </StyledBreadcrumb>
               <StyledTitle size={28}>
-                {manualReviewCount > 0
-                  ? plural(manualReviewCount, {
-                      one: '# item needs a person',
-                      other: '# items need a person',
-                    })
-                  : t`Nothing needs a person`}
+                {!isManualReviewCountLoaded
+                  ? t`Needs review`
+                  : manualReviewCount > 0
+                    ? plural(manualReviewCount, {
+                        one: '# item needs a person',
+                        other: '# items need a person',
+                      })
+                    : t`Nothing needs a person`}
               </StyledTitle>
               <StyledReviewDescription>
                 {t`The automation could not finish these on its own: applicant replies, approvals and failed steps. Handle each one, then mark it done so the rest of the team skips it.`}
@@ -590,34 +599,39 @@ export const TeamInboxContent = () => {
             </StyledEmpty>
           ) : (
             <StyledCardGrid>
-              {visibleReviewItems.map(({ thread, item, reply }) => (
-                <TeamInboxManualReviewCard
-                  key={thread.id}
-                  thread={thread}
-                  item={item}
-                  person={
-                    isDefined(item.applicantEmail)
-                      ? peopleByEmail.get(item.applicantEmail.toLowerCase())
-                      : undefined
-                  }
-                  suggestedTemplate={
-                    isDefined(item.triage)
-                      ? suggestInboxTemplate({
-                          reason: item.triage.reason,
-                          replyText: reply,
-                          templates,
-                        })
-                      : null
-                  }
-                  isDone={isShowingDoneToday}
-                  onReply={handleReplyToApplicant}
-                  onToggleDone={async () => {
-                    await (isShowingDoneToday
-                      ? undoDone(thread.id)
-                      : markDone(thread.id));
-                  }}
-                />
-              ))}
+              {groupReviewItemsByApplicant(visibleReviewItems).map(
+                ({ thread, item, reply, earlierThreadIds }) => (
+                  <TeamInboxManualReviewCard
+                    key={thread.id}
+                    thread={thread}
+                    item={item}
+                    earlierCount={earlierThreadIds.length}
+                    person={
+                      isDefined(item.applicantEmail)
+                        ? peopleByEmail.get(item.applicantEmail.toLowerCase())
+                        : undefined
+                    }
+                    suggestedTemplate={
+                      isDefined(item.triage)
+                        ? suggestInboxTemplate({
+                            reason: item.triage.reason,
+                            replyText: reply,
+                            templates,
+                          })
+                        : null
+                    }
+                    isDone={isShowingDoneToday}
+                    onReply={handleReplyToApplicant}
+                    onToggleDone={async () => {
+                      for (const threadId of [thread.id, ...earlierThreadIds]) {
+                        await (isShowingDoneToday
+                          ? undoDone(threadId)
+                          : markDone(threadId));
+                      }
+                    }}
+                  />
+                ),
+              )}
               <CustomResolverFetchMoreLoader
                 loading={isFetchingMore}
                 onLastRowVisible={fetchMoreThreads}

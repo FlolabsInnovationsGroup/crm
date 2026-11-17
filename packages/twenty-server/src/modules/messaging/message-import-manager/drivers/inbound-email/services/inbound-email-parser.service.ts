@@ -5,7 +5,7 @@ import PostalMime, { type Email as ParsedEmail } from 'postal-mime';
 import { MessageDirection } from 'src/modules/messaging/common/enums/message-direction.enum';
 import { type ParsedInboundMessage } from 'src/modules/messaging/message-import-manager/drivers/inbound-email/types/parsed-inbound-message.type';
 import { type MessageWithParticipants } from 'src/modules/messaging/message-import-manager/types/message.type';
-import { extractMessageTextWithoutQuotedHistory } from 'src/modules/messaging/message-import-manager/utils/extract-message-text-without-quoted-history.util';
+import { extractImportedMessageText } from 'src/modules/messaging/message-import-manager/utils/extract-imported-message-text.util';
 import { extractParticipantsFromParsedEmail } from 'src/modules/messaging/message-import-manager/utils/extract-participants-from-parsed-email.util';
 import { extractThreadIdFromParsedEmail } from 'src/modules/messaging/message-import-manager/utils/extract-thread-id-from-parsed-email.util';
 import { sanitizeString } from 'src/modules/messaging/message-import-manager/utils/sanitize-string.util';
@@ -31,7 +31,8 @@ export class InboundEmailParserService {
       messageThreadExternalId: extractThreadIdFromParsedEmail(parsedEmail),
       headerMessageId: parsedEmail.messageId?.trim() || `inbound-${reference}`,
       subject: sanitizeString(parsedEmail.subject || ''),
-      text: extractMessageTextWithoutQuotedHistory({
+      text: extractImportedMessageText({
+        subject: parsedEmail.subject,
         text: parsedEmail.text,
         html: parsedEmail.html,
       }),

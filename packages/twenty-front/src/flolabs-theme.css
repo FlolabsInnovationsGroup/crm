@@ -43,12 +43,13 @@
 
 .dark {
   --fl-font-display: 'Plus Jakarta Sans', Inter, sans-serif;
-  --fl-canvas: #0f1420;
-  --fl-surface: #171d2b;
-  --fl-surface-sunken: #1c2333;
-  --fl-chip: #222a3b;
-  --fl-chip-strong: #2a3346;
-  --fl-line: #2a3346;
+  /* Twenty's own dark greys, so pages match the page header above them. */
+  --fl-canvas: var(--t-background-primary);
+  --fl-surface: var(--t-background-secondary);
+  --fl-surface-sunken: var(--t-background-tertiary);
+  --fl-chip: var(--t-background-tertiary);
+  --fl-chip-strong: var(--t-background-quaternary);
+  --fl-line: var(--t-border-color-medium);
   --fl-ink-strong: #f5f7fb;
   --fl-ink: #e6eaf2;
   --fl-ink-soft: #c3cad9;

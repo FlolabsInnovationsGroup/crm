@@ -97,6 +97,7 @@ export const useManualReview = (doneSince: string) => {
 
   return {
     manualReviewCount: data?.getManualReviewCount ?? 0,
+    isManualReviewCountLoaded: isDefined(data),
     doneSinceCount: doneData?.getManualReviewDoneCount ?? 0,
     markDone,
     undoDone,
