@@ -378,12 +378,15 @@ export const TeamInboxContent = () => {
         reply: parseManualReviewBody(thread.lastMessageBody).reply,
       }))
     : [];
+  // Grouped before filtering, so a card and its Done cover the same emails
+  // whichever filter is open.
+  const reviewGroups = groupReviewItemsByApplicant(reviewItems);
   const countReviewItems = (matches: (item: TeamInboxReviewItem) => boolean) =>
-    reviewItems.filter(({ item }) => matches(item)).length;
+    reviewGroups.filter(({ item }) => matches(item)).length;
   const activeReviewMatcher = REVIEW_FILTER_MATCHERS[reviewFilter];
   const visibleReviewItems = isDefined(activeReviewMatcher)
-    ? reviewItems.filter(({ item }) => activeReviewMatcher(item))
-    : reviewItems;
+    ? reviewGroups.filter(({ item }) => activeReviewMatcher(item))
+    : reviewGroups;
   const peopleByEmail = useInboxPeopleByEmail(
     reviewItems.map(({ item }) => item.applicantEmail).filter(isDefined),
   );
@@ -503,10 +506,15 @@ export const TeamInboxContent = () => {
   const approvalCount = countReviewItems(isTeamInboxApproval);
   const automationCount = countReviewItems(isTeamInboxAutomationIssue);
 
+  // Cards are grouped, so once all are loaded the counts follow the cards.
+  const reviewCardCount = areReasonCountsExact
+    ? reviewGroups.length
+    : manualReviewCount;
+
   const reviewFilters: { id: ReviewFilter; label: string }[] = [
     {
       id: ALL_REVIEW_ITEMS,
-      label: isManualReviewCountLoaded ? t`All · ${manualReviewCount}` : t`All`,
+      label: isManualReviewCountLoaded ? t`All · ${reviewCardCount}` : t`All`,
     },
     {
       id: 'QUESTION',
@@ -562,8 +570,8 @@ export const TeamInboxContent = () => {
               <StyledTitle size={28}>
                 {!isManualReviewCountLoaded
                   ? t`Needs review`
-                  : manualReviewCount > 0
-                    ? plural(manualReviewCount, {
+                  : reviewCardCount > 0
+                    ? plural(reviewCardCount, {
                         one: '# item needs a person',
                         other: '# items need a person',
                       })
@@ -599,39 +607,48 @@ export const TeamInboxContent = () => {
             </StyledEmpty>
           ) : (
             <StyledCardGrid>
-              {groupReviewItemsByApplicant(visibleReviewItems).map(
-                ({ thread, item, reply, earlierThreadIds }) => (
-                  <TeamInboxManualReviewCard
-                    key={thread.id}
-                    thread={thread}
-                    item={item}
-                    earlierCount={earlierThreadIds.length}
-                    person={
-                      isDefined(item.applicantEmail)
-                        ? peopleByEmail.get(item.applicantEmail.toLowerCase())
-                        : undefined
-                    }
-                    suggestedTemplate={
-                      isDefined(item.triage)
-                        ? suggestInboxTemplate({
-                            reason: item.triage.reason,
-                            replyText: reply,
-                            templates,
-                          })
-                        : null
-                    }
-                    isDone={isShowingDoneToday}
-                    onReply={handleReplyToApplicant}
-                    onToggleDone={async () => {
-                      for (const threadId of [thread.id, ...earlierThreadIds]) {
-                        await (isShowingDoneToday
-                          ? undoDone(threadId)
-                          : markDone(threadId));
+              {visibleReviewItems.map(({ thread, item, reply, earlier }) => (
+                <TeamInboxManualReviewCard
+                  key={thread.id}
+                  thread={thread}
+                  item={item}
+                  earlierReplies={earlier.map((entry) => entry.reply)}
+                  person={
+                    isDefined(item.applicantEmail)
+                      ? peopleByEmail.get(item.applicantEmail.toLowerCase())
+                      : undefined
+                  }
+                  suggestedTemplate={
+                    isDefined(item.triage)
+                      ? suggestInboxTemplate({
+                          reason: item.triage.reason,
+                          replyText: reply,
+                          templates,
+                        })
+                      : null
+                  }
+                  isDone={isShowingDoneToday}
+                  onReply={handleReplyToApplicant}
+                  onToggleDone={async () => {
+                    // The visible card goes last so it stays on screen
+                    // until the whole group is saved.
+                    const threadIds = [
+                      ...earlier.map((entry) => entry.thread.id),
+                      thread.id,
+                    ];
+
+                    for (const threadId of threadIds) {
+                      const isSaved = await (isShowingDoneToday
+                        ? undoDone(threadId)
+                        : markDone(threadId));
+
+                      if (!isSaved) {
+                        break;
                       }
-                    }}
-                  />
-                ),
-              )}
+                    }
+                  }}
+                />
+              ))}
               <CustomResolverFetchMoreLoader
                 loading={isFetchingMore}
                 onLastRowVisible={fetchMoreThreads}

@@ -47,8 +47,8 @@
   --fl-canvas: var(--t-background-primary);
   --fl-surface: var(--t-background-secondary);
   --fl-surface-sunken: var(--t-background-tertiary);
-  --fl-chip: var(--t-background-tertiary);
-  --fl-chip-strong: var(--t-background-quaternary);
+  --fl-chip: var(--t-background-quaternary);
+  --fl-chip-strong: var(--t-background-transparent-medium);
   --fl-line: var(--t-border-color-medium);
   --fl-ink-strong: #f5f7fb;
   --fl-ink: #e6eaf2;

@@ -9,6 +9,16 @@ describe('getTeamInboxReviewExcerpt', () => {
     ).toBe('Step failed: send first email\n\nCheck the stage.');
   });
 
+  it('keeps a sentence that contains a link, without the link', () => {
+    expect(
+      getTeamInboxReviewExcerpt(
+        'Step "Update CRM stage" failed with a 502 error, see the execution [https://searchcompareshare.com/workflow/9/executions/1] for details.',
+      ),
+    ).toBe(
+      'Step "Update CRM stage" failed with a 502 error, see the execution for details.',
+    );
+  });
+
   it('shortens long emails', () => {
     const excerpt = getTeamInboxReviewExcerpt('a'.repeat(400));
 

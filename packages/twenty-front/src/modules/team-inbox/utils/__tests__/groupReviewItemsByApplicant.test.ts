@@ -19,9 +19,9 @@ describe('groupReviewItemsByApplicant', () => {
     ]);
 
     expect(
-      groups.map(({ thread, earlierThreadIds }) => [
+      groups.map(({ thread, earlier }) => [
         thread.id,
-        earlierThreadIds,
+        earlier.map((entry) => entry.thread.id),
       ]),
     ).toEqual([
       ['newest', ['older', 'stuck']],

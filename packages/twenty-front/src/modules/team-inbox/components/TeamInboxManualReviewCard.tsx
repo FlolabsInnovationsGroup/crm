@@ -67,9 +67,19 @@ const StyledMeta = styled.div`
   white-space: nowrap;
 `;
 
-const StyledEarlier = styled.span`
+const StyledEarlierToggle = styled.button`
+  align-self: flex-start;
+  background: none;
+  border: none;
   color: var(--fl-muted);
+  cursor: pointer;
+  font-family: inherit;
   font-size: 12px;
+  padding: 0;
+
+  &:hover {
+    color: var(--fl-ink-soft);
+  }
 `;
 
 const StyledReason = styled.span<{ tone: 'warn' | 'quiet' }>`
@@ -174,7 +184,7 @@ const StyledSecondaryButton = styled.button`
 type TeamInboxManualReviewCardProps = {
   thread: TimelineThread;
   item: TeamInboxReviewItem;
-  earlierCount: number;
+  earlierReplies: string[];
   person: InboxPersonByEmail | undefined;
   suggestedTemplate: { id: string; name: string | null } | null;
   isDone: boolean;
@@ -215,7 +225,7 @@ const getReasonBadge = (
 export const TeamInboxManualReviewCard = ({
   thread,
   item,
-  earlierCount,
+  earlierReplies,
   person,
   suggestedTemplate,
   isDone,
@@ -229,6 +239,7 @@ export const TeamInboxManualReviewCard = ({
       objectNameSingular: CoreObjectNameSingular.MessageThread,
     });
   const [isSaving, setIsSaving] = useState(false);
+  const [isShowingEarlier, setIsShowingEarlier] = useState(false);
   const isTriage = item.kind === 'REPLY_TRIAGE';
   const body = parseManualReviewBody(thread.lastMessageBody);
   const quote = isTriage
@@ -284,15 +295,31 @@ export const TeamInboxManualReviewCard = ({
       {isNonEmptyString(quote) && (
         <StyledQuote dir="auto">{isTriage ? `“${quote}”` : quote}</StyledQuote>
       )}
-      {earlierCount > 0 && (
-        <StyledEarlier>
-          {plural(earlierCount, {
-            one: '+ # earlier reply from this applicant, marked done together',
+      {earlierReplies.length > 0 && (
+        <StyledEarlierToggle
+          type="button"
+          aria-expanded={isShowingEarlier}
+          onClick={() => setIsShowingEarlier(!isShowingEarlier)}
+        >
+          {plural(earlierReplies.length, {
+            one: '+ # earlier item from this applicant, marked done together',
             other:
-              '+ # earlier replies from this applicant, marked done together',
+              '+ # earlier items from this applicant, marked done together',
           })}
-        </StyledEarlier>
+        </StyledEarlierToggle>
       )}
+      {isShowingEarlier &&
+        earlierReplies.map((earlierReply, index) =>
+          isNonEmptyString(earlierReply) ? (
+            <StyledQuote key={index} dir="auto">
+              “{earlierReply}”
+            </StyledQuote>
+          ) : (
+            <StyledAdviceText key={index}>
+              {t`The text of this earlier email was not saved. Open it in the hr@ mailbox.`}
+            </StyledAdviceText>
+          ),
+        )}
       <StyledAdvice>
         <StyledLabel>{t`What to do`}</StyledLabel>
         <StyledAdviceText>{getTeamInboxReviewAdvice(item)}</StyledAdviceText>

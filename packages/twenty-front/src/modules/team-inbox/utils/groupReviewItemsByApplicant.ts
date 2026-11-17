@@ -11,8 +11,8 @@ const isGroupedByApplicant = (item: TeamInboxReviewItem) =>
 // several open cards; they are answered together, so they show as one.
 export const groupReviewItemsByApplicant = <TEntry extends ReviewEntry>(
   entries: TEntry[],
-): (TEntry & { earlierThreadIds: string[] })[] => {
-  const groups: (TEntry & { earlierThreadIds: string[] })[] = [];
+): (TEntry & { earlier: TEntry[] })[] => {
+  const groups: (TEntry & { earlier: TEntry[] })[] = [];
   const groupIndexByApplicant = new Map<string, number>();
 
   for (const entry of entries) {
@@ -25,7 +25,7 @@ export const groupReviewItemsByApplicant = <TEntry extends ReviewEntry>(
       : undefined;
 
     if (isDefined(existingIndex)) {
-      groups[existingIndex].earlierThreadIds.push(entry.thread.id);
+      groups[existingIndex].earlier.push(entry);
       continue;
     }
 
@@ -33,7 +33,7 @@ export const groupReviewItemsByApplicant = <TEntry extends ReviewEntry>(
       groupIndexByApplicant.set(applicantKey, groups.length);
     }
 
-    groups.push({ ...entry, earlierThreadIds: [] });
+    groups.push({ ...entry, earlier: [] });
   }
 
   return groups;
