@@ -7,5 +7,6 @@ import { SendingDomainService } from 'src/modules/sending-domain/services/sendin
 @Module({
   imports: [PermissionsModule],
   providers: [SendingDomainService, SendingDomainResolver],
+  exports: [SendingDomainService],
 })
 export class SendingDomainModule {}

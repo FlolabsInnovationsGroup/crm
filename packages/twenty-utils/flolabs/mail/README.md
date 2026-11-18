@@ -30,10 +30,16 @@ services:
   server:
     environment:
       FLOLABS_SENDING_DOMAINS_DIR: /flolabs-mail/domains
-      # Only this workspace sees the page: the mail server is shared by the whole instance.
+      # Only this workspace sees the pages: the mail server is shared by the whole instance.
       FLOLABS_SENDING_DOMAINS_WORKSPACE_ID: <workspace id>
+      # The Campaigns page talks to Listmonk over the shared Docker network.
+      LISTMONK_API_URL: http://listmonk:9000
+      LISTMONK_API_USER: crm
+      LISTMONK_API_TOKEN: <token of the Listmonk API user "crm">
     volumes:
       - /opt/flolabs-mail/domains:/flolabs-mail/domains
 ```
+
+The API user is created in Listmonk under Users > New, type API, with a role holding `lists:get_all`, `subscribers:manage`, `campaigns:get_all`, `campaigns:manage_all` and `campaigns:send`. Without `lists:get_all`, test emails to people on no list are silently dropped. Keep the token in the override file only.
 
 Upgrades are manual: back up, change the image tag, `docker compose up -d`. Listmonk's own `--upgrade` on start was removed on purpose.

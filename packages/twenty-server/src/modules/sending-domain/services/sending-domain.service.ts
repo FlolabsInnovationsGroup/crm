@@ -18,6 +18,7 @@ import {
   buildSendingDomainRecords,
   type SendingDomainPublishedTxtRecords,
 } from 'src/modules/sending-domain/utils/build-sending-domain-records.util';
+import { isFlolabsMailWorkspace } from 'src/modules/sending-domain/utils/is-flolabs-mail-workspace.util';
 import { normalizeSendingDomain } from 'src/modules/sending-domain/utils/normalize-sending-domain.util';
 import { parseRequestedDomains } from 'src/modules/sending-domain/utils/parse-requested-domains.util';
 import { parseSendingDomainServerConfig } from 'src/modules/sending-domain/utils/parse-sending-domain-server-config.util';
@@ -182,18 +183,12 @@ export class SendingDomainService {
     return setup;
   }
 
-  // The mail server is shared by the whole instance, so only one workspace may manage it.
   private async readSetup(
     workspaceId: string,
   ): Promise<SendingDomainSetup | null> {
     const directory = process.env.FLOLABS_SENDING_DOMAINS_DIR;
-    const allowedWorkspaceId = process.env.FLOLABS_SENDING_DOMAINS_WORKSPACE_ID;
 
-    if (
-      !isNonEmptyString(directory) ||
-      !isNonEmptyString(allowedWorkspaceId) ||
-      allowedWorkspaceId !== workspaceId
-    ) {
+    if (!isNonEmptyString(directory) || !isFlolabsMailWorkspace(workspaceId)) {
       return null;
     }
 
