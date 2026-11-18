@@ -93,7 +93,7 @@ export const CampaignRowActions = ({
           onClick={() => runAndRefresh(pause, t`Campaign paused.`)}
         >{t`Pause`}</Button>
       )}
-      {(campaign.status === 'paused' || campaign.status === 'scheduled') && (
+      {(campaign.status === 'running' || campaign.status === 'paused') && (
         <Button
           size="sm"
           variant="ghost"

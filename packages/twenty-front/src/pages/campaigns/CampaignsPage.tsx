@@ -25,7 +25,7 @@ const StyledContent = styled.div`
 
 export const CampaignsPage = () => {
   const theme = useTheme();
-  const { overview, error, refetch } = useCampaignsOverview();
+  const { overview, loading, error, refetch } = useCampaignsOverview();
   const [isCreating, setIsCreating] = useState(false);
 
   const handleRefetch = () => {
@@ -71,6 +71,9 @@ export const CampaignsPage = () => {
       >
         <ToastOnQueryErrorEffect error={error} />
         <StyledContent>
+          {loading && overview === undefined && (
+            <span>{t`Loading campaigns…`}</span>
+          )}
           {overview?.isConfigured === false && (
             <Section.Root>
               <Section.Header

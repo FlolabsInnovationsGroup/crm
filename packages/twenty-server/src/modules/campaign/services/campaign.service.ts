@@ -10,6 +10,7 @@ import { ListmonkClientService } from 'src/modules/campaign/services/listmonk-cl
 import { type CampaignStatusChange } from 'src/modules/campaign/types/campaign-status.type';
 import {
   type ListmonkCampaign,
+  type ListmonkCampaignWithContent,
   type ListmonkList,
   type ListmonkPage,
 } from 'src/modules/campaign/types/listmonk.type';
@@ -38,11 +39,11 @@ export class CampaignService {
     const [campaigns, lists, fromDomains] = await Promise.all([
       this.listmonkClientService.request<ListmonkPage<ListmonkCampaign>>({
         method: 'GET',
-        path: '/api/campaigns?per_page=all&order_by=created_at&order=desc',
+        path: '/api/campaigns?per_page=all&order_by=created_at&order=desc&no_body=true',
       }),
       this.listmonkClientService.request<ListmonkPage<ListmonkList>>({
         method: 'GET',
-        path: '/api/lists?per_page=all&order_by=name&order=asc',
+        path: '/api/lists?per_page=all&order_by=name&order=asc&status=active',
       }),
       this.getVerifiedDomains(workspaceId),
     ]);
@@ -114,29 +115,37 @@ export class CampaignService {
   }): Promise<boolean> {
     this.assertAvailable(workspaceId);
 
-    const campaign = await this.listmonkClientService.request<
-      ListmonkCampaign & Record<string, unknown>
-    >({ method: 'GET', path: `/api/campaigns/${campaignId}` });
+    const campaign =
+      await this.listmonkClientService.request<ListmonkCampaignWithContent>({
+        method: 'GET',
+        path: `/api/campaigns/${campaignId}`,
+      });
 
-    // Listmonk only sends tests to existing subscribers; one with no list gets no campaign.
-    await this.listmonkClientService
-      .request({
-        method: 'POST',
-        path: '/api/subscribers',
-        body: {
-          email: recipientEmail,
-          name: recipientName,
-          status: 'enabled',
-          lists: [],
-        },
-      })
-      .catch(() => undefined);
+    // Listmonk only sends tests to existing subscribers; one with no list gets
+    // no campaign. 409 means the person is already a subscriber.
+    await this.listmonkClientService.request({
+      method: 'POST',
+      path: '/api/subscribers',
+      body: {
+        email: recipientEmail,
+        name: recipientName,
+        status: 'enabled',
+        lists: [],
+      },
+      ignoredErrorStatuses: [409],
+    });
 
     await this.listmonkClientService.request({
       method: 'POST',
       path: `/api/campaigns/${campaignId}/test`,
       body: {
-        ...campaign,
+        name: campaign.name,
+        subject: campaign.subject,
+        from_email: campaign.from_email,
+        body: campaign.body,
+        content_type: campaign.content_type,
+        messenger: campaign.messenger,
+        template_id: campaign.template_id,
         lists: (campaign.lists ?? []).map((list) => list.id),
         subscribers: [recipientEmail],
       },

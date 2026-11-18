@@ -5,6 +5,10 @@ import { type SendingDomainService } from 'src/modules/sending-domain/services/s
 const WORKSPACE_ID = 'workspace-id';
 
 const LISTMONK_CAMPAIGN = {
+  body: '# Hello',
+  content_type: 'markdown',
+  messenger: 'email',
+  template_id: 1,
   id: 7,
   name: 'November update',
   subject: 'News',
@@ -133,7 +137,14 @@ describe('CampaignService', () => {
       body: expect.objectContaining({
         lists: [3],
         subscribers: ['me@flolabs.com'],
+        body: '# Hello',
       }),
     });
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/api/subscribers',
+        ignoredErrorStatuses: [409],
+      }),
+    );
   });
 });

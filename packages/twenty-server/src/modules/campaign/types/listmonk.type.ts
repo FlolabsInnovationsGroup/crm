@@ -15,6 +15,13 @@ export type ListmonkCampaign = {
   started_at: string | null;
 };
 
+export type ListmonkCampaignWithContent = ListmonkCampaign & {
+  body: string;
+  content_type: string;
+  messenger: string;
+  template_id: number | null;
+};
+
 export type ListmonkList = {
   id: number;
   name: string;

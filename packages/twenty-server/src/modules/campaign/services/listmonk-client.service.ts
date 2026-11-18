@@ -20,14 +20,17 @@ export class ListmonkClientService {
     return this.getConnection() !== null;
   }
 
+  // Statuses in ignoredErrorStatuses resolve to null instead of throwing.
   async request<TData>({
     method,
     path,
     body,
+    ignoredErrorStatuses = [],
   }: {
     method: 'GET' | 'POST' | 'PUT' | 'DELETE';
     path: string;
     body?: unknown;
+    ignoredErrorStatuses?: number[];
   }): Promise<TData> {
     const connection = this.getConnection();
 
@@ -37,17 +40,29 @@ export class ListmonkClientService {
       });
     }
 
-    const response = await fetch(`${connection.baseUrl}${path}`, {
-      method,
-      headers: {
-        Authorization: connection.authorization,
-        'Content-Type': 'application/json',
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_IN_MILLISECONDS),
-    });
+    let response: Response;
+
+    try {
+      response = await fetch(`${connection.baseUrl}${path}`, {
+        method,
+        headers: {
+          Authorization: connection.authorization,
+          'Content-Type': 'application/json',
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_IN_MILLISECONDS),
+      });
+    } catch {
+      throw new UserInputError('Campaign server unreachable', {
+        userFriendlyMessage: msg`The campaign server did not answer. Try again in a minute.`,
+      });
+    }
 
     const payload: unknown = await response.json().catch(() => null);
+
+    if (ignoredErrorStatuses.includes(response.status)) {
+      return null as TData;
+    }
 
     if (!response.ok) {
       const message =
@@ -60,7 +75,14 @@ export class ListmonkClientService {
       });
     }
 
-    return (isPlainObject(payload) ? payload.data : undefined) as TData;
+    // A proxy error page can come back as 200 without Listmonk's JSON envelope.
+    if (!isPlainObject(payload) || !('data' in payload)) {
+      throw new UserInputError('Unexpected campaign server answer', {
+        userFriendlyMessage: msg`The campaign server sent an unexpected answer.`,
+      });
+    }
+
+    return payload.data as TData;
   }
 
   private getConnection(): ListmonkConnection | null {

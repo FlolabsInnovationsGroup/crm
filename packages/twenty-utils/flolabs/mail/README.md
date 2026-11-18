@@ -40,6 +40,6 @@ services:
       - /opt/flolabs-mail/domains:/flolabs-mail/domains
 ```
 
-The API user is created in Listmonk under Users > New, type API, with a role that can manage lists, subscribers and campaigns and send campaigns. Keep the token in the override file only.
+The API user is created in Listmonk under Users > New, type API, with a role holding `lists:get_all`, `subscribers:manage`, `campaigns:get_all`, `campaigns:manage_all` and `campaigns:send`. Without `lists:get_all`, test emails to people on no list are silently dropped. Keep the token in the override file only.
 
 Upgrades are manual: back up, change the image tag, `docker compose up -d`. Listmonk's own `--upgrade` on start was removed on purpose.
