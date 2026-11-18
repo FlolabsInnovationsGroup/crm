@@ -212,6 +212,14 @@ const SettingsWorkspaceCommunications = lazy(() =>
   ),
 );
 
+const SettingsSendingDomains = lazy(() =>
+  import('~/pages/settings/sending-domains/SettingsSendingDomains').then(
+    (module) => ({
+      default: module.SettingsSendingDomains,
+    }),
+  ),
+);
+
 const SettingsWorkspaceCommunicationGroupChannelDetail = lazy(() =>
   import('~/pages/settings/communications/SettingsWorkspaceCommunicationGroupChannelDetail').then(
     (module) => ({
@@ -824,6 +832,10 @@ const createSettingsRouteElements = ({
       <Route
         path={SettingsPath.WorkspaceCommunications}
         element={<SettingsWorkspaceCommunications />}
+      />
+      <Route
+        path={SettingsPath.SendingDomains}
+        element={<SettingsSendingDomains />}
       />
       <Route
         path={SettingsPath.NewEmailGroupChannel}

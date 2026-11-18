@@ -23,6 +23,7 @@ import { MessagingModule } from 'src/modules/messaging/messaging.module';
 import { NotificationsSeenModule } from 'src/modules/notifications-seen/notifications-seen.module';
 import { PublicFormModule } from 'src/modules/public-form/public-form.module';
 import { CrmAnalyticsModule } from 'src/modules/analytics/crm-analytics.module';
+import { SendingDomainModule } from 'src/modules/sending-domain/sending-domain.module';
 import { OnboardingInviteSuggestionsModule } from 'src/modules/onboarding-invite-suggestions/onboarding-invite-suggestions.module';
 import { WorkflowModule } from 'src/modules/workflow/workflow.module';
 import { WorkspaceMemberModule } from 'src/modules/workspace-member/workspace-member.module';
@@ -39,6 +40,7 @@ import { WorkspaceMemberModule } from 'src/modules/workspace-member/workspace-me
     NotificationsSeenModule,
     PublicFormModule,
     CrmAnalyticsModule,
+    SendingDomainModule,
     MessagingWebhooksModule,
     ConnectedAccountSyncWebhooksModule,
     ChannelSyncModule,

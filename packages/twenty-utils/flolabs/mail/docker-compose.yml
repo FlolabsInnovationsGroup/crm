@@ -1,0 +1,117 @@
+# FloLabs email marketing: Listmonk + its own Postgres + Postfix with DKIM.
+# Runs beside the CRM; only the app joins the CRM network, so its Caddy can serve it.
+name: flolabs-mail
+
+services:
+  app:
+    image: listmonk/listmonk:v6.2.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    # Upgrades are run by hand after a backup, never on start.
+    command: [sh, -c, "./listmonk --install --idempotent --yes --config '' && ./listmonk --config ''"]
+    ports:
+      - "127.0.0.1:9000:9000"
+    environment:
+      LISTMONK_app__address: 0.0.0.0:9000
+      LISTMONK_db__host: listmonk-db
+      LISTMONK_db__port: 5432
+      LISTMONK_db__user: listmonk
+      LISTMONK_db__password: ${LISTMONK_DB_PASSWORD:?set in .env}
+      LISTMONK_db__database: listmonk
+      LISTMONK_db__ssl_mode: disable
+      LISTMONK_db__max_open: 10
+      LISTMONK_db__max_idle: 5
+      LISTMONK_db__max_lifetime: 300s
+      LISTMONK_ADMIN_USER: ${LISTMONK_ADMIN_USER:?set in .env}
+      LISTMONK_ADMIN_PASSWORD: ${LISTMONK_ADMIN_PASSWORD:?set in .env}
+      TZ: Etc/UTC
+    volumes:
+      - ./uploads:/listmonk/uploads:rw
+    networks:
+      mail:
+      crm:
+        aliases: [listmonk]
+    mem_limit: 256m
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    # No host port: the CRM's Postgres already uses 5432.
+    environment:
+      POSTGRES_USER: listmonk
+      POSTGRES_PASSWORD: ${LISTMONK_DB_PASSWORD:?set in .env}
+      POSTGRES_DB: listmonk
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U listmonk"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    volumes:
+      - listmonk-data:/var/lib/postgresql/data
+    # "db" on the CRM network is the CRM's own Postgres, so the app uses this name.
+    networks:
+      mail:
+        aliases: [listmonk-db]
+    mem_limit: 384m
+
+  postfix:
+    image: boky/postfix:v5.2.1
+    restart: unless-stopped
+    # Reachable only by Listmonk on the private network, so it is not an open relay.
+    environment:
+      ALLOWED_SENDER_DOMAINS: ${SENDING_DOMAINS:?set in .env}
+      POSTFIX_myhostname: ${MAIL_HOSTNAME:?set in .env}
+      # Plesk already signs with "default"; a separate selector avoids a clash.
+      DKIM_SELECTOR: ${DKIM_SELECTOR:-lm1}
+      # Unsigned mail fails DMARC, so mail waits while rspamd is down.
+      POSTFIX_milter_default_action: tempfail
+      # Without this rspamd signs as hephaestus.international, for which there is no key.
+      RSPAMD_dkim_signing__use_esld: "false"
+      # Written by dkim-manager; rspamd reloads them on change, so new domains need no restart.
+      RSPAMD_dkim_signing__selector_map: '"/var/lib/rspamd/dkim/flolabs-selectors.map"'
+      RSPAMD_dkim_signing__path_map: '"/var/lib/rspamd/dkim/flolabs-paths.map"'
+    volumes:
+      - ./dkim-keys:/var/lib/rspamd/dkim
+      - postfix-spool:/var/spool/postfix
+    networks: [mail]
+    mem_limit: 512m
+    # Keys must exist before Postfix starts, or it starts without DKIM signing.
+    depends_on:
+      dkim-manager:
+        condition: service_healthy
+
+  # Creates a DKIM key for each domain added in the CRM (Settings > Sending domains).
+  # The CRM only writes domain names into ./domains; private keys never leave this stack.
+  dkim-manager:
+    image: boky/postfix:v5.2.1
+    restart: unless-stopped
+    entrypoint: [bash, /opt/dkim-manager.sh]
+    environment:
+      SENDING_DOMAINS: ${SENDING_DOMAINS:?set in .env}
+      DKIM_SELECTOR: ${DKIM_SELECTOR:-lm1}
+      SENDING_IPV4: ${SENDING_IPV4:?set in .env}
+      SENDING_IPV6: ${SENDING_IPV6:-}
+      CRM_UID: ${CRM_UID:-1000}
+    volumes:
+      - ./dkim-manager.sh:/opt/dkim-manager.sh:ro
+      - ./dkim-keys:/var/lib/rspamd/dkim
+      - ./domains:/domains
+    network_mode: none
+    mem_limit: 64m
+    healthcheck:
+      test: [CMD, test, -s, /var/lib/rspamd/dkim/flolabs-paths.map]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+
+networks:
+  mail:
+  crm:
+    external: true
+    name: flolabs-crm_default
+
+volumes:
+  listmonk-data:
+  postfix-spool:
