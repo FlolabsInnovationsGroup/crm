@@ -80,6 +80,13 @@ export class CampaignService {
     const fromEmail = buildCampaignFromAddress(input);
     const replyTo = input.replyTo?.trim();
 
+    // Resolvers here run no validation pipe, and Listmonk copies headers as they are.
+    if (isNonEmptyString(replyTo) && !emailSchema.safeParse(replyTo).success) {
+      throw new UserInputError('Invalid reply-to address', {
+        userFriendlyMessage: msg`Enter a valid reply-to address.`,
+      });
+    }
+
     if (fromEmail === null) {
       throw new UserInputError('Invalid from address', {
         userFriendlyMessage: msg`Use a sender name and an address part with letters, digits, dots, dashes or underscores.`,

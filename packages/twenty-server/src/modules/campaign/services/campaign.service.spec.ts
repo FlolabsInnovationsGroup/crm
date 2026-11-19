@@ -103,6 +103,31 @@ describe('CampaignService', () => {
     });
   });
 
+  it('sends the reply-to as a header and refuses one that is not an email', async () => {
+    request.mockResolvedValueOnce(LISTMONK_CAMPAIGN);
+
+    await service.createCampaign(WORKSPACE_ID, {
+      ...CREATE_INPUT,
+      replyTo: ' replies@flolabsinnovations.com ',
+    });
+
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/api/campaigns',
+        body: expect.objectContaining({
+          headers: [{ 'Reply-To': 'replies@flolabsinnovations.com' }],
+        }),
+      }),
+    );
+
+    await expect(
+      service.createCampaign(WORKSPACE_ID, {
+        ...CREATE_INPUT,
+        replyTo: 'x@y.com\r\nBcc: z@w.com',
+      }),
+    ).rejects.toThrow('Invalid reply-to address');
+  });
+
   it('refuses a domain that is not verified yet', async () => {
     await expect(
       service.createCampaign(WORKSPACE_ID, {

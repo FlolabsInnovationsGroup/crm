@@ -2,6 +2,7 @@ import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
 import { isNonEmptyString } from '@sniptt/guards';
 import { useState } from 'react';
+import { isDefined } from 'twenty-shared/utils';
 import { Section } from 'twenty-ui/components/layout';
 import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
@@ -77,7 +78,7 @@ export const CampaignCreateForm = ({
   const handleSenderChange = (senderEmail: string) => {
     const sender = senders.find(({ email }) => email === senderEmail);
 
-    if (!sender) {
+    if (!isDefined(sender)) {
       return;
     }
 

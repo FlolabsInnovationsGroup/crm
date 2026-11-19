@@ -10,6 +10,7 @@ import { isNonEmptyString } from '@sniptt/guards';
 import { emailSchema, isDefined } from 'twenty-shared/utils';
 
 import { UserInputError } from 'src/engine/core-modules/graphql/utils/graphql-errors.util';
+import { LOCAL_PART_PATTERN } from 'src/modules/campaign/utils/build-campaign-from-address.util';
 import { SENDING_DOMAIN_FILES } from 'src/modules/sending-domain/constants/sending-domain-files.constant';
 import { type AddSendingSenderInput } from 'src/modules/sending-domain/dtos/add-sending-sender.input';
 import { type SendingDomainDnsProviderDTO } from 'src/modules/sending-domain/dtos/sending-domain-dns-provider.dto';
@@ -27,7 +28,10 @@ import { getRegisteredDomain } from 'src/modules/sending-domain/utils/get-regist
 import { isFlolabsMailWorkspace } from 'src/modules/sending-domain/utils/is-flolabs-mail-workspace.util';
 import { normalizeSendingDomain } from 'src/modules/sending-domain/utils/normalize-sending-domain.util';
 import { parseRequestedDomains } from 'src/modules/sending-domain/utils/parse-requested-domains.util';
-import { parseSendingSenders } from 'src/modules/sending-domain/utils/parse-sending-senders.util';
+import {
+  parseSendingSenders,
+  parseSendingSendersStrict,
+} from 'src/modules/sending-domain/utils/parse-sending-senders.util';
 import { parseSendingDomainServerConfig } from 'src/modules/sending-domain/utils/parse-sending-domain-server-config.util';
 
 type SendingDomainSetup = {
@@ -47,7 +51,7 @@ const DNS_SERVERS = ['1.1.1.1', '8.8.8.8'];
 export class SendingDomainService {
   private readonly dnsResolver = this.createDnsResolver();
 
-  // Serializes read-modify-write of domains.txt within this process.
+  // Serializes read-modify-write of the shared folder's files within this process.
   private pendingWrite: Promise<unknown> = Promise.resolve();
 
   async listSendingDomains(workspaceId: string): Promise<SendingDomainListDTO> {
@@ -58,7 +62,10 @@ export class SendingDomainService {
     }
 
     const domains = await this.readAllDomains(setup);
-    const senders = await this.readSenders(setup.directory);
+    // A removed domain's senders stay in the file, ready if it is added back.
+    const senders = (await this.readSenders(setup.directory)).filter((sender) =>
+      domains.includes(sender.email.split('@')[1]),
+    );
 
     return {
       isConfigured: true,
@@ -85,15 +92,18 @@ export class SendingDomainService {
     if (
       !isNonEmptyString(sender.name) ||
       sender.name.length > 100 ||
-      /[\r\n<>"]/.test(sender.name)
+      /[\p{Cc}\u2028\u2029<>"\\]/u.test(sender.name)
     ) {
       throw new UserInputError('Invalid sender name', {
         userFriendlyMessage: msg`Enter a sender name without quotes or angle brackets.`,
       });
     }
 
+    const [senderLocalPart] = sender.email.split('@');
+
     if (
       !emailSchema.safeParse(sender.email).success ||
+      !LOCAL_PART_PATTERN.test(senderLocalPart) ||
       !emailSchema.safeParse(sender.replyTo).success
     ) {
       throw new UserInputError('Invalid sender or reply-to address', {
@@ -102,9 +112,8 @@ export class SendingDomainService {
     }
 
     const senderDomain = sender.email.split('@')[1];
-    const domains = await this.readAllDomains(setup);
 
-    if (!domains.includes(senderDomain)) {
+    if (!(await this.readAllDomains(setup)).includes(senderDomain)) {
       throw new UserInputError('Sender domain is not a sending domain', {
         userFriendlyMessage: msg`Add ${senderDomain} as a sending domain first.`,
       });
@@ -114,7 +123,7 @@ export class SendingDomainService {
       setup.directory,
       SENDING_DOMAIN_FILES.senders,
       (content) => {
-        const senders = parseSendingSenders(content ?? '[]').filter(
+        const senders = parseSendingSendersStrict(content).filter(
           (existingSender) => existingSender.email !== sender.email,
         );
 
@@ -137,7 +146,7 @@ export class SendingDomainService {
       setup.directory,
       SENDING_DOMAIN_FILES.senders,
       (content) => {
-        const senders = parseSendingSenders(content ?? '[]');
+        const senders = parseSendingSendersStrict(content);
         const remainingSenders = senders.filter(
           (sender) => sender.email !== normalizedEmail,
         );
@@ -175,8 +184,9 @@ export class SendingDomainService {
     let canReceiveReplies = false;
 
     try {
-      canReceiveReplies =
-        (await this.dnsResolver.resolveMx(replyToDomain)).length > 0;
+      canReceiveReplies = (
+        await this.dnsResolver.resolveMx(replyToDomain)
+      ).some(({ exchange }) => isNonEmptyString(exchange) && exchange !== '.');
     } catch {
       canReceiveReplies = false;
     }
@@ -247,17 +257,25 @@ export class SendingDomainService {
       `${domain}${SENDING_DOMAIN_FILES.dkimRecordSuffix}`,
     );
 
-    const dnsProvider = await this.lookUpDnsProvider(domain);
-
     if (!isNonEmptyString(dkimValue?.trim())) {
-      return { domain, status: 'preparing', isFixed, dnsProvider, records: [] };
+      return {
+        domain,
+        status: 'preparing',
+        isFixed,
+        dnsProvider: await this.lookUpDnsProvider(domain),
+        records: [],
+      };
     }
 
+    const [dnsProvider, published] = await Promise.all([
+      this.lookUpDnsProvider(domain),
+      this.lookUpPublishedRecords(domain, serverConfig),
+    ]);
     const records = buildSendingDomainRecords({
       domain,
       dkimValue: dkimValue.trim(),
       serverConfig,
-      published: await this.lookUpPublishedRecords(domain, serverConfig),
+      published,
     });
 
     return {

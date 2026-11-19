@@ -1,3 +1,5 @@
+import { isDefined } from 'twenty-shared/utils';
+
 import { type SendingDomainDnsProviderDTO } from 'src/modules/sending-domain/dtos/sending-domain-dns-provider.dto';
 
 const KNOWN_DNS_PROVIDERS: {
@@ -44,12 +46,14 @@ export const detectDnsProvider = (
   }
 
   const knownProvider = KNOWN_DNS_PROVIDERS.find((provider) =>
-    normalizedNameServers.some((nameServer) =>
-      nameServer.endsWith(provider.nameServerSuffix),
+    normalizedNameServers.some(
+      (nameServer) =>
+        nameServer === provider.nameServerSuffix ||
+        nameServer.endsWith(`.${provider.nameServerSuffix}`),
     ),
   );
 
-  return knownProvider
+  return isDefined(knownProvider)
     ? { name: knownProvider.name, url: knownProvider.url }
     : { name: normalizedNameServers.sort()[0], url: null };
 };

@@ -231,4 +231,19 @@ describe('SendingDomainService', () => {
       [],
     );
   });
+
+  it('never overwrites a senders file it cannot read', async () => {
+    await writeFile(join(directory, 'senders.json'), 'not json');
+
+    await expect(
+      service.addSendingSender(WORKSPACE_ID, {
+        name: 'Hephaestus',
+        email: 'news@news.hephaestus.international',
+        replyTo: 'hr@flolabsinnovations.com',
+      }),
+    ).rejects.toThrow();
+    expect(await readFile(join(directory, 'senders.json'), 'utf8')).toBe(
+      'not json',
+    );
+  });
 });
