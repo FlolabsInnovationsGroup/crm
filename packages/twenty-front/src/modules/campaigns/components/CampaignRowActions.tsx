@@ -1,5 +1,7 @@
 import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
+import { useState } from 'react';
+import { emailSchema } from 'twenty-shared/utils';
 import {
   IconPlayerPause,
   IconPlayerPlay,
@@ -17,10 +19,13 @@ import {
   SEND_CAMPAIGN_TEST,
   START_CAMPAIGN,
 } from '@/campaigns/graphql/mutations/campaignMutations';
+import { currentUserState } from '@/auth/states/currentUserState';
 import { useCampaignMutation } from '@/campaigns/hooks/useCampaignMutation';
 import { type Campaign } from '@/campaigns/types/Campaign';
+import { SettingsTextInput } from '@/ui/input/components/SettingsTextInput';
 import { ConfirmationDialog } from '@/ui/layout/dialog/components/ConfirmationDialog';
 import { useDialog } from '@/ui/layout/dialog/hooks/useDialog';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 
 const StyledActions = styled.div`
   display: flex;
@@ -39,8 +44,12 @@ export const CampaignRowActions = ({
 }: CampaignRowActionsProps) => {
   const { t } = useLingui();
   const { openDialog } = useDialog();
+  const currentUser = useAtomStateValue(currentUserState);
   const startDialogId = `start-campaign-${campaign.id}`;
+  const testDialogId = `test-campaign-${campaign.id}`;
   const variables = { campaignId: campaign.id };
+  const [testEmail, setTestEmail] = useState('');
+  const isTestEmailValid = emailSchema.safeParse(testEmail.trim()).success;
 
   const sendTest = useCampaignMutation(SEND_CAMPAIGN_TEST);
   const start = useCampaignMutation(START_CAMPAIGN);
@@ -67,9 +76,10 @@ export const CampaignRowActions = ({
           variant="ghost"
           startIcon={<IconSend />}
           loading={sendTest.loading}
-          onClick={() =>
-            sendTest.run(variables, t`Test sent to your email address.`)
-          }
+          onClick={() => {
+            setTestEmail(currentUser?.email ?? '');
+            openDialog(testDialogId);
+          }}
         >{t`Send test`}</Button>
       )}
       {canStart && (
@@ -113,6 +123,28 @@ export const CampaignRowActions = ({
           onClick={() => runAndRefresh(deleteDraft, t`Draft deleted.`)}
         >{t`Delete`}</Button>
       )}
+      <ConfirmationDialog
+        dialogId={testDialogId}
+        title={t`Send a test of "${campaign.name}"`}
+        subtitle={
+          <SettingsTextInput
+            instanceId={testDialogId}
+            label={t`Send to`}
+            value={testEmail}
+            onChange={setTestEmail}
+            fullWidth
+          />
+        }
+        isConfirmButtonDisabled={!isTestEmailValid}
+        onConfirmClick={() =>
+          sendTest.run(
+            { ...variables, email: testEmail.trim() },
+            t`Test sent to ${testEmail.trim()}.`,
+          )
+        }
+        confirmButtonText={t`Send test`}
+        confirmButtonColor="accent"
+      />
       <ConfirmationDialog
         dialogId={startDialogId}
         title={t`Send "${campaign.name}"?`}

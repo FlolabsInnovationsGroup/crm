@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { msg } from '@lingui/core/macro';
+import { emailSchema } from 'twenty-shared/utils';
 
 import { UserInputError } from 'src/engine/core-modules/graphql/utils/graphql-errors.util';
 import { type CampaignDTO } from 'src/modules/campaign/dtos/campaign.dto';
@@ -114,6 +115,12 @@ export class CampaignService {
     recipientName: string;
   }): Promise<boolean> {
     this.assertAvailable(workspaceId);
+
+    if (!emailSchema.safeParse(recipientEmail).success) {
+      throw new UserInputError(`"${recipientEmail}" is not a valid email address`, {
+        userFriendlyMessage: msg`"${recipientEmail}" is not a valid email address.`,
+      });
+    }
 
     const campaign =
       await this.listmonkClientService.request<ListmonkCampaignWithContent>({

@@ -147,4 +147,16 @@ describe('CampaignService', () => {
       }),
     );
   });
+
+  it('refuses a test address that is not an email', async () => {
+    await expect(
+      service.sendTest({
+        workspaceId: WORKSPACE_ID,
+        campaignId: 7,
+        recipientEmail: 'not-an-email',
+        recipientName: '',
+      }),
+    ).rejects.toThrow('not a valid email address');
+    expect(request).not.toHaveBeenCalled();
+  });
 });
