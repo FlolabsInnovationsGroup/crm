@@ -145,7 +145,7 @@ export const SettingsSendingDomainSection = ({
             .filter((record) => isNonEmptyString(record.existingValue))
             .map((record) => (
               <span key={record.name}>
-                {t`${record.hostLabel} already has an SPF record. Edit it to the value below instead of adding a second one, which would break both:`}{' '}
+                {t`${record.name} already has an SPF record. Replace it with the SPF value in the table instead of adding a second one, which would break both. Current value:`}{' '}
                 <StyledExistingValue>
                   {record.existingValue}
                 </StyledExistingValue>
