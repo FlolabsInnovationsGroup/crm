@@ -2,7 +2,6 @@ import { UseFilters, UseGuards } from '@nestjs/common';
 import { Args, Int, Mutation, Query } from '@nestjs/graphql';
 
 import { PermissionFlagType } from 'twenty-shared/constants';
-import { isDefined } from 'twenty-shared/utils';
 
 import { CoreResolver } from 'src/engine/api/graphql/graphql-config/decorators/core-resolver.decorator';
 import { AuthGraphqlApiExceptionFilter } from 'src/engine/core-modules/auth/filters/auth-graphql-api-exception.filter';
@@ -67,15 +66,11 @@ export class CampaignResolver {
     @Args('email', { type: () => String, nullable: true })
     email?: string | null,
   ): Promise<boolean> {
-    const isOwnAddress = !isDefined(email) || email === user.email;
-
     return this.campaignService.sendTest({
       workspaceId: workspace.id,
       campaignId,
-      recipientEmail: isOwnAddress ? user.email : email,
-      recipientName: isOwnAddress
-        ? [user.firstName, user.lastName].filter(Boolean).join(' ')
-        : '',
+      requestedEmail: email,
+      user,
     });
   }
 

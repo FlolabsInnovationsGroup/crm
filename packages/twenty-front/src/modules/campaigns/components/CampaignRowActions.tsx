@@ -12,6 +12,7 @@ import {
 import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
 
+import { currentUserState } from '@/auth/states/currentUserState';
 import {
   CANCEL_CAMPAIGN,
   DELETE_CAMPAIGN_DRAFT,
@@ -19,7 +20,6 @@ import {
   SEND_CAMPAIGN_TEST,
   START_CAMPAIGN,
 } from '@/campaigns/graphql/mutations/campaignMutations';
-import { currentUserState } from '@/auth/states/currentUserState';
 import { useCampaignMutation } from '@/campaigns/hooks/useCampaignMutation';
 import { type Campaign } from '@/campaigns/types/Campaign';
 import { SettingsTextInput } from '@/ui/input/components/SettingsTextInput';
@@ -49,7 +49,8 @@ export const CampaignRowActions = ({
   const testDialogId = `test-campaign-${campaign.id}`;
   const variables = { campaignId: campaign.id };
   const [testEmail, setTestEmail] = useState('');
-  const isTestEmailValid = emailSchema.safeParse(testEmail.trim()).success;
+  const trimmedTestEmail = testEmail.trim();
+  const isTestEmailValid = emailSchema.safeParse(trimmedTestEmail).success;
 
   const sendTest = useCampaignMutation(SEND_CAMPAIGN_TEST);
   const start = useCampaignMutation(START_CAMPAIGN);
@@ -128,18 +129,19 @@ export const CampaignRowActions = ({
         title={t`Send a test of "${campaign.name}"`}
         subtitle={
           <SettingsTextInput
-            instanceId={testDialogId}
+            instanceId={`${testDialogId}-email`}
             label={t`Send to`}
             value={testEmail}
             onChange={setTestEmail}
+            disableHotkeys
             fullWidth
           />
         }
         isConfirmButtonDisabled={!isTestEmailValid}
         onConfirmClick={() =>
           sendTest.run(
-            { ...variables, email: testEmail.trim() },
-            t`Test sent to ${testEmail.trim()}.`,
+            { ...variables, email: trimmedTestEmail },
+            t`Test sent to ${trimmedTestEmail}.`,
           )
         }
         confirmButtonText={t`Send test`}
