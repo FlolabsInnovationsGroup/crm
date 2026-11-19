@@ -117,9 +117,12 @@ export class CampaignService {
     this.assertAvailable(workspaceId);
 
     if (!emailSchema.safeParse(recipientEmail).success) {
-      throw new UserInputError(`"${recipientEmail}" is not a valid email address`, {
-        userFriendlyMessage: msg`"${recipientEmail}" is not a valid email address.`,
-      });
+      throw new UserInputError(
+        `"${recipientEmail}" is not a valid email address`,
+        {
+          userFriendlyMessage: msg`"${recipientEmail}" is not a valid email address.`,
+        },
+      );
     }
 
     const campaign =
