@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 import { msg } from '@lingui/core/macro';
+import { isNonEmptyString } from '@sniptt/guards';
+import { emailSchema } from 'twenty-shared/utils';
 
+import { type AuthContextUser } from 'src/engine/core-modules/auth/types/auth-context.type';
 import { UserInputError } from 'src/engine/core-modules/graphql/utils/graphql-errors.util';
 import { type CampaignDTO } from 'src/modules/campaign/dtos/campaign.dto';
 import { type CampaignsOverviewDTO } from 'src/modules/campaign/dtos/campaigns-overview.dto';
@@ -105,15 +108,31 @@ export class CampaignService {
   async sendTest({
     workspaceId,
     campaignId,
-    recipientEmail,
-    recipientName,
+    requestedEmail,
+    user,
   }: {
     workspaceId: string;
     campaignId: number;
-    recipientEmail: string;
-    recipientName: string;
+    requestedEmail?: string | null;
+    user: Pick<AuthContextUser, 'email' | 'firstName' | 'lastName'>;
   }): Promise<boolean> {
     this.assertAvailable(workspaceId);
+
+    const trimmedEmail = requestedEmail?.trim();
+    const isOwnAddress =
+      !isNonEmptyString(trimmedEmail) ||
+      trimmedEmail.toLowerCase() === user.email.toLowerCase();
+    const recipientEmail = isOwnAddress ? user.email : trimmedEmail;
+    // Listmonk names a subscriber after the address when the name is empty.
+    const recipientName = isOwnAddress
+      ? [user.firstName, user.lastName].filter(Boolean).join(' ')
+      : '';
+
+    if (!emailSchema.safeParse(recipientEmail).success) {
+      throw new UserInputError('Invalid test email address', {
+        userFriendlyMessage: msg`Enter a valid email address.`,
+      });
+    }
 
     const campaign =
       await this.listmonkClientService.request<ListmonkCampaignWithContent>({

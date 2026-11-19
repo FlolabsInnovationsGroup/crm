@@ -9,8 +9,8 @@ export const CREATE_CAMPAIGN = gql`
 `;
 
 export const SEND_CAMPAIGN_TEST = gql`
-  mutation SendCampaignTest($campaignId: Int!) {
-    sendCampaignTest(campaignId: $campaignId)
+  mutation SendCampaignTest($campaignId: Int!, $email: String) {
+    sendCampaignTest(campaignId: $campaignId, email: $email)
   }
 `;
 

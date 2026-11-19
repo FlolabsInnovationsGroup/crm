@@ -127,8 +127,7 @@ describe('CampaignService', () => {
     await service.sendTest({
       workspaceId: WORKSPACE_ID,
       campaignId: 7,
-      recipientEmail: 'me@flolabs.com',
-      recipientName: 'Me',
+      user: { email: 'me@flolabs.com', firstName: 'Me', lastName: '' },
     });
 
     expect(request).toHaveBeenLastCalledWith({
@@ -144,6 +143,46 @@ describe('CampaignService', () => {
       expect.objectContaining({
         path: '/api/subscribers',
         ignoredErrorStatuses: [409],
+      }),
+    );
+  });
+
+  it('refuses a test address that is not an email', async () => {
+    await expect(
+      service.sendTest({
+        workspaceId: WORKSPACE_ID,
+        campaignId: 7,
+        requestedEmail: 'not-an-email',
+        user: { email: 'me@flolabs.com', firstName: 'Me', lastName: '' },
+      }),
+    ).rejects.toThrow('Invalid test email address');
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('sends a test to another address without the signed-in name', async () => {
+    request.mockResolvedValue(LISTMONK_CAMPAIGN);
+
+    await service.sendTest({
+      workspaceId: WORKSPACE_ID,
+      campaignId: 7,
+      requestedEmail: ' someone+test@gmail.com ',
+      user: { email: 'me@flolabs.com', firstName: 'Me', lastName: '' },
+    });
+
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/api/subscribers',
+        body: expect.objectContaining({
+          email: 'someone+test@gmail.com',
+          name: '',
+        }),
+      }),
+    );
+    expect(request).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          subscribers: ['someone+test@gmail.com'],
+        }),
       }),
     );
   });

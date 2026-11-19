@@ -63,12 +63,14 @@ export class CampaignResolver {
     @AuthWorkspace() workspace: WorkspaceEntity,
     @AuthUser() user: AuthContextUser,
     @Args('campaignId', { type: () => Int }) campaignId: number,
+    @Args('email', { type: () => String, nullable: true })
+    email?: string | null,
   ): Promise<boolean> {
     return this.campaignService.sendTest({
       workspaceId: workspace.id,
       campaignId,
-      recipientEmail: user.email,
-      recipientName: [user.firstName, user.lastName].filter(Boolean).join(' '),
+      requestedEmail: email,
+      user,
     });
   }
 
