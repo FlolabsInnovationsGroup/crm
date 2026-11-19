@@ -10,6 +10,7 @@ import { SettingsPageContainer } from '@/settings/components/SettingsPageContain
 import { SettingsPageLayout } from '@/settings/components/layout/SettingsPageLayout';
 import { SettingsSendingDomainAddForm } from '@/settings/sending-domains/components/SettingsSendingDomainAddForm';
 import { SettingsSendingDomainSection } from '@/settings/sending-domains/components/SettingsSendingDomainSection';
+import { SettingsSendingSendersSection } from '@/settings/sending-domains/components/SettingsSendingSendersSection';
 import { useSendingDomains } from '@/settings/sending-domains/hooks/useSendingDomains';
 
 // dkim-manager creates a new domain's key within about ten seconds.
@@ -71,6 +72,10 @@ export const SettingsSendingDomains = () => {
               />
               <SettingsSendingDomainAddForm onAdded={handleAdded} />
             </Section.Root>
+            <SettingsSendingSendersSection
+              senders={sendingDomainList.senders}
+              onChanged={handleRefetch}
+            />
             {sendingDomainList.domains.map((sendingDomain) => (
               <SettingsSendingDomainSection
                 key={sendingDomain.domain}

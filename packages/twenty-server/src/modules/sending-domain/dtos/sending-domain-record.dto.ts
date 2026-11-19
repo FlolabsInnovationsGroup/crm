@@ -17,6 +17,10 @@ export class SendingDomainRecordDTO {
   @Field()
   value: string;
 
+  // A record already published under this name that must be replaced by `value`.
+  @Field(() => String, { nullable: true })
+  existingValue: string | null;
+
   @Field(() => String)
   status: SendingDomainRecordStatus;
 }

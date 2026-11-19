@@ -2,6 +2,7 @@ import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
 import { isNonEmptyString } from '@sniptt/guards';
 import { useState } from 'react';
+import { isDefined } from 'twenty-shared/utils';
 import { Section } from 'twenty-ui/components/layout';
 import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
@@ -9,6 +10,7 @@ import { themeCssVariables } from 'twenty-ui/theme';
 import { CREATE_CAMPAIGN } from '@/campaigns/graphql/mutations/campaignMutations';
 import { useCampaignMutation } from '@/campaigns/hooks/useCampaignMutation';
 import { type CampaignsOverview } from '@/campaigns/types/Campaign';
+import { useSendingDomains } from '@/settings/sending-domains/hooks/useSendingDomains';
 import { Select } from '@/ui/input/components/Select';
 import { SettingsTextInput } from '@/ui/input/components/SettingsTextInput';
 import { TextArea } from '@/ui/input/components/TextArea';
@@ -67,6 +69,26 @@ export const CampaignCreateForm = ({
     overview.audiences[0]?.id ?? null,
   );
   const [body, setBody] = useState('');
+  const [replyTo, setReplyTo] = useState('');
+  const { sendingDomainList } = useSendingDomains();
+  const senders = (sendingDomainList?.senders ?? []).filter((sender) =>
+    overview.fromDomains.includes(sender.email.split('@')[1]),
+  );
+
+  const handleSenderChange = (senderEmail: string) => {
+    const sender = senders.find(({ email }) => email === senderEmail);
+
+    if (!isDefined(sender)) {
+      return;
+    }
+
+    const [localPart, domain] = sender.email.split('@');
+
+    setFromName(sender.name);
+    setFromLocalPart(localPart);
+    setFromDomain(domain);
+    setReplyTo(sender.replyTo);
+  };
 
   const isComplete =
     [name, subject, fromName, fromLocalPart, fromDomain, body].every((value) =>
@@ -86,6 +108,7 @@ export const CampaignCreateForm = ({
           fromName,
           fromLocalPart,
           fromDomain,
+          replyTo: isNonEmptyString(replyTo.trim()) ? replyTo.trim() : null,
           audienceIds: [audienceId],
           body,
         },
@@ -121,6 +144,23 @@ export const CampaignCreateForm = ({
             fullWidth
           />
         </StyledRow>
+        {senders.length > 0 && (
+          <Select
+            dropdownId="campaign-sender"
+            label={t`Saved sender`}
+            fullWidth
+            value={
+              senders.find(
+                (sender) => sender.email === `${fromLocalPart}@${fromDomain}`,
+              )?.email
+            }
+            onChange={handleSenderChange}
+            options={senders.map((sender) => ({
+              label: t`${sender.name} <${sender.email}>`,
+              value: sender.email,
+            }))}
+          />
+        )}
         <StyledRow>
           <SettingsTextInput
             instanceId="campaign-from-name"
@@ -161,6 +201,13 @@ export const CampaignCreateForm = ({
             }))}
           />
         </StyledAddressRow>
+        <SettingsTextInput
+          instanceId="campaign-reply-to"
+          label={t`Reply-to mailbox (where replies go)`}
+          value={replyTo}
+          onChange={setReplyTo}
+          fullWidth
+        />
         <TextArea
           textAreaId="campaign-body"
           label={t`Content (Markdown: # heading, **bold**, [link](https://…))`}
