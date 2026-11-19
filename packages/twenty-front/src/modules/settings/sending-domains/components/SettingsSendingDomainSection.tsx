@@ -1,6 +1,8 @@
 import { styled } from '@linaria/react';
 import { useMutation } from '@apollo/client/react';
 import { useLingui } from '@lingui/react/macro';
+import { isNonEmptyString } from '@sniptt/guards';
+import { isDefined } from 'twenty-shared/utils';
 import { useToast } from 'twenty-ui/components/feedback';
 import { Section } from 'twenty-ui/components/layout';
 import { IconTrash } from 'twenty-ui/icon';
@@ -15,6 +17,18 @@ import { REMOVE_SENDING_DOMAIN } from '@/settings/sending-domains/graphql/mutati
 import { type SendingDomain } from '@/settings/sending-domains/types/SendingDomain';
 import { ConfirmationDialog } from '@/ui/layout/dialog/components/ConfirmationDialog';
 import { useDialog } from '@/ui/layout/dialog/hooks/useDialog';
+
+const StyledGuide = styled.div`
+  color: ${themeCssVariables.font.color.secondary};
+  display: flex;
+  flex-direction: column;
+  gap: ${themeCssVariables.spacing[1]};
+  margin-bottom: ${themeCssVariables.spacing[3]};
+`;
+
+const StyledExistingValue = styled.code`
+  word-break: break-all;
+`;
 
 const StyledTitle = styled.span`
   align-items: center;
@@ -111,6 +125,34 @@ export const SettingsSendingDomainSection = ({
         confirmButtonText={t`Remove`}
         confirmButtonColor="danger"
       />
+      {sendingDomain.status === 'pending' && (
+        <StyledGuide>
+          {isDefined(sendingDomain.dnsProvider) ? (
+            <span>
+              {t`The DNS of this domain is managed at ${sendingDomain.dnsProvider.name}. Add the records marked Not found there.`}{' '}
+              {isNonEmptyString(sendingDomain.dnsProvider.url) && (
+                <a
+                  href={sendingDomain.dnsProvider.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >{t`Open ${sendingDomain.dnsProvider.name}`}</a>
+              )}
+            </span>
+          ) : (
+            <span>{t`Add the records marked Not found where this domain's DNS is managed.`}</span>
+          )}
+          {sendingDomain.records
+            .filter((record) => isNonEmptyString(record.existingValue))
+            .map((record) => (
+              <span key={record.name}>
+                {t`${record.hostLabel} already has an SPF record. Edit it to the value below instead of adding a second one, which would break both:`}{' '}
+                <StyledExistingValue>
+                  {record.existingValue}
+                </StyledExistingValue>
+              </span>
+            ))}
+        </StyledGuide>
+      )}
       <SettingsDnsRecordsTable
         records={sendingDomain.records.map((record) => ({
           type: record.type,
