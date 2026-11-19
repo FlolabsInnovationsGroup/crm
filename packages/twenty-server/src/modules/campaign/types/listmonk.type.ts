@@ -20,6 +20,7 @@ export type ListmonkCampaignWithContent = ListmonkCampaign & {
   content_type: string;
   messenger: string;
   template_id: number | null;
+  headers?: Record<string, string>[];
 };
 
 export type ListmonkList = {

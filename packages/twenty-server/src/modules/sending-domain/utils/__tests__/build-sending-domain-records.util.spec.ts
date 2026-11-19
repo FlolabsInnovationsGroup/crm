@@ -24,6 +24,7 @@ describe('buildSendingDomainRecords', () => {
         name: 'news.flobrain.ai',
         hostLabel: 'news',
         value: 'v=spf1 ip4:128.140.4.151 ip6:2a01:4f8:1c19:7c31::1 -all',
+        existingValue: null,
         status: 'missing',
       },
       {
@@ -31,6 +32,7 @@ describe('buildSendingDomainRecords', () => {
         name: 'lm1._domainkey.news.flobrain.ai',
         hostLabel: 'lm1._domainkey.news',
         value: DKIM_VALUE,
+        existingValue: null,
         status: 'missing',
       },
       {
@@ -38,6 +40,7 @@ describe('buildSendingDomainRecords', () => {
         name: '_dmarc.news.flobrain.ai',
         hostLabel: '_dmarc.news',
         value: 'v=DMARC1; p=none',
+        existingValue: null,
         status: 'missing',
       },
     ]);

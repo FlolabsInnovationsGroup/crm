@@ -45,6 +45,22 @@ describe('SendingDomainService', () => {
 
         return records;
       });
+    const resolver = (
+      service as unknown as {
+        dnsResolver: { resolveNs: jest.Mock; resolveMx: jest.Mock };
+      }
+    ).dnsResolver;
+
+    jest
+      .spyOn(resolver, 'resolveNs')
+      .mockResolvedValue(['ns1.dyna-ns.net', 'ns2.dyna-ns.net']);
+    jest
+      .spyOn(resolver, 'resolveMx')
+      .mockImplementation(async (hostname: string) =>
+        hostname === 'flolabsinnovations.com'
+          ? [{ exchange: 'mail.flolabsinnovations.com', priority: 10 }]
+          : [],
+      );
   });
 
   afterEach(async () => {
@@ -59,13 +75,14 @@ describe('SendingDomainService', () => {
     await expect(service.listSendingDomains(WORKSPACE_ID)).resolves.toEqual({
       isConfigured: false,
       domains: [],
+      senders: [],
     });
   });
 
   it('keeps every other workspace out', async () => {
     await expect(
       service.listSendingDomains('another-workspace'),
-    ).resolves.toEqual({ isConfigured: false, domains: [] });
+    ).resolves.toEqual({ isConfigured: false, domains: [], senders: [] });
     await expect(
       service.addSendingDomain('another-workspace', 'news.flobrain.ai'),
     ).rejects.toThrow('not set up on this server');
@@ -77,9 +94,12 @@ describe('SendingDomainService', () => {
       service.addSendingDomain(WORKSPACE_ID, 'news.robocollective.ai'),
     ]);
 
-    expect(await readFile(join(directory, 'domains.txt'), 'utf8')).toBe(
-      'news.flobrain.ai\nnews.robocollective.ai\n',
-    );
+    const lines = (await readFile(join(directory, 'domains.txt'), 'utf8'))
+      .split('\n')
+      .filter(Boolean)
+      .sort();
+
+    expect(lines).toEqual(['news.flobrain.ai', 'news.robocollective.ai']);
   });
 
   it('adds a domain once and shows it as preparing until its key exists', async () => {
@@ -94,6 +114,10 @@ describe('SendingDomainService', () => {
       domain: 'news.flobrain.ai',
       status: 'preparing',
       isFixed: false,
+      dnsProvider: {
+        name: 'Dynadot',
+        url: 'https://www.dynadot.com/account/domain/name/list.html',
+      },
       records: [],
     });
     expect(await readFile(join(directory, 'domains.txt'), 'utf8')).toBe(
@@ -149,5 +173,62 @@ describe('SendingDomainService', () => {
     await expect(
       service.addSendingDomain(WORKSPACE_ID, 'not a domain'),
     ).rejects.toThrow('is not a valid domain name');
+  });
+
+  it('names the DNS provider and edits an existing SPF record instead of adding one', async () => {
+    await writeFile(
+      join(directory, 'news.hephaestus.international.dkim'),
+      'v=DKIM1; k=rsa; p=KEY',
+    );
+    publishedTxtRecords['news.hephaestus.international'] = [
+      ['v=spf1 include:_spf.example.com ~all'],
+    ];
+
+    const { domains } = await service.listSendingDomains(WORKSPACE_ID);
+    const [spfRecord] = domains[0].records;
+
+    expect(domains[0].dnsProvider?.name).toBe('Dynadot');
+    expect(spfRecord.existingValue).toBe(
+      'v=spf1 include:_spf.example.com ~all',
+    );
+    expect(spfRecord.value).toBe(
+      'v=spf1 include:_spf.example.com ip4:128.140.4.151 ~all',
+    );
+  });
+
+  it('keeps senders on sending domains only and checks their reply-to', async () => {
+    await expect(
+      service.addSendingSender(WORKSPACE_ID, {
+        name: 'Hephaestus',
+        email: 'news@other.example',
+        replyTo: 'hr@flolabsinnovations.com',
+      }),
+    ).rejects.toThrow('Sender domain is not a sending domain');
+
+    const sender = await service.addSendingSender(WORKSPACE_ID, {
+      name: ' Hephaestus ',
+      email: 'News@news.hephaestus.international',
+      replyTo: 'hr@flolabsinnovations.com',
+    });
+
+    expect(sender).toEqual({
+      name: 'Hephaestus',
+      email: 'news@news.hephaestus.international',
+      replyTo: 'hr@flolabsinnovations.com',
+      canReceiveReplies: true,
+    });
+    expect(
+      JSON.parse(await readFile(join(directory, 'senders.json'), 'utf8')),
+    ).toHaveLength(1);
+
+    await expect(
+      service.removeSendingSender(
+        WORKSPACE_ID,
+        'news@news.hephaestus.international',
+      ),
+    ).resolves.toBe(true);
+    expect((await service.listSendingDomains(WORKSPACE_ID)).senders).toEqual(
+      [],
+    );
   });
 });

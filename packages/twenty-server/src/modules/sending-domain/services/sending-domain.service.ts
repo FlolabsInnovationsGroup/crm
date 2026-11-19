@@ -7,20 +7,27 @@ import { join } from 'node:path';
 
 import { msg } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
-import { isDefined } from 'twenty-shared/utils';
+import { emailSchema, isDefined } from 'twenty-shared/utils';
 
 import { UserInputError } from 'src/engine/core-modules/graphql/utils/graphql-errors.util';
 import { SENDING_DOMAIN_FILES } from 'src/modules/sending-domain/constants/sending-domain-files.constant';
+import { type AddSendingSenderInput } from 'src/modules/sending-domain/dtos/add-sending-sender.input';
+import { type SendingDomainDnsProviderDTO } from 'src/modules/sending-domain/dtos/sending-domain-dns-provider.dto';
 import { type SendingDomainListDTO } from 'src/modules/sending-domain/dtos/sending-domain-list.dto';
 import { type SendingDomainDTO } from 'src/modules/sending-domain/dtos/sending-domain.dto';
+import { type SendingSenderDTO } from 'src/modules/sending-domain/dtos/sending-sender.dto';
+import { type SendingSender } from 'src/modules/sending-domain/types/sending-sender.type';
 import { type SendingDomainServerConfig } from 'src/modules/sending-domain/types/sending-domain-server-config.type';
 import {
   buildSendingDomainRecords,
   type SendingDomainPublishedTxtRecords,
 } from 'src/modules/sending-domain/utils/build-sending-domain-records.util';
+import { detectDnsProvider } from 'src/modules/sending-domain/utils/detect-dns-provider.util';
+import { getRegisteredDomain } from 'src/modules/sending-domain/utils/get-registered-domain.util';
 import { isFlolabsMailWorkspace } from 'src/modules/sending-domain/utils/is-flolabs-mail-workspace.util';
 import { normalizeSendingDomain } from 'src/modules/sending-domain/utils/normalize-sending-domain.util';
 import { parseRequestedDomains } from 'src/modules/sending-domain/utils/parse-requested-domains.util';
+import { parseSendingSenders } from 'src/modules/sending-domain/utils/parse-sending-senders.util';
 import { parseSendingDomainServerConfig } from 'src/modules/sending-domain/utils/parse-sending-domain-server-config.util';
 
 type SendingDomainSetup = {
@@ -47,20 +54,134 @@ export class SendingDomainService {
     const setup = await this.readSetup(workspaceId);
 
     if (!isDefined(setup)) {
-      return { isConfigured: false, domains: [] };
+      return { isConfigured: false, domains: [], senders: [] };
     }
 
-    const requestedDomains = await this.readRequestedDomains(setup.directory);
-    const domains = [
-      ...new Set([...setup.serverConfig.fixedDomains, ...requestedDomains]),
-    ].sort();
+    const domains = await this.readAllDomains(setup);
+    const senders = await this.readSenders(setup.directory);
 
     return {
       isConfigured: true,
       domains: await Promise.all(
         domains.map((domain) => this.describeDomain(domain, setup)),
       ),
+      senders: await Promise.all(
+        senders.map((sender) => this.describeSender(sender)),
+      ),
     };
+  }
+
+  async addSendingSender(
+    workspaceId: string,
+    input: AddSendingSenderInput,
+  ): Promise<SendingSenderDTO> {
+    const setup = await this.readSetupOrThrow(workspaceId);
+    const sender: SendingSender = {
+      name: input.name.trim(),
+      email: input.email.trim().toLowerCase(),
+      replyTo: input.replyTo.trim().toLowerCase(),
+    };
+
+    if (
+      !isNonEmptyString(sender.name) ||
+      sender.name.length > 100 ||
+      /[\r\n<>"]/.test(sender.name)
+    ) {
+      throw new UserInputError('Invalid sender name', {
+        userFriendlyMessage: msg`Enter a sender name without quotes or angle brackets.`,
+      });
+    }
+
+    if (
+      !emailSchema.safeParse(sender.email).success ||
+      !emailSchema.safeParse(sender.replyTo).success
+    ) {
+      throw new UserInputError('Invalid sender or reply-to address', {
+        userFriendlyMessage: msg`Enter valid sender and reply-to addresses.`,
+      });
+    }
+
+    const senderDomain = sender.email.split('@')[1];
+    const domains = await this.readAllDomains(setup);
+
+    if (!domains.includes(senderDomain)) {
+      throw new UserInputError('Sender domain is not a sending domain', {
+        userFriendlyMessage: msg`Add ${senderDomain} as a sending domain first.`,
+      });
+    }
+
+    await this.updateDirectoryFile(
+      setup.directory,
+      SENDING_DOMAIN_FILES.senders,
+      (content) => {
+        const senders = parseSendingSenders(content ?? '[]').filter(
+          (existingSender) => existingSender.email !== sender.email,
+        );
+
+        return `${JSON.stringify([...senders, sender], null, 2)}\n`;
+      },
+    );
+
+    return this.describeSender(sender);
+  }
+
+  async removeSendingSender(
+    workspaceId: string,
+    email: string,
+  ): Promise<boolean> {
+    const setup = await this.readSetupOrThrow(workspaceId);
+    const normalizedEmail = email.trim().toLowerCase();
+    let isRemoved = false;
+
+    await this.updateDirectoryFile(
+      setup.directory,
+      SENDING_DOMAIN_FILES.senders,
+      (content) => {
+        const senders = parseSendingSenders(content ?? '[]');
+        const remainingSenders = senders.filter(
+          (sender) => sender.email !== normalizedEmail,
+        );
+
+        isRemoved = remainingSenders.length !== senders.length;
+
+        return `${JSON.stringify(remainingSenders, null, 2)}\n`;
+      },
+    );
+
+    return isRemoved;
+  }
+
+  private async readAllDomains(setup: SendingDomainSetup): Promise<string[]> {
+    const requestedDomains = await this.readRequestedDomains(setup.directory);
+
+    return [
+      ...new Set([...setup.serverConfig.fixedDomains, ...requestedDomains]),
+    ].sort();
+  }
+
+  private async readSenders(directory: string): Promise<SendingSender[]> {
+    const content = await this.readDirectoryFile(
+      directory,
+      SENDING_DOMAIN_FILES.senders,
+    );
+
+    return parseSendingSenders(content ?? '[]');
+  }
+
+  private async describeSender(
+    sender: SendingSender,
+  ): Promise<SendingSenderDTO> {
+    const replyToDomain = sender.replyTo.split('@')[1];
+    let canReceiveReplies = false;
+
+    try {
+      canReceiveReplies =
+        (await this.dnsResolver.resolveMx(replyToDomain)).length > 0;
+    } catch {
+      canReceiveReplies = false;
+    }
+
+    return { ...sender, canReceiveReplies };
   }
 
   async addSendingDomain(
@@ -126,8 +247,10 @@ export class SendingDomainService {
       `${domain}${SENDING_DOMAIN_FILES.dkimRecordSuffix}`,
     );
 
+    const dnsProvider = await this.lookUpDnsProvider(domain);
+
     if (!isNonEmptyString(dkimValue?.trim())) {
-      return { domain, status: 'preparing', isFixed, records: [] };
+      return { domain, status: 'preparing', isFixed, dnsProvider, records: [] };
     }
 
     const records = buildSendingDomainRecords({
@@ -143,8 +266,27 @@ export class SendingDomainService {
         ? 'verified'
         : 'pending',
       isFixed,
+      dnsProvider,
       records,
     };
+  }
+
+  private async lookUpDnsProvider(
+    domain: string,
+  ): Promise<SendingDomainDnsProviderDTO | null> {
+    const registeredDomain = getRegisteredDomain(domain);
+
+    if (!isDefined(registeredDomain)) {
+      return null;
+    }
+
+    try {
+      return detectDnsProvider(
+        await this.dnsResolver.resolveNs(registeredDomain),
+      );
+    } catch {
+      return null;
+    }
   }
 
   private async lookUpPublishedRecords(
@@ -216,17 +358,29 @@ export class SendingDomainService {
     directory: string,
     update: (requestedDomains: string[]) => string[],
   ): Promise<void> {
+    await this.updateDirectoryFile(
+      directory,
+      SENDING_DOMAIN_FILES.requestedDomains,
+      (content) =>
+        update(parseRequestedDomains(content ?? ''))
+          .map((domain) => `${domain}\n`)
+          .join(''),
+    );
+  }
+
+  private async updateDirectoryFile(
+    directory: string,
+    fileName: string,
+    update: (content: string | null) => string,
+  ): Promise<void> {
     const write = this.pendingWrite.then(async () => {
-      const domains = update(await this.readRequestedDomains(directory));
-      const target = join(directory, SENDING_DOMAIN_FILES.requestedDomains);
+      const content = update(await this.readDirectoryFile(directory, fileName));
+      const target = join(directory, fileName);
       const temporary = `${target}.${randomUUID()}.tmp`;
 
-      // dkim-manager may read at any moment; a rename never shows it a half-written list.
+      // dkim-manager may read at any moment; a rename never shows it a half-written file.
       try {
-        await writeFile(
-          temporary,
-          domains.map((domain) => `${domain}\n`).join(''),
-        );
+        await writeFile(temporary, content);
         await rename(temporary, target);
       } catch (error) {
         await rm(temporary, { force: true });

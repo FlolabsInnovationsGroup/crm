@@ -3,8 +3,10 @@ import { Field, InputType, Int } from '@nestjs/graphql';
 import {
   ArrayNotEmpty,
   IsArray,
+  IsEmail,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   MaxLength,
 } from 'class-validator';
@@ -39,6 +41,13 @@ export class CreateCampaignInput {
   @IsString()
   @IsNotEmpty()
   fromDomain: string;
+
+  // Where replies go; the From address itself has no mailbox.
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(255)
+  replyTo?: string | null;
 
   @Field(() => [Int])
   @IsArray()

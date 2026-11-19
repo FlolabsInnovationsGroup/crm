@@ -1,6 +1,7 @@
 import { Field, ObjectType } from '@nestjs/graphql';
 
 import { SendingDomainDTO } from 'src/modules/sending-domain/dtos/sending-domain.dto';
+import { SendingSenderDTO } from 'src/modules/sending-domain/dtos/sending-sender.dto';
 
 @ObjectType('SendingDomainList')
 export class SendingDomainListDTO {
@@ -10,4 +11,7 @@ export class SendingDomainListDTO {
 
   @Field(() => [SendingDomainDTO])
   domains: SendingDomainDTO[];
+
+  @Field(() => [SendingSenderDTO])
+  senders: SendingSenderDTO[];
 }

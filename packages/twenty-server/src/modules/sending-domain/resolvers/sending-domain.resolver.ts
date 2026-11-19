@@ -11,8 +11,10 @@ import { AuthWorkspace } from 'src/engine/decorators/auth/auth-workspace.decorat
 import { AuthPrincipalGuard } from 'src/engine/guards/auth-principal.guard';
 import { SettingsPermissionGuard } from 'src/engine/guards/settings-permission.guard';
 import { PermissionsGraphqlApiExceptionFilter } from 'src/engine/metadata-modules/permissions/utils/permissions-graphql-api-exception.filter';
+import { AddSendingSenderInput } from 'src/modules/sending-domain/dtos/add-sending-sender.input';
 import { SendingDomainListDTO } from 'src/modules/sending-domain/dtos/sending-domain-list.dto';
 import { SendingDomainDTO } from 'src/modules/sending-domain/dtos/sending-domain.dto';
+import { SendingSenderDTO } from 'src/modules/sending-domain/dtos/sending-sender.dto';
 import { SendingDomainService } from 'src/modules/sending-domain/services/sending-domain.service';
 
 // The service also limits this to the one workspace named in the server's env.
@@ -60,5 +62,21 @@ export class SendingDomainResolver {
     @Args('domain', { type: () => String }) domain: string,
   ): Promise<boolean> {
     return this.sendingDomainService.removeSendingDomain(workspace.id, domain);
+  }
+
+  @Mutation(() => SendingSenderDTO)
+  async addSendingSender(
+    @AuthWorkspace() workspace: WorkspaceEntity,
+    @Args('input') input: AddSendingSenderInput,
+  ): Promise<SendingSenderDTO> {
+    return this.sendingDomainService.addSendingSender(workspace.id, input);
+  }
+
+  @Mutation(() => Boolean)
+  async removeSendingSender(
+    @AuthWorkspace() workspace: WorkspaceEntity,
+    @Args('email', { type: () => String }) email: string,
+  ): Promise<boolean> {
+    return this.sendingDomainService.removeSendingSender(workspace.id, email);
   }
 }

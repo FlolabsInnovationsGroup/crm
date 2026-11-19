@@ -1,7 +1,6 @@
-import psl from 'psl';
 import { isDefined } from 'twenty-shared/utils';
 
-import { isParsedDomain } from 'src/modules/contact-creation-manager/types/is-psl-parsed-domain.type';
+import { getRegisteredDomain } from 'src/modules/sending-domain/utils/get-registered-domain.util';
 
 // DNS providers such as Dynadot ask for the name relative to the registered domain:
 // "lm1._domainkey.news" for "lm1._domainkey.news.acme.com.ng" on acme.com.ng.
@@ -12,8 +11,7 @@ export const getDnsProviderHostLabel = ({
   recordName: string;
   domain: string;
 }): string => {
-  const parsed = psl.parse(domain);
-  const registeredDomain = isParsedDomain(parsed) ? parsed.domain : null;
+  const registeredDomain = getRegisteredDomain(domain);
 
   if (!isDefined(registeredDomain)) {
     return recordName;
