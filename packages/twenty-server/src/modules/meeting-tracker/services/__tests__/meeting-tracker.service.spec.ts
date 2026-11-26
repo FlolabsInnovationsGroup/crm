@@ -3,6 +3,29 @@ import { Test } from '@nestjs/testing';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { MeetingTrackerService } from 'src/modules/meeting-tracker/services/meeting-tracker.service';
 
+const applicant = (overrides: Record<string, unknown> = {}) => ({
+  id: 'applicant',
+  applicationDate: '2026-11-02T10:00:00Z',
+  firstMeetingAt: null,
+  meetingBookedAt: null,
+  daysToMeeting: null,
+  firstMeetingEventId: null,
+  ...overrides,
+});
+
+const calendarEvent = (
+  id: string,
+  overrides: Record<string, unknown> = {},
+) => ({
+  id,
+  startsAt: '2026-11-09T14:00:00Z',
+  externalCreatedAt: '2026-11-04T08:00:00Z',
+  createdAt: '2026-11-04T08:05:00Z',
+  isCanceled: false,
+  isFullDay: false,
+  ...overrides,
+});
+
 describe('MeetingTrackerService', () => {
   const personRepository = { find: jest.fn(), update: jest.fn() };
   const participantRepository = { find: jest.fn() };
@@ -32,28 +55,16 @@ describe('MeetingTrackerService', () => {
     service = module.get(MeetingTrackerService);
   });
 
-  it('writes the first meeting found in the synced calendars', async () => {
-    personRepository.find.mockResolvedValue([
-      {
-        id: 'applicant',
-        applicationDate: '2026-11-02T10:00:00Z',
-        firstMeetingAt: null,
-        meetingBookedAt: null,
-        daysToMeeting: null,
-      },
-    ]);
+  it('writes the first meeting the applicant was invited to', async () => {
+    personRepository.find.mockResolvedValue([applicant()]);
     participantRepository.find.mockResolvedValue([
-      { personId: 'applicant', calendarEventId: 'interview' },
-    ]);
-    eventRepository.find.mockResolvedValue([
       {
-        id: 'interview',
-        startsAt: '2026-11-09T14:00:00Z',
-        externalCreatedAt: '2026-11-04T08:00:00Z',
-        createdAt: '2026-11-04T08:05:00Z',
-        isCanceled: false,
+        personId: 'applicant',
+        calendarEventId: 'interview',
+        responseStatus: 'ACCEPTED',
       },
     ]);
+    eventRepository.find.mockResolvedValue([calendarEvent('interview')]);
 
     const result = await service.recalculatePeople('workspace-id', [
       'applicant',
@@ -64,49 +75,92 @@ describe('MeetingTrackerService', () => {
       firstMeetingAt: '2026-11-09T14:00:00.000Z',
       meetingBookedAt: '2026-11-04T08:00:00.000Z',
       daysToMeeting: 7,
+      firstMeetingEventId: 'interview',
     });
   });
 
-  it('clears the meeting when it is cancelled and leaves unchanged people alone', async () => {
-    personRepository.find.mockResolvedValue([
-      {
-        id: 'cancelled',
-        applicationDate: '2026-11-02T10:00:00Z',
-        firstMeetingAt: '2026-11-09T14:00:00Z',
-        meetingBookedAt: '2026-11-04T08:00:00Z',
-        daysToMeeting: 7,
-      },
-      {
-        id: 'never-booked',
-        applicationDate: '2026-11-02T10:00:00Z',
-        firstMeetingAt: null,
-        meetingBookedAt: null,
-        daysToMeeting: null,
-      },
-    ]);
+  it('does not count invitations the applicant declined', async () => {
+    personRepository.find.mockResolvedValue([applicant()]);
     participantRepository.find.mockResolvedValue([
-      { personId: 'cancelled', calendarEventId: 'interview' },
+      {
+        personId: 'applicant',
+        calendarEventId: 'declined',
+        responseStatus: 'DECLINED',
+      },
+      {
+        personId: 'applicant',
+        calendarEventId: 'later',
+        responseStatus: 'NEEDS_ACTION',
+      },
     ]);
     eventRepository.find.mockResolvedValue([
-      {
-        id: 'interview',
-        startsAt: '2026-11-09T14:00:00Z',
-        externalCreatedAt: null,
-        createdAt: '2026-11-04T08:05:00Z',
-        isCanceled: true,
-      },
+      calendarEvent('later', {
+        startsAt: '2026-11-12T14:00:00Z',
+        externalCreatedAt: '',
+      }),
     ]);
 
-    await service.recalculatePeople('workspace-id', [
-      'cancelled',
-      'never-booked',
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(personRepository.update).toHaveBeenCalledWith(
+      'applicant',
+      expect.objectContaining({
+        firstMeetingEventId: 'later',
+        daysToMeeting: 10,
+        // An empty external date falls back to when the CRM saw the event.
+        meetingBookedAt: '2026-11-04T08:05:00.000Z',
+      }),
+    );
+  });
+
+  it('clears the meeting once its event is gone and leaves unchanged people alone', async () => {
+    personRepository.find.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) =>
+        'firstMeetingEventId' in where
+          ? [{ id: 'applicant' }]
+          : [
+              applicant({
+                firstMeetingAt: '2026-11-09T14:00:00Z',
+                meetingBookedAt: '2026-11-04T08:00:00Z',
+                daysToMeeting: 7,
+                firstMeetingEventId: 'cancelled-interview',
+              }),
+            ],
+    );
+    participantRepository.find.mockResolvedValue([]);
+
+    await service.recalculatePeopleWhoseMeetingWasRemoved('workspace-id', [
+      'cancelled-interview',
     ]);
 
-    expect(personRepository.update).toHaveBeenCalledTimes(1);
-    expect(personRepository.update).toHaveBeenCalledWith('cancelled', {
+    expect(personRepository.update).toHaveBeenCalledWith('applicant', {
       firstMeetingAt: null,
       meetingBookedAt: null,
       daysToMeeting: null,
+      firstMeetingEventId: null,
     });
+
+    personRepository.update.mockClear();
+    personRepository.find.mockResolvedValue([applicant()]);
+
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(personRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('only looks at guests who are not team members', async () => {
+    personRepository.find.mockResolvedValue([applicant()]);
+    participantRepository.find.mockResolvedValue([]);
+
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(participantRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isOrganizer: false,
+          workspaceMemberId: expect.anything(),
+        }),
+      }),
+    );
   });
 });

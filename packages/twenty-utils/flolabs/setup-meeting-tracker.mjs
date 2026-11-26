@@ -103,6 +103,15 @@ await ensureField(person, {
   icon: 'IconCalendarPlus',
 });
 await ensureField(person, {
+  name: 'firstMeetingEventId',
+  label: 'First meeting event ID',
+  type: 'TEXT',
+  icon: 'IconId',
+  // Lets the CRM find whose meeting disappeared when a cancelled event is
+  // deleted by calendar sync.
+  description: 'Set by the CRM; do not edit',
+});
+await ensureField(person, {
   name: 'daysToMeeting',
   label: 'Days to meeting',
   type: 'NUMBER',

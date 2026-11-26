@@ -11,15 +11,18 @@ On each person, filled by the CRM:
 | First meeting | Start of the first meeting on or after the Application Date |
 | Meeting booked at | When that meeting was created in the calendar (the Calendly booking) |
 | Days to meeting | Whole days from the Application Date to the First meeting, in UTC |
+| First meeting event ID | Technical link to the calendar event; set by the CRM, do not edit |
 
 **How a meeting is found:**
-- It is any calendar event, in a calendar synced to the CRM, where the person is a guest (not the organiser) and that is not cancelled.
+- It is any calendar event, in a calendar synced to the CRM, where the person is a guest who did not decline.
+- Organisers and team members don't count; all-day events don't count either.
 - Meetings before the Application Date belong to an earlier application and are ignored.
-- If the meeting is moved, the fields follow it. If it is cancelled, the next meeting is used, or the fields are cleared.
+- If the meeting is moved, the fields follow it.
+- If it is cancelled, the next meeting is used, or the fields are cleared. Calendar sync deletes cancelled events, and the CRM follows that deletion.
 
 **When the fields update:**
 - When calendar sync links a guest to a person.
-- When an event's time or cancellation changes.
+- When an event's time changes, or the event is deleted.
 - When a person's Application Date changes.
 
 ## Setup (once, by an admin)
@@ -35,7 +38,9 @@ On each person, filled by the CRM:
    ```graphql
    mutation { recalculateMeetingTimes { peopleChecked peopleWithMeeting } }
    ```
-   It can be run again safely.
+   - It can be run again safely. It also repairs meetings that went stale.
+   - If it stops early on a timeout, run it again; it continues where it stopped.
+   - Each person who gets a meeting is one person update, so the n8n webhooks see one event per person. Tell the n8n owner before the first run.
 
 ## Reports
 

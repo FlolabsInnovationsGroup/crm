@@ -22,7 +22,8 @@ const startOfUtcDay = (date: Date) =>
   Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 
 // Meetings before the application date belong to an earlier application, so
-// only the first one on or after that day counts.
+// only the first one on or after that day counts. All-day events are
+// reminders or holidays, never an interview.
 export const pickFirstMeeting = ({
   applicationDate,
   meetings,
@@ -39,13 +40,20 @@ export const pickFirstMeeting = ({
   const appliedDay = startOfUtcDay(appliedAt);
 
   const firstMeeting = meetings
-    .filter((meeting) => !meeting.isCanceled)
+    .filter((meeting) => !meeting.isCanceled && !meeting.isFullDay)
     .map((meeting) => ({
+      eventId: meeting.eventId,
       meetingAt: toDate(meeting.startsAt),
       bookedAt: toDate(meeting.bookedAt),
     }))
     .filter(
-      (meeting): meeting is { meetingAt: Date; bookedAt: Date | null } =>
+      (
+        meeting,
+      ): meeting is {
+        eventId: string;
+        meetingAt: Date;
+        bookedAt: Date | null;
+      } =>
         isDefined(meeting.meetingAt) &&
         startOfUtcDay(meeting.meetingAt) >= appliedDay,
     )

@@ -40,7 +40,8 @@ export class MeetingTrackerResolver {
   constructor(private readonly meetingTrackerService: MeetingTrackerService) {}
 
   // Fills the meeting fields for calendar events synced before this module
-  // existed. Running it again only changes what is out of date.
+  // existed and repairs any that went stale. Re-running only changes what is
+  // out of date, so a run cut short by a timeout can simply be repeated.
   @Mutation(() => MeetingRecalculationResultDTO)
   async recalculateMeetingTimes(
     @AuthWorkspace() workspace: WorkspaceEntity,

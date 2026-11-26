@@ -2,11 +2,17 @@ import { pickFirstMeeting } from 'src/modules/meeting-tracker/utils/pick-first-m
 
 const meeting = (
   startsAt: string | null,
-  overrides: Partial<{ bookedAt: string | null; isCanceled: boolean }> = {},
+  overrides: Partial<{
+    bookedAt: string | null;
+    isCanceled: boolean;
+    isFullDay: boolean;
+  }> = {},
 ) => ({
+  eventId: `event-${startsAt}`,
   startsAt,
   bookedAt: overrides.bookedAt ?? null,
   isCanceled: overrides.isCanceled ?? false,
+  isFullDay: overrides.isFullDay ?? false,
 });
 
 describe('pickFirstMeeting', () => {
@@ -20,6 +26,7 @@ describe('pickFirstMeeting', () => {
         ],
       }),
     ).toEqual({
+      eventId: 'event-2026-11-10T09:00:00Z',
       meetingAt: new Date('2026-11-10T09:00:00Z'),
       bookedAt: new Date('2026-11-04T09:00:00Z'),
       daysToMeeting: 8,
@@ -37,6 +44,18 @@ describe('pickFirstMeeting', () => {
         ],
       })?.meetingAt,
     ).toEqual(new Date('2026-11-09T09:00:00Z'));
+  });
+
+  it('skips all-day events such as holidays', () => {
+    expect(
+      pickFirstMeeting({
+        applicationDate: '2026-11-02T10:00:00Z',
+        meetings: [
+          meeting('2026-11-03T00:00:00Z', { isFullDay: true }),
+          meeting('2026-11-06T09:00:00Z'),
+        ],
+      })?.daysToMeeting,
+    ).toBe(4);
   });
 
   it('counts a meeting on the application day as day 0', () => {

@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import {
   type ObjectRecordCreateEvent,
   type ObjectRecordDeleteEvent,
+  type ObjectRecordDestroyEvent,
   type ObjectRecordRestoreEvent,
   type ObjectRecordUpdateEvent,
 } from 'twenty-shared/database-events';
@@ -21,8 +22,9 @@ import {
 
 type ParticipantEventRecord = { personId?: string | null };
 
-// Calendar sync links a guest to a person after the event is saved, and
-// Calendly reschedules move the event, so each of these can change a meeting.
+// Calendar sync links a guest to a person after the event is saved, moves
+// rescheduled events and hard-deletes cancelled ones, so each of these can
+// change someone's first meeting.
 @Injectable()
 export class MeetingTrackerListener {
   constructor(private readonly meetingTrackerService: MeetingTrackerService) {}
@@ -77,6 +79,21 @@ export class MeetingTrackerListener {
 
   @OnDatabaseBatchEvent(
     'calendarEventParticipant',
+    DatabaseEventAction.DESTROYED,
+  )
+  async handleParticipantDestroyed(
+    payload: WorkspaceEventBatch<
+      ObjectRecordDestroyEvent<ParticipantEventRecord>
+    >,
+  ) {
+    await this.recalculatePeople(
+      payload.workspaceId,
+      getPersonIdsFromParticipantEvents(payload.events),
+    );
+  }
+
+  @OnDatabaseBatchEvent(
+    'calendarEventParticipant',
     DatabaseEventAction.RESTORED,
   )
   async handleParticipantRestored(
@@ -106,6 +123,38 @@ export class MeetingTrackerListener {
     }
 
     await this.meetingTrackerService.recalculateParticipantsOfEvents(
+      payload.workspaceId,
+      calendarEventIds,
+    );
+  }
+
+  @OnDatabaseBatchEvent('calendarEvent', DatabaseEventAction.DELETED)
+  async handleCalendarEventDeleted(
+    payload: WorkspaceEventBatch<ObjectRecordDeleteEvent<object>>,
+  ) {
+    await this.recalculatePeopleWhoseMeetingWasRemoved(payload);
+  }
+
+  @OnDatabaseBatchEvent('calendarEvent', DatabaseEventAction.DESTROYED)
+  async handleCalendarEventDestroyed(
+    payload: WorkspaceEventBatch<ObjectRecordDestroyEvent<object>>,
+  ) {
+    await this.recalculatePeopleWhoseMeetingWasRemoved(payload);
+  }
+
+  private async recalculatePeopleWhoseMeetingWasRemoved(
+    payload: WorkspaceEventBatch<{ recordId: string }>,
+  ) {
+    const calendarEventIds = payload.events.map(({ recordId }) => recordId);
+
+    if (
+      !this.isTrackedWorkspace(payload.workspaceId) ||
+      !isNonEmptyArray(calendarEventIds)
+    ) {
+      return;
+    }
+
+    await this.meetingTrackerService.recalculatePeopleWhoseMeetingWasRemoved(
       payload.workspaceId,
       calendarEventIds,
     );
