@@ -141,7 +141,10 @@ describe('MeetingTrackerService', () => {
     });
 
     personRepository.update.mockClear();
-    personRepository.find.mockResolvedValue([applicant()]);
+    // Empty text fields come back from the ORM as ''.
+    personRepository.find.mockResolvedValue([
+      applicant({ firstMeetingEventId: '' }),
+    ]);
 
     await service.recalculatePeople('workspace-id', ['applicant']);
 

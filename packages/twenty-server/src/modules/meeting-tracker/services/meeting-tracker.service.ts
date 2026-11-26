@@ -284,7 +284,10 @@ export class MeetingTrackerService {
         isSameInstant(person.firstMeetingAt, next.firstMeetingAt) &&
         isSameInstant(person.meetingBookedAt, next.meetingBookedAt) &&
         person.daysToMeeting === next.daysToMeeting &&
-        person.firstMeetingEventId === next.firstMeetingEventId
+        // The ORM reads an empty text field back as ''.
+        (isNonEmptyString(person.firstMeetingEventId)
+          ? person.firstMeetingEventId
+          : null) === next.firstMeetingEventId
       ) {
         continue;
       }
