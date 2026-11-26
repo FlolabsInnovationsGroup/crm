@@ -57,8 +57,8 @@ describe('buildManualReviewHistoryCsv', () => {
       HEADERS,
     );
 
-    expect(csv).not.toContain(',"=HYPERLINK');
-    expect(csv).toContain('=HYPERLINK(""https://example.com"")"');
+    // A zero-width joiner in front keeps the cell from starting with "=".
+    expect(csv).toContain('"\u200D=HYPERLINK(""https://example.com"")"');
   });
 
   it('leaves missing values empty', () => {

@@ -331,6 +331,7 @@ export class TeamInboxManualReviewHistoryService {
         role: In([MessageParticipantRole.TO, MessageParticipantRole.CC]),
       },
       select: { messageId: true },
+      order: { createdAt: 'DESC' },
       take: MAX_CANDIDATE_MESSAGES,
     });
 

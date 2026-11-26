@@ -151,8 +151,8 @@ export const useManualReviewHistoryExport = (templates: NamedTemplate[]) => {
           applicantMessage: t`Their message`,
           suggestedTemplate: t`Suggested template`,
           replyText: t`Our reply`,
-          replySentAt: t`Reply sent at`,
-          reviewReceivedAt: t`Review email received at`,
+          replySentAt: t`Reply sent at (local time)`,
+          reviewReceivedAt: t`Review email received at (local time)`,
         },
       );
 
