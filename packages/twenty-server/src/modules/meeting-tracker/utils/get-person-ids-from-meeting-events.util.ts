@@ -12,7 +12,8 @@ type RecordEvent<TRecord> = {
 const unique = (ids: (string | null | undefined)[]) =>
   [...new Set(ids)].filter((id): id is string => isDefined(id));
 
-// A guest moved from one person to another changes both people's meetings.
+// A guest or booking moved from one person to another changes both people's
+// meetings.
 export const getPersonIdsFromParticipantEvents = (
   events: RecordEvent<{ personId?: string | null }>[],
 ) =>
@@ -22,8 +23,6 @@ export const getPersonIdsFromParticipantEvents = (
       properties.after?.personId,
     ]),
   );
-
-export const getPersonIdsOfBookings = getPersonIdsFromParticipantEvents;
 
 const BOOKING_FIELDS_AFFECTING_MEETINGS = [
   'personId',
@@ -35,7 +34,7 @@ const BOOKING_FIELDS_AFFECTING_MEETINGS = [
 export const getPersonIdsFromBookingEvents = (
   events: RecordEvent<{ personId?: string | null }>[],
 ) =>
-  getPersonIdsOfBookings(
+  getPersonIdsFromParticipantEvents(
     events.filter(
       ({ properties }) =>
         !isDefined(properties.updatedFields) ||

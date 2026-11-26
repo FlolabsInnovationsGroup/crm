@@ -16,7 +16,7 @@ import { MeetingTrackerService } from 'src/modules/meeting-tracker/services/meet
 import { getMeetingTrackerWorkspaceId } from 'src/modules/meeting-tracker/utils/get-meeting-tracker-workspace-id.util';
 import {
   getPersonIdsFromBookingEvents,
-  getPersonIdsOfBookings,
+  getPersonIdsFromParticipantEvents,
 } from 'src/modules/meeting-tracker/utils/get-person-ids-from-meeting-events.util';
 
 type BookingEventRecord = { personId?: string | null };
@@ -44,7 +44,7 @@ export class CalendlyBookingListener {
   ) {
     await this.recalculatePeople(
       payload.workspaceId,
-      getPersonIdsOfBookings(payload.events),
+      getPersonIdsFromParticipantEvents(payload.events),
     );
   }
 
@@ -64,7 +64,7 @@ export class CalendlyBookingListener {
   ) {
     await this.recalculatePeople(
       payload.workspaceId,
-      getPersonIdsOfBookings(payload.events),
+      getPersonIdsFromParticipantEvents(payload.events),
     );
   }
 
@@ -74,7 +74,7 @@ export class CalendlyBookingListener {
   ) {
     await this.recalculatePeople(
       payload.workspaceId,
-      getPersonIdsOfBookings(payload.events),
+      getPersonIdsFromParticipantEvents(payload.events),
     );
   }
 
@@ -84,7 +84,7 @@ export class CalendlyBookingListener {
   ) {
     await this.recalculatePeople(
       payload.workspaceId,
-      getPersonIdsOfBookings(payload.events),
+      getPersonIdsFromParticipantEvents(payload.events),
     );
   }
 }

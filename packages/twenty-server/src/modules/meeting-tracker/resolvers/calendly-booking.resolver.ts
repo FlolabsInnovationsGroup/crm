@@ -19,6 +19,7 @@ import { CalendlyBookingService } from 'src/modules/meeting-tracker/services/cal
 import { MeetingTrackerService } from 'src/modules/meeting-tracker/services/meeting-tracker.service';
 import { getCalendlyConfig } from 'src/modules/meeting-tracker/utils/get-calendly-config.util';
 
+// Matches the payment sync: a little over a year of history is enough.
 const MAX_SYNC_DAYS = 400;
 
 @UseGuards(

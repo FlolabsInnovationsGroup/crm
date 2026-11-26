@@ -5,6 +5,10 @@ import chunk from 'lodash.chunk';
 import { isDefined, isNonEmptyArray } from 'twenty-shared/utils';
 import { Any, IsNull, MoreThan, Not } from 'typeorm';
 
+import {
+  TwentyOrmException,
+  TwentyOrmExceptionCode,
+} from 'src/engine/twenty-orm/exceptions/twenty-orm.exception';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { type CalendlyBookingRecord } from 'src/modules/meeting-tracker/types/calendly-booking.type';
@@ -144,10 +148,11 @@ export class MeetingTrackerService {
           );
         }
 
+        const bookingRepository = this.getBookingRepositoryIfCreated();
         let bookingCursor: string | undefined;
 
-        for (;;) {
-          const page = await this.getBookingRepository().find({
+        while (isDefined(bookingRepository)) {
+          const page = await bookingRepository.find({
             where: {
               personId: Not(IsNull()),
               ...(isDefined(bookingCursor)
@@ -216,11 +221,24 @@ export class MeetingTrackerService {
     >('calendarEventParticipant', { shouldBypassPermissionChecks: true });
   }
 
-  private getBookingRepository() {
-    return this.workspaceOrmManager.getRepository<CalendlyBookingRecord>(
-      'calendlyBooking',
-      { shouldBypassPermissionChecks: true },
-    );
+  // The bookings object comes from a setup script; until it exists, calendar
+  // meetings must keep working.
+  private getBookingRepositoryIfCreated() {
+    try {
+      return this.workspaceOrmManager.getRepository<CalendlyBookingRecord>(
+        'calendlyBooking',
+        { shouldBypassPermissionChecks: true },
+      );
+    } catch (error) {
+      if (
+        error instanceof TwentyOrmException &&
+        error.code === TwentyOrmExceptionCode.UNKNOWN_OBJECT
+      ) {
+        return null;
+      }
+
+      throw error;
+    }
   }
 
   // Must run inside a workspace context.
@@ -232,6 +250,8 @@ export class MeetingTrackerService {
         'calendarEvent',
         { shouldBypassPermissionChecks: true },
       );
+
+    const bookingRepository = this.getBookingRepositoryIfCreated();
 
     const [people, participants, bookings] = await Promise.all([
       this.getPersonRepository().find({
@@ -259,16 +279,18 @@ export class MeetingTrackerService {
           responseStatus: true,
         },
       }),
-      this.getBookingRepository().find({
-        where: { personId: Any(personIds) },
-        select: {
-          id: true,
-          personId: true,
-          meetingStartsAt: true,
-          bookedAt: true,
-          bookingStatus: true,
-        },
-      }),
+      isDefined(bookingRepository)
+        ? bookingRepository.find({
+            where: { personId: Any(personIds) },
+            select: {
+              id: true,
+              personId: true,
+              meetingStartsAt: true,
+              bookedAt: true,
+              bookingStatus: true,
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     const attended = participants.filter(

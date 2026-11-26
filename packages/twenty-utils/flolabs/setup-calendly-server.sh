@@ -2,7 +2,8 @@
 # Gives the CRM its Calendly settings for the meeting tracker, restarts it and
 # registers the booking webhook in each Calendly account. Run on the CRM server
 # as root. Asks for the tokens without showing them. Safe to run again: it
-# replaces the settings and re-registers the webhooks with a new signing key.
+# keeps the webhook signing key (ROTATE_SIGNING_KEY=1 makes a new one) and
+# re-registers the webhooks.
 set -euo pipefail
 
 cd /opt/flolabs-crm
@@ -24,9 +25,17 @@ unset TOKEN
 [ "${#TOKENS[@]}" -gt 0 ] || { echo "No token given. Stopping." >&2; exit 1; }
 echo "Got ${#TOKENS[@]} token(s)."
 
+grep -q '^COMPOSE_FILE=' .env || { echo "No COMPOSE_FILE line in .env. Stopping." >&2; exit 1; }
+
 JOINED_TOKENS=$(IFS=,; echo "${TOKENS[*]}")
 unset TOKENS
-SIGNING_KEY=$(openssl rand -hex 32)
+# Calendly keeps signing with the key the subscription was made with, so a
+# new key is only safe together with re-registering every subscription.
+SIGNING_KEY=""
+if [ "${ROTATE_SIGNING_KEY:-0}" != 1 ] && [ -f "$CALENDLY_FILE" ]; then
+  SIGNING_KEY=$(sed -n "s/^ *FLOLABS_CALENDLY_SIGNING_KEY: '\([0-9a-f]*\)'$/\1/p" "$CALENDLY_FILE" | head -1)
+fi
+[ -n "$SIGNING_KEY" ] || SIGNING_KEY=$(openssl rand -hex 32)
 
 STAMP=$(date +%Y%m%d-%H%M%S)
 cp .env ".env.before-calendly-$STAMP"
@@ -80,7 +89,7 @@ docker compose exec -T server sh -c 'for name in FLOLABS_PAYMENTS_WORKSPACE_ID F
 
 echo "==> Registering the booking webhook in each Calendly account"
 # Runs inside the server container so the tokens never appear on a command line.
-docker compose exec -T -e WEBHOOK_URL="$WEBHOOK_URL" server node --input-type=module - <<'JS'
+if ! docker compose exec -T -e WEBHOOK_URL="$WEBHOOK_URL" server node --input-type=module - <<'JS'
 const API = 'https://api.calendly.com';
 const url = process.env.WEBHOOK_URL;
 const signingKey = process.env.FLOLABS_CALENDLY_SIGNING_KEY;
@@ -112,7 +121,10 @@ for (const [index, token] of tokens.entries()) {
   );
   for (const subscription of existing.body?.collection ?? []) {
     if (subscription.callback_url === url) {
-      await call(token, subscription.uri, { method: 'DELETE' });
+      const removed = await call(token, subscription.uri, { method: 'DELETE' });
+      if (removed.status !== 204 && removed.status !== 200) {
+        console.log(`  ${email}: could not remove the old webhook (${removed.status})`);
+      }
     }
   }
 
@@ -135,6 +147,14 @@ for (const [index, token] of tokens.entries()) {
   }
 }
 JS
+then
+  echo "!! At least one Calendly account did not get the webhook. Bookings from it" >&2
+  echo "!! will not reach the CRM. Fix the token or scopes and run this again." >&2
+  exit 1
+fi
+
+# The backups hold old tokens; the CRM is healthy, so they are no longer needed.
+rm -f "$CALENDLY_FILE".before-*
 
 echo "==> Checking the webhook answers (expects 400 for an unsigned request)"
 CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \

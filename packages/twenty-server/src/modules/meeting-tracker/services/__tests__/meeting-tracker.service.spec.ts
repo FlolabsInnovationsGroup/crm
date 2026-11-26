@@ -1,5 +1,9 @@
 import { Test } from '@nestjs/testing';
 
+import {
+  TwentyOrmException,
+  TwentyOrmExceptionCode,
+} from 'src/engine/twenty-orm/exceptions/twenty-orm.exception';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { MeetingTrackerService } from 'src/modules/meeting-tracker/services/meeting-tracker.service';
 
@@ -46,6 +50,9 @@ describe('MeetingTrackerService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    workspaceOrmManager.getRepository.mockImplementation(
+      (name: string) => repositories[name],
+    );
     bookingRepository.find.mockResolvedValue([]);
 
     const module = await Test.createTestingModule({
@@ -198,5 +205,33 @@ describe('MeetingTrackerService', () => {
       daysToMeeting: 4,
       firstMeetingEventId: 'booking',
     });
+  });
+
+  it('keeps counting calendar meetings before the bookings object exists', async () => {
+    workspaceOrmManager.getRepository.mockImplementation((name: string) => {
+      if (name === 'calendlyBooking') {
+        throw new TwentyOrmException(
+          'Object calendlyBooking not found',
+          TwentyOrmExceptionCode.UNKNOWN_OBJECT,
+        );
+      }
+
+      return repositories[name];
+    });
+    personRepository.find.mockResolvedValue([applicant()]);
+    participantRepository.find.mockResolvedValue([
+      {
+        personId: 'applicant',
+        calendarEventId: 'interview',
+        responseStatus: 'ACCEPTED',
+      },
+    ]);
+    eventRepository.find.mockResolvedValue([calendarEvent('interview')]);
+
+    const result = await service.recalculatePeople('workspace-id', [
+      'applicant',
+    ]);
+
+    expect(result).toEqual({ peopleChecked: 1, peopleWithMeeting: 1 });
   });
 });

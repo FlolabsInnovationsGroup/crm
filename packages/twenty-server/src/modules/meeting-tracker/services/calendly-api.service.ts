@@ -43,6 +43,8 @@ export class CalendlyApiService {
       return null;
     }
 
+    const refusals: number[] = [];
+
     for (const token of this.getTokens()) {
       const invitee = await this.get<{ resource: CalendlyInvitee }>(
         token,
@@ -51,6 +53,7 @@ export class CalendlyApiService {
 
       if (!invitee.ok) {
         if ([401, 403, 404].includes(invitee.status)) {
+          refusals.push(invitee.status);
           continue;
         }
 
@@ -77,6 +80,18 @@ export class CalendlyApiService {
         event.body.resource,
       );
     }
+
+    // An expired or revoked token would otherwise lose every booking quietly;
+    // failing lets Calendly retry once the token is replaced.
+    if (refusals.includes(401)) {
+      throw new Error(
+        `No token could read the booking (Calendly answered ${refusals.join(', ')}); a token may have expired`,
+      );
+    }
+
+    this.logger.warn(
+      `No Calendly token could read a booking (answered ${refusals.join(', ')})`,
+    );
 
     return null;
   }

@@ -51,7 +51,7 @@ Each person also has a **Calendly bookings** list, one row per booking with its 
    - It looks at meetings starting on or after `since`, up to 400 days back.
    - It can be run again safely; it only updates what changed.
    - Calendly allows 50 requests a minute per account, so a long period takes a few minutes. If it stops on a timeout, run it again with a later `since`.
-   - Each person who gets a meeting is one person update, so the n8n webhooks see one event per person. Tell the n8n owner before the first run.
+   - Each person who gets a meeting is one or two person updates, and the n8n webhooks see each one. Tell the n8n owner before the first run.
 5. **Repair everything at once (optional):** `mutation { recalculateMeetingTimes { peopleChecked peopleWithMeeting } }` recalculates everyone with a booking, a calendar meeting or a stored first meeting.
 
 ## Reports
