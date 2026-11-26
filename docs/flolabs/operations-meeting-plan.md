@@ -145,4 +145,4 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 | Item | Status |
 | --- | --- |
 | 3 | Pull request #26 open, reviewed, waiting for merge |
-| 4 | In progress |
+| 4 | Pull request #28 open, reviewed, waiting for merge |
