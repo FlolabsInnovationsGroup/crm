@@ -98,6 +98,13 @@ Effort counts building, the second-agent review and fixes. It does not count wai
   - **What would cost money, and why we do not need it:** Documenso's paid Enterprise licence covers SSO, two-factor before signing, custom sender domains and its embeddable editor. The editor is ours in the CRM and the emails go out from the CRM, so none of it is needed. Templates, multi-document requests, signing order, webhooks and the API are in the free edition.
 - **Moving off Dropbox Sign:** keep paying until Documenso has handled a week of real agreements. Before cancelling, download the 837 signed documents with their audit trails and store them outside Dropbox Sign (the R2 archive or on each person in the CRM). Then cancel the plan.
 - **Before building:** Notion records no final choice: the task "Research open-source DocuSign alternatives and legal validity" (Mohamed + Legal Buddy) is still Not Started, and the legal checklist (done in September) names DocuSeal, Documenso and OpenSign and recommends a simple e-signature for now. Decided on 26 Nov: Documenso, chosen for full control (same language as the CRM); DocuSeal is the fallback. A one-day trial on a test server checks four things in the free edition before any CRM work: webhooks when a document is signed; the audit log and completion certificate the legal checklist requires; signing in the order John wants; and that Documenso can skip its own emails and hand the signing links to the CRM. Anything missing is added in our fork or, if too large, we switch to DocuSeal.
+- **Trial result (26 Nov, Documenso v2.21.0 on the CRM server, reachable only through an SSH tunnel, emails caught by a local test mailbox):** all four checks pass in the free edition.
+  - **Webhooks:** document.signed, document.recipient.completed and document.completed fired for each step; Documenso retries a failed call by itself.
+  - **Certificate and audit trail:** the completed PDF gets a signing certificate page with each signer's signature, signature ID, device, and sent, viewed and signed times, plus an activity log on the document. To fix for production: signer IP showed as Unknown behind the tunnel, so the proxy must pass the client IP; the certificate says "provided by Documenso" (check whether it can be removed); a real signing certificate replaces the self-signed one.
+  - **Signing order:** with signing order on, the second signer's link showed "Waiting for your turn" until the first had signed.
+  - **No Documenso emails:** distribution method None sent nothing and gave a signing link per recipient for the CRM to send.
+  - **Also seen:** several documents in one request, a saved signature reused for countersigning, reminders, expiry, an External ID to tie a request to the CRM person, and an e-signature consent screen before signing.
+  - The trial is started and removed with `packages/twenty-utils/flolabs/documenso-trial.sh` and `documenso-trial-remove.sh`.
 - **Done when:** a new template is made in the CRM, edited for one test person, and sent with the Academic Integrity document to an internal `+crmtest` address; it is signed in one go, and the signed PDFs, the certificate and the new Stage appear on the person.
 
 ### 9. AI drafts replies to multi-question emails
@@ -154,4 +161,5 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 | 3 | Pull request #26 merged and deployed |
 | 4 | Pull request #28 merged and deployed |
 | 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook being set up |
-| 5b | Planned |
+| 5b | Pull request #31 merged and deployed; 7 disputes found in the last year (3 lost, 2 open, 2 won) |
+| 8 | Documenso trial passed all four checks on 26 Nov; CRM work waits for John's agreement template |
