@@ -69,6 +69,7 @@ export class PaymentTrackerResolver {
       paymentsAdded: 0,
       paymentsWithoutPerson: 0,
     };
+    const personIds = new Set<string>();
 
     for await (const payment of this.paymentTrackerStripeService.listPaymentsSince(
       from,
@@ -78,8 +79,19 @@ export class PaymentTrackerResolver {
 
       result.paymentsRead += 1;
       result.paymentsAdded += isNew ? 1 : 0;
-      result.paymentsWithoutPerson += isDefined(personId) ? 0 : 1;
+
+      if (isDefined(personId)) {
+        personIds.add(personId);
+      } else {
+        result.paymentsWithoutPerson += 1;
+      }
     }
+
+    // Unchanged payments emit no events, so a re-run repairs totals here.
+    await this.paymentTrackerService.recalculatePeopleInWorkspace(
+      workspace.id,
+      [...personIds],
+    );
 
     return result;
   }

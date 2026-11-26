@@ -18,7 +18,7 @@ Plan item 5. Shows on each person whether they paid, how much, and what is left,
 
 **Matching:** a payment is linked to the person whose email matches the payer's (the oldest one if several match; deleted people are skipped). A payment someone linked by hand keeps that person. If you clear a payment's Person on purpose, the next refund or sync for it links it by email again.
 
-**Status rules:** Full scholarship is always "Scholarship". Otherwise "Not paid" until money arrives; then "Paid in full" once the agreed amount is reached (or after any payment on a Full one-time plan with no agreed amount), and "Paying in installments" before that. Refunds are subtracted. Payments in another currency than the agreed amount are listed but not added to the total. A person with payments but no plan shows "Paying in installments". Lost disputes are not subtracted; correct those by hand.
+**Status rules:** Full scholarship is always "Scholarship". Otherwise "Not paid" until money arrives; then "Paid in full" once the agreed amount is reached (or after any payment on a Full one-time plan with no agreed amount), and "Paying in installments" before that. Refunds are subtracted. Payments in another currency than the agreed amount are listed but not added to the total. A person with payments but no plan shows "Paying in installments". Lost disputes are not subtracted; correct one by entering the lost amount in the payment's Refunded field, and the person's totals update.
 
 **Privacy:** payment fields are part of a person, so any workflow or outgoing webhook that sends person updates also sends them.
 
@@ -26,7 +26,7 @@ Plan item 5. Shows on each person whether they paid, how much, and what is left,
 
 1. **Create the fields and the Payments object:**
    `TWENTY_URL=https://crm.flolabsinnovations.com TWENTY_TOKEN_FILE=<file holding an admin API key> node packages/twenty-utils/flolabs/setup-payments.mjs`
-   Running it again is safe.
+   Running it again is safe, but it does not change fields that already exist. If the Payments object was created before the Stripe payment ID became unique, turn on "Unique" for that field by hand in Settings > Data model.
 2. **Create a restricted Stripe key** (Stripe > Developers > API keys > Create restricted key) with **Read** on Customers, Charges, PaymentIntents and nothing else.
 3. **Create the webhook** (Stripe > Developers > Webhooks > Add endpoint):
    - URL: `https://crm.flolabsinnovations.com/webhooks/flolabs-payments`
@@ -37,7 +37,9 @@ Plan item 5. Shows on each person whether they paid, how much, and what is left,
    - `FLOLABS_STRIPE_API_KEY` = the restricted key
    - `FLOLABS_STRIPE_WEBHOOK_SECRET` = the webhook signing secret
 5. **Limit who can see payments:** Settings > Roles: give only admins access to the Payments object and to the payment fields on People.
-6. **Bring in past payments:** run the `syncStripePayments(since: "2026-01-01")` mutation as an admin (for example from Settings > API & Webhooks > Playground). It reads at most the last 400 days and can be run again safely.
+6. **Bring in past payments and repair totals:** run the `syncStripePayments(since: "2026-01-01")` mutation as an admin (for example from Settings > API & Webhooks > Playground). It reads at most the last 400 days, recalculates everyone it touched, and can be run again safely.
+
+Leave the Stripe payment ID empty on payments entered by hand; it must be unique.
 
 ## Reports
 
