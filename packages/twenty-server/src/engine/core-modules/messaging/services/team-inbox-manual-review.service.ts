@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { UserVarsService } from 'src/engine/core-modules/user/user-vars/services/user-vars.service';
+import { getManualReviewDoneByKey } from 'src/engine/core-modules/messaging/utils/team-inbox-manual-review-history.util';
 import {
   getManualReviewDoneKey,
   getManualReviewDoneThreadIds,
@@ -36,12 +37,15 @@ export class TeamInboxManualReviewService {
     workspaceId,
     messageThreadId,
     isDone,
+    workspaceMemberId,
   }: {
     workspaceId: string;
     messageThreadId: string;
     isDone: boolean;
+    workspaceMemberId: string;
   }): Promise<void> {
     const key = getManualReviewDoneKey(messageThreadId);
+    const doneByKey = getManualReviewDoneByKey(messageThreadId);
 
     if (isDone) {
       await this.userVarsService.set({
@@ -49,10 +53,16 @@ export class TeamInboxManualReviewService {
         key,
         value: new Date().toISOString(),
       });
+      await this.userVarsService.set({
+        workspaceId,
+        key: doneByKey,
+        value: workspaceMemberId,
+      });
 
       return;
     }
 
     await this.userVarsService.delete({ workspaceId, key });
+    await this.userVarsService.delete({ workspaceId, key: doneByKey });
   }
 }

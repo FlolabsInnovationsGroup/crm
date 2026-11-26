@@ -459,6 +459,7 @@ export class TimelineMessagingResolver {
       workspaceId: workspace.id,
       messageThreadId,
       isDone,
+      workspaceMemberId: workspaceMember.id,
     });
 
     return true;
