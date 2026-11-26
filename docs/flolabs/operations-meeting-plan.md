@@ -71,6 +71,7 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 - **Why:** the goal is 3 weeks from application to onboarding, with the meeting booked within 7 to 9 days. Today nobody can measure it.
 - **How:** the application date is already on each person. The meeting date comes from the calendars the CRM already syncs: when interviewers connect their calendars, Calendly bookings appear as events with the applicant as a guest, and the CRM links them to the person. A report shows days from application to meeting per person and the monthly average, and lists people waiting longer than 9 days. This avoids Calendly webhooks, which may need a paid Calendly plan.
 - **Done when:** the report shows real numbers for the last month and the people currently waiting too long.
+- **Blocked on 26 Nov:** Google calendars cannot be connected yet; see `docs/flolabs/google-calendar-connection.md` for the cause, the open decisions and the steps.
 
 ### 7. Applicant summary before the booking email
 
