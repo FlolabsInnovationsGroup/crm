@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { isNonEmptyString } from '@sniptt/guards';
+import { type ActorMetadata, FieldActorSource } from 'twenty-shared/types';
 import { isDefined, isNonEmptyArray } from 'twenty-shared/utils';
 import { In } from 'typeorm';
 
@@ -30,6 +31,13 @@ const toPaymentPlan = (value: string | null): PaymentPlan | null =>
 // Writing null to a currency field leaves the old value, so it is cleared
 // with an empty amount instead.
 const EMPTY_CURRENCY_VALUE = { amountMicros: null, currencyCode: '' };
+
+const STRIPE_ACTOR: ActorMetadata = {
+  source: FieldActorSource.SYSTEM,
+  workspaceMemberId: null,
+  name: 'Stripe',
+  context: {},
+};
 
 const toCurrencyValue = (amountMicros: number, currencyCode: string | null) =>
   isDefined(currencyCode)
@@ -88,7 +96,13 @@ export class PaymentTrackerService {
       if (isDefined(existing)) {
         await paymentRepository.update(existing.id, values);
       } else {
-        await paymentRepository.insert(values);
+        // Direct repository writes skip the API layer that fills the
+        // required actor columns.
+        await paymentRepository.insert({
+          ...values,
+          createdBy: STRIPE_ACTOR,
+          updatedBy: STRIPE_ACTOR,
+        });
       }
 
       return { isNew: !isDefined(existing), personId };
