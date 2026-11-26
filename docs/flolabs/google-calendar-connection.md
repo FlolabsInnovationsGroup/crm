@@ -19,7 +19,11 @@ Status on 26 Nov 2026: **not set up yet.** Needed for plan item 6 (time from app
    - "In production" but unverified, each person sees Google's "unverified app" warning once (Advanced > Go to FloLabs CRM).
    - Google allows up to 100 people in total to connect in this state, which is plenty for the interviewers.
    - Source: Google Cloud Help, "Manage App Audience".
-2. **Open:** which Google account owns the Google Cloud project. It should be a company account that stays when people change, not someone's personal account.
+2. **Decided on 26 Nov:** John's Google account owns the Google Cloud project.
+3. **Answered by Nago on 26 Nov:** Calendly bookings land in two calendars only, `hr.team@flolabsinnovations.com` and `people@flolabsinnovations.com`. So two accounts get connected, not one per interviewer.
+   - Still to confirm: `people@` is an ordinary Google account like `hr.team@`, and who has the sign-in for each.
+   - One CRM user can connect both accounts.
+   - A booking that shows up in both calendars is fine, because item 6 takes the earliest meeting per person.
 
 ### Problem found in the code (fix before switching on)
 
@@ -50,7 +54,7 @@ The CRM always asks Google for Gmail read and send access together with the cale
    - Settings > Accounts > New shows **Connect with Google**.
    - Connect one test account first. Google's screen asks only for the calendar.
    - Its events appear under Calendars.
-5. **Interviewers:** each connects the Google account that Calendly writes bookings to.
+5. **Connect the two booking calendars**, `hr.team@` and `people@`, signed in to Google as each one.
    - Turn email sync off if asked.
    - Set calendar visibility to the most private option.
 

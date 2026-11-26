@@ -170,7 +170,7 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 
 Needed before item 6 shows any numbers. Parked on 26 Nov until the answers below come in. Details and steps: `docs/flolabs/google-calendar-connection.md`.
 
-1. **Ceren:** do all Calendly bookings land in the `hr.team@flolabsinnovations.com` calendar? If yes, only that one account needs connecting.
+1. **Answered by Nago on 26 Nov:** Calendly bookings land in two calendars only, `hr.team@flolabsinnovations.com` and `people@flolabsinnovations.com`. Both get connected. Still to confirm: `people@` is also an ordinary Google account like `hr.team@`, and who can sign in to each.
 2. **Mohamed:** approve the small code change that makes the CRM ask Google for the calendar only, not Gmail. Without it, Google requires a security review for our app.
 3. **John's Google account:** create the Google Cloud app (External, In production, not submitted for verification) and its client ID and secret.
 4. Then, in order: the server settings script, connecting the calendar, warning Mani about the n8n webhooks, and running `recalculateMeetingTimes` once.
