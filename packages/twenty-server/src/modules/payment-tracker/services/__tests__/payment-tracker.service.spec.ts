@@ -83,6 +83,14 @@ describe('PaymentTrackerService', () => {
         personId: 'live-person',
         stripePaymentIntentId: 'pi_1',
         amount: { amountMicros: 100_000_000, currencyCode: 'USD' },
+        createdBy: expect.objectContaining({
+          source: 'SYSTEM',
+          name: 'Stripe',
+        }),
+        updatedBy: expect.objectContaining({
+          source: 'SYSTEM',
+          name: 'Stripe',
+        }),
       }),
     );
   });
