@@ -8,6 +8,7 @@ import { EmailComposerService } from 'src/engine/core-modules/tool/tools/email-t
 import { EmailToolInputZodSchema } from 'src/engine/core-modules/tool/tools/email-tool/email-tool.schema';
 import { EmailToolException } from 'src/engine/core-modules/tool/tools/email-tool/exceptions/email-tool.exception';
 import { getMissingDraftEmailScopes } from 'src/engine/core-modules/tool/tools/email-tool/utils/get-missing-draft-email-scopes.util';
+import { getOutboundEmailBodies } from 'src/engine/core-modules/tool/tools/email-tool/utils/get-outbound-email-bodies.util';
 import { isInsufficientPermissionsError } from 'src/engine/core-modules/tool/tools/email-tool/utils/is-insufficient-permissions-error.util';
 import { type ComposedEmail } from 'src/engine/core-modules/tool/tools/email-tool/types/composed-email.type';
 import { type EmailToolInput } from 'src/engine/core-modules/tool/tools/email-tool/types/email-tool-input.type';
@@ -121,8 +122,7 @@ export class DraftEmailTool implements Tool {
         cc: data.recipients.cc.length > 0 ? data.recipients.cc : undefined,
         bcc: data.recipients.bcc.length > 0 ? data.recipients.bcc : undefined,
         subject: data.sanitizedSubject,
-        body: data.plainTextBody,
-        html: data.sanitizedHtmlBody,
+        ...getOutboundEmailBodies(data),
         attachments: data.attachments,
         inReplyTo: data.inReplyTo,
         threadExternalId: data.threadExternalId,

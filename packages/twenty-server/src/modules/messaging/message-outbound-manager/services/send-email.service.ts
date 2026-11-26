@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { type ComposedEmail } from 'src/engine/core-modules/tool/tools/email-tool/types/composed-email.type';
+import { getOutboundEmailBodies } from 'src/engine/core-modules/tool/tools/email-tool/utils/get-outbound-email-bodies.util';
 import { MessagingDraftSendService } from 'src/modules/messaging/message-outbound-manager/services/messaging-draft-send.service';
 import { MessagingMessageOutboundService } from 'src/modules/messaging/message-outbound-manager/services/messaging-message-outbound.service';
 import { SentMessagePersistenceService } from 'src/modules/messaging/message-outbound-manager/services/sent-message-persistence.service';
@@ -67,8 +68,7 @@ export class SendEmailService {
       cc: data.recipients.cc.length > 0 ? data.recipients.cc : undefined,
       bcc: data.recipients.bcc.length > 0 ? data.recipients.bcc : undefined,
       subject: data.sanitizedSubject,
-      body: data.plainTextBody,
-      html: data.sanitizedHtmlBody,
+      ...getOutboundEmailBodies(data),
       attachments: data.attachments,
       inReplyTo: data.inReplyTo,
       threadExternalId: data.threadExternalId,
