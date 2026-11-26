@@ -7,8 +7,8 @@ import {
 } from 'src/modules/payment-tracker/types/recorded-payment.type';
 import { stripeAmountToMicros } from 'src/modules/payment-tracker/utils/stripe-amount-to-micros.util';
 
-// Inquiries (warning_*) and prevented disputes never take money, so only
-// "lost" counts against the payment.
+// Only "lost" takes money through the dispute itself; a prevented dispute
+// resolved by refund already shows in the charge's refunded amount.
 const toDisputeStatus = (
   status: Stripe.Dispute.Status,
 ): RecordedDisputeStatus => {
@@ -31,9 +31,10 @@ export const toRecordedDispute = (
     return null;
   }
 
-  const recordedDisputes = disputes.map((dispute) => ({
+  const recordedDisputes: RecordedDispute[] = disputes.map((dispute) => ({
     status: toDisputeStatus(dispute.status),
     amountMicros: stripeAmountToMicros(dispute.amount, dispute.currency),
+    currencyCode: dispute.currency.toUpperCase(),
   }));
 
   const lostDisputes = recordedDisputes.filter(
@@ -41,12 +42,14 @@ export const toRecordedDispute = (
   );
 
   if (isNonEmptyArray(lostDisputes)) {
+    const currencyCode = lostDisputes[0].currencyCode;
+
     return {
       status: 'LOST',
-      amountMicros: lostDisputes.reduce(
-        (total, dispute) => total + dispute.amountMicros,
-        0,
-      ),
+      amountMicros: lostDisputes
+        .filter((dispute) => dispute.currencyCode === currencyCode)
+        .reduce((total, dispute) => total + dispute.amountMicros, 0),
+      currencyCode,
     };
   }
 

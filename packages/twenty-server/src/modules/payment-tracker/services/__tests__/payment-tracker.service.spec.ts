@@ -112,16 +112,22 @@ describe('PaymentTrackerService', () => {
     );
   });
 
-  it('saves a dispute on the payment and clears it when there is none', async () => {
-    paymentRepository.findOne.mockResolvedValue({
-      id: 'payment-id',
-      personId: 'person',
-      deletedAt: null,
-    });
+  it('saves a dispute on the payment and clears it once Stripe no longer reports one', async () => {
+    paymentRepository.findOne
+      .mockResolvedValueOnce({ id: 'payment-id', personId: 'person' })
+      .mockResolvedValueOnce({
+        id: 'payment-id',
+        personId: 'person',
+        disputeStatus: 'LOST',
+      });
 
     await service.recordPayment('workspace-id', {
       ...PAYMENT,
-      dispute: { status: 'LOST', amountMicros: 40_000_000 },
+      dispute: {
+        status: 'LOST',
+        amountMicros: 40_000_000,
+        currencyCode: 'USD',
+      },
     });
     await service.recordPayment('workspace-id', PAYMENT);
 
@@ -141,6 +147,20 @@ describe('PaymentTrackerService', () => {
         disputedAmount: { amountMicros: null, currencyCode: '' },
       }),
     );
+  });
+
+  it('leaves the dispute fields alone on payments that never had a dispute', async () => {
+    paymentRepository.findOne.mockResolvedValue({
+      id: 'payment-id',
+      personId: 'person',
+    });
+
+    await service.recordPayment('workspace-id', PAYMENT);
+
+    const [, values] = paymentRepository.update.mock.calls[0];
+
+    expect(values).not.toHaveProperty('disputeStatus');
+    expect(values).not.toHaveProperty('disputedAmount');
   });
 
   it('does not bring back a payment someone deleted', async () => {

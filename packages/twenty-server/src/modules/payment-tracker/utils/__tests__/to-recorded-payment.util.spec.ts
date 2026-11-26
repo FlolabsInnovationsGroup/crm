@@ -51,7 +51,11 @@ describe('toRecordedPayment', () => {
       expect(
         toRecordedPayment(paymentIntent(), [dispute('needs_response')])
           ?.dispute,
-      ).toEqual({ status: 'OPEN', amountMicros: 250_000_000 });
+      ).toEqual({
+        status: 'OPEN',
+        amountMicros: 250_000_000,
+        currencyCode: 'USD',
+      });
     });
 
     it('treats won, prevented and closed inquiries as won', () => {
@@ -69,7 +73,11 @@ describe('toRecordedPayment', () => {
           dispute('won'),
           dispute('lost', 10_000),
         ])?.dispute,
-      ).toEqual({ status: 'LOST', amountMicros: 100_000_000 });
+      ).toEqual({
+        status: 'LOST',
+        amountMicros: 100_000_000,
+        currencyCode: 'USD',
+      });
     });
   });
 

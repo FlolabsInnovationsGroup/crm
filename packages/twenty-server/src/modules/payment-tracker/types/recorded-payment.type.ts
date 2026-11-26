@@ -8,6 +8,7 @@ export type RecordedDisputeStatus = 'OPEN' | 'WON' | 'LOST';
 export type RecordedDispute = {
   status: RecordedDisputeStatus;
   amountMicros: number;
+  currencyCode: string;
 };
 
 // One Stripe payment as the CRM stores it; amounts are in currency micros.
