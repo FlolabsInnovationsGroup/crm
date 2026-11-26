@@ -7,6 +7,7 @@ import {
   type RecordedPaymentStatus,
 } from 'src/modules/payment-tracker/types/recorded-payment.type';
 import { stripeAmountToMicros } from 'src/modules/payment-tracker/utils/stripe-amount-to-micros.util';
+import { toRecordedDispute } from 'src/modules/payment-tracker/utils/to-recorded-dispute.util';
 
 const getPayerEmail = (paymentIntent: Stripe.PaymentIntent) => {
   const charge =
@@ -34,6 +35,7 @@ const getPayerEmail = (paymentIntent: Stripe.PaymentIntent) => {
 // Expects the payment intent retrieved with latest_charge and customer expanded.
 export const toRecordedPayment = (
   paymentIntent: Stripe.PaymentIntent,
+  disputes: Stripe.Dispute[] = [],
 ): RecordedPayment | null => {
   if (paymentIntent.status !== 'succeeded') {
     return null;
@@ -70,5 +72,6 @@ export const toRecordedPayment = (
       ? paymentIntent.customer
       : (paymentIntent.customer?.id ?? null),
     description: paymentIntent.description ?? null,
+    dispute: toRecordedDispute(disputes),
   };
 };

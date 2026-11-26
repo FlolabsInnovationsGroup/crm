@@ -90,6 +90,13 @@ export class PaymentTrackerService {
         payerEmail: payment.payerEmail,
         stripeCustomerId: payment.stripeCustomerId,
         description: payment.description,
+        disputeStatus: payment.dispute?.status ?? null,
+        disputedAmount: isDefined(payment.dispute)
+          ? {
+              amountMicros: payment.dispute.amountMicros,
+              currencyCode: payment.currencyCode,
+            }
+          : EMPTY_CURRENCY_VALUE,
         personId,
       };
 
@@ -196,6 +203,10 @@ export class PaymentTrackerService {
             refundedAmountMicros: Number(
               payment.refundedAmount?.amountMicros ?? 0,
             ),
+            lostToDisputeMicros:
+              payment.disputeStatus === 'LOST'
+                ? Number(payment.disputedAmount?.amountMicros ?? 0)
+                : 0,
             currencyCode: payment.amount?.currencyCode ?? '',
             paidAt: new Date(payment.paidAt ?? 0),
           })),

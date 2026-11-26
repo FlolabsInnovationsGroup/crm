@@ -25,7 +25,12 @@ const getPaymentIntentId = (event: Stripe.Event): string | null => {
   switch (event.type) {
     case 'payment_intent.succeeded':
       return event.data.object.id;
-    case 'charge.refunded': {
+    case 'charge.refunded':
+    case 'charge.dispute.created':
+    case 'charge.dispute.updated':
+    case 'charge.dispute.closed':
+    case 'charge.dispute.funds_withdrawn':
+    case 'charge.dispute.funds_reinstated': {
       const paymentIntent = event.data.object.payment_intent;
 
       return isString(paymentIntent)

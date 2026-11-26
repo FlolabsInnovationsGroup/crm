@@ -1,4 +1,7 @@
-import { type RecordedPaymentStatus } from 'src/modules/payment-tracker/types/recorded-payment.type';
+import {
+  type RecordedDisputeStatus,
+  type RecordedPaymentStatus,
+} from 'src/modules/payment-tracker/types/recorded-payment.type';
 
 type CurrencyValue = {
   amountMicros: number | null;
@@ -14,6 +17,8 @@ export type StripePaymentRecord = {
   refundedAmount: CurrencyValue | null;
   paidAt: string | Date | null;
   paymentStatus: RecordedPaymentStatus | null;
+  disputeStatus?: RecordedDisputeStatus | null;
+  disputedAmount?: CurrencyValue | null;
   deletedAt?: string | null;
 };
 

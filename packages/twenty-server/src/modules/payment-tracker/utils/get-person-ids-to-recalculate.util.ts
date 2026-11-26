@@ -16,6 +16,8 @@ const PAYMENT_FIELDS_AFFECTING_TOTALS = [
   'refundedAmount',
   'paidAt',
   'paymentStatus',
+  'disputeStatus',
+  'disputedAmount',
 ];
 
 const getPersonIds = (events: PaymentEvent[]) =>

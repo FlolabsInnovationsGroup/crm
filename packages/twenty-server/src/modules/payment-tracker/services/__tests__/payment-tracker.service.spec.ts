@@ -14,6 +14,7 @@ const PAYMENT: RecordedPayment = {
   payerEmail: 'jane@example.com',
   stripeCustomerId: 'cus_1',
   description: null,
+  dispute: null,
 };
 
 describe('PaymentTrackerService', () => {
@@ -111,6 +112,37 @@ describe('PaymentTrackerService', () => {
     );
   });
 
+  it('saves a dispute on the payment and clears it when there is none', async () => {
+    paymentRepository.findOne.mockResolvedValue({
+      id: 'payment-id',
+      personId: 'person',
+      deletedAt: null,
+    });
+
+    await service.recordPayment('workspace-id', {
+      ...PAYMENT,
+      dispute: { status: 'LOST', amountMicros: 40_000_000 },
+    });
+    await service.recordPayment('workspace-id', PAYMENT);
+
+    expect(paymentRepository.update).toHaveBeenNthCalledWith(
+      1,
+      'payment-id',
+      expect.objectContaining({
+        disputeStatus: 'LOST',
+        disputedAmount: { amountMicros: 40_000_000, currencyCode: 'USD' },
+      }),
+    );
+    expect(paymentRepository.update).toHaveBeenNthCalledWith(
+      2,
+      'payment-id',
+      expect.objectContaining({
+        disputeStatus: null,
+        disputedAmount: { amountMicros: null, currencyCode: '' },
+      }),
+    );
+  });
+
   it('does not bring back a payment someone deleted', async () => {
     paymentRepository.findOne.mockResolvedValue({
       id: 'payment-id',
@@ -174,6 +206,44 @@ describe('PaymentTrackerService', () => {
           amountMicros: 200_000_000,
           currencyCode: 'USD',
         },
+      }),
+    );
+  });
+
+  it('counts a lost dispute as money not received', async () => {
+    personRepository.find.mockResolvedValue([
+      {
+        id: 'person',
+        paymentPlan: 'CUSTOM',
+        paymentAgreedAmount: { amountMicros: 300_000_000, currencyCode: 'USD' },
+      },
+    ]);
+    paymentRepository.find.mockResolvedValue([
+      {
+        personId: 'person',
+        paidAt: '2026-11-20T10:00:00Z',
+        amount: { amountMicros: 100_000_000, currencyCode: 'USD' },
+        refundedAmount: { amountMicros: 0, currencyCode: 'USD' },
+        disputeStatus: 'LOST',
+        disputedAmount: { amountMicros: 100_000_000, currencyCode: 'USD' },
+      },
+      {
+        personId: 'person',
+        paidAt: '2026-11-21T10:00:00Z',
+        amount: { amountMicros: 100_000_000, currencyCode: 'USD' },
+        refundedAmount: { amountMicros: 0, currencyCode: 'USD' },
+        disputeStatus: 'OPEN',
+        disputedAmount: { amountMicros: 100_000_000, currencyCode: 'USD' },
+      },
+    ]);
+
+    await service.recalculatePeopleInWorkspace('workspace-id', ['person']);
+
+    expect(personRepository.update).toHaveBeenCalledWith(
+      'person',
+      expect.objectContaining({
+        paymentPaidAmount: { amountMicros: 100_000_000, currencyCode: 'USD' },
+        paymentInstallmentCount: 1,
       }),
     );
   });

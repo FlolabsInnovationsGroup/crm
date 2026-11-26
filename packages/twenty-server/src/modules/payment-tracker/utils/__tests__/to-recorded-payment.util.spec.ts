@@ -39,6 +39,37 @@ describe('toRecordedPayment', () => {
       payerEmail: 'jane@example.com',
       stripeCustomerId: 'cus_1',
       description: 'Mastery Accelerator, month 1',
+      dispute: null,
+    });
+  });
+
+  describe('disputes', () => {
+    const dispute = (status: Stripe.Dispute.Status, amount = 25_000) =>
+      ({ status, amount, currency: 'usd' }) as Stripe.Dispute;
+
+    it('marks a dispute still under review as open', () => {
+      expect(
+        toRecordedPayment(paymentIntent(), [dispute('needs_response')])
+          ?.dispute,
+      ).toEqual({ status: 'OPEN', amountMicros: 250_000_000 });
+    });
+
+    it('treats won, prevented and closed inquiries as won', () => {
+      for (const status of ['won', 'prevented', 'warning_closed'] as const) {
+        expect(
+          toRecordedPayment(paymentIntent(), [dispute(status)])?.dispute
+            ?.status,
+        ).toBe('WON');
+      }
+    });
+
+    it('reports a lost dispute with the amount taken back', () => {
+      expect(
+        toRecordedPayment(paymentIntent(), [
+          dispute('won'),
+          dispute('lost', 10_000),
+        ])?.dispute,
+      ).toEqual({ status: 'LOST', amountMicros: 100_000_000 });
     });
   });
 
