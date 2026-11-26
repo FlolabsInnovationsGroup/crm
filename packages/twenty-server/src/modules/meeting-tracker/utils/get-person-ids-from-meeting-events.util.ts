@@ -23,6 +23,28 @@ export const getPersonIdsFromParticipantEvents = (
     ]),
   );
 
+export const getPersonIdsOfBookings = getPersonIdsFromParticipantEvents;
+
+const BOOKING_FIELDS_AFFECTING_MEETINGS = [
+  'personId',
+  'meetingStartsAt',
+  'bookedAt',
+  'bookingStatus',
+];
+
+export const getPersonIdsFromBookingEvents = (
+  events: RecordEvent<{ personId?: string | null }>[],
+) =>
+  getPersonIdsOfBookings(
+    events.filter(
+      ({ properties }) =>
+        !isDefined(properties.updatedFields) ||
+        properties.updatedFields.some((field) =>
+          BOOKING_FIELDS_AFFECTING_MEETINGS.includes(field),
+        ),
+    ),
+  );
+
 const EVENT_FIELDS_AFFECTING_MEETINGS = [
   'startsAt',
   'isCanceled',

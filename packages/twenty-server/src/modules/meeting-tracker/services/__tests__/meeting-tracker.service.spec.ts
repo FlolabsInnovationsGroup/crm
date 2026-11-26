@@ -30,10 +30,12 @@ describe('MeetingTrackerService', () => {
   const personRepository = { find: jest.fn(), update: jest.fn() };
   const participantRepository = { find: jest.fn() };
   const eventRepository = { find: jest.fn() };
+  const bookingRepository = { find: jest.fn() };
   const repositories: Record<string, unknown> = {
     person: personRepository,
     calendarEventParticipant: participantRepository,
     calendarEvent: eventRepository,
+    calendlyBooking: bookingRepository,
   };
   const workspaceOrmManager = {
     executeInWorkspaceContext: jest.fn((callback: () => unknown) => callback()),
@@ -44,6 +46,7 @@ describe('MeetingTrackerService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    bookingRepository.find.mockResolvedValue([]);
 
     const module = await Test.createTestingModule({
       providers: [
@@ -165,5 +168,35 @@ describe('MeetingTrackerService', () => {
         }),
       }),
     );
+  });
+
+  it('counts a Calendly booking and skips cancelled ones', async () => {
+    personRepository.find.mockResolvedValue([applicant()]);
+    participantRepository.find.mockResolvedValue([]);
+    bookingRepository.find.mockResolvedValue([
+      {
+        id: 'cancelled-booking',
+        personId: 'applicant',
+        meetingStartsAt: '2026-11-05T09:00:00Z',
+        bookedAt: '2026-11-03T12:00:00Z',
+        bookingStatus: 'CANCELED',
+      },
+      {
+        id: 'booking',
+        personId: 'applicant',
+        meetingStartsAt: '2026-11-06T09:00:00Z',
+        bookedAt: '2026-11-03T12:30:00Z',
+        bookingStatus: 'ACTIVE',
+      },
+    ]);
+
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(personRepository.update).toHaveBeenCalledWith('applicant', {
+      firstMeetingAt: '2026-11-06T09:00:00.000Z',
+      meetingBookedAt: '2026-11-03T12:30:00.000Z',
+      daysToMeeting: 4,
+      firstMeetingEventId: 'booking',
+    });
   });
 });
