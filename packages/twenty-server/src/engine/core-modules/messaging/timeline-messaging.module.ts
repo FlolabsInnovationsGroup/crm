@@ -5,9 +5,11 @@ import { FileUrlModule } from 'src/engine/core-modules/file/file-url/file-url.mo
 import { GetMessagesService } from 'src/engine/core-modules/messaging/services/get-messages.service';
 import { TeamInboxContactService } from 'src/engine/core-modules/messaging/services/team-inbox-contact.service';
 import { TeamInboxClosedService } from 'src/engine/core-modules/messaging/services/team-inbox-closed.service';
+import { TeamInboxManualReviewHistoryService } from 'src/engine/core-modules/messaging/services/team-inbox-manual-review-history.service';
 import { TeamInboxManualReviewService } from 'src/engine/core-modules/messaging/services/team-inbox-manual-review.service';
 import { TeamInboxReadStateService } from 'src/engine/core-modules/messaging/services/team-inbox-read-state.service';
 import { TimelineMessagingService } from 'src/engine/core-modules/messaging/services/timeline-messaging.service';
+import { TeamInboxManualReviewHistoryResolver } from 'src/engine/core-modules/messaging/team-inbox-manual-review-history.resolver';
 import { TimelineMessagingResolver } from 'src/engine/core-modules/messaging/timeline-messaging.resolver';
 import { RelatedPersonIdsModule } from 'src/engine/core-modules/related-person-ids/related-person-ids.module';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
@@ -41,6 +43,8 @@ import { TargetModule } from 'src/engine/core-modules/target/target.module';
     GetMessagesService,
     TeamInboxReadStateService,
     TeamInboxManualReviewService,
+    TeamInboxManualReviewHistoryService,
+    TeamInboxManualReviewHistoryResolver,
     TeamInboxClosedService,
     TeamInboxContactService,
   ],
