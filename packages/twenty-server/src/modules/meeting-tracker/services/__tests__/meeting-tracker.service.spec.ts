@@ -1,0 +1,169 @@
+import { Test } from '@nestjs/testing';
+
+import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
+import { MeetingTrackerService } from 'src/modules/meeting-tracker/services/meeting-tracker.service';
+
+const applicant = (overrides: Record<string, unknown> = {}) => ({
+  id: 'applicant',
+  applicationDate: '2026-11-02T10:00:00Z',
+  firstMeetingAt: null,
+  meetingBookedAt: null,
+  daysToMeeting: null,
+  firstMeetingEventId: null,
+  ...overrides,
+});
+
+const calendarEvent = (
+  id: string,
+  overrides: Record<string, unknown> = {},
+) => ({
+  id,
+  startsAt: '2026-11-09T14:00:00Z',
+  externalCreatedAt: '2026-11-04T08:00:00Z',
+  createdAt: '2026-11-04T08:05:00Z',
+  isCanceled: false,
+  isFullDay: false,
+  ...overrides,
+});
+
+describe('MeetingTrackerService', () => {
+  const personRepository = { find: jest.fn(), update: jest.fn() };
+  const participantRepository = { find: jest.fn() };
+  const eventRepository = { find: jest.fn() };
+  const repositories: Record<string, unknown> = {
+    person: personRepository,
+    calendarEventParticipant: participantRepository,
+    calendarEvent: eventRepository,
+  };
+  const workspaceOrmManager = {
+    executeInWorkspaceContext: jest.fn((callback: () => unknown) => callback()),
+    getRepository: jest.fn((name: string) => repositories[name]),
+  };
+
+  let service: MeetingTrackerService;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const module = await Test.createTestingModule({
+      providers: [
+        MeetingTrackerService,
+        { provide: WorkspaceOrmManager, useValue: workspaceOrmManager },
+      ],
+    }).compile();
+
+    service = module.get(MeetingTrackerService);
+  });
+
+  it('writes the first meeting the applicant was invited to', async () => {
+    personRepository.find.mockResolvedValue([applicant()]);
+    participantRepository.find.mockResolvedValue([
+      {
+        personId: 'applicant',
+        calendarEventId: 'interview',
+        responseStatus: 'ACCEPTED',
+      },
+    ]);
+    eventRepository.find.mockResolvedValue([calendarEvent('interview')]);
+
+    const result = await service.recalculatePeople('workspace-id', [
+      'applicant',
+    ]);
+
+    expect(result).toEqual({ peopleChecked: 1, peopleWithMeeting: 1 });
+    expect(personRepository.update).toHaveBeenCalledWith('applicant', {
+      firstMeetingAt: '2026-11-09T14:00:00.000Z',
+      meetingBookedAt: '2026-11-04T08:00:00.000Z',
+      daysToMeeting: 7,
+      firstMeetingEventId: 'interview',
+    });
+  });
+
+  it('does not count invitations the applicant declined', async () => {
+    personRepository.find.mockResolvedValue([applicant()]);
+    participantRepository.find.mockResolvedValue([
+      {
+        personId: 'applicant',
+        calendarEventId: 'declined',
+        responseStatus: 'DECLINED',
+      },
+      {
+        personId: 'applicant',
+        calendarEventId: 'later',
+        responseStatus: 'NEEDS_ACTION',
+      },
+    ]);
+    eventRepository.find.mockResolvedValue([
+      calendarEvent('later', {
+        startsAt: '2026-11-12T14:00:00Z',
+        externalCreatedAt: '',
+      }),
+    ]);
+
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(personRepository.update).toHaveBeenCalledWith(
+      'applicant',
+      expect.objectContaining({
+        firstMeetingEventId: 'later',
+        daysToMeeting: 10,
+        // An empty external date falls back to when the CRM saw the event.
+        meetingBookedAt: '2026-11-04T08:05:00.000Z',
+      }),
+    );
+  });
+
+  it('clears the meeting once its event is gone and leaves unchanged people alone', async () => {
+    personRepository.find.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) =>
+        'firstMeetingEventId' in where
+          ? [{ id: 'applicant' }]
+          : [
+              applicant({
+                firstMeetingAt: '2026-11-09T14:00:00Z',
+                meetingBookedAt: '2026-11-04T08:00:00Z',
+                daysToMeeting: 7,
+                firstMeetingEventId: 'cancelled-interview',
+              }),
+            ],
+    );
+    participantRepository.find.mockResolvedValue([]);
+
+    await service.recalculatePeopleWhoseMeetingWasRemoved('workspace-id', [
+      'cancelled-interview',
+    ]);
+
+    expect(personRepository.update).toHaveBeenCalledWith('applicant', {
+      firstMeetingAt: null,
+      meetingBookedAt: null,
+      daysToMeeting: null,
+      firstMeetingEventId: null,
+    });
+
+    personRepository.update.mockClear();
+    // Empty text fields come back from the ORM as ''.
+    personRepository.find.mockResolvedValue([
+      applicant({ firstMeetingEventId: '' }),
+    ]);
+
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(personRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('only looks at guests who are not team members', async () => {
+    personRepository.find.mockResolvedValue([applicant()]);
+    participantRepository.find.mockResolvedValue([]);
+
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(participantRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isOrganizer: false,
+          workspaceMemberId: expect.anything(),
+        }),
+      }),
+    );
+  });
+});
