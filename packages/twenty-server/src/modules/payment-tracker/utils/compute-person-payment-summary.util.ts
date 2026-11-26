@@ -6,9 +6,18 @@ import { type PaymentStatus } from 'src/modules/payment-tracker/types/payment-st
 type SummaryPayment = {
   amountMicros: number;
   refundedAmountMicros: number;
+  lostToDisputeMicros?: number;
   currencyCode: string;
   paidAt: Date;
 };
+
+const getKeptAmountMicros = (payment: SummaryPayment) =>
+  Math.max(
+    payment.amountMicros -
+      payment.refundedAmountMicros -
+      (payment.lostToDisputeMicros ?? 0),
+    0,
+  );
 
 export type PersonPaymentSummary = {
   paidAmountMicros: number;
@@ -31,9 +40,7 @@ export const computePersonPaymentSummary = ({
   payments: SummaryPayment[];
 }): PersonPaymentSummary => {
   const paidPayments = payments
-    .filter(
-      (payment) => payment.amountMicros - payment.refundedAmountMicros > 0,
-    )
+    .filter((payment) => getKeptAmountMicros(payment) > 0)
     .sort((first, second) => first.paidAt.getTime() - second.paidAt.getTime());
 
   const currencyCode =
@@ -44,8 +51,7 @@ export const computePersonPaymentSummary = ({
     (payment) => payment.currencyCode === currencyCode,
   );
   const paidAmountMicros = countedPayments.reduce(
-    (total, payment) =>
-      total + payment.amountMicros - payment.refundedAmountMicros,
+    (total, payment) => total + getKeptAmountMicros(payment),
     0,
   );
 

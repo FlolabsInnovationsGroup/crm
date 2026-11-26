@@ -227,6 +227,23 @@ await ensureField(payment, {
   ],
 });
 await ensureField(payment, {
+  name: 'disputeStatus',
+  label: 'Dispute',
+  type: 'SELECT',
+  icon: 'IconAlertTriangle',
+  options: [
+    option('OPEN', 'Open', 'orange', 0),
+    option('WON', 'Won or closed', 'green', 1),
+    option('LOST', 'Lost', 'red', 2),
+  ],
+});
+await ensureField(payment, {
+  name: 'disputedAmount',
+  label: 'Disputed amount',
+  type: 'CURRENCY',
+  icon: 'IconCoins',
+});
+await ensureField(payment, {
   name: 'payerEmail',
   label: 'Payer email',
   type: 'TEXT',

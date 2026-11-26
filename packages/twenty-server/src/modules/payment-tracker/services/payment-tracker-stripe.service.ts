@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { isString } from '@sniptt/guards';
 import { isDefined } from 'twenty-shared/utils';
 import Stripe from 'stripe';
 
@@ -49,7 +50,29 @@ export class PaymentTrackerStripeService {
       { expand: PAYMENT_INTENT_EXPAND },
     );
 
-    return toRecordedPayment(paymentIntent);
+    return toRecordedPayment(
+      paymentIntent,
+      await this.getDisputes(paymentIntent),
+    );
+  }
+
+  // Disputes are read back rather than taken from the event, so events that
+  // arrive out of order cannot leave an old status behind.
+  private async getDisputes(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<Stripe.Dispute[]> {
+    const charge = paymentIntent.latest_charge;
+
+    if (!isDefined(charge) || isString(charge) || !charge.disputed) {
+      return [];
+    }
+
+    const disputes = await this.getStripe().disputes.list({
+      payment_intent: paymentIntent.id,
+      limit: 100,
+    });
+
+    return disputes.data;
   }
 
   async *listPaymentsSince(since: Date): AsyncGenerator<RecordedPayment> {
@@ -60,7 +83,10 @@ export class PaymentTrackerStripeService {
     });
 
     for await (const paymentIntent of paymentIntents) {
-      const payment = toRecordedPayment(paymentIntent);
+      const payment = toRecordedPayment(
+        paymentIntent,
+        await this.getDisputes(paymentIntent),
+      );
 
       if (isDefined(payment)) {
         yield payment;

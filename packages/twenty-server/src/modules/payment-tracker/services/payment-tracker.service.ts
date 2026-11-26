@@ -14,7 +14,10 @@ import {
 } from 'src/modules/payment-tracker/types/payment-record.type';
 import { type PaymentPlan } from 'src/modules/payment-tracker/types/payment-plan.type';
 import { type RecordPaymentResult } from 'src/modules/payment-tracker/types/record-payment-result.type';
-import { type RecordedPayment } from 'src/modules/payment-tracker/types/recorded-payment.type';
+import {
+  type RecordedDispute,
+  type RecordedPayment,
+} from 'src/modules/payment-tracker/types/recorded-payment.type';
 import { computePersonPaymentSummary } from 'src/modules/payment-tracker/utils/compute-person-payment-summary.util';
 import { formatPaymentName } from 'src/modules/payment-tracker/utils/format-payment-name.util';
 
@@ -31,6 +34,27 @@ const toPaymentPlan = (value: string | null): PaymentPlan | null =>
 // Writing null to a currency field leaves the old value, so it is cleared
 // with an empty amount instead.
 const EMPTY_CURRENCY_VALUE = { amountMicros: null, currencyCode: '' };
+
+// Dispute fields are left out for payments that never had one, so a sync
+// does not rewrite every payment just to store an empty value.
+const getDisputeValues = (
+  dispute: RecordedDispute | null,
+  existing: StripePaymentRecord | null,
+) => {
+  if (isDefined(dispute)) {
+    return {
+      disputeStatus: dispute.status,
+      disputedAmount: {
+        amountMicros: dispute.amountMicros,
+        currencyCode: dispute.currencyCode,
+      },
+    };
+  }
+
+  return isDefined(existing?.disputeStatus)
+    ? { disputeStatus: null, disputedAmount: EMPTY_CURRENCY_VALUE }
+    : {};
+};
 
 const STRIPE_ACTOR: ActorMetadata = {
   source: FieldActorSource.SYSTEM,
@@ -90,6 +114,7 @@ export class PaymentTrackerService {
         payerEmail: payment.payerEmail,
         stripeCustomerId: payment.stripeCustomerId,
         description: payment.description,
+        ...getDisputeValues(payment.dispute, existing),
         personId,
       };
 
@@ -196,6 +221,12 @@ export class PaymentTrackerService {
             refundedAmountMicros: Number(
               payment.refundedAmount?.amountMicros ?? 0,
             ),
+            lostToDisputeMicros:
+              payment.disputeStatus === 'LOST' &&
+              payment.disputedAmount?.currencyCode ===
+                payment.amount?.currencyCode
+                ? Number(payment.disputedAmount?.amountMicros ?? 0)
+                : 0,
             currencyCode: payment.amount?.currencyCode ?? '',
             paidAt: new Date(payment.paidAt ?? 0),
           })),

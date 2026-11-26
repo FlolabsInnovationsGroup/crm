@@ -18,7 +18,9 @@ Plan item 5. Shows on each person whether they paid, how much, and what is left,
 
 **Matching:** a payment is linked to the person whose email matches the payer's (the oldest one if several match; deleted people are skipped). A payment someone linked by hand keeps that person. If you clear a payment's Person on purpose, the next refund or sync for it links it by email again.
 
-**Status rules:** Full scholarship is always "Scholarship". Otherwise "Not paid" until money arrives; then "Paid in full" once the agreed amount is reached (or after any payment on a Full one-time plan with no agreed amount), and "Paying in installments" before that. Refunds are subtracted. Payments in another currency than the agreed amount are listed but not added to the total. A person with payments but no plan shows "Paying in installments". Lost disputes are not subtracted; correct one by entering the lost amount in the payment's Refunded field, and the person's totals update.
+**Status rules:** Full scholarship is always "Scholarship". Otherwise "Not paid" until money arrives; then "Paid in full" once the agreed amount is reached (or after any payment on a Full one-time plan with no agreed amount), and "Paying in installments" before that. Refunds are subtracted. Payments in another currency than the agreed amount are listed but not added to the total. A person with payments but no plan shows "Paying in installments".
+
+**Disputes:** a payment's Dispute field shows Open while the bank reviews it, then Won or closed, or Lost. Only a lost dispute changes the person's totals: the disputed amount is subtracted like a refund. Inquiries and prevented disputes count as won, because Stripe takes no money for them.
 
 **Privacy:** payment fields are part of a person, so any workflow or outgoing webhook that sends person updates also sends them.
 
@@ -26,11 +28,11 @@ Plan item 5. Shows on each person whether they paid, how much, and what is left,
 
 1. **Create the fields and the Payments object:**
    `TWENTY_URL=https://crm.flolabsinnovations.com TWENTY_TOKEN_FILE=<file holding an admin API key> node packages/twenty-utils/flolabs/setup-payments.mjs`
-   Running it again is safe, but it does not change fields that already exist. If the Payments object was created before the Stripe payment ID became unique, turn on "Unique" for that field by hand in Settings > Data model.
-2. **Create a restricted Stripe key** (Stripe > Developers > API keys > Create restricted key) with **Read** on Customers, Charges, PaymentIntents and nothing else.
+   Running it again is safe: it adds fields that are missing (such as the dispute fields) but does not change fields that already exist. Run it before deploying a server version that writes new fields, or saving payments fails. If the Payments object was created before the Stripe payment ID became unique, turn on "Unique" for that field by hand in Settings > Data model.
+2. **Create a restricted Stripe key** (Stripe > Developers > API keys > Create restricted key) with **Read** on Customers, Charges and Refunds, Payment Intents and Payment Disputes, and nothing else.
 3. **Create the webhook** (Stripe > Developers > Webhooks > Add endpoint):
    - URL: `https://crm.flolabsinnovations.com/webhooks/flolabs-payments`
-   - Events: `payment_intent.succeeded` and `charge.refunded`
+   - Events: `payment_intent.succeeded`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed` and `charge.dispute.funds_reinstated`
    - Copy its signing secret.
 4. **Add the settings on the server** in the CRM's env (never in chat or a screenshot), then restart the server:
    - `FLOLABS_PAYMENTS_WORKSPACE_ID` = the FloLabs workspace id

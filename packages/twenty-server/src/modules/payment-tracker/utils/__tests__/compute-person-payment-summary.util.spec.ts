@@ -86,6 +86,40 @@ describe('computePersonPaymentSummary', () => {
     expect(summary.status).toBe('PAYING_INSTALLMENTS');
   });
 
+  it('takes a lost dispute off the total and drops a payment lost in full', () => {
+    const summary = computePersonPaymentSummary({
+      plan: 'CUSTOM',
+      agreedAmount: usd(300),
+      payments: [
+        { ...payment(100, '2026-09-01'), lostToDisputeMicros: 100_000_000 },
+        { ...payment(100, '2026-10-01'), lostToDisputeMicros: 40_000_000 },
+        payment(100, '2026-11-01'),
+      ],
+    });
+
+    expect(summary.paidAmountMicros).toBe(160_000_000);
+    expect(summary.installmentCount).toBe(2);
+    expect(summary.firstPaidAt).toEqual(new Date('2026-10-01'));
+    expect(summary.status).toBe('PAYING_INSTALLMENTS');
+  });
+
+  it('never counts a payment below zero when a refund and a lost dispute overlap', () => {
+    const summary = computePersonPaymentSummary({
+      plan: 'CUSTOM',
+      agreedAmount: usd(200),
+      payments: [
+        {
+          ...payment(100, '2026-10-01', { refundedDollars: 30 }),
+          lostToDisputeMicros: 100_000_000,
+        },
+        payment(100, '2026-11-01'),
+      ],
+    });
+
+    expect(summary.paidAmountMicros).toBe(100_000_000);
+    expect(summary.installmentCount).toBe(1);
+  });
+
   it('shows a full scholarship as scholarship and nobody else as paid without payments', () => {
     expect(
       computePersonPaymentSummary({
