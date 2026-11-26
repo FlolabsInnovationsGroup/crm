@@ -163,5 +163,14 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 | 4 | Pull request #28 merged and deployed |
 | 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook being set up |
 | 5b | Pull request #31 merged and deployed; 7 disputes found in the last year (3 lost, 2 open, 2 won) |
-| 6 | Pull request #32 open, reviewed; needs the four person fields before deploy, and connected Google calendars before it shows numbers |
+| 6 | Pull request #32 open, reviewed; the four person fields exist in the live CRM, so it can be merged and deployed. It shows numbers only once Google calendars are connected (see below) |
 | 8 | Documenso trial passed all four checks on 26 Nov; CRM work waits for John's agreement template |
+
+## Parked: Google calendar connection (waiting on answers)
+
+Needed before item 6 shows any numbers. Parked on 26 Nov until the answers below come in. Details and steps: `docs/flolabs/google-calendar-connection.md`.
+
+1. **Ceren:** do all Calendly bookings land in the `hr.team@flolabsinnovations.com` calendar? If yes, only that one account needs connecting.
+2. **Mohamed:** approve the small code change that makes the CRM ask Google for the calendar only, not Gmail. Without it, Google requires a security review for our app.
+3. **John's Google account:** create the Google Cloud app (External, In production, not submitted for verification) and its client ID and secret.
+4. Then, in order: the server settings script, connecting the calendar, warning Mani about the n8n webhooks, and running `recalculateMeetingTimes` once.
