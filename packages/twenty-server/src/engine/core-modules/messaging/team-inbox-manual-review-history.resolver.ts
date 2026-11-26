@@ -1,4 +1,4 @@
-import { UseFilters, UseGuards } from '@nestjs/common';
+import { UseFilters, UseGuards, UsePipes } from '@nestjs/common';
 import { Args, ArgsType, Field, Query } from '@nestjs/graphql';
 
 import { Type } from 'class-transformer';
@@ -7,12 +7,11 @@ import { ArrayMaxSize, ValidateNested } from 'class-validator';
 import { CoreResolver } from 'src/engine/api/graphql/graphql-config/decorators/core-resolver.decorator';
 import { AuthGraphqlApiExceptionFilter } from 'src/engine/core-modules/auth/filters/auth-graphql-api-exception.filter';
 import { type AuthContextUser } from 'src/engine/core-modules/auth/types/auth-context.type';
+import { ResolverValidationPipe } from 'src/engine/core-modules/graphql/pipes/resolver-validation.pipe';
+import { MAX_MANUAL_REVIEW_HISTORY_ITEMS } from 'src/engine/core-modules/messaging/constants/manual-review-history.constants';
 import { ManualReviewHistoryEntryDTO } from 'src/engine/core-modules/messaging/dtos/manual-review-history-entry.dto';
 import { ManualReviewHistoryItemInput } from 'src/engine/core-modules/messaging/dtos/manual-review-history-item.input';
-import {
-  MAX_MANUAL_REVIEW_HISTORY_ITEMS,
-  TeamInboxManualReviewHistoryService,
-} from 'src/engine/core-modules/messaging/services/team-inbox-manual-review-history.service';
+import { TeamInboxManualReviewHistoryService } from 'src/engine/core-modules/messaging/services/team-inbox-manual-review-history.service';
 import { UserService } from 'src/engine/core-modules/user/services/user.service';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { AuthUser } from 'src/engine/decorators/auth/auth-user.decorator';
@@ -45,6 +44,7 @@ class GetManualReviewHistoryArgs {
 )
 @CoreResolver(() => ManualReviewHistoryEntryDTO)
 @UseFilters(AuthGraphqlApiExceptionFilter)
+@UsePipes(ResolverValidationPipe)
 export class TeamInboxManualReviewHistoryResolver {
   constructor(
     private readonly userService: UserService,
@@ -68,6 +68,7 @@ export class TeamInboxManualReviewHistoryResolver {
 
     return this.teamInboxManualReviewHistoryService.getHistory({
       workspaceId: workspace.id,
+      workspaceMemberId: workspaceMember.id,
       items,
     });
   }

@@ -1,6 +1,6 @@
 import { Field, InputType } from '@nestjs/graphql';
 
-import { IsEmail, IsOptional, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { UUIDScalarType } from 'src/engine/api/graphql/workspace-schema-builder/graphql-types/scalars';
 
@@ -11,7 +11,7 @@ export class ManualReviewHistoryItemInput {
 
   @Field(() => String, { nullable: true })
   @IsOptional()
-  @IsEmail()
+  @IsString()
   @MaxLength(320)
   applicantEmail?: string | null;
 }

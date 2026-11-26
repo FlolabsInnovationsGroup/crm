@@ -1,4 +1,6 @@
 import { t } from '@lingui/core/macro';
+import { format } from 'date-fns';
+import { saveAs } from 'file-saver';
 import { useState } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 import { useToast } from 'twenty-ui/components/feedback';
@@ -21,6 +23,7 @@ import { type TimelineThreadsWithTotal } from '~/generated/graphql';
 // The server's page and batch limits.
 const THREADS_PAGE_SIZE = 50;
 const HISTORY_BATCH_SIZE = 200;
+
 const MAX_EXPORTED_THREADS = 5000;
 
 type NamedTemplate = { id: string; name: string | null };
@@ -41,10 +44,12 @@ export const useManualReviewHistoryExport = (templates: NamedTemplate[]) => {
     OTHER: t`Other`,
   };
 
+  // Offset paging can shift while someone marks items done, so rows are
+  // de-duplicated, and only an empty page or the total ends the loop.
   const fetchDoneThreads = async (since: string) => {
-    const threads: InboxThread[] = [];
+    const threadsById = new Map<string, InboxThread>();
 
-    for (let page = 1; threads.length < MAX_EXPORTED_THREADS; page++) {
+    for (let page = 1; threadsById.size < MAX_EXPORTED_THREADS; page++) {
       const { data } = await apolloCoreClient.query<{
         getInboxThreads: Omit<TimelineThreadsWithTotal, 'timelineThreads'> & {
           timelineThreads: InboxThread[];
@@ -61,18 +66,22 @@ export const useManualReviewHistoryExport = (templates: NamedTemplate[]) => {
       });
 
       const pageThreads = data?.getInboxThreads.timelineThreads ?? [];
+      const totalNumberOfThreads =
+        data?.getInboxThreads.totalNumberOfThreads ?? 0;
 
-      threads.push(...pageThreads);
+      for (const thread of pageThreads) {
+        threadsById.set(thread.id, thread);
+      }
 
       if (
-        pageThreads.length < THREADS_PAGE_SIZE ||
-        threads.length >= (data?.getInboxThreads.totalNumberOfThreads ?? 0)
+        pageThreads.length === 0 ||
+        page * THREADS_PAGE_SIZE >= totalNumberOfThreads
       ) {
-        break;
+        return { threads: [...threadsById.values()], isTruncated: false };
       }
     }
 
-    return threads;
+    return { threads: [...threadsById.values()], isTruncated: true };
   };
 
   const fetchHistory = async (
@@ -101,7 +110,7 @@ export const useManualReviewHistoryExport = (templates: NamedTemplate[]) => {
     setIsExporting(true);
 
     try {
-      const threads = await fetchDoneThreads(since);
+      const { threads, isTruncated } = await fetchDoneThreads(since);
       const reviewItems = threads.map((thread) => ({
         thread,
         item: parseTeamInboxReviewItem(thread.subject, thread.lastMessageBody),
@@ -120,6 +129,8 @@ export const useManualReviewHistoryExport = (templates: NamedTemplate[]) => {
             item,
             kindLabel: kindLabels[item.kind],
             entry: history.get(thread.id),
+            formatDateTime: (isoDate) =>
+              format(new Date(isoDate), 'yyyy-MM-dd HH:mm'),
             suggestedTemplateName: isDefined(item.triage)
               ? (suggestInboxTemplate({
                   reason: item.triage.reason,
@@ -131,7 +142,7 @@ export const useManualReviewHistoryExport = (templates: NamedTemplate[]) => {
           }),
         ),
         {
-          doneAt: t`Marked done at`,
+          doneAt: t`Marked done at (local time)`,
           doneByName: t`Marked done by`,
           applicantEmail: t`Applicant email`,
           kind: t`Type`,
@@ -145,15 +156,17 @@ export const useManualReviewHistoryExport = (templates: NamedTemplate[]) => {
         },
       );
 
-      const url = URL.createObjectURL(
+      saveAs(
         new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+        `needs-review-history-${format(new Date(since), 'yyyy-MM-dd')}.csv`,
       );
-      const link = document.createElement('a');
 
-      link.href = url;
-      link.download = `needs-review-history-${since.slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      if (isTruncated) {
+        enqueueToast({
+          status: 'warning',
+          children: t`Only the first ${MAX_EXPORTED_THREADS} items were exported. Choose a shorter period for the rest.`,
+        });
+      }
     } catch {
       enqueueToast({
         status: 'error',

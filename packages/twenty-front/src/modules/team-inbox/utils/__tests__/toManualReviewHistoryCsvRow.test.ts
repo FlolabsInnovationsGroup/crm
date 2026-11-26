@@ -39,13 +39,15 @@ describe('toManualReviewHistoryCsvRow', () => {
           messageThreadId: thread.id,
           doneAt: '2026-11-25T10:00:00.000Z',
           doneByName: 'Nago',
-          replyText: 'Yes, it is paid.',
+          replyText:
+            'Yes, it is paid.\n\nOn Tue, 25 Nov 2026, Jane wrote:\n> Is the internship paid?',
           replySentAt: '2026-11-25T09:30:00.000Z',
         },
         suggestedTemplateName: 'Paid internship',
+        formatDateTime: (isoDate) => `local ${isoDate}`,
       }),
     ).toEqual({
-      doneAt: '2026-11-25T10:00:00.000Z',
+      doneAt: 'local 2026-11-25T10:00:00.000Z',
       doneByName: 'Nago',
       applicantEmail: 'jane@example.com',
       kind: 'Applicant reply',
@@ -54,8 +56,8 @@ describe('toManualReviewHistoryCsvRow', () => {
       applicantMessage: 'Is the internship paid?',
       suggestedTemplate: 'Paid internship',
       replyText: 'Yes, it is paid.',
-      replySentAt: '2026-11-25T09:30:00.000Z',
-      reviewReceivedAt: '2026-11-25T08:00:00.000Z',
+      replySentAt: 'local 2026-11-25T09:30:00.000Z',
+      reviewReceivedAt: 'local 2026-11-25T08:00:00.000Z',
     });
   });
 
@@ -71,6 +73,7 @@ describe('toManualReviewHistoryCsvRow', () => {
       kindLabel: 'Other',
       entry: undefined,
       suggestedTemplateName: null,
+      formatDateTime: (isoDate) => isoDate,
     });
 
     expect(row.doneAt).toBeNull();

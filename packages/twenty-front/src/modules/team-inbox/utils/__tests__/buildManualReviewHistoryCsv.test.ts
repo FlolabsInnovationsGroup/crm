@@ -35,7 +35,7 @@ const ROW: ManualReviewHistoryCsvRow = {
 describe('buildManualReviewHistoryCsv', () => {
   it('writes a header row and one row per item, quoting cells that need it', () => {
     const [header, row] = buildManualReviewHistoryCsv([ROW], HEADERS)
-      .replace('﻿', '')
+      .replace('\uFEFF', '')
       .split('\r\n');
 
     expect(header).toBe(
@@ -46,7 +46,9 @@ describe('buildManualReviewHistoryCsv', () => {
   });
 
   it('starts with a byte order mark so Excel reads Arabic text', () => {
-    expect(buildManualReviewHistoryCsv([], HEADERS).startsWith('﻿')).toBe(true);
+    expect(buildManualReviewHistoryCsv([], HEADERS).startsWith('\uFEFF')).toBe(
+      true,
+    );
   });
 
   it('stops applicant text from running as a spreadsheet formula', () => {
@@ -55,7 +57,8 @@ describe('buildManualReviewHistoryCsv', () => {
       HEADERS,
     );
 
-    expect(csv).toContain(`"'=HYPERLINK(""https://example.com"")"`);
+    expect(csv).not.toContain(',"=HYPERLINK');
+    expect(csv).toContain('=HYPERLINK(""https://example.com"")"');
   });
 
   it('leaves missing values empty', () => {

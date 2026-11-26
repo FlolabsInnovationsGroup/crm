@@ -1,4 +1,7 @@
-import { isNonEmptyString } from '@sniptt/guards';
+import {
+  formatValueForCSV,
+  sanitizeValueForCSVExport,
+} from 'twenty-shared/utils';
 
 export type ManualReviewHistoryCsvRow = {
   doneAt: string | null;
@@ -33,26 +36,18 @@ const COLUMNS: (keyof ManualReviewHistoryCsvRow)[] = [
   'reviewReceivedAt',
 ];
 
-// Applicants write these cells, so a leading formula character is neutralised
-// before Excel or Sheets can run it.
-const neutraliseFormula = (value: string) =>
-  /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-
-const escapeCsvCell = (value: string | null) => {
-  const text = isNonEmptyString(value) ? neutraliseFormula(value) : '';
-
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-};
+const toCsvCell = (value: string | null) =>
+  formatValueForCSV(sanitizeValueForCSVExport(value));
 
 export const buildManualReviewHistoryCsv = (
   rows: ManualReviewHistoryCsvRow[],
   headers: ManualReviewHistoryCsvHeaders,
 ) => {
   const lines = [
-    COLUMNS.map((column) => escapeCsvCell(headers[column])),
-    ...rows.map((row) => COLUMNS.map((column) => escapeCsvCell(row[column]))),
+    COLUMNS.map((column) => toCsvCell(headers[column])),
+    ...rows.map((row) => COLUMNS.map((column) => toCsvCell(row[column]))),
   ];
 
   // The byte order mark makes Excel read Arabic text correctly.
-  return `﻿${lines.map((line) => line.join(',')).join('\r\n')}`;
+  return `\uFEFF${lines.map((line) => line.join(',')).join('\r\n')}`;
 };

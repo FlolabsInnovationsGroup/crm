@@ -1,0 +1,1 @@
+export const MAX_MANUAL_REVIEW_HISTORY_ITEMS = 200;

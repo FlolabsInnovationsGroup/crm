@@ -1,10 +1,12 @@
 import { isNonEmptyString, isString } from '@sniptt/guards';
 import { MessageParticipantRole } from 'twenty-shared/types';
-import { isDefined } from 'twenty-shared/utils';
 
 import { getManualReviewDoneKey } from 'src/engine/core-modules/messaging/utils/team-inbox-manual-review.util';
 
 const MANUAL_REVIEW_DONE_BY_KEY_PREFIX = 'TEAM_INBOX_MANUAL_REVIEW_DONE_BY:';
+
+// People usually press Done right after sending, sometimes just before.
+export const MANUAL_REVIEW_REPLY_GRACE_MS = 30 * 60 * 1000;
 
 export const getManualReviewDoneByKey = (messageThreadId: string) =>
   `${MANUAL_REVIEW_DONE_BY_KEY_PREFIX}${messageThreadId}`;
@@ -17,44 +19,41 @@ export const getManualReviewDoneState = (
   const doneBy = workspaceVars.get(getManualReviewDoneByKey(messageThreadId));
 
   return {
-    // Items marked done before the time was stored hold `true`.
     doneAt: isString(doneAt) ? new Date(doneAt) : null,
     doneByWorkspaceMemberId: isNonEmptyString(doneBy) ? doneBy : null,
   };
 };
 
-type CandidateReplyParticipant = {
-  role: MessageParticipantRole;
-  handle: string | null;
-};
-
 export type CandidateReplyMessage = {
   id: string;
-  text: string | null;
-  receivedAt: Date | null;
-  participants: CandidateReplyParticipant[];
+  receivedAt: Date;
+  participants: { role: MessageParticipantRole; handle: string | null }[];
 };
 
 const normalizeHandle = (handle: string) => handle.trim().toLowerCase();
 
-// The first email one of our mailboxes sent to the applicant once the review
-// item arrived is taken as the answer to it.
-export const pickManualReviewReply = ({
+// The last email one of our mailboxes sent the applicant between the review
+// email and the moment it was marked done is taken as the answer, so an
+// automated reminder sent earlier does not count.
+export const pickManualReviewReply = <TMessage extends CandidateReplyMessage>({
   messages,
   applicantEmail,
   ownHandles,
   reviewReceivedAt,
+  doneAt,
 }: {
-  messages: CandidateReplyMessage[];
+  messages: TMessage[];
   applicantEmail: string;
   ownHandles: string[];
   reviewReceivedAt: Date;
-}): CandidateReplyMessage | null => {
+  doneAt: Date;
+}): TMessage | null => {
   const applicant = normalizeHandle(applicantEmail);
   const ours = new Set(ownHandles.map(normalizeHandle));
+  const windowEnd = doneAt.getTime() + MANUAL_REVIEW_REPLY_GRACE_MS;
 
   const hasParticipant = (
-    message: CandidateReplyMessage,
+    message: TMessage,
     roles: MessageParticipantRole[],
     matches: (handle: string) => boolean,
   ) =>
@@ -68,12 +67,9 @@ export const pickManualReviewReply = ({
   return (
     messages
       .filter(
-        (message): message is CandidateReplyMessage & { receivedAt: Date } =>
-          isDefined(message.receivedAt) &&
-          message.receivedAt.getTime() >= reviewReceivedAt.getTime(),
-      )
-      .filter(
         (message) =>
+          message.receivedAt.getTime() >= reviewReceivedAt.getTime() &&
+          message.receivedAt.getTime() <= windowEnd &&
           hasParticipant(message, [MessageParticipantRole.FROM], (handle) =>
             ours.has(handle),
           ) &&
@@ -85,7 +81,7 @@ export const pickManualReviewReply = ({
       )
       .sort(
         (first, second) =>
-          first.receivedAt.getTime() - second.receivedAt.getTime(),
+          second.receivedAt.getTime() - first.receivedAt.getTime(),
       )[0] ?? null
   );
 };

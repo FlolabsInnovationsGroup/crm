@@ -9,12 +9,12 @@ describe('getManualReviewHistorySince', () => {
     );
   });
 
-  it('goes back whole days for longer periods', () => {
+  it('counts today as one of the days in longer periods', () => {
     expect(getManualReviewHistorySince('LAST_7_DAYS', now)).toBe(
-      new Date(2026, 10, 19).toISOString(),
+      new Date(2026, 10, 20).toISOString(),
     );
     expect(getManualReviewHistorySince('LAST_30_DAYS', now)).toBe(
-      new Date(2026, 9, 27).toISOString(),
+      new Date(2026, 9, 28).toISOString(),
     );
   });
 });
