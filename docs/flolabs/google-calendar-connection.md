@@ -1,6 +1,6 @@
 # Connecting Google calendars to the CRM
 
-Status on 26 Nov 2026: **not set up yet.** Needed for plan item 6 (time from application to meeting), which reads Calendly bookings from the interviewers' calendars.
+**Dropped on 27 Nov 2026.** Item 6 now reads bookings straight from Calendly (see `docs/flolabs/meeting-tracker.md`), so no Google connection is needed. This file is kept as the record of why Ceren's connection failed and what the Google route would have needed.
 
 ## What went wrong
 

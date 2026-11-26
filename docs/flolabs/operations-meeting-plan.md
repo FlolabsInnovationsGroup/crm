@@ -16,7 +16,7 @@ Phase 1 fixes what hurts applicants today and should finish within a week of app
 | 4 | Manual Review history and CSV export | 2 | 2 | Nothing |
 | 5 | Payment tracker on each person, filled from Stripe | 2 | 3 to 4 | A read-only Stripe key, entered by Mohamed |
 | 5b | Stripe disputes on the payment tracker | 2 | 1 | Nothing (dispute events already on the live webhook) |
-| 6 | Time from application to meeting, per person and per month | 2 | 2 | Interviewers' calendars connected to the CRM |
+| 6 | Time from application to meeting, per person and per month | 2 | 2 + 1.5 (Calendly) | Calendly tokens for hr.team@ and people@ |
 | 7 | Applicant summary before the booking email | 2 | 1 (CRM) + n8n work | Mani for the n8n side |
 | 8 | E-signature inside the CRM with Documenso, replacing Dropbox Sign | 3 | 1 (trial) + 8 to 10 | The agreement template from John |
 | 9 | AI drafts replies to multi-question emails | 3 | 5 or more | John's list of about 20 questions and answers |
@@ -163,14 +163,18 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 | 4 | Pull request #28 merged and deployed |
 | 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook being set up |
 | 5b | Pull request #31 merged and deployed; 7 disputes found in the last year (3 lost, 2 open, 2 won) |
-| 6 | Pull request #32 merged and deployed on 26 Nov; the four person fields exist. It shows numbers only once Google calendars are connected (see below) |
+| 6 | Pull request #32 merged and deployed on 26 Nov; the four person fields exist. Reading bookings straight from Calendly is in a new pull request (see below) |
 | 8 | Documenso trial passed all four checks on 26 Nov; CRM work waits for John's agreement template |
 
-## Parked: Google calendar connection (waiting on answers)
+## Item 6: bookings read from Calendly (decided 27 Nov)
 
-Needed before item 6 shows any numbers. Parked on 26 Nov until the answers below come in. Details and steps: `docs/flolabs/google-calendar-connection.md`.
+The Google calendar route is dropped. Calendly bookings land in two Calendly accounts, `hr.team@` and `people@` (Nago, 26 Nov), and Calendly opened its API and webhooks to the free plan on 6 Nov 2026. So the CRM reads bookings straight from Calendly: no Google Cloud app, no change to the CRM's Google sign-in code, and nothing needed from John.
 
-1. **Answered by Nago on 26 Nov:** Calendly bookings land in two calendars only, `hr.team@flolabsinnovations.com` and `people@flolabsinnovations.com`. Both get connected. Still to confirm: `people@` is also an ordinary Google account like `hr.team@`, and who can sign in to each.
-2. **Mohamed:** approve the small code change that makes the CRM ask Google for the calendar only, not Gmail. Without it, Google requires a security review for our app.
-3. **John's Google account:** create the Google Cloud app (External, In production, not submitted for verification) and its client ID and secret.
-4. Then, in order: the server settings script, connecting the calendar, warning Mani about the n8n webhooks, and running `recalculateMeetingTimes` once.
+Order once the pull request is reviewed:
+
+1. Create the Calendly bookings object: `setup-meeting-tracker.mjs` (before the deploy).
+2. Mohamed merges and approves the deploy.
+3. In each Calendly account, Mohamed makes a personal access token with only `users:read`, `scheduled_events:read`, `webhooks:read` and `webhooks:write`, and pastes it straight into `setup-calendly-server.sh` on the server, never in chat.
+4. Warn Mani about the n8n webhooks, then run `syncCalendlyBookings` once for past bookings.
+
+Details: `docs/flolabs/meeting-tracker.md`. `docs/flolabs/google-calendar-connection.md` is kept only as the record of why Ceren's connection failed.
