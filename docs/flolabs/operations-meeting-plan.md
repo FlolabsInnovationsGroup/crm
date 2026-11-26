@@ -146,3 +146,4 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 | --- | --- |
 | 3 | Pull request #26 open, reviewed, waiting for merge |
 | 4 | Pull request #28 open, reviewed, waiting for merge |
+| 5 | Pull request #29 open, reviewed, waiting for merge; then setup steps in docs/flolabs/payment-tracker.md |
