@@ -11,19 +11,22 @@ Status on 26 Nov 2026: **not set up yet.** Needed for plan item 6 (time from app
 
 ## What is needed
 
-### Decisions (open)
+### Decisions
 
-1. Are Ceren's, Nago's and Jireen's accounts **Google Workspace** accounts on the FloLabs domain, or ordinary Google accounts?
-   - Workspace: the OAuth app can be **Internal**. No Google review, no warning screen.
-   - Ordinary accounts: the app is **External** in Testing mode, with each interviewer added as a test user (up to 100). They see an "unverified app" warning once.
-2. Which Google account owns the Google Cloud project.
+1. **Decided on 26 Nov:** the interviewers' calendars are **ordinary Google accounts** (Google accounts made with their own email, not Google Workspace). The "super admin" Ceren mentioned is the CRM's admin account, not Google's. So the OAuth app is **External**:
+   - **Publish it "In production" and do not submit it for verification.**
+   - In "Testing" status, Google expires every connection after 7 days, so calendar sync would stop each week.
+   - "In production" but unverified, each person sees Google's "unverified app" warning once (Advanced > Go to FloLabs CRM).
+   - Google allows up to 100 people in total to connect in this state, which is plenty for the interviewers.
+   - Source: Google Cloud Help, "Manage App Audience".
+2. **Open:** which Google account owns the Google Cloud project. It should be a company account that stays when people change, not someone's personal account.
 
 ### Problem found in the code (fix before switching on)
 
 The CRM always asks Google for Gmail read and send access together with the calendar (`packages/twenty-server/src/engine/core-modules/auth/utils/get-google-apis-oauth-scopes.ts`), even when only the calendar is needed.
 
 - **Privacy:** interviewers would grant the CRM access to their whole mailbox.
-- **Google review:** these Gmail permissions are "restricted" scopes. For an External app they need Google's verification and a security assessment.
+- **Google review:** these Gmail permissions are "restricted" scopes. For an External app they need Google's verification and a security assessment, so this change is required for our External app.
 
 **Proposed change:** when Gmail syncing is off (`MESSAGING_PROVIDER_GMAIL_ENABLED=false`), ask only for `email`, `profile` and `calendar.events`. It is one small file, written by one agent and reviewed by a second, with a test.
 
@@ -32,7 +35,7 @@ The CRM always asks Google for Gmail read and send access together with the cale
 1. **Google Cloud** (by the project owner):
    - Create a project, for example "FloLabs CRM".
    - Enable the **Google Calendar API**.
-   - Set up the OAuth consent screen: Internal or External, as decided above. For External, add the interviewers as test users.
+   - Set up the OAuth consent screen: **External**, then set the publishing status to **In production**. Don't submit it for verification.
    - Create credentials: OAuth client ID, type **Web application**.
      - Authorised redirect URI: `https://crm.flolabsinnovations.com/auth/google-apis/get-access-token`
    - Copy the client ID and the client secret. Never paste them in chat or in a screenshot.
