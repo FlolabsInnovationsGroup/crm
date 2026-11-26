@@ -163,7 +163,7 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 | 4 | Pull request #28 merged and deployed |
 | 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook being set up |
 | 5b | Pull request #31 merged and deployed; 7 disputes found in the last year (3 lost, 2 open, 2 won) |
-| 6 | Pull request #32 merged and deployed on 26 Nov; the four person fields exist. Reading bookings straight from Calendly is in a new pull request (see below) |
+| 6 | Pull request #32 merged and deployed on 26 Nov; the four person fields exist. Reading bookings straight from Calendly is pull request #33, reviewed (see below) |
 | 8 | Documenso trial passed all four checks on 26 Nov; CRM work waits for John's agreement template |
 
 ## Item 6: bookings read from Calendly (decided 27 Nov)
