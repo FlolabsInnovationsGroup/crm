@@ -96,8 +96,8 @@ export class PaymentTrackerService {
       if (isDefined(existing)) {
         await paymentRepository.update(existing.id, values);
       } else {
-        // Direct repository writes skip the API layer that fills the
-        // required actor columns.
+        // Actor name columns are NOT NULL with no DB default; the API layer
+        // normally fills them, direct repository writes do not.
         await paymentRepository.insert({
           ...values,
           createdBy: STRIPE_ACTOR,
