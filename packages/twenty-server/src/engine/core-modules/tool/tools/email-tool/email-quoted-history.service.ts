@@ -1,15 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 
 import { isNonEmptyString } from '@sniptt/guards';
 import { isDefined, isNonEmptyArray } from 'twenty-shared/utils';
-import { In, IsNull, LessThanOrEqual, type Repository } from 'typeorm';
+import { In, LessThanOrEqual } from 'typeorm';
 
 import { type QuotedThreadHistory } from 'src/engine/core-modules/tool/tools/email-tool/types/quoted-thread-history.type';
 import { buildQuotedThreadHistory } from 'src/engine/core-modules/tool/tools/email-tool/utils/build-quoted-thread-history.util';
 import { normalizeEmailHandle } from 'src/engine/core-modules/tool/tools/email-tool/utils/normalize-email-handle.util';
 import { selectQuotableThreadMessages } from 'src/engine/core-modules/tool/tools/email-tool/utils/select-quotable-thread-messages.util';
-import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { type MessageChannelMessageAssociationWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-channel-message-association.workspace-entity';
@@ -21,23 +19,26 @@ import { type MessageWorkspaceEntity } from 'src/modules/messaging/common/standa
 const MAX_SCANNED_THREAD_MESSAGES = 60;
 const MAX_THREAD_MESSAGE_REFERENCES = 500;
 
+type QuotedHistoryParameters = {
+  workspaceId: string;
+  messageChannelId: string;
+  inReplyTo: string;
+  // The sending account's own addresses; every other recipient, colleagues
+  // included, must have received a message for it to be quoted.
+  senderHandles: string[];
+  recipientHandles: string[];
+};
+
 @Injectable()
 export class EmailQuotedHistoryService {
   private readonly logger = new Logger(EmailQuotedHistoryService.name);
 
-  constructor(
-    private readonly workspaceOrmManager: WorkspaceOrmManager,
-    @InjectRepository(ConnectedAccountEntity)
-    private readonly connectedAccountRepository: Repository<ConnectedAccountEntity>,
-  ) {}
+  constructor(private readonly workspaceOrmManager: WorkspaceOrmManager) {}
 
   // A failure here only drops the quote; the reply itself still goes out.
-  async getQuotedHistory(parameters: {
-    workspaceId: string;
-    messageChannelId: string;
-    inReplyTo: string;
-    recipientHandles: string[];
-  }): Promise<QuotedThreadHistory | undefined> {
+  async getQuotedHistory(
+    parameters: QuotedHistoryParameters,
+  ): Promise<QuotedThreadHistory | undefined> {
     try {
       return await this.buildQuotedHistory(parameters);
     } catch (error) {
@@ -47,41 +48,19 @@ export class EmailQuotedHistoryService {
     }
   }
 
-  private async getWorkspaceMailboxHandles(
-    workspaceId: string,
-  ): Promise<Set<string>> {
-    const connectedAccounts = await this.connectedAccountRepository.find({
-      where: { workspaceId, archivedAt: IsNull() },
-      relations: { messageChannels: true },
-    });
-
-    return new Set(
-      connectedAccounts
-        .flatMap((connectedAccount) => [
-          connectedAccount.handle,
-          ...(connectedAccount.handleAliases ?? []),
-          ...connectedAccount.messageChannels.map((channel) => channel.handle),
-        ])
-        .filter(isNonEmptyString)
-        .map(normalizeEmailHandle),
-    );
-  }
-
   private async buildQuotedHistory({
     workspaceId,
     messageChannelId,
     inReplyTo,
+    senderHandles,
     recipientHandles,
-  }: {
-    workspaceId: string;
-    messageChannelId: string;
-    inReplyTo: string;
-    recipientHandles: string[];
-  }): Promise<QuotedThreadHistory | undefined> {
-    const mailboxHandles = await this.getWorkspaceMailboxHandles(workspaceId);
+  }: QuotedHistoryParameters): Promise<QuotedThreadHistory | undefined> {
+    const ownHandles = new Set(
+      senderHandles.filter(isNonEmptyString).map(normalizeEmailHandle),
+    );
 
     const externalRecipientHandles = recipientHandles.filter(
-      (handle) => !mailboxHandles.has(normalizeEmailHandle(handle)),
+      (handle) => !ownHandles.has(normalizeEmailHandle(handle)),
     );
 
     if (!isNonEmptyArray(externalRecipientHandles)) {
@@ -133,7 +112,7 @@ export class EmailQuotedHistoryService {
         return undefined;
       }
 
-      const threadMessageRefs = await messageRepository.find({
+      const threadMessageReferences = await messageRepository.find({
         where: {
           messageThreadId: parentMessage.messageThreadId,
           receivedAt: LessThanOrEqual(parentMessage.receivedAt),
@@ -144,9 +123,9 @@ export class EmailQuotedHistoryService {
         take: MAX_THREAD_MESSAGE_REFERENCES,
       });
       const threadIdsInChannel = await getIdsInSendingChannel(
-        threadMessageRefs.map((message) => message.id),
+        threadMessageReferences.map((message) => message.id),
       );
-      const scannedMessageIds = threadMessageRefs
+      const scannedMessageIds = threadMessageReferences
         .map((message) => message.id)
         .filter((messageId) => threadIdsInChannel.has(messageId))
         .slice(0, MAX_SCANNED_THREAD_MESSAGES);

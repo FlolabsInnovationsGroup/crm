@@ -44,7 +44,9 @@ const formatSender = ({
   senderName: fullSenderName,
   senderHandle,
 }: QuotedThreadMessage): string => {
-  const senderName = fullSenderName?.slice(0, MAX_SENDER_NAME_LENGTH) ?? null;
+  const senderName = isNonEmptyString(fullSenderName)
+    ? Array.from(fullSenderName).slice(0, MAX_SENDER_NAME_LENGTH).join('')
+    : null;
 
   if (isNonEmptyString(senderName) && isNonEmptyString(senderHandle)) {
     return senderName === senderHandle

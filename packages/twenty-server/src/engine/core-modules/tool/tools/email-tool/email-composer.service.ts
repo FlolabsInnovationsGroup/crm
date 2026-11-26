@@ -470,6 +470,14 @@ export class EmailComposerService {
             workspaceId,
             messageChannelId: messageChannel.id,
             inReplyTo,
+            senderHandles: [
+              connectedAccount.handle,
+              fromHandle ?? '',
+              ...(connectedAccount.handleAliases ?? []),
+              ...connectedAccount.messageChannels.map(
+                (channel) => channel.handle,
+              ),
+            ],
             recipientHandles: [
               ...recipients.to,
               ...recipients.cc,
