@@ -15,6 +15,7 @@ Phase 1 fixes what hurts applicants today and should finish within a week of app
 | 3 | Earlier messages quoted under every reply sent from the CRM | 1 | 2 | Nothing |
 | 4 | Manual Review history and CSV export | 2 | 2 | Nothing |
 | 5 | Payment tracker on each person, filled from Stripe | 2 | 3 to 4 | A read-only Stripe key, entered by Mohamed |
+| 5b | Stripe disputes on the payment tracker | 2 | 1 | Nothing (dispute events already on the live webhook) |
 | 6 | Time from application to meeting, per person and per month | 2 | 2 | Interviewers' calendars connected to the CRM |
 | 7 | Applicant summary before the booking email | 2 | 1 (CRM) + n8n work | Mani for the n8n side |
 | 8 | E-signature inside the CRM with Documenso, replacing Dropbox Sign | 3 | 1 (trial) + 8 to 10 | The agreement template from John |
@@ -58,6 +59,12 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 - **Why:** John asks how many onboarded interns paid in a month and nobody can answer from the CRM.
 - **How:** fields on each person: Payment status (Paid, Not paid, Scholarship), plan, amount, date of first payment, Stripe customer. A Stripe webhook updates them when a payment succeeds or fails. Payments are matched to people by email; a payment that matches nobody appears in a short list for a person to link by hand. A monthly report shows onboarded, paid, scholarship and conversion rate. Only admins see payment fields.
 - **Done when:** a test payment in Stripe's test mode marks the right person Paid, and the report shows last month's numbers.
+
+### 5b. Stripe disputes
+
+- **Why:** disputes happen. When a payer disputes a charge, Stripe takes the money back, but the CRM keeps showing the person as paid. Today the lost amount has to be typed into the payment's Refunded field by hand.
+- **How:** the payment tracker also handles `charge.dispute.created`, `charge.dispute.closed` and `charge.dispute.funds_reinstated`, which are already turned on for the live webhook. An open dispute is flagged on the payment so the team sees it early. A lost dispute is subtracted from the person's Paid so far, and a won dispute leaves the total as it was. New code in the payment tracker module only, reviewed by a second agent, merged by a person.
+- **Done when:** the tests cover open, lost and won disputes, and the next real dispute shows on its payment and, if lost, lowers the person's Paid so far.
 
 ### 6. Time from application to meeting
 
@@ -144,6 +151,7 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 
 | Item | Status |
 | --- | --- |
-| 3 | Pull request #26 open, reviewed, waiting for merge |
-| 4 | Pull request #28 open, reviewed, waiting for merge |
-| 5 | Pull request #29 open, reviewed, waiting for merge; then setup steps in docs/flolabs/payment-tracker.md |
+| 3 | Pull request #26 merged and deployed |
+| 4 | Pull request #28 merged and deployed |
+| 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook being set up |
+| 5b | Planned |
