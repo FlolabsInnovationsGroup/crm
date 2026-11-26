@@ -25,17 +25,15 @@ import { FileService } from 'src/engine/core-modules/file/services/file.service'
 import { compileOutboundEmailContent } from 'src/engine/core-modules/email/utils/compile-outbound-email-content.util';
 import { sanitizeOutboundEmailSubject } from 'src/engine/core-modules/email/utils/sanitize-outbound-email-html.util';
 import { EMAIL_ATTACHMENT_FILE_FOLDERS } from 'src/engine/core-modules/tool/tools/email-tool/constants/email-attachment-file-folders.const';
+import { EmailQuotedHistoryService } from 'src/engine/core-modules/tool/tools/email-tool/email-quoted-history.service';
 import {
   EmailToolException,
   EmailToolExceptionCode,
 } from 'src/engine/core-modules/tool/tools/email-tool/exceptions/email-tool.exception';
 import { type ComposeEmailParams } from 'src/engine/core-modules/tool/tools/email-tool/types/compose-email-params.type';
 import { EmailComposerResult } from 'src/engine/core-modules/tool/tools/email-tool/types/email-composer-result.type';
-import { type QuotedThreadHistory } from 'src/engine/core-modules/tool/tools/email-tool/types/quoted-thread-history.type';
-import { buildQuotedThreadHistory } from 'src/engine/core-modules/tool/tools/email-tool/utils/build-quoted-thread-history.util';
 import { parseCommaSeparatedEmails } from 'src/engine/core-modules/tool/tools/email-tool/utils/parse-comma-separated-emails.util';
 import { selectConnectedAccountIdForCaller } from 'src/engine/core-modules/tool/tools/email-tool/utils/select-connected-account-id-for-caller.util';
-import { selectQuotableThreadMessages } from 'src/engine/core-modules/tool/tools/email-tool/utils/select-quotable-thread-messages.util';
 import { type ToolExecutionContext } from 'src/engine/core-modules/tool/types/tool-execution-context.type';
 import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
@@ -43,7 +41,6 @@ import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system
 import { InjectWorkspaceScopedRepository } from 'src/engine/twenty-orm/workspace-scoped-repository/inject-workspace-scoped-repository.decorator';
 import { WorkspaceScopedRepository } from 'src/engine/twenty-orm/workspace-scoped-repository/workspace-scoped-repository';
 import { type MessageChannelMessageAssociationWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-channel-message-association.workspace-entity';
-import { type MessageParticipantWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-participant.workspace-entity';
 import { type MessageWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message.workspace-entity';
 import { type MessageAttachment } from 'src/modules/messaging/message-import-manager/types/message.type';
 import { streamToBuffer } from 'src/utils/stream-to-buffer';
@@ -64,6 +61,7 @@ export class EmailComposerService {
     @InjectWorkspaceScopedRepository(FileEntity)
     private readonly fileRepository: WorkspaceScopedRepository<FileEntity>,
     private readonly fileService: FileService,
+    private readonly emailQuotedHistoryService: EmailQuotedHistoryService,
   ) {}
 
   private async getConnectedAccountOrThrow({
@@ -369,79 +367,6 @@ export class EmailComposerService {
     }, authContext);
   }
 
-  private async getQuotedThreadHistory({
-    workspaceId,
-    inReplyTo,
-    recipientHandles,
-  }: {
-    workspaceId: string;
-    inReplyTo: string;
-    recipientHandles: string[];
-  }): Promise<QuotedThreadHistory | undefined> {
-    if (!isNonEmptyArray(recipientHandles)) {
-      return undefined;
-    }
-
-    const authContext = buildSystemAuthContext(workspaceId);
-
-    return this.workspaceOrmManager.executeInWorkspaceContext(async () => {
-      const messageRepository =
-        this.workspaceOrmManager.getRepository<MessageWorkspaceEntity>(
-          'message',
-          { shouldBypassPermissionChecks: true },
-        );
-
-      const parentMessage = await messageRepository.findOne({
-        where: { headerMessageId: inReplyTo },
-      });
-
-      if (
-        !isDefined(parentMessage) ||
-        !isDefined(parentMessage.messageThreadId) ||
-        !isDefined(parentMessage.receivedAt)
-      ) {
-        return undefined;
-      }
-
-      const threadMessages = await messageRepository.find({
-        where: {
-          messageThreadId: parentMessage.messageThreadId,
-          receivedAt: LessThanOrEqual(parentMessage.receivedAt),
-        },
-        select: { id: true, text: true, receivedAt: true, isDraft: true },
-        order: { receivedAt: 'DESC' },
-      });
-
-      if (!isNonEmptyArray(threadMessages)) {
-        return undefined;
-      }
-
-      const participantRepository =
-        this.workspaceOrmManager.getRepository<MessageParticipantWorkspaceEntity>(
-          'messageParticipant',
-          { shouldBypassPermissionChecks: true },
-        );
-
-      const participants = await participantRepository.find({
-        where: { messageId: In(threadMessages.map((message) => message.id)) },
-        select: {
-          messageId: true,
-          role: true,
-          handle: true,
-          displayName: true,
-        },
-      });
-
-      return buildQuotedThreadHistory(
-        selectQuotableThreadMessages({
-          messages: threadMessages,
-          participants,
-          recipientHandles,
-        }),
-      );
-    }, authContext);
-  }
-
   async composeEmail({
     parameters,
     context,
@@ -539,24 +464,17 @@ export class EmailComposerService {
           )
         : {};
 
-    const ownHandles = new Set(
-      [
-        connectedAccount.handle,
-        fromHandle,
-        ...(connectedAccount.handleAliases ?? []),
-      ]
-        .filter(isNonEmptyString)
-        .map((handle) => handle.toLowerCase()),
-    );
-
     const quotedHistory =
       isDefined(inReplyTo) && isDefined(messageChannel)
-        ? await this.getQuotedThreadHistory({
+        ? await this.emailQuotedHistoryService.getQuotedHistory({
             workspaceId,
+            messageChannelId: messageChannel.id,
             inReplyTo,
-            recipientHandles: [...recipients.to, ...recipients.cc].filter(
-              (handle) => !ownHandles.has(handle.toLowerCase()),
-            ),
+            recipientHandles: [
+              ...recipients.to,
+              ...recipients.cc,
+              ...recipients.bcc,
+            ],
           })
         : undefined;
 

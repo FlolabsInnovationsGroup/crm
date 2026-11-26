@@ -36,10 +36,16 @@ const formatQuoteDate = (date: Date): string => {
   return `${WEEKDAYS[date.getUTCDay()]}, ${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()} at ${hours}:${minutes} UTC`;
 };
 
+// Longer names stop the importer recognising the attribution line, which
+// would then keep the quote in the CRM's copy of the reply.
+const MAX_SENDER_NAME_LENGTH = 100;
+
 const formatSender = ({
-  senderName,
+  senderName: fullSenderName,
   senderHandle,
 }: QuotedThreadMessage): string => {
+  const senderName = fullSenderName?.slice(0, MAX_SENDER_NAME_LENGTH) ?? null;
+
   if (isNonEmptyString(senderName) && isNonEmptyString(senderHandle)) {
     return senderName === senderHandle
       ? `<${senderHandle}>`
@@ -54,7 +60,7 @@ const formatAttribution = (message: QuotedThreadMessage): string =>
 
 const prefixLines = (text: string): string =>
   text
-    .split('\n')
+    .split(/\r?\n/)
     .map((line) => (line === '' ? '>' : `> ${line}`))
     .join('\n');
 

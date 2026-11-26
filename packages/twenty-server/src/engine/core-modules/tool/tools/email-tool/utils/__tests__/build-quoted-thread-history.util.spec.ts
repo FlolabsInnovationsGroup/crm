@@ -72,6 +72,24 @@ describe('buildQuotedThreadHistory', () => {
     expect(history?.text).toContain(', jane@example.com wrote:');
   });
 
+  it('keeps Windows line breaks out of the plain-text quote', () => {
+    const history = buildQuotedThreadHistory([
+      { ...applicantMessage, text: 'First line\r\nSecond line' },
+    ]);
+
+    expect(history?.text).toContain('> First line\n> Second line');
+    expect(history?.text).not.toContain('\r');
+  });
+
+  it('shortens very long sender names', () => {
+    const history = buildQuotedThreadHistory([
+      { ...applicantMessage, senderName: 'A'.repeat(500) },
+    ]);
+
+    expect(history?.text).toContain(`${'A'.repeat(100)} <jane@example.com>`);
+    expect(history?.text).not.toContain('A'.repeat(101));
+  });
+
   it('is removed again when the CRM imports the sent reply', () => {
     const history = buildQuotedThreadHistory([applicantMessage, ourFirstReply]);
 

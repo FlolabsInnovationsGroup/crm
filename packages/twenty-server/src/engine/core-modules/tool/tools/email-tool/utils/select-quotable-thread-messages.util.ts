@@ -1,8 +1,9 @@
 import { isNonEmptyString } from '@sniptt/guards';
 import { MessageParticipantRole } from 'twenty-shared/types';
-import { isDefined } from 'twenty-shared/utils';
+import { isDefined, isNonEmptyArray } from 'twenty-shared/utils';
 
 import { type QuotedThreadMessage } from 'src/engine/core-modules/tool/tools/email-tool/types/quoted-thread-history.type';
+import { normalizeEmailHandle } from 'src/engine/core-modules/tool/tools/email-tool/utils/normalize-email-handle.util';
 
 export const MAX_QUOTED_THREAD_MESSAGES = 20;
 
@@ -20,20 +21,24 @@ type ThreadMessageParticipant = {
   displayName: string | null;
 };
 
-const normalizeHandle = (handle: string): string => handle.trim().toLowerCase();
-
-// Only messages a recipient of the reply already took part in are quoted, so
-// internal notes stored in the same thread never reach an applicant.
+// A message is quoted only when every outside recipient of the reply (to, cc
+// and bcc) already took part in it, so no one is shown mail they never got.
 export const selectQuotableThreadMessages = ({
   messages,
   participants,
-  recipientHandles,
+  externalRecipientHandles,
 }: {
   messages: ThreadMessage[];
   participants: ThreadMessageParticipant[];
-  recipientHandles: string[];
+  externalRecipientHandles: string[];
 }): QuotedThreadMessage[] => {
-  const recipients = new Set(recipientHandles.map(normalizeHandle));
+  const recipients = [
+    ...new Set(externalRecipientHandles.map(normalizeEmailHandle)),
+  ];
+
+  if (!isNonEmptyArray(recipients)) {
+    return [];
+  }
 
   const participantsByMessageId = new Map<string, ThreadMessageParticipant[]>();
 
@@ -53,13 +58,16 @@ export const selectQuotableThreadMessages = ({
         isNonEmptyString(message.text?.trim()) &&
         isDefined(message.receivedAt),
     )
-    .filter((message) =>
-      (participantsByMessageId.get(message.id) ?? []).some(
-        (participant) =>
-          isNonEmptyString(participant.handle) &&
-          recipients.has(normalizeHandle(participant.handle)),
-      ),
-    )
+    .filter((message) => {
+      const messageHandles = new Set(
+        (participantsByMessageId.get(message.id) ?? [])
+          .map((participant) => participant.handle)
+          .filter(isNonEmptyString)
+          .map(normalizeEmailHandle),
+      );
+
+      return recipients.every((recipient) => messageHandles.has(recipient));
+    })
     .sort(
       (first, second) =>
         second.receivedAt.getTime() - first.receivedAt.getTime(),
