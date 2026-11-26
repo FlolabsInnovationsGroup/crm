@@ -1,7 +1,6 @@
 import { styled } from '@linaria/react';
 import { plural, t } from '@lingui/core/macro';
 import { useQuery } from '@apollo/client/react';
-import { startOfDay } from 'date-fns';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { isDefined } from 'twenty-shared/utils';
@@ -15,6 +14,7 @@ import { useFormBuilderFocusHandlers } from '@/form-builder/hooks/useFormBuilder
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
 import { TeamInboxManualReviewCard } from '@/team-inbox/components/TeamInboxManualReviewCard';
 import { TeamInboxMenu } from '@/team-inbox/components/TeamInboxMenu';
+import { TeamInboxReviewHistoryBar } from '@/team-inbox/components/TeamInboxReviewHistoryBar';
 import { TeamInboxThreadListItem } from '@/team-inbox/components/TeamInboxThreadListItem';
 import { TeamInboxThreadPane } from '@/team-inbox/components/TeamInboxThreadPane';
 import { GET_INBOX_MAILBOXES } from '@/team-inbox/graphql/getInboxMailboxes';
@@ -23,10 +23,13 @@ import { useInboxEmailTemplates } from '@/team-inbox/hooks/useInboxEmailTemplate
 import { useInboxPeopleByEmail } from '@/team-inbox/hooks/useInboxPeopleByEmail';
 import { useInboxThreadClosed } from '@/team-inbox/hooks/useInboxThreadClosed';
 import { useManualReview } from '@/team-inbox/hooks/useManualReview';
+import { useManualReviewHistoryExport } from '@/team-inbox/hooks/useManualReviewHistoryExport';
 import { useTeamInboxReadState } from '@/team-inbox/hooks/useTeamInboxReadState';
 import { useTeamInboxThreads } from '@/team-inbox/hooks/useTeamInboxThreads';
 import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
+import { type ManualReviewHistoryPeriod } from '@/team-inbox/types/ManualReviewHistoryPeriod';
 import { type TeamInboxDirection } from '@/team-inbox/types/TeamInboxFilter';
+import { getManualReviewHistorySince } from '@/team-inbox/utils/getManualReviewHistorySince';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
 import { groupReviewItemsByApplicant } from '@/team-inbox/utils/groupReviewItemsByApplicant';
 import {
@@ -50,7 +53,7 @@ type ReviewFilter =
   | 'NOT_INTERESTED'
   | 'APPROVAL'
   | 'AUTOMATION'
-  | 'DONE_TODAY';
+  | 'DONE';
 
 const isNotInterested = (item: TeamInboxReviewItem) =>
   item.triage?.reason === 'not interested';
@@ -325,7 +328,9 @@ export const TeamInboxContent = () => {
   const isSystem = activeTab === 'SYSTEM';
   const [reviewFilter, setReviewFilter] =
     useState<ReviewFilter>(ALL_REVIEW_ITEMS);
-  const [doneSince] = useState(() => startOfDay(new Date()).toISOString());
+  const [historyPeriod, setHistoryPeriod] =
+    useState<ManualReviewHistoryPeriod>('TODAY');
+  const doneSince = getManualReviewHistorySince(historyPeriod, new Date());
   const [pendingTemplate, setPendingTemplate] = useState<{
     threadId: string;
     templateId: string;
@@ -345,12 +350,14 @@ export const TeamInboxContent = () => {
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm] = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
   const templates = useInboxEmailTemplates();
+  const { exportHistory, isExporting } =
+    useManualReviewHistoryExport(templates);
 
   const { data: mailboxData } = useQuery<{
     getInboxMailboxes: InboxMailbox[];
   }>(GET_INBOX_MAILBOXES, { client: apolloCoreClient });
 
-  const isShowingDoneToday = isManualReview && reviewFilter === 'DONE_TODAY';
+  const isShowingDone = isManualReview && reviewFilter === 'DONE';
 
   const {
     threads,
@@ -371,7 +378,7 @@ export const TeamInboxContent = () => {
     closedOnly: activeTab === 'CLOSED',
     manualReview: isManualReview,
     system: isSystem,
-    manualReviewDoneSince: isShowingDoneToday ? doneSince : null,
+    manualReviewDoneSince: isShowingDone ? doneSince : null,
     messageChannelId:
       messageChannelId === ALL_MAILBOXES ? null : messageChannelId,
     searchTerm,
@@ -507,9 +514,7 @@ export const TeamInboxContent = () => {
   // Reason counts come from the loaded cards, so they show only when every
   // open card is loaded.
   const areReasonCountsExact =
-    !isFirstLoad &&
-    !isShowingDoneToday &&
-    threads.length >= totalNumberOfThreads;
+    !isFirstLoad && !isShowingDone && threads.length >= totalNumberOfThreads;
 
   const questionCount = countReviewItems(isTeamInboxQuestion);
   const notInterestedCount = countReviewItems(isNotInterested);
@@ -550,7 +555,7 @@ export const TeamInboxContent = () => {
         ? t`Automation issues · ${automationCount}`
         : t`Automation issues`,
     },
-    { id: 'DONE_TODAY', label: t`Done today · ${doneSinceCount}` },
+    { id: 'DONE', label: t`Done · ${doneSinceCount}` },
   ];
 
   const selectedMailbox = mailboxes.find(
@@ -606,13 +611,21 @@ export const TeamInboxContent = () => {
                 </StyledTab>
               ))}
             </StyledTabs>
+            {isShowingDone && (
+              <TeamInboxReviewHistoryBar
+                period={historyPeriod}
+                isExporting={isExporting}
+                onPeriodChange={setHistoryPeriod}
+                onExport={() => exportHistory(doneSince)}
+              />
+            )}
           </StyledReviewHeader>
           {isFirstLoad ? (
             <SkeletonLoader />
           ) : visibleReviewItems.length === 0 ? (
             <StyledEmpty>
-              {isShowingDoneToday
-                ? t`Nothing marked done today yet.`
+              {isShowingDone
+                ? t`Nothing marked done in this period.`
                 : t`Nothing needs a manual review.`}
             </StyledEmpty>
           ) : (
@@ -637,7 +650,7 @@ export const TeamInboxContent = () => {
                         })
                       : null
                   }
-                  isDone={isShowingDoneToday}
+                  isDone={isShowingDone}
                   onReply={handleReplyToApplicant}
                   onToggleDone={async () => {
                     // The visible card goes last so it stays on screen
@@ -648,7 +661,7 @@ export const TeamInboxContent = () => {
                     ];
 
                     for (const threadId of threadIds) {
-                      const isSaved = await (isShowingDoneToday
+                      const isSaved = await (isShowingDone
                         ? undoDone(threadId)
                         : markDone(threadId));
 
