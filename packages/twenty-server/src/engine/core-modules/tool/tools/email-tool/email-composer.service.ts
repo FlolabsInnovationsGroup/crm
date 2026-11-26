@@ -25,6 +25,7 @@ import { FileService } from 'src/engine/core-modules/file/services/file.service'
 import { compileOutboundEmailContent } from 'src/engine/core-modules/email/utils/compile-outbound-email-content.util';
 import { sanitizeOutboundEmailSubject } from 'src/engine/core-modules/email/utils/sanitize-outbound-email-html.util';
 import { EMAIL_ATTACHMENT_FILE_FOLDERS } from 'src/engine/core-modules/tool/tools/email-tool/constants/email-attachment-file-folders.const';
+import { EmailQuotedHistoryService } from 'src/engine/core-modules/tool/tools/email-tool/email-quoted-history.service';
 import {
   EmailToolException,
   EmailToolExceptionCode,
@@ -60,6 +61,7 @@ export class EmailComposerService {
     @InjectWorkspaceScopedRepository(FileEntity)
     private readonly fileRepository: WorkspaceScopedRepository<FileEntity>,
     private readonly fileService: FileService,
+    private readonly emailQuotedHistoryService: EmailQuotedHistoryService,
   ) {}
 
   private async getConnectedAccountOrThrow({
@@ -462,6 +464,28 @@ export class EmailComposerService {
           )
         : {};
 
+    const quotedHistory =
+      isDefined(inReplyTo) && isDefined(messageChannel)
+        ? await this.emailQuotedHistoryService.getQuotedHistory({
+            workspaceId,
+            messageChannelId: messageChannel.id,
+            inReplyTo,
+            senderHandles: [
+              connectedAccount.handle,
+              fromHandle ?? '',
+              ...(connectedAccount.handleAliases ?? []),
+              ...connectedAccount.messageChannels.map(
+                (channel) => channel.handle,
+              ),
+            ],
+            recipientHandles: [
+              ...recipients.to,
+              ...recipients.cc,
+              ...recipients.bcc,
+            ],
+          })
+        : undefined;
+
     return {
       success: true,
       data: {
@@ -478,6 +502,7 @@ export class EmailComposerService {
         inReplyTo,
         threadExternalId,
         references,
+        quotedHistory,
       },
     };
   }

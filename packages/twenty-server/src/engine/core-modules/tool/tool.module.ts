@@ -12,6 +12,7 @@ import { CreateCalendarEventTool } from 'src/engine/core-modules/tool/tools/cale
 import { CodeInterpreterTool } from 'src/engine/core-modules/tool/tools/code-interpreter-tool/code-interpreter-tool';
 import { DraftEmailTool } from 'src/engine/core-modules/tool/tools/email-tool/draft-email-tool';
 import { EmailComposerService } from 'src/engine/core-modules/tool/tools/email-tool/email-composer.service';
+import { EmailQuotedHistoryService } from 'src/engine/core-modules/tool/tools/email-tool/email-quoted-history.service';
 import { FindConnectedAccountsTool } from 'src/engine/core-modules/tool/tools/email-tool/find-connected-accounts-tool';
 import { SendEmailTool } from 'src/engine/core-modules/tool/tools/email-tool/send-email-tool';
 import { CompleteFileUploadTool } from 'src/engine/core-modules/tool/tools/file-upload-tool/complete-file-upload-tool';
@@ -49,6 +50,7 @@ import { WorkspaceCacheModule } from 'src/engine/workspace-cache/workspace-cache
     FindConnectedAccountsTool,
     CreateCalendarEventTool,
     EmailComposerService,
+    EmailQuotedHistoryService,
     SearchHelpCenterTool,
     CreateFileUploadTool,
     CompleteFileUploadTool,
