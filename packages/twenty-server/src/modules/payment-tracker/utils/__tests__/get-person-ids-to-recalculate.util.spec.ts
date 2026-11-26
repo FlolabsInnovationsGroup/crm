@@ -1,5 +1,6 @@
 import {
   getPersonIdsAffectedByPaymentEvents,
+  getPersonIdsOfPayments,
   getPersonIdsWithChangedAgreement,
 } from 'src/modules/payment-tracker/utils/get-person-ids-to-recalculate.util';
 
@@ -57,5 +58,21 @@ describe('getPersonIdsWithChangedAgreement', () => {
         },
       ]),
     ).toEqual(['a', 'c']);
+  });
+});
+
+describe('getPersonIdsOfPayments', () => {
+  it('recalculates the person of a deleted payment whatever field changed', () => {
+    expect(
+      getPersonIdsOfPayments([
+        {
+          properties: {
+            before: { personId: 'person' },
+            after: { personId: 'person' },
+            updatedFields: ['deletedAt'],
+          },
+        },
+      ]),
+    ).toEqual(['person']);
   });
 });

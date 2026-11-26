@@ -14,6 +14,7 @@ export type StripePaymentRecord = {
   refundedAmount: CurrencyValue | null;
   paidAt: string | Date | null;
   paymentStatus: RecordedPaymentStatus | null;
+  deletedAt?: string | null;
 };
 
 // The payment fields setup-payments.mjs adds to person.

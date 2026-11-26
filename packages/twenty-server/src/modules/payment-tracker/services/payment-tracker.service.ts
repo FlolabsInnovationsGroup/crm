@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { isNonEmptyString } from '@sniptt/guards';
 import { isDefined, isNonEmptyArray } from 'twenty-shared/utils';
@@ -12,6 +12,7 @@ import {
   type StripePaymentRecord,
 } from 'src/modules/payment-tracker/types/payment-record.type';
 import { type PaymentPlan } from 'src/modules/payment-tracker/types/payment-plan.type';
+import { type RecordPaymentResult } from 'src/modules/payment-tracker/types/record-payment-result.type';
 import { type RecordedPayment } from 'src/modules/payment-tracker/types/recorded-payment.type';
 import { computePersonPaymentSummary } from 'src/modules/payment-tracker/utils/compute-person-payment-summary.util';
 import { formatPaymentName } from 'src/modules/payment-tracker/utils/format-payment-name.util';
@@ -26,12 +27,17 @@ const PAYMENT_PLANS: PaymentPlan[] = [
 const toPaymentPlan = (value: string | null): PaymentPlan | null =>
   PAYMENT_PLANS.find((plan) => plan === value) ?? null;
 
-export type RecordPaymentResult = { isNew: boolean; personId: string | null };
+// Writing null to a currency field leaves the old value, so it is cleared
+// with an empty amount instead.
+const EMPTY_CURRENCY_VALUE = { amountMicros: null, currencyCode: '' };
+
+const toCurrencyValue = (amountMicros: number, currencyCode: string | null) =>
+  isDefined(currencyCode)
+    ? { amountMicros, currencyCode }
+    : EMPTY_CURRENCY_VALUE;
 
 @Injectable()
 export class PaymentTrackerService {
-  private readonly logger = new Logger(PaymentTrackerService.name);
-
   constructor(private readonly workspaceOrmManager: WorkspaceOrmManager) {}
 
   async recordPayment(
@@ -47,7 +53,13 @@ export class PaymentTrackerService {
 
       const existing = await paymentRepository.findOne({
         where: { stripePaymentIntentId: payment.stripePaymentIntentId },
+        withDeleted: true,
       });
+
+      // Someone deleted this payment on purpose; a later event must not bring it back.
+      if (isDefined(existing?.deletedAt)) {
+        return { isNew: false, personId: existing.personId };
+      }
 
       // A payment someone linked by hand keeps that person.
       const personId =
@@ -79,10 +91,6 @@ export class PaymentTrackerService {
         await paymentRepository.insert(values);
       }
 
-      if (isDefined(personId)) {
-        await this.recalculatePeople([personId]);
-      }
-
       return { isNew: !isDefined(existing), personId };
     }, buildSystemAuthContext(workspaceId));
   }
@@ -112,11 +120,14 @@ export class PaymentTrackerService {
       queryBuilder: personRepository.createQueryBuilder('person'),
       emails: [email.trim().toLowerCase()],
     })
-      .andWhere('person.deletedAt IS NULL')
       .orderBy('person.createdAt', 'ASC')
-      .getMany()) as { id: string }[];
+      .getMany()) as { id: string; deletedAt: string | null }[];
 
-    return matchingPeople[0]?.id ?? null;
+    // The email helper's OR clauses cannot take an extra AND, so deleted
+    // people are dropped here; with several matches the oldest wins.
+    return (
+      matchingPeople.find((person) => !isDefined(person.deletedAt))?.id ?? null
+    );
   }
 
   // Must run inside a workspace context.
@@ -140,7 +151,6 @@ export class PaymentTrackerService {
     const [people, payments] = await Promise.all([
       personRepository.find({
         where: { id: In(uniquePersonIds) },
-        select: { id: true, paymentPlan: true, paymentAgreedAmount: true },
       }),
       paymentRepository.find({
         where: { personId: In(uniquePersonIds) },
@@ -178,28 +188,30 @@ export class PaymentTrackerService {
       });
 
       const currencyCode = summary.currencyCode;
+      const isScholarship = summary.status === 'SCHOLARSHIP';
 
       await personRepository.update(person.id, {
         paymentStatus: summary.status,
-        paymentPaidAmount: isDefined(currencyCode)
-          ? { amountMicros: summary.paidAmountMicros, currencyCode }
-          : null,
+        paymentPaidAmount: toCurrencyValue(
+          summary.paidAmountMicros,
+          currencyCode,
+        ),
         paymentRemainingAmount:
-          isDefined(agreedAmount) && agreedAmount.currencyCode === currencyCode
-            ? {
-                amountMicros: Math.max(
+          isDefined(agreedAmount) &&
+          agreedAmount.currencyCode === currencyCode &&
+          !isScholarship
+            ? toCurrencyValue(
+                Math.max(
                   agreedAmount.amountMicros - summary.paidAmountMicros,
                   0,
                 ),
                 currencyCode,
-              }
-            : null,
+              )
+            : EMPTY_CURRENCY_VALUE,
         paymentInstallmentCount: summary.installmentCount,
         paymentFirstPaidAt: summary.firstPaidAt?.toISOString() ?? null,
         paymentLastPaidAt: summary.lastPaidAt?.toISOString() ?? null,
       });
     }
-
-    this.logger.log(`Recalculated payments for ${people.length} people`);
   }
 }

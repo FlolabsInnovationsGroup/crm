@@ -18,24 +18,31 @@ const PAYMENT_FIELDS_AFFECTING_TOTALS = [
   'paymentStatus',
 ];
 
-// A payment moved from one person to another changes both people's totals.
-export const getPersonIdsAffectedByPaymentEvents = (events: PaymentEvent[]) =>
+const getPersonIds = (events: PaymentEvent[]) =>
   [
     ...new Set(
-      events
-        .filter(
-          ({ properties }) =>
-            !isDefined(properties.updatedFields) ||
-            properties.updatedFields.some((field) =>
-              PAYMENT_FIELDS_AFFECTING_TOTALS.includes(field),
-            ),
-        )
-        .flatMap(({ properties }) => [
-          properties.before?.personId,
-          properties.after?.personId,
-        ]),
+      events.flatMap(({ properties }) => [
+        properties.before?.personId,
+        properties.after?.personId,
+      ]),
     ),
   ].filter((personId): personId is string => isDefined(personId));
+
+// A payment moved from one person to another changes both people's totals.
+export const getPersonIdsAffectedByPaymentEvents = (events: PaymentEvent[]) =>
+  getPersonIds(
+    events.filter(
+      ({ properties }) =>
+        !isDefined(properties.updatedFields) ||
+        properties.updatedFields.some((field) =>
+          PAYMENT_FIELDS_AFFECTING_TOTALS.includes(field),
+        ),
+    ),
+  );
+
+// Deleting or restoring a payment always changes its person's totals.
+export const getPersonIdsOfPayments = (events: PaymentEvent[]) =>
+  getPersonIds(events);
 
 const PERSON_FIELDS_AFFECTING_TOTALS = ['paymentPlan', 'paymentAgreedAmount'];
 

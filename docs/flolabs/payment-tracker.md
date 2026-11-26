@@ -16,7 +16,11 @@ Plan item 5. Shows on each person whether they paid, how much, and what is left,
 
 **Payments** is a new list with one record per Stripe payment: amount, refunds, date, payer email, status and the person it belongs to. A payment whose email matches nobody has an empty Person; link it by hand and the person's totals update at once.
 
-**Status rules:** Full scholarship is always "Scholarship". Otherwise "Not paid" until money arrives; then "Paid in full" once the agreed amount is reached (or after any payment on a Full one-time plan with no agreed amount), and "Paying in installments" before that. Refunds are subtracted. Payments in another currency than the agreed amount are listed but not added to the total.
+**Matching:** a payment is linked to the person whose email matches the payer's (the oldest one if several match; deleted people are skipped). A payment someone linked by hand keeps that person. If you clear a payment's Person on purpose, the next refund or sync for it links it by email again.
+
+**Status rules:** Full scholarship is always "Scholarship". Otherwise "Not paid" until money arrives; then "Paid in full" once the agreed amount is reached (or after any payment on a Full one-time plan with no agreed amount), and "Paying in installments" before that. Refunds are subtracted. Payments in another currency than the agreed amount are listed but not added to the total. A person with payments but no plan shows "Paying in installments". Lost disputes are not subtracted; correct those by hand.
+
+**Privacy:** payment fields are part of a person, so any workflow or outgoing webhook that sends person updates also sends them.
 
 ## Setup (once, by an admin)
 

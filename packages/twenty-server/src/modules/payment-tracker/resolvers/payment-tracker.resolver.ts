@@ -25,7 +25,7 @@ const MAX_SYNC_DAYS = 400;
     userSession: {
       standard: true,
       impersonated: false,
-      playground: false,
+      playground: true,
       workspaceAgnostic: false,
     },
     apiKey: false,

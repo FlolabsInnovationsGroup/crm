@@ -243,6 +243,8 @@ await ensureField(payment, {
   label: 'Stripe payment ID',
   type: 'TEXT',
   icon: 'IconId',
+  // Two deliveries of the same Stripe event must not create two payments.
+  isUnique: true,
 });
 await ensureField(payment, {
   name: 'stripeCustomerId',

@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import {
   type ObjectRecordCreateEvent,
   type ObjectRecordDeleteEvent,
+  type ObjectRecordRestoreEvent,
   type ObjectRecordUpdateEvent,
 } from 'twenty-shared/database-events';
 import { isNonEmptyArray } from 'twenty-shared/utils';
@@ -14,6 +15,7 @@ import { PaymentTrackerService } from 'src/modules/payment-tracker/services/paym
 import { type StripePaymentRecord } from 'src/modules/payment-tracker/types/payment-record.type';
 import {
   getPersonIdsAffectedByPaymentEvents,
+  getPersonIdsOfPayments,
   getPersonIdsWithChangedAgreement,
 } from 'src/modules/payment-tracker/utils/get-person-ids-to-recalculate.util';
 import { getPaymentTrackerConfig } from 'src/modules/payment-tracker/utils/get-payment-tracker-config.util';
@@ -64,7 +66,17 @@ export class PaymentTrackerListener {
   ) {
     await this.recalculate(
       payload.workspaceId,
-      getPersonIdsAffectedByPaymentEvents(payload.events),
+      getPersonIdsOfPayments(payload.events),
+    );
+  }
+
+  @OnDatabaseBatchEvent('stripePayment', DatabaseEventAction.RESTORED)
+  async handlePaymentRestored(
+    payload: WorkspaceEventBatch<ObjectRecordRestoreEvent<StripePaymentRecord>>,
+  ) {
+    await this.recalculate(
+      payload.workspaceId,
+      getPersonIdsOfPayments(payload.events),
     );
   }
 
