@@ -1,5 +1,6 @@
-// Creates the meeting fields on people that the meeting tracker fills from
-// synced calendars. Safe to run again: existing fields are left untouched.
+// Creates the meeting fields on people and the Calendly booking object that
+// the meeting tracker uses. Safe to run again: existing objects and fields are
+// left untouched.
 //
 //   TWENTY_URL=https://crm.example.com TWENTY_TOKEN=<api key> node setup-meeting-tracker.mjs
 // or put the key in a file and pass TWENTY_TOKEN_FILE=<path> instead.
@@ -62,6 +63,30 @@ const findObject = async (nameSingular) => {
     .find((object) => object.nameSingular === nameSingular);
 };
 
+const ensureObject = async (input) => {
+  const existing = await findObject(input.nameSingular);
+
+  if (existing) {
+    console.log(`= object ${input.nameSingular} already exists`);
+
+    return existing;
+  }
+
+  await graphql(
+    `
+      mutation ($input: CreateOneObjectInput!) {
+        createOneObject(input: $input) {
+          id
+        }
+      }
+    `,
+    { input: { object: input } },
+  );
+  console.log(`+ object ${input.nameSingular}`);
+
+  return findObject(input.nameSingular);
+};
+
 const ensureField = async (object, input) => {
   if (object.fieldsList.some((field) => field.name === input.name)) {
     console.log(`= field ${object.nameSingular}.${input.name} already exists`);
@@ -107,8 +132,8 @@ await ensureField(person, {
   label: 'First meeting event ID',
   type: 'TEXT',
   icon: 'IconId',
-  // Lets the CRM find whose meeting disappeared when a cancelled event is
-  // deleted by calendar sync.
+  // Lets the CRM find whose meeting disappeared when a cancelled calendar
+  // event is deleted by calendar sync.
   description: 'Set by the CRM; do not edit',
 });
 await ensureField(person, {
@@ -118,6 +143,79 @@ await ensureField(person, {
   icon: 'IconHourglass',
 });
 
+let booking = await ensureObject({
+  nameSingular: 'calendlyBooking',
+  namePlural: 'calendlyBookings',
+  labelSingular: 'Calendly booking',
+  labelPlural: 'Calendly bookings',
+  icon: 'IconCalendarEvent',
+  description: 'Meetings booked through Calendly',
+});
+
+await ensureField(booking, {
+  name: 'meetingStartsAt',
+  label: 'Meeting starts at',
+  type: 'DATE_TIME',
+  icon: 'IconCalendarEvent',
+});
+await ensureField(booking, {
+  name: 'bookedAt',
+  label: 'Booked at',
+  type: 'DATE_TIME',
+  icon: 'IconCalendarPlus',
+});
+await ensureField(booking, {
+  name: 'bookingStatus',
+  label: 'Status',
+  type: 'SELECT',
+  icon: 'IconCircleDot',
+  options: [
+    { value: 'ACTIVE', label: 'Booked', color: 'green', position: 0 },
+    { value: 'CANCELED', label: 'Cancelled', color: 'red', position: 1 },
+  ],
+});
+await ensureField(booking, {
+  name: 'inviteeEmail',
+  label: 'Invitee email',
+  type: 'TEXT',
+  icon: 'IconMail',
+});
+await ensureField(booking, {
+  name: 'eventName',
+  label: 'Event type',
+  type: 'TEXT',
+  icon: 'IconCalendar',
+});
+await ensureField(booking, {
+  name: 'hostEmail',
+  label: 'Calendly account',
+  type: 'TEXT',
+  icon: 'IconUser',
+});
+await ensureField(booking, {
+  name: 'calendlyInviteeUri',
+  label: 'Calendly invitee ID',
+  type: 'TEXT',
+  icon: 'IconId',
+  // Two deliveries of the same Calendly event must not create two bookings.
+  isUnique: true,
+});
+
+booking = await findObject('calendlyBooking');
+
+await ensureField(booking, {
+  name: 'person',
+  label: 'Person',
+  type: 'RELATION',
+  icon: 'IconUser',
+  relationCreationPayload: {
+    type: 'MANY_TO_ONE',
+    targetObjectMetadataId: person.id,
+    targetFieldLabel: 'Calendly bookings',
+    targetFieldIcon: 'IconCalendarEvent',
+  },
+});
+
 console.log(
-  'Meeting fields are ready. Deploy the server, then run the recalculateMeetingTimes mutation once.',
+  'Meeting fields and Calendly bookings are ready. Deploy the server, add the Calendly settings, then run syncCalendlyBookings once.',
 );

@@ -5,8 +5,13 @@ import chunk from 'lodash.chunk';
 import { isDefined, isNonEmptyArray } from 'twenty-shared/utils';
 import { Any, IsNull, MoreThan, Not } from 'typeorm';
 
+import {
+  TwentyOrmException,
+  TwentyOrmExceptionCode,
+} from 'src/engine/twenty-orm/exceptions/twenty-orm.exception';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
+import { type CalendlyBookingRecord } from 'src/modules/meeting-tracker/types/calendly-booking.type';
 import {
   type MeetingCandidate,
   type MeetingRecalculationResult,
@@ -108,8 +113,8 @@ export class MeetingTrackerService {
     await this.recalculatePeople(workspaceId, personIds);
   }
 
-  // Everyone who is a guest somewhere, plus everyone who still shows a meeting
-  // that may no longer exist.
+  // Everyone who is a guest somewhere or has a Calendly booking, plus everyone
+  // who still shows a meeting that may no longer exist.
   async recalculateEveryone(
     workspaceId: string,
   ): Promise<MeetingRecalculationResult> {
@@ -140,6 +145,32 @@ export class MeetingTrackerService {
           participantCursor = page[page.length - 1].id;
           onlyIds(page.map((participant) => participant.personId)).forEach(
             (id) => ids.add(id),
+          );
+        }
+
+        const bookingRepository = this.getBookingRepositoryIfCreated();
+        let bookingCursor: string | undefined;
+
+        while (isDefined(bookingRepository)) {
+          const page = await bookingRepository.find({
+            where: {
+              personId: Not(IsNull()),
+              ...(isDefined(bookingCursor)
+                ? { id: MoreThan(bookingCursor) }
+                : {}),
+            },
+            order: { id: 'ASC' },
+            take: PAGE_SIZE,
+            select: { id: true, personId: true },
+          });
+
+          if (!isNonEmptyArray(page)) {
+            break;
+          }
+
+          bookingCursor = page[page.length - 1].id;
+          onlyIds(page.map((booking) => booking.personId)).forEach((id) =>
+            ids.add(id),
           );
         }
 
@@ -190,6 +221,26 @@ export class MeetingTrackerService {
     >('calendarEventParticipant', { shouldBypassPermissionChecks: true });
   }
 
+  // The bookings object comes from a setup script; until it exists, calendar
+  // meetings must keep working.
+  private getBookingRepositoryIfCreated() {
+    try {
+      return this.workspaceOrmManager.getRepository<CalendlyBookingRecord>(
+        'calendlyBooking',
+        { shouldBypassPermissionChecks: true },
+      );
+    } catch (error) {
+      if (
+        error instanceof TwentyOrmException &&
+        error.code === TwentyOrmExceptionCode.UNKNOWN_OBJECT
+      ) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
   // Must run inside a workspace context.
   private async recalculateBatch(
     personIds: string[],
@@ -200,7 +251,9 @@ export class MeetingTrackerService {
         { shouldBypassPermissionChecks: true },
       );
 
-    const [people, participants] = await Promise.all([
+    const bookingRepository = this.getBookingRepositoryIfCreated();
+
+    const [people, participants, bookings] = await Promise.all([
       this.getPersonRepository().find({
         where: { id: Any(personIds) },
         select: {
@@ -226,6 +279,18 @@ export class MeetingTrackerService {
           responseStatus: true,
         },
       }),
+      isDefined(bookingRepository)
+        ? bookingRepository.find({
+            where: { personId: Any(personIds) },
+            select: {
+              id: true,
+              personId: true,
+              meetingStartsAt: true,
+              bookedAt: true,
+              bookingStatus: true,
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     const attended = participants.filter(
@@ -252,7 +317,7 @@ export class MeetingTrackerService {
     let peopleWithMeeting = 0;
 
     for (const person of people) {
-      const meetings: MeetingCandidate[] = attended
+      const calendarMeetings: MeetingCandidate[] = attended
         .filter((participant) => participant.personId === person.id)
         .map((participant) => eventsById.get(participant.calendarEventId))
         .filter((event): event is CalendarEventRecord => isDefined(event))
@@ -265,6 +330,16 @@ export class MeetingTrackerService {
           isCanceled: event.isCanceled,
           isFullDay: event.isFullDay,
         }));
+      const calendlyMeetings: MeetingCandidate[] = bookings
+        .filter((booking) => booking.personId === person.id)
+        .map((booking) => ({
+          eventId: booking.id,
+          startsAt: booking.meetingStartsAt,
+          bookedAt: booking.bookedAt,
+          isCanceled: booking.bookingStatus === 'CANCELED',
+          isFullDay: false,
+        }));
+      const meetings = [...calendarMeetings, ...calendlyMeetings];
 
       const firstMeeting = pickFirstMeeting({
         applicationDate: person.applicationDate,

@@ -1,5 +1,9 @@
 import { Test } from '@nestjs/testing';
 
+import {
+  TwentyOrmException,
+  TwentyOrmExceptionCode,
+} from 'src/engine/twenty-orm/exceptions/twenty-orm.exception';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { MeetingTrackerService } from 'src/modules/meeting-tracker/services/meeting-tracker.service';
 
@@ -30,10 +34,12 @@ describe('MeetingTrackerService', () => {
   const personRepository = { find: jest.fn(), update: jest.fn() };
   const participantRepository = { find: jest.fn() };
   const eventRepository = { find: jest.fn() };
+  const bookingRepository = { find: jest.fn() };
   const repositories: Record<string, unknown> = {
     person: personRepository,
     calendarEventParticipant: participantRepository,
     calendarEvent: eventRepository,
+    calendlyBooking: bookingRepository,
   };
   const workspaceOrmManager = {
     executeInWorkspaceContext: jest.fn((callback: () => unknown) => callback()),
@@ -44,6 +50,10 @@ describe('MeetingTrackerService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    workspaceOrmManager.getRepository.mockImplementation(
+      (name: string) => repositories[name],
+    );
+    bookingRepository.find.mockResolvedValue([]);
 
     const module = await Test.createTestingModule({
       providers: [
@@ -165,5 +175,63 @@ describe('MeetingTrackerService', () => {
         }),
       }),
     );
+  });
+
+  it('counts a Calendly booking and skips cancelled ones', async () => {
+    personRepository.find.mockResolvedValue([applicant()]);
+    participantRepository.find.mockResolvedValue([]);
+    bookingRepository.find.mockResolvedValue([
+      {
+        id: 'cancelled-booking',
+        personId: 'applicant',
+        meetingStartsAt: '2026-11-05T09:00:00Z',
+        bookedAt: '2026-11-03T12:00:00Z',
+        bookingStatus: 'CANCELED',
+      },
+      {
+        id: 'booking',
+        personId: 'applicant',
+        meetingStartsAt: '2026-11-06T09:00:00Z',
+        bookedAt: '2026-11-03T12:30:00Z',
+        bookingStatus: 'ACTIVE',
+      },
+    ]);
+
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(personRepository.update).toHaveBeenCalledWith('applicant', {
+      firstMeetingAt: '2026-11-06T09:00:00.000Z',
+      meetingBookedAt: '2026-11-03T12:30:00.000Z',
+      daysToMeeting: 4,
+      firstMeetingEventId: 'booking',
+    });
+  });
+
+  it('keeps counting calendar meetings before the bookings object exists', async () => {
+    workspaceOrmManager.getRepository.mockImplementation((name: string) => {
+      if (name === 'calendlyBooking') {
+        throw new TwentyOrmException(
+          'Object calendlyBooking not found',
+          TwentyOrmExceptionCode.UNKNOWN_OBJECT,
+        );
+      }
+
+      return repositories[name];
+    });
+    personRepository.find.mockResolvedValue([applicant()]);
+    participantRepository.find.mockResolvedValue([
+      {
+        personId: 'applicant',
+        calendarEventId: 'interview',
+        responseStatus: 'ACCEPTED',
+      },
+    ]);
+    eventRepository.find.mockResolvedValue([calendarEvent('interview')]);
+
+    const result = await service.recalculatePeople('workspace-id', [
+      'applicant',
+    ]);
+
+    expect(result).toEqual({ peopleChecked: 1, peopleWithMeeting: 1 });
   });
 });

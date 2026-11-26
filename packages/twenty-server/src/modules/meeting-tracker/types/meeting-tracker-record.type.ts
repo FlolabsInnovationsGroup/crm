@@ -4,8 +4,9 @@ export type MeetingTrackerPersonRecord = {
   firstMeetingAt: string | null;
   meetingBookedAt: string | null;
   daysToMeeting: number | null;
-  // Cancelled meetings are hard-deleted by calendar sync, so the event id is
-  // the only way to find whose first meeting just disappeared.
+  // A calendar event or Calendly booking id. Cancelled calendar events are
+  // hard-deleted by sync, so this is the only way to find whose first meeting
+  // just disappeared.
   firstMeetingEventId: string | null;
 };
 
