@@ -29,7 +29,6 @@ describe('getApprovalApplicantSummary', () => {
       ).toISOString(),
     });
 
-    expect(summary).toHaveLength(1);
-    expect(summary[0]).toMatch(/^Applied /);
+    expect(summary).toEqual(['Applied 3 days ago']);
   });
 });
