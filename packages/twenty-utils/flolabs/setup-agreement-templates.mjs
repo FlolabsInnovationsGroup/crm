@@ -126,7 +126,7 @@ const template = await ensureObject({
 await ensureField(template, {
   name: 'body',
   label: 'Text',
-  type: 'RICH_TEXT_V2',
+  type: 'RICH_TEXT',
   icon: 'IconFileText',
   description:
     'The document text. Placeholders like {{fullName}} are filled from the person',

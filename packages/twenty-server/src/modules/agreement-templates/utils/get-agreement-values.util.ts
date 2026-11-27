@@ -24,6 +24,30 @@ const joinPresent = (values: (string | null | undefined)[]) =>
     .filter(isNonEmptyString)
     .join(', ') || null;
 
+// The CRM accepts any text as a currency code; Intl rejects a malformed one.
+const formatAmount = (
+  amount: AgreementPersonRecord['paymentAgreedAmount'],
+): string | null => {
+  const amountMicros = Number(amount?.amountMicros);
+
+  if (
+    !isDefined(amount?.amountMicros) ||
+    !Number.isFinite(amountMicros) ||
+    !isNonEmptyString(amount.currencyCode)
+  ) {
+    return null;
+  }
+
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: amount.currencyCode,
+    }).format(amountMicros / 1_000_000);
+  } catch {
+    return null;
+  }
+};
+
 // The placeholders a template can use, documented in
 // docs/flolabs/agreement-templates.md.
 export const getAgreementValues = (
@@ -32,7 +56,6 @@ export const getAgreementValues = (
 ): Record<string, string | null> => {
   const firstName = person.name?.firstName?.trim() || null;
   const lastName = person.name?.lastName?.trim() || null;
-  const amount = person.paymentAgreedAmount;
 
   return {
     fullName: [firstName, lastName].filter(isNonEmptyString).join(' ') || null,
@@ -47,13 +70,7 @@ export const getAgreementValues = (
     paymentPlan: isNonEmptyString(person.paymentPlan)
       ? (PAYMENT_PLAN_LABELS[person.paymentPlan] ?? toWords(person.paymentPlan))
       : null,
-    agreedAmount:
-      isDefined(amount?.amountMicros) && isNonEmptyString(amount.currencyCode)
-        ? new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: amount.currencyCode,
-          }).format(amount.amountMicros / 1_000_000)
-        : null,
+    agreedAmount: formatAmount(person.paymentAgreedAmount),
     date: new Intl.DateTimeFormat('en-GB', {
       day: 'numeric',
       month: 'long',

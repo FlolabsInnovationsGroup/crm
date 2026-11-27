@@ -17,7 +17,8 @@ export type AgreementPersonRecord = {
   candidateLocation: string | null;
   paymentPlan: string | null;
   paymentAgreedAmount: {
-    amountMicros: number | null;
+    // A NUMERIC column, read back as a string.
+    amountMicros: number | string | null;
     currencyCode: string | null;
   } | null;
 };

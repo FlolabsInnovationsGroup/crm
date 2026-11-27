@@ -46,4 +46,30 @@ describe('getAgreementValues', () => {
     expect(values.paymentPlan).toBeNull();
     expect(values.agreedAmount).toBeNull();
   });
+
+  it('reads the amount stored as text and skips a malformed currency', () => {
+    const today = new Date('2026-11-27T10:00:00Z');
+
+    expect(
+      getAgreementValues(
+        {
+          ...person,
+          paymentAgreedAmount: {
+            amountMicros: '500000000',
+            currencyCode: 'EUR',
+          },
+        },
+        today,
+      ).agreedAmount,
+    ).toBe('€500.00');
+    expect(
+      getAgreementValues(
+        {
+          ...person,
+          paymentAgreedAmount: { amountMicros: 1, currencyCode: 'US$' },
+        },
+        today,
+      ).agreedAmount,
+    ).toBeNull();
+  });
 });

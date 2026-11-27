@@ -5,10 +5,14 @@ import { IsUUID } from 'class-validator';
 
 import { CoreResolver } from 'src/engine/api/graphql/graphql-config/decorators/core-resolver.decorator';
 import { UUIDScalarType } from 'src/engine/api/graphql/workspace-schema-builder/graphql-types/scalars';
+import { getWorkspaceAuthContext } from 'src/engine/core-modules/auth/storage/workspace-auth-context.storage';
 import { AuthGraphqlApiExceptionFilter } from 'src/engine/core-modules/auth/filters/auth-graphql-api-exception.filter';
 import { ResolverValidationPipe } from 'src/engine/core-modules/graphql/pipes/resolver-validation.pipe';
-import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
-import { AuthWorkspace } from 'src/engine/decorators/auth/auth-workspace.decorator';
+import { UserInputError } from 'src/engine/core-modules/graphql/utils/graphql-errors.util';
+import {
+  TwentyOrmException,
+  TwentyOrmExceptionCode,
+} from 'src/engine/twenty-orm/exceptions/twenty-orm.exception';
 import { AuthPrincipalGuard } from 'src/engine/guards/auth-principal.guard';
 import { CustomPermissionGuard } from 'src/engine/guards/custom-permission.guard';
 import { AgreementPreviewDTO } from 'src/modules/agreement-templates/dtos/agreement-preview.dto';
@@ -49,13 +53,25 @@ export class AgreementTemplateResolver {
 
   @Query(() => AgreementPreviewDTO, { nullable: true })
   async previewAgreement(
-    @AuthWorkspace() workspace: WorkspaceEntity,
     @Args() { templateId, personId }: PreviewAgreementArgs,
   ): Promise<AgreementPreviewDTO | null> {
-    return this.agreementTemplateService.preview({
-      workspaceId: workspace.id,
-      templateId,
-      personId,
-    });
+    try {
+      return await this.agreementTemplateService.preview({
+        authContext: getWorkspaceAuthContext(),
+        templateId,
+        personId,
+      });
+    } catch (error) {
+      if (
+        error instanceof TwentyOrmException &&
+        error.code === TwentyOrmExceptionCode.UNKNOWN_OBJECT
+      ) {
+        throw new UserInputError(
+          'Agreement templates are not set up yet. Run setup-agreement-templates.mjs first.',
+        );
+      }
+
+      throw error;
+    }
   }
 }

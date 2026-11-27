@@ -9,21 +9,22 @@ import {
 } from 'src/modules/agreement-templates/types/agreement-template-record.type';
 import { fillAgreementTemplate } from 'src/modules/agreement-templates/utils/fill-agreement-template.util';
 import { getAgreementValues } from 'src/modules/agreement-templates/utils/get-agreement-values.util';
+import { type WorkspaceAuthContext } from 'src/engine/core-modules/auth/types/workspace-auth-context.type';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
-import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 
 @Injectable()
 export class AgreementTemplateService {
   constructor(private readonly workspaceOrmManager: WorkspaceOrmManager) {}
 
-  // Null when the template or the person does not exist.
+  // Reads with the caller's own permissions. Null when the template or the
+  // person does not exist or is not visible to them.
   async preview({
-    workspaceId,
+    authContext,
     templateId,
     personId,
     today = new Date(),
   }: {
-    workspaceId: string;
+    authContext: WorkspaceAuthContext;
     templateId: string;
     personId: string;
     today?: Date;
@@ -31,14 +32,12 @@ export class AgreementTemplateService {
     return this.workspaceOrmManager.executeInWorkspaceContext(async () => {
       const [template, person] = await Promise.all([
         this.workspaceOrmManager
-          .getRepository<AgreementTemplateRecord>('agreementTemplate', {
-            shouldBypassPermissionChecks: true,
-          })
+          .getRepositoryWithContextPermissions<AgreementTemplateRecord>(
+            'agreementTemplate',
+          )
           .findOne({ where: { id: templateId } }),
         this.workspaceOrmManager
-          .getRepository<AgreementPersonRecord>('person', {
-            shouldBypassPermissionChecks: true,
-          })
+          .getRepositoryWithContextPermissions<AgreementPersonRecord>('person')
           .findOne({ where: { id: personId } }),
       ]);
 
@@ -53,6 +52,6 @@ export class AgreementTemplateService {
           getAgreementValues(person, today),
         ),
       };
-    }, buildSystemAuthContext(workspaceId));
+    }, authContext);
   }
 }

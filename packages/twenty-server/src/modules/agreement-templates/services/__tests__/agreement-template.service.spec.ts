@@ -1,7 +1,10 @@
 import { Test } from '@nestjs/testing';
 
+import { type WorkspaceAuthContext } from 'src/engine/core-modules/auth/types/workspace-auth-context.type';
 import { AgreementTemplateService } from 'src/modules/agreement-templates/services/agreement-template.service';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
+
+const AUTH_CONTEXT = { type: 'user' } as unknown as WorkspaceAuthContext;
 
 describe('AgreementTemplateService', () => {
   const templateRepository = { findOne: jest.fn() };
@@ -12,7 +15,9 @@ describe('AgreementTemplateService', () => {
   };
   const workspaceOrmManager = {
     executeInWorkspaceContext: jest.fn((callback: () => unknown) => callback()),
-    getRepository: jest.fn((name: string) => repositories[name]),
+    getRepositoryWithContextPermissions: jest.fn(
+      (name: string) => repositories[name],
+    ),
   };
 
   let service: AgreementTemplateService;
@@ -51,7 +56,7 @@ describe('AgreementTemplateService', () => {
 
     expect(
       await service.preview({
-        workspaceId: 'workspace-id',
+        authContext: AUTH_CONTEXT,
         templateId: 'template-id',
         personId: 'person-id',
         today: new Date('2026-11-27T10:00:00Z'),
@@ -63,13 +68,29 @@ describe('AgreementTemplateService', () => {
     });
   });
 
+  it('reads with the caller permissions', async () => {
+    templateRepository.findOne.mockResolvedValue(null);
+    personRepository.findOne.mockResolvedValue(null);
+
+    await service.preview({
+      authContext: AUTH_CONTEXT,
+      templateId: 'template-id',
+      personId: 'person-id',
+    });
+
+    expect(workspaceOrmManager.executeInWorkspaceContext).toHaveBeenCalledWith(
+      expect.any(Function),
+      AUTH_CONTEXT,
+    );
+  });
+
   it('returns nothing when the person does not exist', async () => {
     templateRepository.findOne.mockResolvedValue({ id: 'template-id' });
     personRepository.findOne.mockResolvedValue(null);
 
     expect(
       await service.preview({
-        workspaceId: 'workspace-id',
+        authContext: AUTH_CONTEXT,
         templateId: 'template-id',
         personId: 'missing',
       }),
