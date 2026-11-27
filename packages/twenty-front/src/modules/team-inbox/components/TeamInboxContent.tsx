@@ -24,6 +24,7 @@ import { useInboxEmailTemplates } from '@/team-inbox/hooks/useInboxEmailTemplate
 import { useInboxPeopleByEmail } from '@/team-inbox/hooks/useInboxPeopleByEmail';
 import { useInboxThreadClosed } from '@/team-inbox/hooks/useInboxThreadClosed';
 import { useManualReview } from '@/team-inbox/hooks/useManualReview';
+import { useEmailsSentToApplicants } from '@/team-inbox/hooks/useEmailsSentToApplicants';
 import { useManualReviewHistoryExport } from '@/team-inbox/hooks/useManualReviewHistoryExport';
 import { useRecordManualReviewAnswer } from '@/team-inbox/hooks/useRecordManualReviewAnswer';
 import { useTeamInboxReadState } from '@/team-inbox/hooks/useTeamInboxReadState';
@@ -36,10 +37,12 @@ import {
   buildManualReviewAnswerContext,
   type ManualReviewAnswerContext,
 } from '@/team-inbox/utils/buildManualReviewAnswerContext';
+import { findEmailSentAfter } from '@/team-inbox/utils/findEmailSentAfter';
 import { getManualReviewHistorySince } from '@/team-inbox/utils/getManualReviewHistorySince';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
 import { groupReviewItemsByApplicant } from '@/team-inbox/utils/groupReviewItemsByApplicant';
 import {
+  isTeamInboxApplicantMessage,
   isTeamInboxApproval,
   isTeamInboxAutomationIssue,
   isTeamInboxQuestion,
@@ -60,6 +63,7 @@ type ReviewFilter =
   | 'NOT_INTERESTED'
   | 'APPROVAL'
   | 'AUTOMATION'
+  | 'EMAILED_SINCE'
   | 'DONE';
 
 const isNotInterested = (item: TeamInboxReviewItem) =>
@@ -432,10 +436,42 @@ export const TeamInboxContent = () => {
   ) => [group, ...group.earlier].some(({ item }) => matches(item));
   const countReviewItems = (matches: (item: TeamInboxReviewItem) => boolean) =>
     reviewGroups.filter((group) => groupMatches(group, matches)).length;
+  const emailsSentToApplicants = useEmailsSentToApplicants(
+    isShowingDone
+      ? []
+      : reviewItems
+          .filter(({ item }) => isTeamInboxApplicantMessage(item))
+          .map(({ item }) => item.applicantEmail)
+          .filter(isDefined),
+  );
+  // An email to the applicant after their newest message often means someone
+  // answered outside the card; it may also be an automated one, so a person
+  // checks it before pressing Done.
+  const getEmailSentSinceCard = (group: (typeof reviewGroups)[number]) => {
+    const newestApplicantMessage = [group, ...group.earlier].find(({ item }) =>
+      isTeamInboxApplicantMessage(item),
+    );
+    const applicantEmail = newestApplicantMessage?.item.applicantEmail;
+
+    return isDefined(newestApplicantMessage) && isDefined(applicantEmail)
+      ? findEmailSentAfter(
+          emailsSentToApplicants.get(applicantEmail.toLowerCase()),
+          newestApplicantMessage.thread.lastMessageReceivedAt,
+        )
+      : null;
+  };
+  const emailedSinceCount = reviewGroups.filter((group) =>
+    isDefined(getEmailSentSinceCard(group)),
+  ).length;
   const activeReviewMatcher = REVIEW_FILTER_MATCHERS[reviewFilter];
-  const visibleReviewItems = isDefined(activeReviewMatcher)
-    ? reviewGroups.filter((group) => groupMatches(group, activeReviewMatcher))
-    : reviewGroups;
+  const visibleReviewItems =
+    reviewFilter === 'EMAILED_SINCE'
+      ? reviewGroups.filter((group) => isDefined(getEmailSentSinceCard(group)))
+      : isDefined(activeReviewMatcher)
+        ? reviewGroups.filter((group) =>
+            groupMatches(group, activeReviewMatcher),
+          )
+        : reviewGroups;
   const peopleByEmail = useInboxPeopleByEmail(
     reviewItems.map(({ item }) => item.applicantEmail).filter(isDefined),
   );
@@ -624,6 +660,12 @@ export const TeamInboxContent = () => {
         ? t`Automation issues · ${automationCount}`
         : t`Automation issues`,
     },
+    {
+      id: 'EMAILED_SINCE',
+      label: areReasonCountsExact
+        ? t`Emailed since · ${emailedSinceCount}`
+        : t`Emailed since`,
+    },
     { id: 'DONE', label: t`Done · ${doneSinceCount}` },
   ];
 
@@ -722,6 +764,7 @@ export const TeamInboxContent = () => {
                     thread={thread}
                     item={item}
                     earlier={earlier}
+                    emailSentSinceCard={getEmailSentSinceCard(group)}
                     person={
                       isDefined(item.applicantEmail)
                         ? peopleByEmail.get(item.applicantEmail.toLowerCase())
