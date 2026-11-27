@@ -9,6 +9,7 @@ import { IconFileText } from 'twenty-ui/icon';
 import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { TeamInboxAvatar } from '@/team-inbox/components/TeamInboxAvatar';
 import { type InboxPersonByEmail } from '@/team-inbox/hooks/useInboxPeopleByEmail';
+import { type EmailSentToApplicant } from '@/team-inbox/types/EmailSentToApplicant';
 import { getTeamInboxReviewAdvice } from '@/team-inbox/utils/getTeamInboxReviewAdvice';
 import { getTeamInboxReviewExcerpt } from '@/team-inbox/utils/getTeamInboxReviewExcerpt';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
@@ -182,6 +183,24 @@ const StyledSecondaryButton = styled.button`
   }
 `;
 
+const StyledSentSince = styled.div`
+  background: var(--fl-accent-soft);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+`;
+
+const StyledSentSinceText = styled.p`
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--fl-ink);
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+`;
+
 type ReviewCardEntry = {
   thread: TimelineThread;
   item: TeamInboxReviewItem;
@@ -192,6 +211,7 @@ type TeamInboxManualReviewCardProps = {
   thread: TimelineThread;
   item: TeamInboxReviewItem;
   earlier: ReviewCardEntry[];
+  emailSentSinceCard: EmailSentToApplicant | null;
   person: InboxPersonByEmail | undefined;
   suggestedTemplate: { id: string; name: string | null } | null;
   isDone: boolean;
@@ -233,6 +253,7 @@ export const TeamInboxManualReviewCard = ({
   thread,
   item,
   earlier,
+  emailSentSinceCard,
   person,
   suggestedTemplate,
   isDone,
@@ -266,6 +287,12 @@ export const TeamInboxManualReviewCard = ({
   const name = isNonEmptyString(person?.name)
     ? person.name
     : (applicantEmail ?? t`Applicant`);
+
+  const emailSentSenderName =
+    emailSentSinceCard?.senderName ?? emailSentSinceCard?.senderEmail;
+  const emailSentWhen = isDefined(emailSentSinceCard)
+    ? beautifyPastDateRelativeToNow(emailSentSinceCard.sentAt)
+    : '';
 
   const meta = [
     isNonEmptyString(person?.stageLabel)
@@ -343,6 +370,23 @@ export const TeamInboxManualReviewCard = ({
             </StyledAdviceText>
           ),
         )}
+      {isDefined(emailSentSinceCard) && (
+        <StyledSentSince>
+          <StyledLabel>
+            {isNonEmptyString(emailSentSenderName)
+              ? t`${emailSentSenderName} emailed them ${emailSentWhen}`
+              : t`Emailed them ${emailSentWhen}`}
+          </StyledLabel>
+          <StyledSentSinceText dir="auto">
+            {[emailSentSinceCard.subject, emailSentSinceCard.excerpt]
+              .filter(isNonEmptyString)
+              .join(' · ')}
+          </StyledSentSinceText>
+          <StyledAdviceText>
+            {t`If this answers them, press Done. Automated emails show here too.`}
+          </StyledAdviceText>
+        </StyledSentSince>
+      )}
       <StyledAdvice>
         <StyledLabel>{t`What to do`}</StyledLabel>
         <StyledAdviceText>{getTeamInboxReviewAdvice(item)}</StyledAdviceText>

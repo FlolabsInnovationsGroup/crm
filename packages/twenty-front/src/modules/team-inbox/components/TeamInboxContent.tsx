@@ -24,6 +24,7 @@ import { useInboxEmailTemplates } from '@/team-inbox/hooks/useInboxEmailTemplate
 import { useInboxPeopleByEmail } from '@/team-inbox/hooks/useInboxPeopleByEmail';
 import { useInboxThreadClosed } from '@/team-inbox/hooks/useInboxThreadClosed';
 import { useManualReview } from '@/team-inbox/hooks/useManualReview';
+import { useEmailsSentToApplicants } from '@/team-inbox/hooks/useEmailsSentToApplicants';
 import { useManualReviewHistoryExport } from '@/team-inbox/hooks/useManualReviewHistoryExport';
 import { useRecordManualReviewAnswer } from '@/team-inbox/hooks/useRecordManualReviewAnswer';
 import { useTeamInboxReadState } from '@/team-inbox/hooks/useTeamInboxReadState';
@@ -36,6 +37,7 @@ import {
   buildManualReviewAnswerContext,
   type ManualReviewAnswerContext,
 } from '@/team-inbox/utils/buildManualReviewAnswerContext';
+import { getEmailSentToApplicantItem } from '@/team-inbox/utils/getEmailSentToApplicantItem';
 import { getManualReviewHistorySince } from '@/team-inbox/utils/getManualReviewHistorySince';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
 import { groupReviewItemsByApplicant } from '@/team-inbox/utils/groupReviewItemsByApplicant';
@@ -60,6 +62,7 @@ type ReviewFilter =
   | 'NOT_INTERESTED'
   | 'APPROVAL'
   | 'AUTOMATION'
+  | 'EMAILED_SINCE'
   | 'DONE';
 
 const isNotInterested = (item: TeamInboxReviewItem) =>
@@ -432,10 +435,40 @@ export const TeamInboxContent = () => {
   ) => [group, ...group.earlier].some(({ item }) => matches(item));
   const countReviewItems = (matches: (item: TeamInboxReviewItem) => boolean) =>
     reviewGroups.filter((group) => groupMatches(group, matches)).length;
+  const {
+    emailsByThreadId: emailsSentToApplicants,
+    loading: isLoadingEmailsSent,
+    hasFailed: hasEmailsSentFailed,
+  } = useEmailsSentToApplicants(
+    isShowingDone
+      ? []
+      : reviewGroups
+          .map((group) =>
+            getEmailSentToApplicantItem([group, ...group.earlier]),
+          )
+          .filter(isDefined),
+  );
+  // An email to the applicant after their card often means someone answered
+  // outside it; it may also be automated, so a person checks before Done.
+  const getEmailSentSinceCard = (group: (typeof reviewGroups)[number]) => {
+    const lookup = getEmailSentToApplicantItem([group, ...group.earlier]);
+
+    return isDefined(lookup)
+      ? (emailsSentToApplicants.get(lookup.messageThreadId) ?? null)
+      : null;
+  };
+  const emailedSinceCount = reviewGroups.filter((group) =>
+    isDefined(getEmailSentSinceCard(group)),
+  ).length;
   const activeReviewMatcher = REVIEW_FILTER_MATCHERS[reviewFilter];
-  const visibleReviewItems = isDefined(activeReviewMatcher)
-    ? reviewGroups.filter((group) => groupMatches(group, activeReviewMatcher))
-    : reviewGroups;
+  const visibleReviewItems =
+    reviewFilter === 'EMAILED_SINCE'
+      ? reviewGroups.filter((group) => isDefined(getEmailSentSinceCard(group)))
+      : isDefined(activeReviewMatcher)
+        ? reviewGroups.filter((group) =>
+            groupMatches(group, activeReviewMatcher),
+          )
+        : reviewGroups;
   const peopleByEmail = useInboxPeopleByEmail(
     reviewItems.map(({ item }) => item.applicantEmail).filter(isDefined),
   );
@@ -624,6 +657,13 @@ export const TeamInboxContent = () => {
         ? t`Automation issues · ${automationCount}`
         : t`Automation issues`,
     },
+    {
+      id: 'EMAILED_SINCE',
+      label:
+        areReasonCountsExact && !isLoadingEmailsSent && !hasEmailsSentFailed
+          ? t`Emailed since · ${emailedSinceCount}`
+          : t`Emailed since`,
+    },
     { id: 'DONE', label: t`Done · ${doneSinceCount}` },
   ];
 
@@ -696,13 +736,20 @@ export const TeamInboxContent = () => {
               />
             )}
           </StyledReviewHeader>
-          {isFirstLoad ? (
+          {isFirstLoad ||
+          (reviewFilter === 'EMAILED_SINCE' &&
+            isLoadingEmailsSent &&
+            visibleReviewItems.length === 0) ? (
             <SkeletonLoader />
           ) : visibleReviewItems.length === 0 ? (
             <StyledEmpty>
               {isShowingDone
                 ? t`Nothing marked done in this period.`
-                : t`Nothing needs a manual review.`}
+                : reviewFilter === 'EMAILED_SINCE'
+                  ? hasEmailsSentFailed
+                    ? t`Could not check the emails sent to applicants. Try again later.`
+                    : t`No card has an email sent to the applicant since it arrived.`
+                  : t`Nothing needs a manual review.`}
             </StyledEmpty>
           ) : (
             <StyledCardGrid>
@@ -722,6 +769,7 @@ export const TeamInboxContent = () => {
                     thread={thread}
                     item={item}
                     earlier={earlier}
+                    emailSentSinceCard={getEmailSentSinceCard(group)}
                     person={
                       isDefined(item.applicantEmail)
                         ? peopleByEmail.get(item.applicantEmail.toLowerCase())
