@@ -438,6 +438,7 @@ export const TeamInboxContent = () => {
   const {
     emailsByThreadId: emailsSentToApplicants,
     loading: isLoadingEmailsSent,
+    hasFailed: hasEmailsSentFailed,
   } = useEmailsSentToApplicants(
     isShowingDone
       ? []
@@ -659,7 +660,7 @@ export const TeamInboxContent = () => {
     {
       id: 'EMAILED_SINCE',
       label:
-        areReasonCountsExact && !isLoadingEmailsSent
+        areReasonCountsExact && !isLoadingEmailsSent && !hasEmailsSentFailed
           ? t`Emailed since · ${emailedSinceCount}`
           : t`Emailed since`,
     },
@@ -744,7 +745,11 @@ export const TeamInboxContent = () => {
             <StyledEmpty>
               {isShowingDone
                 ? t`Nothing marked done in this period.`
-                : t`Nothing needs a manual review.`}
+                : reviewFilter === 'EMAILED_SINCE'
+                  ? hasEmailsSentFailed
+                    ? t`Could not check the emails sent to applicants. Try again later.`
+                    : t`No card has an email sent to the applicant since it arrived.`
+                  : t`Nothing needs a manual review.`}
             </StyledEmpty>
           ) : (
             <StyledCardGrid>

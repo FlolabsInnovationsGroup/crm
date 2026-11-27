@@ -66,7 +66,9 @@ describe('TeamInboxEmailsSentToApplicantsService', () => {
     service.getEmailsSentToApplicants({
       workspaceId: 'workspace-id',
       workspaceMemberId: 'member-id',
-      items: [{ messageThreadId: CARD_THREAD, applicantEmail: 'Ada@Gmail.com' }],
+      items: [
+        { messageThreadId: CARD_THREAD, applicantEmail: 'Ada@Gmail.com' },
+      ],
     });
 
   it('returns the newest visible email our mailbox sent, with its sender and new text', async () => {
@@ -75,9 +77,13 @@ describe('TeamInboxEmailsSentToApplicantsService', () => {
         { id: 'p1', messageId: 'reply' },
         { id: 'p2', messageId: 'hidden' },
       ])
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        participant('reply', MessageParticipantRole.FROM, 'hr@flolabs.test', 'Nago'),
+        participant(
+          'reply',
+          MessageParticipantRole.FROM,
+          'hr@flolabs.test',
+          'Nago',
+        ),
         participant('reply', MessageParticipantRole.TO, 'ada@gmail.com'),
         participant('hidden', MessageParticipantRole.FROM, 'hr@flolabs.test'),
         participant('hidden', MessageParticipantRole.TO, 'ada@gmail.com'),
@@ -115,9 +121,13 @@ describe('TeamInboxEmailsSentToApplicantsService', () => {
 
   it('searches every page, from the card on, without drafts or campaigns', async () => {
     participantRepository.find
-      .mockResolvedValueOnce([{ id: 'p1', messageId: 'a' }])
+      .mockResolvedValueOnce(
+        Array.from({ length: 1_000 }, (_, index) => ({
+          id: `p1-${String(index).padStart(4, '0')}`,
+          messageId: 'a',
+        })),
+      )
       .mockResolvedValueOnce([{ id: 'p2', messageId: 'b' }])
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
     messageRepository.find.mockResolvedValue([]);
 
@@ -132,7 +142,7 @@ describe('TeamInboxEmailsSentToApplicantsService', () => {
       }),
     );
     expect(participantRepository.find.mock.calls[1][0].where.id).toEqual(
-      expect.objectContaining({ _value: 'p1' }),
+      expect.objectContaining({ _value: 'p1-0999' }),
     );
     expect(messageRepository.find).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -150,7 +160,9 @@ describe('TeamInboxEmailsSentToApplicantsService', () => {
       await service.getEmailsSentToApplicants({
         workspaceId: 'workspace-id',
         workspaceMemberId: 'member-id',
-        items: [{ messageThreadId: CARD_THREAD, applicantEmail: 'HR@flolabs.test' }],
+        items: [
+          { messageThreadId: CARD_THREAD, applicantEmail: 'HR@flolabs.test' },
+        ],
       }),
     ).toEqual([]);
     expect(participantRepository.find).not.toHaveBeenCalled();

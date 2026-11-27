@@ -54,7 +54,7 @@ export class TeamInboxEmailsSentToApplicantsService {
         workspaceId,
       );
 
-    const reviewItems = items
+    const requestedItems = items
       .slice(0, MAX_EMAILS_SENT_TO_APPLICANTS_ITEMS)
       .map((item) => ({
         messageThreadId: item.messageThreadId,
@@ -66,6 +66,17 @@ export class TeamInboxEmailsSentToApplicantsService {
           isNonEmptyString(item.applicantEmail) &&
           !ownHandles.has(item.applicantEmail),
       );
+
+    // Same rule as the history: only cards this member can read.
+    const visibleCardThreadIds =
+      await this.teamInboxManualReviewHistoryService.getFullyVisibleThreadIds(
+        requestedItems.map((item) => item.messageThreadId),
+        workspaceMemberId,
+        workspaceId,
+      );
+    const reviewItems = requestedItems.filter((item) =>
+      visibleCardThreadIds.has(item.messageThreadId),
+    );
 
     if (!isNonEmptyArray(reviewItems)) {
       return [];
@@ -192,6 +203,10 @@ export class TeamInboxEmailsSentToApplicantsService {
 
       cursor = page[page.length - 1].id;
       page.forEach((participant) => messageIds.add(participant.messageId));
+
+      if (page.length < PAGE_SIZE) {
+        break;
+      }
     }
 
     const messages: CandidateMessage[] = [];
