@@ -15,7 +15,8 @@ Phase 1 fixes what hurts applicants today and should finish within a week of app
 | 3 | Earlier messages quoted under every reply sent from the CRM | 1 | 2 | Nothing |
 | 4 | Manual Review history and CSV export | 2 | 2 | Nothing |
 | 5 | Payment tracker on each person, filled from Stripe | 2 | 3 to 4 | A read-only Stripe key, entered by Mohamed |
-| 6 | Time from application to meeting, per person and per month | 2 | 2 | Interviewers' calendars connected to the CRM |
+| 5b | Stripe disputes on the payment tracker | 2 | 1 | Nothing (dispute events already on the live webhook) |
+| 6 | Time from application to meeting, per person and per month | 2 | 2 + 1.5 (Calendly) | Calendly tokens for hr.team@ and people@ |
 | 7 | Applicant summary before the booking email | 2 | 1 (CRM) + n8n work | Mani for the n8n side |
 | 8 | E-signature inside the CRM with Documenso, replacing Dropbox Sign | 3 | 1 (trial) + 8 to 10 | The agreement template from John |
 | 9 | AI drafts replies to multi-question emails | 3 | 5 or more | John's list of about 20 questions and answers |
@@ -59,11 +60,18 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 - **How:** fields on each person: Payment status (Paid, Not paid, Scholarship), plan, amount, date of first payment, Stripe customer. A Stripe webhook updates them when a payment succeeds or fails. Payments are matched to people by email; a payment that matches nobody appears in a short list for a person to link by hand. A monthly report shows onboarded, paid, scholarship and conversion rate. Only admins see payment fields.
 - **Done when:** a test payment in Stripe's test mode marks the right person Paid, and the report shows last month's numbers.
 
+### 5b. Stripe disputes
+
+- **Why:** disputes happen. When a payer disputes a charge, Stripe takes the money back, but the CRM keeps showing the person as paid. Today the lost amount has to be typed into the payment's Refunded field by hand.
+- **How:** the payment tracker also handles `charge.dispute.created`, `charge.dispute.closed` and `charge.dispute.funds_reinstated`, which are already turned on for the live webhook. An open dispute is flagged on the payment so the team sees it early. A lost dispute is subtracted from the person's Paid so far, and a won dispute leaves the total as it was. New code in the payment tracker module only, reviewed by a second agent, merged by a person.
+- **Done when:** the tests cover open, lost and won disputes, and the next real dispute shows on its payment and, if lost, lowers the person's Paid so far.
+
 ### 6. Time from application to meeting
 
 - **Why:** the goal is 3 weeks from application to onboarding, with the meeting booked within 7 to 9 days. Today nobody can measure it.
 - **How:** the application date is already on each person. The meeting date comes from the calendars the CRM already syncs: when interviewers connect their calendars, Calendly bookings appear as events with the applicant as a guest, and the CRM links them to the person. A report shows days from application to meeting per person and the monthly average, and lists people waiting longer than 9 days. This avoids Calendly webhooks, which may need a paid Calendly plan.
 - **Done when:** the report shows real numbers for the last month and the people currently waiting too long.
+- **Blocked on 26 Nov:** Google calendars cannot be connected yet; see `docs/flolabs/google-calendar-connection.md` for the cause, the open decisions and the steps.
 
 ### 7. Applicant summary before the booking email
 
@@ -91,6 +99,13 @@ Effort counts building, the second-agent review and fixes. It does not count wai
   - **What would cost money, and why we do not need it:** Documenso's paid Enterprise licence covers SSO, two-factor before signing, custom sender domains and its embeddable editor. The editor is ours in the CRM and the emails go out from the CRM, so none of it is needed. Templates, multi-document requests, signing order, webhooks and the API are in the free edition.
 - **Moving off Dropbox Sign:** keep paying until Documenso has handled a week of real agreements. Before cancelling, download the 837 signed documents with their audit trails and store them outside Dropbox Sign (the R2 archive or on each person in the CRM). Then cancel the plan.
 - **Before building:** Notion records no final choice: the task "Research open-source DocuSign alternatives and legal validity" (Mohamed + Legal Buddy) is still Not Started, and the legal checklist (done in September) names DocuSeal, Documenso and OpenSign and recommends a simple e-signature for now. Decided on 26 Nov: Documenso, chosen for full control (same language as the CRM); DocuSeal is the fallback. A one-day trial on a test server checks four things in the free edition before any CRM work: webhooks when a document is signed; the audit log and completion certificate the legal checklist requires; signing in the order John wants; and that Documenso can skip its own emails and hand the signing links to the CRM. Anything missing is added in our fork or, if too large, we switch to DocuSeal.
+- **Trial result (26 Nov, Documenso v2.21.0 on the CRM server, reachable only through an SSH tunnel, emails caught by a local test mailbox):** all four checks pass in the free edition.
+  - **Webhooks:** document.signed, document.recipient.completed and document.completed fired for each step; Documenso retries a failed call by itself.
+  - **Certificate and audit trail:** the completed PDF gets a signing certificate page with each signer's signature, signature ID, device, and sent, viewed and signed times, plus an activity log on the document. To fix for production: signer IP showed as Unknown behind the tunnel, so the proxy must pass the client IP; the certificate says "provided by Documenso" (check whether it can be removed); a real signing certificate replaces the self-signed one.
+  - **Signing order:** with signing order on, the second signer's link showed "Waiting for your turn" until the first had signed.
+  - **No Documenso emails:** distribution method None sent nothing and gave a signing link per recipient for the CRM to send.
+  - **Also seen:** several documents in one request, a saved signature reused for countersigning, reminders, expiry, an External ID to tie a request to the CRM person, and an e-signature consent screen before signing.
+  - The trial is started and removed with `packages/twenty-utils/flolabs/documenso-trial.sh` and `documenso-trial-remove.sh`.
 - **Done when:** a new template is made in the CRM, edited for one test person, and sent with the Academic Integrity document to an internal `+crmtest` address; it is signed in one go, and the signed PDFs, the certificate and the new Stage appear on the person.
 
 ### 9. AI drafts replies to multi-question emails
@@ -144,5 +159,22 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 
 | Item | Status |
 | --- | --- |
-| 3 | Pull request #26 open, reviewed, waiting for merge |
-| 4 | Pull request #28 open, reviewed, waiting for merge |
+| 3 | Pull request #26 merged and deployed |
+| 4 | Pull request #28 merged and deployed |
+| 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook being set up |
+| 5b | Pull request #31 merged and deployed; 7 disputes found in the last year (3 lost, 2 open, 2 won) |
+| 6 | Live on 27 Nov: PR #32 and #33 merged and deployed, Calendly bookings object created, webhooks registered in hr.team@ and people@. Left: warn Mani, then run syncCalendlyBookings once |
+| 8 | Documenso trial passed all four checks on 26 Nov; CRM work waits for John's agreement template |
+
+## Item 6: bookings read from Calendly (decided 27 Nov)
+
+The Google calendar route is dropped. Calendly bookings land in two Calendly accounts, `hr.team@` and `people@` (Nago, 26 Nov), and Calendly opened its API and webhooks to the free plan on 6 Nov 2026. So the CRM reads bookings straight from Calendly: no Google Cloud app, no change to the CRM's Google sign-in code, and nothing needed from John.
+
+Order once the pull request is reviewed:
+
+1. Create the Calendly bookings object: `setup-meeting-tracker.mjs` (before the deploy).
+2. Mohamed merges and approves the deploy.
+3. In each Calendly account, Mohamed makes a personal access token with only `users:read`, `scheduled_events:read`, `webhooks:read` and `webhooks:write`, and pastes it straight into `setup-calendly-server.sh` on the server, never in chat.
+4. Warn Mani about the n8n webhooks, then run `syncCalendlyBookings` once for past bookings.
+
+Details: `docs/flolabs/meeting-tracker.md`. `docs/flolabs/google-calendar-connection.md` is kept only as the record of why Ceren's connection failed.
