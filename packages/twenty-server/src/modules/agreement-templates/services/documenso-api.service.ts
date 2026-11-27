@@ -16,6 +16,8 @@ type DocumensoConnection = Pick<
 
 // Documenso v2 API (https://openapi.documenso.com). The CRM sends every email
 // itself, so envelopes are distributed with no Documenso emails.
+export class DocumensoNotFoundError extends Error {}
+
 @Injectable()
 export class DocumensoApiService {
   async createEnvelope(
@@ -66,9 +68,9 @@ export class DocumensoApiService {
   async distribute(
     connection: DocumensoConnection,
     envelopeId: string,
-  ): Promise<{ email: string; signingUrl: string }[]> {
+  ): Promise<{ email: string; token: string }[]> {
     const body = await this.request<{
-      recipients: { email: string; signingUrl: string }[];
+      recipients: { email: string; token: string }[];
     }>(
       connection,
       'POST',
@@ -79,15 +81,24 @@ export class DocumensoApiService {
     return body.recipients;
   }
 
+  // Null when the envelope was deleted in Documenso.
   async getEnvelope(
     connection: DocumensoConnection,
     envelopeId: string,
-  ): Promise<DocumensoEnvelope> {
-    return this.request<DocumensoEnvelope>(
-      connection,
-      'GET',
-      `/envelope/${encodeURIComponent(envelopeId)}`,
-    );
+  ): Promise<DocumensoEnvelope | null> {
+    try {
+      return await this.request<DocumensoEnvelope>(
+        connection,
+        'GET',
+        `/envelope/${encodeURIComponent(envelopeId)}`,
+      );
+    } catch (error) {
+      if (error instanceof DocumensoNotFoundError) {
+        return null;
+      }
+
+      throw error;
+    }
   }
 
   async deleteEnvelope(
@@ -143,6 +154,12 @@ export class DocumensoApiService {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       },
     );
+
+    if (response.status === 404) {
+      throw new DocumensoNotFoundError(
+        `Documenso has no ${path.split('?')[0]}`,
+      );
+    }
 
     if (!response.ok) {
       // Documenso's error bodies are short JSON messages, never secrets.

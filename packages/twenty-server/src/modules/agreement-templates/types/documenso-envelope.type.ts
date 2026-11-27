@@ -39,6 +39,7 @@ export type DocumensoNewRecipient = {
   email: string;
   name: string;
   role: 'SIGNER';
+  accessAuth?: 'ACCOUNT'[];
   signingOrder: number;
   fields: DocumensoSignatureField[];
 };

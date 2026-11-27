@@ -66,7 +66,7 @@ What happens:
 4. When the intern signs, the CRM emails the FloLabs signer their link. Status: *Waiting for FloLabs*.
 5. When both have signed, the signed PDFs and Documenso's signing certificate are attached to the person, the intern gets a copy by email, and the status becomes *Signed*.
 
-If an email went missing, `resendAgreementEmail(agreementRequestId: "<id>")` sends the current link again: to the intern while they have not signed, otherwise to the FloLabs signer. If a status looks stuck, `syncAgreementRequest(agreementRequestId: "<id>")` reads it again from Documenso.
+If an email went missing, `resendAgreementEmail(agreementRequestId: "<id>")` sends the current link again: to the intern while they have not signed, otherwise to the FloLabs signer. If a status looks stuck, `syncAgreementRequest(agreementRequestId: "<id>")` reads it again from Documenso. An agreement deleted in Documenso becomes *Cancelled*.
 
 Who can send: anyone whose role may create Agreement requests and read the person and the templates.
 
@@ -78,17 +78,18 @@ Who can send: anyone whose role may create Agreement requests and read the perso
    ```
    Run it again after an update; it only adds what is missing. Run it before deploying the server version that sends agreements.
 2. **Documenso** must run first: see [documenso.md](documenso.md).
-3. **In Documenso** (signed in as hr@):
+3. **The FloLabs signer needs a Documenso account** with the exact email set in `FLOLABS_AGREEMENT_COUNTERSIGNER_EMAIL`, created while sign-up is still open (only @flolabsinnovations.com addresses can sign up). Their link only opens once they are signed in, because it also sits in hr@'s synced mail.
+4. **In Documenso** (signed in as hr@):
    - Settings > API tokens: create a token with no expiry.
    - Settings > Webhooks: add `https://crm.flolabsinnovations.com/webhooks/flolabs-documenso` with the events *Document recipient completed*, *Document completed*, *Document rejected* and *Document cancelled*, and a long random secret.
-4. **Add the settings on the server** in the CRM's env (never in chat or a screenshot), then restart the server:
+5. **Add the settings on the server** in the CRM's env (never in chat or a screenshot), then restart the server:
    - `FLOLABS_DOCUMENSO_API_TOKEN` = the Documenso token
    - `FLOLABS_DOCUMENSO_WEBHOOK_SECRET` = the webhook secret
    - `FLOLABS_AGREEMENT_COUNTERSIGNER_EMAIL` = the email of whoever signs for FloLabs
    - `FLOLABS_AGREEMENT_COUNTERSIGNER_NAME` = their name as printed by Documenso
    - Optional: `FLOLABS_AGREEMENT_SENDER` (default `hr@flolabsinnovations.com`, must be connected to the CRM), `FLOLABS_DOCUMENSO_API_URL` (default `http://documenso:3000`, inside Docker), `FLOLABS_DOCUMENSO_PUBLIC_URL` (default `https://sign.flolabsinnovations.com`).
    - `FLOLABS_WORKSPACE_ID` (or `FLOLABS_PAYMENTS_WORKSPACE_ID`) is already set for the meeting tracker.
-5. **Roles:** Settings > Roles, decide who may create Agreement requests.
+6. **Roles:** Settings > Roles, decide who may create Agreement requests.
 
 ## Test before going live
 

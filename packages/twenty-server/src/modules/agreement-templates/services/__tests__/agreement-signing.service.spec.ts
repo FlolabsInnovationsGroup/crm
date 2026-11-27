@@ -109,7 +109,7 @@ describe('AgreementSigningService', () => {
     update: jest.fn(),
     delete: jest.fn(),
   };
-  const attachmentRepository = { insert: jest.fn() };
+  const attachmentRepository = { insert: jest.fn(), find: jest.fn() };
   const repositories: Record<string, unknown> = {
     agreementTemplate: templateRepository,
     person: personRepository,
@@ -152,6 +152,7 @@ describe('AgreementSigningService', () => {
     sendEmailTool.execute.mockResolvedValue({ success: true, message: 'ok' });
     requestRepository.update.mockResolvedValue({ affected: 1 });
     personRepository.findOne.mockResolvedValue(PERSON);
+    attachmentRepository.find.mockResolvedValue([]);
 
     const module = await Test.createTestingModule({
       providers: [
@@ -183,11 +184,8 @@ describe('AgreementSigningService', () => {
       templateRepository.find.mockResolvedValue([TEMPLATE]);
       documensoApiService.createEnvelope.mockResolvedValue('envelope_1');
       documensoApiService.distribute.mockResolvedValue([
-        { email: 'ada@example.com', signingUrl: 'https://sign.test/sign/abc' },
-        {
-          email: 'john@flolabs.test',
-          signingUrl: 'https://sign.test/sign/def',
-        },
+        { email: 'ada@example.com', token: 'abc' },
+        { email: 'john@flolabs.test', token: 'def' },
       ]);
 
       const result = await service.sendAgreement({
@@ -214,6 +212,8 @@ describe('AgreementSigningService', () => {
         ['Ada@Example.com', 1],
         ['john@flolabs.test', 2],
       ]);
+      expect(created.recipients[0].accessAuth).toBeUndefined();
+      expect(created.recipients[1].accessAuth).toEqual(['ACCOUNT']);
       expect(created.recipients[0].fields[0]).toMatchObject({
         type: 'SIGNATURE',
         page: 2,
@@ -228,7 +228,9 @@ describe('AgreementSigningService', () => {
 
       expect(email.recipients.to).toBe('Ada@Example.com');
       expect(email.connectedAccountId).toBe('hr-account');
-      expect(email.body).toContain('https://sign.test/sign/abc');
+      expect(email.body).toContain(
+        'https://sign.flolabsinnovations.com/sign/abc',
+      );
       expect(email.body).not.toContain('sign/def');
       expect(result).toMatchObject({ emailSent: true, emailError: null });
     });
@@ -344,8 +346,8 @@ describe('AgreementSigningService', () => {
           attachment.targetPersonId,
         ]),
       ).toEqual([
-        ['Signed - Internship agreement.pdf', 'person-id'],
-        ['Signing certificate.pdf', 'person-id'],
+        ['Signed - Internship agreement (request-).pdf', 'person-id'],
+        ['Signing certificate (request-).pdf', 'person-id'],
       ]);
       expect(requestRepository.update).toHaveBeenCalledWith(
         'request-id',
@@ -382,16 +384,89 @@ describe('AgreementSigningService', () => {
       });
     });
 
-    it('ignores an envelope that belongs to another request', async () => {
-      requestRepository.findOne.mockResolvedValue(REQUEST);
+    it('ignores a request whose stored envelope id was changed', async () => {
+      requestRepository.findOne.mockResolvedValue({
+        ...REQUEST,
+        documensoEnvelopeId: 'envelope_other',
+      });
+      documensoApiService.getEnvelope.mockResolvedValue(envelope());
+
+      await service.syncEnvelope('envelope_1');
+
+      expect(requestRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 'request-id' },
+      });
+      expect(requestRepository.update).not.toHaveBeenCalled();
+      expect(sendEmailTool.execute).not.toHaveBeenCalled();
+    });
+
+    it('cancels a waiting request whose envelope was deleted in Documenso', async () => {
+      documensoApiService.getEnvelope.mockResolvedValue(null);
+
+      await service.syncEnvelope('envelope_1');
+
+      expect(requestRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ documensoEnvelopeId: 'envelope_1' }),
+        expect.objectContaining({ status: 'CANCELLED' }),
+      );
+    });
+
+    it('leaves a recent claim on the signed files alone', async () => {
+      requestRepository.findOne.mockResolvedValue({
+        ...REQUEST,
+        countersignerEmailedAt: '2026-11-28T09:01:00.000Z',
+        signedFilesSavedAt: new Date().toISOString(),
+      });
       documensoApiService.getEnvelope.mockResolvedValue(
-        envelope({ externalId: 'someone-else' }),
+        envelope({ status: 'COMPLETED' }),
       );
 
-      await expect(service.syncEnvelope('envelope_1')).rejects.toThrow(
-        'does not belong',
+      await service.syncEnvelope('envelope_1');
+
+      expect(documensoApiService.downloadSignedItem).not.toHaveBeenCalled();
+    });
+
+    it('takes over a stale claim without attaching files twice', async () => {
+      const staleClaim = '2026-01-01T09:00:00.000Z';
+
+      requestRepository.findOne.mockResolvedValue({
+        ...REQUEST,
+        countersignerEmailedAt: '2026-11-28T08:00:00.000Z',
+        signedFilesSavedAt: staleClaim,
+      });
+      documensoApiService.getEnvelope.mockResolvedValue(
+        envelope({ status: 'COMPLETED' }),
       );
-      expect(requestRepository.update).not.toHaveBeenCalled();
+      documensoApiService.downloadSignedItem.mockResolvedValue(
+        Buffer.from('%PDF signed'),
+      );
+      documensoApiService.downloadCertificate.mockResolvedValue(
+        Buffer.from('%PDF certificate'),
+      );
+      attachmentRepository.find.mockResolvedValue([
+        {
+          id: 'attachment-1',
+          name: 'Signed - Internship agreement (request-).pdf',
+          targetPersonId: 'person-id',
+          file: [{ fileId: '20202020-0000-4000-8000-0000000000a1' }],
+        },
+      ]);
+      filesFieldService.uploadFile.mockResolvedValue({
+        id: '20202020-0000-4000-8000-0000000000a2',
+      });
+
+      await service.syncEnvelope('envelope_1');
+
+      expect(requestRepository.update).toHaveBeenCalledWith(
+        { id: 'request-id', signedFilesSavedAt: staleClaim },
+        expect.anything(),
+      );
+      expect(
+        attachmentRepository.insert.mock.calls.map(
+          ([attachment]) => attachment.name,
+        ),
+      ).toEqual(['Signing certificate (request-).pdf']);
+      expect(sendEmailTool.execute.mock.calls[0][0].files).toHaveLength(2);
     });
   });
 });

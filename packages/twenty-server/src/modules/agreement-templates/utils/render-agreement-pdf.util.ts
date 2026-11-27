@@ -203,7 +203,11 @@ export const buildAgreementPdfElement = ({
 
   return createElement(
     Document,
-    { title, author: 'FloLabs Innovations Group' },
+    // countPdfPages reads the raw PDF, so metadata carries no PDF syntax.
+    {
+      title: title.replace(/[<>/]/g, ' '),
+      author: 'FloLabs Innovations Group',
+    },
     createElement(
       Page,
       { size: 'A4', style: styles.page, wrap: true },
