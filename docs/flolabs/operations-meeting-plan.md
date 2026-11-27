@@ -160,7 +160,7 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 | Item | Status |
 | --- | --- |
 | 1 | Solved (27 Nov) |
-| 2 | Merged and deployed (#40, #43); report of people reminded after replying sent (67 reminders, 59 people). Left: Mani adds the check to the reminder workflows |
+| 2 | Merged and deployed (#40, #43); report of people reminded after replying ready (67 reminders, 59 people). Left: send it to Nago, Mani adds the check to the reminder workflows |
 | 3 | Pull request #26 merged and deployed |
 | 4 | Pull request #28 merged and deployed. Added on 27 Nov: a reply from a card closes it, one card per applicant, the Manual review answers list (#35, #37), and the email sent since each card (#39) |
 | 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook set up |
