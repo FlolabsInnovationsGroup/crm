@@ -7,5 +7,6 @@
     "url": "https://YOUR-CRM-ADDRESS",
     "apiKey": "PASTE AN ADMIN API KEY FROM YOUR CRM HERE"
   },
+  "onExisting": "fill-empty",
   "outputFolder": "./migration-output"
 }

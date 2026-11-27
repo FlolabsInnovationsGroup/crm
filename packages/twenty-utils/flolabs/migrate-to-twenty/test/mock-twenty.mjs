@@ -28,6 +28,8 @@ export const startMockTwenty = ({ people = [], attachments = [], fields = [], ke
         state.fields.push({ ...body.variables.input.field, isCustom: true, isActive: true, isSystem: false });
         return send(200, { data: { createOneField: { id: 'f' } } });
       }
+      // The Field type has no isCustom; selecting it fails the whole query.
+      if (/fieldsList \{[^}]*isCustom|edges \{ node \{ name[^}]*isCustom/.test(body.query)) return send(400, { errors: [{ message: 'Cannot query field "isCustom" on type "Field"' }] });
       if (body.query.includes('fieldsList') && !newerApi) return send(400, { errors: [{ message: 'Cannot query field fieldsList' }] });
       const node = (name, list) => newerApi ? { id: `${name}-obj`, nameSingular: name, fieldsList: list } : { id: `${name}-obj`, nameSingular: name, fields: { edges: list.map((n) => ({ node: n })) } };
       return send(200, { data: { objects: { edges: [

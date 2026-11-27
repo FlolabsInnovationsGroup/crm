@@ -2,15 +2,24 @@
 // Copies People and their files from one Twenty CRM to another, through the
 // public APIs only. It never writes to the source.
 //
-//   node migrate.mjs check     read both CRMs and say what would happen
-//   node migrate.mjs fields    add the source's custom person fields to the target
-//   node migrate.mjs people    copy every person (safe to run again)
-//   node migrate.mjs files     download every file attached to a person
-//   node migrate.mjs all       fields, people, then files
+//   node migrate.mjs check            read both CRMs and say what would happen
+//   node migrate.mjs fields           add the source's missing person fields to the target
+//   node migrate.mjs people --limit 20   copy only 20 people, as a trial
+//   node migrate.mjs people           copy every person (safe to run again)
+//   node migrate.mjs files            download every file attached to a person
+//   node migrate.mjs all              fields, people, then files
 //
 // Settings come from config.json next to this file (see config.example.json),
 // or from a path given with --config <file>. Needs Node.js 18 or newer.
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -44,12 +53,16 @@ const COPYABLE_TYPES = new Set([
   'RICH_TEXT_V2',
 ]);
 
+const argument = (name) => {
+  const index = process.argv.indexOf(name);
+
+  return index > 0 ? process.argv[index + 1] : undefined;
+};
+
 const command = process.argv[2] ?? 'help';
-const configFlag = process.argv.indexOf('--config');
 const here = dirname(fileURLToPath(import.meta.url));
-const configPath = resolve(
-  configFlag > 0 ? process.argv[configFlag + 1] : join(here, 'config.json'),
-);
+const configPath = resolve(argument('--config') ?? join(here, 'config.json'));
+const limit = Number(argument('--limit') ?? 0) || 0;
 
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
@@ -71,6 +84,17 @@ const readConfig = () => {
     }
 
     config[side].url = config[side].url.replace(/\/$/, '');
+
+    // Keys must not travel unencrypted.
+    if (!/^https:\/\//.test(config[side].url) && !/^http:\/\/(localhost|127\.0\.0\.1)[:/]/.test(`${config[side].url}/`)) {
+      throw new Error(`${side}.url must start with https://`);
+    }
+  }
+
+  config.onExisting ??= 'fill-empty';
+
+  if (!['fill-empty', 'overwrite'].includes(config.onExisting)) {
+    throw new Error('onExisting must be "fill-empty" or "overwrite".');
   }
 
   config.outputFolder = resolve(dirname(configPath), config.outputFolder ?? './migration-output');
@@ -93,7 +117,6 @@ const request = async (crm, path, { method = 'GET', body } = {}) => {
           ...(body === undefined ? {} : { 'content-type': 'application/json' }),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
-        redirect: 'follow',
       });
     } catch (error) {
       if (attempt >= MAX_ATTEMPTS) {
@@ -155,7 +178,7 @@ const metadata = (crm, query, variables = {}) =>
 
 // Newer Twenty versions list fields as fieldsList, older ones as a connection.
 const getObject = async (crm, nameSingular) => {
-  const fieldSelection = 'name type label icon description isCustom isActive isSystem options defaultValue settings';
+  const fieldSelection = 'name type label icon description isActive isSystem options defaultValue settings';
   let objects;
 
   try {
@@ -165,7 +188,11 @@ const getObject = async (crm, nameSingular) => {
     );
 
     objects = data.objects.edges.map(({ node }) => ({ ...node, fields: node.fieldsList }));
-  } catch {
+  } catch (error) {
+    if (!/fieldsList/.test(error.message)) {
+      throw error;
+    }
+
     const data = await metadata(
       crm,
       `query { objects(paging: { first: 1000 }) { edges { node { id nameSingular fields(paging: { first: 1000 }) { edges { node { ${fieldSelection} } } } } } } }`,
@@ -187,18 +214,15 @@ const getObject = async (crm, nameSingular) => {
 };
 
 const isCopyable = (field) =>
-  field.isActive !== false && !field.isSystem && COPYABLE_TYPES.has(field.type);
+  Boolean(field) && field.isActive !== false && !field.isSystem && COPYABLE_TYPES.has(field.type);
 
 // Pages through a REST list until the end, handing each page to onPage.
-const forEachPage = async (crm, plural, onPage, { filter, startAfter } = {}) => {
+// onPage returns false to stop early.
+const forEachPage = async (crm, plural, onPage, { startAfter } = {}) => {
   let cursor = startAfter;
 
   for (;;) {
     const query = new URLSearchParams({ limit: String(PAGE_SIZE), depth: '0' });
-
-    if (filter) {
-      query.set('filter', filter);
-    }
 
     if (cursor) {
       query.set('starting_after', cursor);
@@ -207,7 +231,9 @@ const forEachPage = async (crm, plural, onPage, { filter, startAfter } = {}) => 
     const json = await request(crm, `/rest/${plural}?${query}`);
     const records = Object.values(json.data ?? {})[0] ?? [];
 
-    await onPage(records, json.pageInfo?.endCursor);
+    if ((await onPage(records, json.pageInfo?.endCursor)) === false) {
+      return;
+    }
 
     if (!json.pageInfo?.hasNextPage || !json.pageInfo?.endCursor) {
       return;
@@ -225,7 +251,66 @@ const readState = (config) =>
 const writeState = (config, state) =>
   writeFileSync(statePath(config), JSON.stringify(state, null, 2));
 
+// Spreadsheet apps run cells that start with these as formulas.
+const csv = (value) => {
+  const text = String(value ?? '');
+
+  return `"${(/^[=+\-@]/.test(text) ? `'${text}` : text).replaceAll('"', '""')}"`;
+};
+
+const appendCsv = (path, header, row) => {
+  if (!existsSync(path)) {
+    writeFileSync(path, `${header}\n`);
+  }
+
+  appendFileSync(path, `${row.map(csv).join(',')}\n`);
+};
+
 const primaryEmailOf = (person) => person.emails?.primaryEmail?.trim().toLowerCase() || null;
+
+const isEmptyValue = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+
+  if (typeof value === 'object') {
+    return Object.values(value).every(isEmptyValue);
+  }
+
+  return false;
+};
+
+// The fields both CRMs define with the same type, and the select values the
+// target accepts for each.
+const getFieldPlan = (sourcePerson, targetPerson) => {
+  const targetFields = new Map(targetPerson.fields.map((field) => [field.name, field]));
+  const copied = [];
+  const skipped = [];
+
+  for (const field of sourcePerson.fields.filter(isCopyable)) {
+    const target = targetFields.get(field.name);
+
+    if (!isCopyable(target)) {
+      skipped.push(`${field.name} (missing in the target)`);
+    } else if (target.type !== field.type) {
+      skipped.push(`${field.name} (${field.type} here, ${target.type} in the target)`);
+    } else {
+      copied.push({
+        name: field.name,
+        type: field.type,
+        allowedValues: ['SELECT', 'MULTI_SELECT'].includes(field.type)
+          ? new Set((target.options ?? []).map((option) => option.value))
+          : null,
+      });
+    }
+  }
+
+  return { copied, skipped };
+};
 
 const check = async (config) => {
   const [sourcePerson, targetPerson] = await Promise.all([
@@ -234,16 +319,29 @@ const check = async (config) => {
   ]);
   const targetNames = new Set(targetPerson.fields.map((field) => field.name));
   const missing = sourcePerson.fields.filter(
-    (field) => isCopyable(field) && field.isCustom && !targetNames.has(field.name),
+    (field) => isCopyable(field) && !targetNames.has(field.name),
   );
+  const { skipped } = getFieldPlan(sourcePerson, targetPerson);
   const people = await request(config.source, '/rest/people?limit=1&depth=0');
   const targetPeople = await request(config.target, '/rest/people?limit=1&depth=0');
 
   log(`Source: ${people.totalCount ?? '?'} people. Target: ${targetPeople.totalCount ?? '?'} people.`);
   log(
     missing.length === 0
-      ? 'Every custom person field already exists in the target.'
-      : `Custom fields the "fields" step will add to the target: ${missing.map((field) => field.name).join(', ')}`,
+      ? 'Every person field already exists in the target.'
+      : `Fields the "fields" step will add to the target: ${missing.map((field) => field.name).join(', ')}`,
+  );
+
+  const mismatched = skipped.filter((entry) => !entry.endsWith('(missing in the target)'));
+
+  if (mismatched.length > 0) {
+    log(`Fields with a different type in the target, which will not be copied: ${mismatched.join(', ')}`);
+  }
+
+  log(
+    config.onExisting === 'overwrite'
+      ? 'People already in the target: FloLabs values replace theirs (empty FloLabs values never do).'
+      : 'People already in the target: only their empty fields are filled; nothing of theirs is replaced.',
   );
   log('Both CRMs answered. Nothing was changed.');
 };
@@ -256,7 +354,7 @@ const fields = async (config) => {
   const targetNames = new Set(targetPerson.fields.map((field) => field.name));
 
   for (const field of sourcePerson.fields) {
-    if (!isCopyable(field) || !field.isCustom || targetNames.has(field.name)) {
+    if (!isCopyable(field) || targetNames.has(field.name)) {
       continue;
     }
 
@@ -270,7 +368,7 @@ const fields = async (config) => {
               objectMetadataId: targetPerson.id,
               name: field.name,
               label: field.label,
-              type: field.type === 'RICH_TEXT_V2' ? 'RICH_TEXT' : field.type,
+              type: field.type,
               icon: field.icon ?? undefined,
               description: field.description ?? undefined,
               options: field.options ?? undefined,
@@ -294,83 +392,165 @@ const people = async (config) => {
     getObject(config.source, 'person'),
     getObject(config.target, 'person'),
   ]);
-  const targetFields = new Map(targetPerson.fields.map((field) => [field.name, field]));
-  const copiedFields = sourcePerson.fields
-    .filter((field) => isCopyable(field) && isCopyable(targetFields.get(field.name) ?? {}))
-    .map((field) => field.name);
-  const skippedFields = sourcePerson.fields
-    .filter((field) => isCopyable(field) && !copiedFields.includes(field.name))
-    .map((field) => field.name);
+  const { copied, skipped } = getFieldPlan(sourcePerson, targetPerson);
+  const droppedValues = new Map();
 
-  if (skippedFields.length > 0) {
-    log(`Not copied (missing in the target, run "fields" first): ${skippedFields.join(', ')}`);
+  if (skipped.length > 0) {
+    log(`Not copied: ${skipped.join(', ')}`);
   }
 
+  const cleanValue = ({ name, type, allowedValues }, value) => {
+    if (!allowedValues || isEmptyValue(value)) {
+      return value;
+    }
+
+    const keep = (option) => {
+      if (allowedValues.has(option)) {
+        return true;
+      }
+
+      droppedValues.set(`${name}=${option}`, (droppedValues.get(`${name}=${option}`) ?? 0) + 1);
+
+      return false;
+    };
+
+    return type === 'SELECT' ? (keep(value) ? value : null) : value.filter(keep);
+  };
+
+  const toCreatePayload = (person) =>
+    Object.fromEntries(
+      copied
+        .map((field) => [field.name, cleanValue(field, person[field.name])])
+        .filter(([, value]) => value !== undefined),
+    );
+
+  // Never blanks anything in the target, and keeps their emails, adding ours
+  // as extra addresses.
+  const toUpdatePayload = (person, existing) => {
+    const payload = {};
+
+    for (const field of copied) {
+      const value = cleanValue(field, person[field.name]);
+
+      if (isEmptyValue(value)) {
+        continue;
+      }
+
+      if (field.type === 'EMAILS') {
+        const known = new Set(
+          [existing[field.name]?.primaryEmail, ...(existing[field.name]?.additionalEmails ?? [])]
+            .filter(Boolean)
+            .map((email) => email.toLowerCase()),
+        );
+        const extra = [value.primaryEmail, ...(value.additionalEmails ?? [])].filter(
+          (email) => email && !known.has(email.toLowerCase()),
+        );
+
+        if (extra.length > 0) {
+          payload[field.name] = {
+            ...existing[field.name],
+            additionalEmails: [...(existing[field.name]?.additionalEmails ?? []), ...extra],
+          };
+        }
+
+        continue;
+      }
+
+      if (config.onExisting === 'overwrite' || isEmptyValue(existing[field.name])) {
+        payload[field.name] = value;
+      }
+    }
+
+    return payload;
+  };
+
   log('Reading the people already in the target, to update them instead of duplicating...');
-  const targetIdByEmail = new Map();
+  const targetByEmail = new Map();
 
   await forEachPage(config.target, 'people', async (records) => {
     for (const record of records) {
       const email = primaryEmailOf(record);
 
       if (email) {
-        targetIdByEmail.set(email, record.id);
+        targetByEmail.set(email, {
+          ...Object.fromEntries(copied.map(({ name }) => [name, record[name]])),
+          id: record.id,
+        });
       }
     }
   });
-  log(`${targetIdByEmail.size} people with an email in the target.`);
+  log(`${targetByEmail.size} people with an email in the target.`);
 
   const state = readState(config);
-  state.people ??= { cursor: null, created: 0, updated: 0, failed: 0 };
-  const failures = [];
+  state.people ??= { cursor: null, created: 0, updated: 0, unchanged: 0, failed: 0 };
+  state.people.unchanged ??= 0;
+  const mapPath = join(config.outputFolder, 'people-map.csv');
+  const failuresPath = join(config.outputFolder, 'people-failures.csv');
+  let seen = 0;
 
-  const toPayload = (person) =>
-    Object.fromEntries(
-      copiedFields
-        .filter((name) => person[name] !== undefined)
-        .map((name) => [name, person[name]]),
-    );
+  const recordMap = (person, targetId) =>
+    appendCsv(mapPath, 'sourceId,targetId,email', [person.id, targetId, primaryEmailOf(person)]);
 
-  const writeOne = async (person) => {
+  const recordFailure = (person, error) => {
+    state.people.failed++;
+    appendCsv(failuresPath, 'sourceId,email,error', [person.id, primaryEmailOf(person), error.message]);
+  };
+
+  const remember = (person, payload, targetId) => {
     const email = primaryEmailOf(person);
-    const existingId = email ? targetIdByEmail.get(email) : undefined;
+
+    if (email) {
+      targetByEmail.set(email, { ...payload, id: targetId });
+    }
+
+    recordMap(person, targetId);
+  };
+
+  const updateOne = async (person, existing) => {
+    const payload = toUpdatePayload(person, existing);
+
+    if (Object.keys(payload).length === 0) {
+      state.people.unchanged++;
+      recordMap(person, existing.id);
+
+      return;
+    }
 
     try {
-      if (existingId) {
-        await request(config.target, `/rest/people/${existingId}`, {
-          method: 'PATCH',
-          body: toPayload(person),
-        });
-        state.people.updated++;
-      } else {
-        await request(config.target, '/rest/people', {
-          method: 'POST',
-          body: { id: person.id, ...toPayload(person) },
-        });
-        state.people.created++;
-
-        if (email) {
-          targetIdByEmail.set(email, person.id);
-        }
-      }
+      await request(config.target, `/rest/people/${existing.id}`, { method: 'PATCH', body: payload });
+      state.people.updated++;
+      recordMap(person, existing.id);
     } catch (error) {
-      // Already copied on an earlier run with the same id.
-      if (error.status === 409 || /duplicate|already exists/i.test(error.message)) {
-        await request(config.target, `/rest/people/${person.id}`, {
-          method: 'PATCH',
-          body: toPayload(person),
-        })
-          .then(() => state.people.updated++)
-          .catch((patchError) => {
-            state.people.failed++;
-            failures.push({ id: person.id, email, error: patchError.message });
+      recordFailure(person, error);
+    }
+  };
+
+  const createOne = async (person, payload) => {
+    try {
+      await request(config.target, '/rest/people', {
+        method: 'POST',
+        body: { id: person.id, ...payload },
+      });
+      state.people.created++;
+      remember(person, payload, person.id);
+    } catch (error) {
+      // Created on an earlier, interrupted run under the same id.
+      if (error.status === 409 || /duplicate|already exists|unique/i.test(error.message)) {
+        try {
+          await request(config.target, `/rest/people/${person.id}`, {
+            method: 'PATCH',
+            body: toUpdatePayload(person, {}),
           });
+          state.people.updated++;
+          remember(person, payload, person.id);
+        } catch (patchError) {
+          recordFailure(person, patchError);
+        }
 
         return;
       }
 
-      state.people.failed++;
-      failures.push({ id: person.id, email, error: error.message });
+      recordFailure(person, error);
     }
   };
 
@@ -378,75 +558,64 @@ const people = async (config) => {
     config.source,
     'people',
     async (records, endCursor) => {
-      const fresh = records.filter((person) => {
-        const email = primaryEmailOf(person);
+      const page = limit > 0 ? records.slice(0, Math.max(0, limit - seen)) : records;
+      const known = page.filter((person) => targetByEmail.has(primaryEmailOf(person)));
+      const fresh = page.filter((person) => !known.includes(person));
 
-        return !(email && targetIdByEmail.has(email));
-      });
-      const known = records.filter((person) => !fresh.includes(person));
+      seen += page.length;
 
       for (let index = 0; index < fresh.length; index += BATCH_SIZE) {
-        const batch = fresh.slice(index, index + BATCH_SIZE);
+        const batch = fresh
+          .slice(index, index + BATCH_SIZE)
+          .map((person) => ({ person, payload: toCreatePayload(person) }));
 
         try {
           await request(config.target, '/rest/batch/people', {
             method: 'POST',
-            body: batch.map((person) => ({ id: person.id, ...toPayload(person) })),
+            body: batch.map(({ person, payload }) => ({ id: person.id, ...payload })),
           });
           state.people.created += batch.length;
-          batch.forEach((person) => {
-            const email = primaryEmailOf(person);
-
-            if (email) {
-              targetIdByEmail.set(email, person.id);
-            }
-          });
+          batch.forEach(({ person, payload }) => remember(person, payload, person.id));
         } catch {
           // One bad record fails the whole batch, so retry them one by one.
-          for (const person of batch) {
-            await writeOne(person);
+          for (const { person, payload } of batch) {
+            await createOne(person, payload);
           }
         }
       }
 
-      // People already in the target are updated in batches where the target
-      // supports upsert, otherwise one by one.
-      for (let index = 0; index < known.length; index += BATCH_SIZE) {
-        const batch = known.slice(index, index + BATCH_SIZE);
-
-        try {
-          await request(config.target, '/rest/batch/people?upsert=true', {
-            method: 'POST',
-            body: batch.map((person) => ({
-              ...toPayload(person),
-              id: targetIdByEmail.get(primaryEmailOf(person)),
-            })),
-          });
-          state.people.updated += batch.length;
-        } catch {
-          for (const person of batch) {
-            await writeOne(person);
-          }
-        }
+      for (const person of known) {
+        await updateOne(person, targetByEmail.get(primaryEmailOf(person)));
       }
 
-      state.people.cursor = endCursor;
+      // A trial run does not move the bookmark, so the full run starts over.
+      if (endCursor && limit === 0) {
+        state.people.cursor = endCursor;
+      }
+
       writeState(config, state);
       log(
-        `people: ${state.people.created} created, ${state.people.updated} updated, ${state.people.failed} failed`,
+        `people: ${state.people.created} created, ${state.people.updated} updated, ${state.people.unchanged} already complete, ${state.people.failed} failed`,
       );
+
+      return limit === 0 || seen < limit;
     },
-    { startAfter: state.people.cursor ?? undefined },
+    { startAfter: limit > 0 ? undefined : (state.people.cursor ?? undefined) },
   );
 
-  if (failures.length > 0) {
-    const failuresPath = join(config.outputFolder, 'people-failures.json');
+  if (droppedValues.size > 0) {
+    log(
+      `Select values your CRM does not have, left empty: ${[...droppedValues]
+        .map(([key, count]) => `${key} (${count})`)
+        .join(', ')}`,
+    );
+  }
 
-    writeFileSync(failuresPath, JSON.stringify(failures, null, 2));
+  if (state.people.failed > 0) {
     log(`Some people failed. Details: ${failuresPath}`);
   }
 
-  log('People done.');
+  log(`People done. Which FloLabs id became which id in your CRM: ${mapPath}`);
 };
 
 // Files differ most between Twenty versions, so they are downloaded with a
@@ -458,22 +627,15 @@ const files = async (config) => {
     : 'personId';
   const folder = join(config.outputFolder, 'files');
   const indexPath = join(config.outputFolder, 'files.csv');
+  const header = 'personId,attachmentId,fileName,savedAs,error';
   const state = readState(config);
   state.files ??= { cursor: null, downloaded: 0, failed: 0 };
   mkdirSync(folder, { recursive: true });
-
-  if (!existsSync(indexPath)) {
-    writeFileSync(indexPath, 'personId,attachmentId,fileName,savedAs,error\n');
-  }
-
-  const csv = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 
   await forEachPage(
     config.source,
     'attachments',
     async (records, endCursor) => {
-      const rows = [];
-
       for (const record of records) {
         const personId = record[personKey];
 
@@ -505,34 +667,41 @@ const files = async (config) => {
           }
 
           mkdirSync(personFolder, { recursive: true });
-          await pipeline(Readable.fromWeb(response.body), createWriteStream(savedAs));
+          // Written under another name first, so a cut download is retried.
+          await pipeline(Readable.fromWeb(response.body), createWriteStream(`${savedAs}.part`));
+          renameSync(`${savedAs}.part`, savedAs);
           state.files.downloaded++;
-          rows.push([personId, record.id, fileName, savedAs, ''].map(csv).join(','));
+          appendCsv(indexPath, header, [personId, record.id, fileName, savedAs, '']);
         } catch (error) {
           state.files.failed++;
-          rows.push([personId, record.id, fileName, '', error.message].map(csv).join(','));
+          appendCsv(indexPath, header, [personId, record.id, fileName, '', error.message]);
         }
       }
 
-      if (rows.length > 0) {
-        writeFileSync(indexPath, `${rows.join('\n')}\n`, { flag: 'a' });
+      if (endCursor) {
+        state.files.cursor = endCursor;
       }
 
-      state.files.cursor = endCursor;
       writeState(config, state);
       log(`files: ${state.files.downloaded} downloaded, ${state.files.failed} failed`);
     },
     { startAfter: state.files.cursor ?? undefined },
   );
 
-  log(`Files done. They are in ${folder}, one folder per person id, listed in ${indexPath}.`);
+  log(`Files done. They are in ${folder}, one folder per FloLabs person id, listed in ${indexPath}.`);
 };
 
 const steps = { check, fields, people, files };
 
 const main = async () => {
-  if (command === 'help' || !(command in steps || command === 'all')) {
-    console.log(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 13).join('\n').replaceAll('// ', ''));
+  if (!(command in steps || command === 'all')) {
+    console.log(
+      readFileSync(fileURLToPath(import.meta.url), 'utf8')
+        .split('\n')
+        .slice(1, 14)
+        .map((line) => line.replace(/^\/\/ ?/, ''))
+        .join('\n'),
+    );
 
     return;
   }
