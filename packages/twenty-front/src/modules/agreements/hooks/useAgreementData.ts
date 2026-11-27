@@ -63,7 +63,7 @@ export const useAgreementRequests = () => {
 export const useAgreementPeopleSearch = (searchTerm: string) => {
   const apolloCoreClient = useApolloCoreClient();
   const trimmed = searchTerm.trim();
-  const { data, previousData, loading } = useQuery<{
+  const { data, previousData, loading, error } = useQuery<{
     people: Connection<AgreementPerson>;
   }>(SEARCH_AGREEMENT_PEOPLE, {
     client: apolloCoreClient,
@@ -77,6 +77,7 @@ export const useAgreementPeopleSearch = (searchTerm: string) => {
         ? []
         : ((data ?? previousData)?.people.edges ?? []).map(({ node }) => node),
     loading,
+    error: trimmed.length < 2 ? undefined : error,
   };
 };
 

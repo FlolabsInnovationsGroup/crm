@@ -73,7 +73,7 @@ export const AgreementSendForm = ({
   const [templateIds, setTemplateIds] = useState<string[]>([]);
 
   const person = chosenPerson ?? (isPersonCleared ? null : initialPerson);
-  const email = person?.emails?.primaryEmail ?? '';
+  const email = person?.emails?.primaryEmail?.trim() ?? '';
   const personLabel = getAgreementPersonLabel(person);
   const canSend =
     person !== null && isNonEmptyString(email) && templateIds.length > 0;
@@ -86,10 +86,7 @@ export const AgreementSendForm = ({
   const handleTemplateToggle = (templateId: string, isChecked: boolean) => {
     setTemplateIds((current) =>
       isChecked
-        ? [...current.filter((id) => id !== templateId), templateId].slice(
-            0,
-            MAX_DOCUMENTS,
-          )
+        ? [...current.filter((id) => id !== templateId), templateId]
         : current.filter((id) => id !== templateId),
     );
   };
@@ -114,11 +111,9 @@ export const AgreementSendForm = ({
         children: t`Sent to ${email}. You will see the status below.`,
       });
     } else {
-      const emailError = result.sendAgreement.emailError ?? '';
-
       enqueueToast({
         status: 'warning',
-        children: t`The agreement is ready, but the email to ${email} failed: ${emailError}. Use "Resend email" below.`,
+        children: t`The agreement is ready, but the email to ${email} failed. Use "Resend email" below.`,
       });
     }
 
@@ -151,6 +146,10 @@ export const AgreementSendForm = ({
               <Checkbox
                 aria-label={template.name ?? t`Untitled template`}
                 checked={templateIds.includes(template.id)}
+                disabled={
+                  templateIds.length >= MAX_DOCUMENTS &&
+                  !templateIds.includes(template.id)
+                }
                 onCheckedChange={(isChecked) =>
                   handleTemplateToggle(template.id, isChecked)
                 }

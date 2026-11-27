@@ -61,7 +61,10 @@ export const AgreementPreview = ({
   if (error !== undefined || preview === null || preview === undefined) {
     return (
       <StyledPreview>
-        <StyledMissing>{t`This template could not be prepared for this person.`}</StyledMissing>
+        <StyledMissing>
+          {error?.message ??
+            t`This template could not be prepared for this person.`}
+        </StyledMissing>
       </StyledPreview>
     );
   }

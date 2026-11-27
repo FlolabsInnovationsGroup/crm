@@ -63,7 +63,7 @@ export const AgreementsPage = () => {
           )}
           {isSetUp && (
             <AgreementSendForm
-              key={initialPerson?.id ?? 'no-person'}
+              key={searchParams.get('personId') ?? 'no-person'}
               initialPerson={initialPerson}
               onSent={handleChanged}
             />

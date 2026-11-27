@@ -1,5 +1,6 @@
 import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
+import { isNonEmptyString } from '@sniptt/guards';
 import { useState } from 'react';
 import { Button } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
@@ -45,6 +46,12 @@ const StyledSecondary = styled.span`
   color: ${themeCssVariables.font.color.tertiary};
 `;
 
+const StyledLive = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${themeCssVariables.spacing[2]};
+`;
+
 const StyledSelected = styled.div`
   align-items: center;
   display: flex;
@@ -64,7 +71,8 @@ export const AgreementPersonPicker = ({
   const { t } = useLingui();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
-  const { people, loading } = useAgreementPeopleSearch(debouncedSearchTerm);
+  const { people, loading, error } =
+    useAgreementPeopleSearch(debouncedSearchTerm);
 
   if (person !== null) {
     return (
@@ -72,7 +80,9 @@ export const AgreementPersonPicker = ({
         <span>
           {getAgreementPersonLabel(person)}{' '}
           <StyledSecondary>
-            {person.emails?.primaryEmail ?? t`no email`}
+            {isNonEmptyString(person.emails?.primaryEmail)
+              ? person.emails.primaryEmail
+              : t`no email`}
           </StyledSecondary>
         </span>
         <Button size="sm" variant="ghost" onClick={() => onChange(null)}>
@@ -91,31 +101,38 @@ export const AgreementPersonPicker = ({
         value={searchTerm}
         onChange={setSearchTerm}
         fullWidth
+        autoFocusOnMount
       />
-      {people.length > 0 && (
-        <StyledResults>
-          {people.map((candidate) => (
-            <StyledResult
-              key={candidate.id}
-              type="button"
-              onClick={() => {
-                setSearchTerm('');
-                onChange(candidate);
-              }}
-            >
-              <span>{getAgreementPersonLabel(candidate)}</span>
-              <StyledSecondary>
-                {candidate.emails?.primaryEmail ?? ''}
-              </StyledSecondary>
-            </StyledResult>
-          ))}
-        </StyledResults>
-      )}
-      {!loading &&
-        debouncedSearchTerm.trim().length >= 2 &&
-        people.length === 0 && (
-          <StyledSecondary>{t`No one found.`}</StyledSecondary>
+      <StyledLive aria-live="polite">
+        {people.length > 0 && (
+          <StyledResults>
+            {people.map((candidate) => (
+              <StyledResult
+                key={candidate.id}
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  onChange(candidate);
+                }}
+              >
+                <span>{getAgreementPersonLabel(candidate)}</span>
+                <StyledSecondary>
+                  {candidate.emails?.primaryEmail ?? ''}
+                </StyledSecondary>
+              </StyledResult>
+            ))}
+          </StyledResults>
         )}
+        {!loading &&
+          debouncedSearchTerm.trim().length >= 2 &&
+          people.length === 0 &&
+          error === undefined && (
+            <StyledSecondary>{t`No one found.`}</StyledSecondary>
+          )}
+        {error !== undefined && (
+          <StyledSecondary>{t`The search failed. Try again.`}</StyledSecondary>
+        )}
+      </StyledLive>
     </StyledPicker>
   );
 };

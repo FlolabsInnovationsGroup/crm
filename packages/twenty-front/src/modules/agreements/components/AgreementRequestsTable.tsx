@@ -79,6 +79,7 @@ const AgreementRequestRowActions = ({
 
   const handleSync = async () => {
     if ((await sync.run(variables)) !== null) {
+      enqueueToast({ status: 'success', children: t`Status is up to date.` });
       onChanged();
     }
   };

@@ -26,5 +26,11 @@ export const AgreementStatusChip = ({ status }: AgreementStatusChipProps) => {
     return null;
   }
 
-  return <Status color={display[status].color}>{display[status].label}</Status>;
+  // The options live in metadata and can grow before this list does.
+  const entry: { label: string; color: ThemeColor } | undefined =
+    display[status];
+
+  return (
+    <Status color={entry?.color ?? 'gray'}>{entry?.label ?? status}</Status>
+  );
 };
