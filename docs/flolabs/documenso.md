@@ -25,9 +25,9 @@ Documenso (open source, AGPL-3.0) signs agreements for the CRM. It runs on the C
 5. **Back up `/opt/flolabs-sign/.env`** somewhere safe. It holds the encryption keys; without them the stored documents cannot be read.
 6. **Admin account:** open https://sign.flolabsinnovations.com/signup and sign up with hr@. Only @flolabsinnovations.com addresses can sign up.
    - The confirmation email does not leave the server. Open it through the tunnel the script prints, at http://localhost:8026, and click only the email sent seconds after your own sign-up.
-7. **Close sign-up:** `sudo bash /opt/setup-documenso.sh --lock`. It then lists every account. To remove one you do not recognise:
+7. **Close sign-up:** `sudo bash /opt/setup-documenso.sh --lock`. It then lists every account. To block one you do not recognise:
    ```
-   cd /opt/flolabs-sign && docker compose exec database psql -U documenso -d documenso -c "delete from \"User\" where email = 'unknown@example.com'"
+   cd /opt/flolabs-sign && docker compose exec database psql -U documenso -d documenso -c "update \"User\" set disabled = true where email = 'unknown@example.com'"
    ```
 8. **API token for the CRM:** in Documenso, Settings > API tokens > create one with no expiry. It goes into the CRM's settings with the Send agreement feature, not into chat.
 
