@@ -11,6 +11,7 @@ On each person, filled by the CRM:
 | First meeting | Start of the first meeting on or after the Application Date |
 | Meeting booked at | When that meeting was booked in Calendly (or created in the calendar) |
 | Days to meeting | Whole days from the Application Date to the First meeting, in UTC |
+| Days to booking | Whole days from the Application Date to when that meeting was booked; empty if it was booked before the Application Date |
 | First meeting event ID | Technical link to the booking or calendar event; set by the CRM, do not edit |
 
 Each person also has a **Calendly bookings** list, one row per booking with its status, event type and the Calendly account it was booked in.
@@ -60,6 +61,8 @@ These are saved views; no code is needed:
 
 - **Days to meeting this month:** People, filter First meeting = this month. The table footer shows the average of Days to meeting.
 - **Monthly averages:** a dashboard chart of the average Days to meeting, grouped by First meeting by month.
+- **Where the time goes:** Days to booking against Days to meeting. A large Days to booking means applicants wait or take long to book; the gap between the two is the wait for a free slot.
+- **Leave out old applications:** some people applied again with an Application Date from 2024 or 2025, which gives hundreds of days. Filter Application Date to the last 6 months before reading an average.
 - **Waiting for a meeting:**
   - People, filter First meeting is empty and Stage at the interview step, sorted by Application Date (oldest first).
   - Anyone with an Application Date more than 9 days ago is over the target.

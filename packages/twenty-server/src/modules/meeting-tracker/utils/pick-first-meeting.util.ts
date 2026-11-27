@@ -66,10 +66,17 @@ export const pickFirstMeeting = ({
     return null;
   }
 
+  const daysToBooking = isDefined(firstMeeting.bookedAt)
+    ? Math.round((startOfUtcDay(firstMeeting.bookedAt) - appliedDay) / DAY_MS)
+    : null;
+
   return {
     ...firstMeeting,
     daysToMeeting: Math.round(
       (startOfUtcDay(firstMeeting.meetingAt) - appliedDay) / DAY_MS,
     ),
+    // A booking made before the application date belongs to an earlier one.
+    daysToBooking:
+      isDefined(daysToBooking) && daysToBooking >= 0 ? daysToBooking : null,
   };
 };

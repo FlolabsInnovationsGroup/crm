@@ -30,6 +30,7 @@ describe('pickFirstMeeting', () => {
       meetingAt: new Date('2026-11-10T09:00:00Z'),
       bookedAt: new Date('2026-11-04T09:00:00Z'),
       daysToMeeting: 8,
+      daysToBooking: 2,
     });
   });
 
@@ -82,6 +83,17 @@ describe('pickFirstMeeting', () => {
           meeting('2026-11-04T09:00:00Z', { isCanceled: true }),
         ],
       }),
+    ).toBeNull();
+  });
+
+  it('leaves days to booking empty for a booking made before the application', () => {
+    expect(
+      pickFirstMeeting({
+        applicationDate: '2026-11-02T10:00:00Z',
+        meetings: [
+          meeting('2026-11-09T09:00:00Z', { bookedAt: '2026-10-30T09:00:00Z' }),
+        ],
+      })?.daysToBooking,
     ).toBeNull();
   });
 });
