@@ -8,9 +8,11 @@
 set -euo pipefail
 
 DOMAIN="${DOCUMENSO_DOMAIN:-sign.flolabsinnovations.com}"
+SIGNUP_DOMAIN=flolabsinnovations.com
 DIR=/opt/flolabs-sign
 CRM_NETWORK="${CRM_NETWORK:-flolabs-crm_default}"
 IMAGE=documenso/documenso:v2.21.0
+SELF=$(readlink -f "$0")
 
 fail() {
   echo "!! $*" >&2
@@ -18,53 +20,95 @@ fail() {
 }
 
 [ "$(id -u)" = 0 ] || fail "Run as root (sudo)."
+[[ "$DOMAIN" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ ]] || fail "DOCUMENSO_DOMAIN '$DOMAIN' is not a host name."
+
+health() {
+  docker compose -f "$DIR/compose.yml" exec -T documenso node -e \
+    "fetch('http://127.0.0.1:3000/api/health').then(r=>r.json()).then(j=>console.log(j.status)).catch(()=>console.log('none'))" 2>/dev/null || echo none
+}
+
+if [ "${1:-}" = "--lock" ]; then
+  cd "$DIR" 2>/dev/null && grep -q '^DISABLE_SIGNUP=' .env || fail "Run the install first."
+  sed -i 's/^DISABLE_SIGNUP=.*/DISABLE_SIGNUP=true/' .env
+  docker compose up -d documenso
+  sleep 5
+  [ "$(docker compose exec -T documenso printenv NEXT_PUBLIC_DISABLE_SIGNUP)" = true ] \
+    || fail "Documenso did not pick up DISABLE_SIGNUP=true. Check: cd $DIR && docker compose logs --tail 80 documenso"
+  echo "Sign-up is closed. These accounts can sign in; remove any you do not know (see docs/flolabs/documenso.md):"
+  docker compose exec -T database psql -U documenso -d documenso -c \
+    'select id, email, "emailVerified" is not null as verified, "createdAt" from "User" order by "createdAt"' || true
+  exit 0
+fi
+
 docker network inspect "$CRM_NETWORK" >/dev/null 2>&1 || fail "The CRM network $CRM_NETWORK does not exist."
 
-CADDY=$(docker ps --format '{{.Names}}' | grep -i caddy | head -1 || true)
-[ -n "$CADDY" ] || fail "No running Caddy container found."
-CADDYFILE=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/etc/caddy/Caddyfile"}}{{.Source}}{{end}}{{end}}' "$CADDY")
-[ -n "$CADDYFILE" ] && [ -f "$CADDYFILE" ] || fail "Could not find the Caddyfile mounted into $CADDY."
+mapfile -t CADDIES < <(docker ps --filter label=com.docker.compose.service=caddy --filter network="$CRM_NETWORK" --format '{{.Names}}')
+[ "${#CADDIES[@]}" = 1 ] || fail "Expected one Caddy container on $CRM_NETWORK, found ${#CADDIES[@]}: ${CADDIES[*]:-none}."
+CADDY=${CADDIES[0]}
+CADDY_MOUNT=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/etc/caddy/Caddyfile"}}{{.Source}}{{end}}{{end}}' "$CADDY")
+if [ -z "$CADDY_MOUNT" ]; then
+  CADDY_MOUNT=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/etc/caddy"}}{{.Source}}{{end}}{{end}}' "$CADDY")
+  CADDYFILE="$CADDY_MOUNT/Caddyfile"
+else
+  CADDYFILE=$CADDY_MOUNT
+fi
+[ -n "$CADDY_MOUNT" ] && [ -f "$CADDYFILE" ] || fail "Could not find the Caddyfile mounted into $CADDY at /etc/caddy/Caddyfile."
+CADDY_DIR=$(dirname "$CADDYFILE")
 
 SERVER_IP=$(curl -fsS --max-time 10 https://api.ipify.org || true)
-DNS_IP=$(getent ahostsv4 "$DOMAIN" | awk 'NR==1 {print $1}' || true)
-if [ -z "$DNS_IP" ] || { [ -n "$SERVER_IP" ] && [ "$DNS_IP" != "$SERVER_IP" ]; }; then
-  fail "$DOMAIN must point to this server ($SERVER_IP) first; it points to '${DNS_IP:-nothing}'. Add an A record at the DNS provider and wait a few minutes."
+# This server's own DNS lookups sometimes time out (see deploy.sh).
+DNS_IP=
+for _ in 1 2 3; do
+  DNS_IP=$(getent ahostsv4 "$DOMAIN" | awk 'NR==1 {print $1}' || true)
+  [ -n "$DNS_IP" ] && break
+  sleep 3
+done
+[ -n "$DNS_IP" ] || fail "$DOMAIN has no A record yet. Add one pointing to this server and wait a few minutes."
+if [ -n "$SERVER_IP" ]; then
+  [ "$DNS_IP" = "$SERVER_IP" ] || fail "$DOMAIN points to $DNS_IP, but this server is $SERVER_IP. Fix the A record first."
+else
+  ip -4 addr | grep -qw "$DNS_IP" || echo "?? Could not confirm $DOMAIN ($DNS_IP) is this server; going on."
+fi
+if getent ahostsv6 "$DOMAIN" | grep -qv '::ffff:'; then
+  fail "$DOMAIN has an AAAA record; remove it, or Caddy may fail to get a certificate."
 fi
 
 mkdir -p "$DIR"
 cd "$DIR"
 umask 077
 
-if [ "${1:-}" = "--lock" ]; then
-  grep -q '^DISABLE_SIGNUP=' .env || fail "Run the install first."
-  sed -i 's/^DISABLE_SIGNUP=.*/DISABLE_SIGNUP=true/' .env
-  docker compose up -d documenso
-  echo "Sign-up is closed. Only the accounts that exist now can sign in."
-  exit 0
+if [ ! -f .env ]; then
+  {
+    echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+    echo "NEXTAUTH_SECRET=$(openssl rand -hex 32)"
+    echo "ENCRYPTION_KEY=$(openssl rand -hex 32)"
+    echo "ENCRYPTION_SECONDARY_KEY=$(openssl rand -hex 32)"
+    echo "CERT_PASS=$(openssl rand -hex 16)"
+    echo "DISABLE_SIGNUP=false"
+  } > .env.new
+  grep -qE '^[A-Z_]+=$' .env.new && fail "openssl did not produce the secrets."
+  mv .env.new .env
 fi
 
-if [ ! -f .env ]; then
-  CERT_PASS=$(openssl rand -hex 16)
-  cat > .env <<ENV
-POSTGRES_PASSWORD=$(openssl rand -hex 24)
-NEXTAUTH_SECRET=$(openssl rand -hex 32)
-ENCRYPTION_KEY=$(openssl rand -hex 32)
-ENCRYPTION_SECONDARY_KEY=$(openssl rand -hex 32)
-CERT_PASS=$CERT_PASS
-DISABLE_SIGNUP=false
-ENV
-
-  # Self-signed signing certificate, valid 10 years. Replace cert.p12 with one
-  # from a certificate authority when John wants signatures trusted by Adobe.
+# An earlier failed run can leave Docker's empty directory in its place.
+[ -d cert.p12 ] && rmdir cert.p12
+NEW_CERT=false
+if [ ! -f cert.p12 ]; then
+  NEW_CERT=true
+  CERT_PASS=$(grep '^CERT_PASS=' .env | cut -d= -f2-)
+  [ -n "$CERT_PASS" ] || fail "CERT_PASS is missing from $DIR/.env."
+  # Self-signed, valid 10 years. Replace with a certificate authority's when
+  # John wants signatures trusted by Adobe.
   openssl req -new -x509 -newkey rsa:3072 -nodes -days 3650 \
     -keyout private.key -out certificate.crt \
     -subj "/C=US/O=FloLabs Innovations Group/CN=FloLabs Signing" 2>/dev/null
-  CERT_PASS=$CERT_PASS openssl pkcs12 -export -out cert.p12 \
+  CERT_PASS=$CERT_PASS openssl pkcs12 -export -out cert.p12.new \
     -inkey private.key -in certificate.crt -password env:CERT_PASS
   rm -f private.key certificate.crt
   # The app runs as uid 1001 inside its container.
-  chown 1001:1001 cert.p12
-  chmod 400 cert.p12
+  chown 1001:1001 cert.p12.new
+  chmod 400 cert.p12.new
+  mv cert.p12.new cert.p12
 fi
 
 cat > compose.yml <<YAML
@@ -86,12 +130,11 @@ services:
       retries: 20
     volumes:
       - database:/var/lib/postgresql/data
-    # "db" on the CRM network is the CRM's own Postgres.
     networks:
       sign:
         aliases: [documenso-db]
 
-  # The CRM sends the signing links itself, so Documenso's own emails (account
+  # The CRM sends the signing links itself; Documenso's own emails (account
   # checks only) are caught here and read through an SSH tunnel.
   mailpit:
     image: axllent/mailpit:v1.33.0
@@ -99,7 +142,9 @@ services:
     mem_limit: 128m
     ports:
       - 127.0.0.1:8026:8025
-    networks: [sign]
+    networks:
+      sign:
+        aliases: [documenso-mailpit]
 
   documenso:
     image: $IMAGE
@@ -119,8 +164,9 @@ services:
       NEXT_PRIVATE_DIRECT_DATABASE_URL: postgres://documenso:\${POSTGRES_PASSWORD}@documenso-db:5432/documenso
       NEXT_PUBLIC_UPLOAD_TRANSPORT: database
       NEXT_PUBLIC_DISABLE_SIGNUP: \${DISABLE_SIGNUP}
+      NEXT_PRIVATE_ALLOWED_SIGNUP_DOMAINS: $SIGNUP_DOMAIN
       NEXT_PRIVATE_SMTP_TRANSPORT: smtp-auth
-      NEXT_PRIVATE_SMTP_HOST: mailpit
+      NEXT_PRIVATE_SMTP_HOST: documenso-mailpit
       NEXT_PRIVATE_SMTP_PORT: 1025
       NEXT_PRIVATE_SMTP_SECURE: "false"
       NEXT_PRIVATE_SMTP_UNSAFE_IGNORE_TLS: "true"
@@ -130,10 +176,8 @@ services:
       NEXT_PRIVATE_SIGNING_PASSPHRASE: \${CERT_PASS}
     volumes:
       - ./cert.p12:/opt/documenso/cert.p12:ro
-    networks:
-      sign:
-      crm:
-        aliases: [documenso]
+    # On the CRM network only so Caddy can reach it, like Listmonk.
+    networks: [sign, crm]
 
 networks:
   sign:
@@ -145,19 +189,34 @@ volumes:
   database:
 YAML
 
+if [ -z "$(docker compose ps -q documenso 2>/dev/null)" ]; then
+  AVAILABLE_MB=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
+  [ "$AVAILABLE_MB" -ge 2300 ] || fail "Only ${AVAILABLE_MB} MB of memory is free; Documenso needs about 2.2 GB. Remove the trial first (documenso-trial-remove.sh)."
+fi
+
 echo "==> Starting Documenso (the first start downloads about 1 GB)"
 docker compose up -d
+# A running container keeps whatever was mounted before the new certificate.
+[ "$NEW_CERT" = true ] && docker compose up -d --force-recreate documenso
 
-echo "==> Waiting for Documenso to answer inside Docker"
-CODE=000
+echo "==> Waiting for Documenso and its signing certificate"
+STATUS=none
 for _ in $(seq 1 60); do
-  CODE=$(docker exec "$CADDY" wget -q -S -O /dev/null http://documenso:3000/signin 2>&1 | awk '/HTTP\//{print $2}' | tail -1 || true)
-  [ "$CODE" = 200 ] && break
+  STATUS=$(health)
+  [ "$STATUS" = ok ] && break
   sleep 5
 done
-[ "$CODE" = 200 ] || fail "Documenso did not answer (last code ${CODE:-none}). Logs: cd $DIR && docker compose logs --tail 80 documenso"
+[ "$STATUS" = ok ] \
+  || fail "Documenso reports '$STATUS' (warning means the signing certificate does not open). Logs: cd $DIR && docker compose logs --tail 80 documenso"
+docker exec "$CADDY" wget -q --spider http://documenso:3000/api/health \
+  || fail "Caddy cannot reach documenso:3000 on $CRM_NETWORK."
 
-if ! grep -q "^$DOMAIN {" "$CADDYFILE"; then
+# The Caddyfile and the files it imports; the folder around it can be large.
+CADDY_FILES=("$CADDYFILE")
+while read -r IMPORTED; do
+  for FILE in "$CADDY_DIR"/$IMPORTED; do [ -f "$FILE" ] && CADDY_FILES+=("$FILE"); done
+done < <(awk '$1 == "import" {print $2}' "$CADDYFILE" | sed 's#^/etc/caddy/##')
+if ! grep -qxF "$DOMAIN {" "${CADDY_FILES[@]}"; then
   echo "==> Adding $DOMAIN to Caddy"
   cp "$CADDYFILE" "$CADDYFILE.before-documenso"
   cat >> "$CADDYFILE" <<CADDY
@@ -167,7 +226,7 @@ $DOMAIN {
 	reverse_proxy documenso:3000
 }
 CADDY
-  if ! docker exec "$CADDY" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 \
+  if ! docker exec "$CADDY" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile \
     || ! docker exec "$CADDY" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile; then
     cp "$CADDYFILE.before-documenso" "$CADDYFILE"
     docker exec "$CADDY" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile || true
@@ -178,7 +237,8 @@ fi
 echo "==> Checking https://$DOMAIN (Caddy fetches the certificate on the first call)"
 PUBLIC=000
 for _ in $(seq 1 24); do
-  PUBLIC=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://$DOMAIN/signin" || true)
+  PUBLIC=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+    --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/signin" || true)
   [ "$PUBLIC" = 200 ] && break
   sleep 5
 done
@@ -186,18 +246,20 @@ done
 echo "==> CRM still healthy: $(docker inspect -f '{{.State.Health.Status}}' flolabs-crm-server-1 2>/dev/null || echo unknown)"
 free -h | head -2
 
-if [ "$PUBLIC" = 200 ]; then
-  cat <<DONE
+[ "$PUBLIC" = 200 ] || fail "https://$DOMAIN did not answer yet (last code $PUBLIC). Wait a minute and open it; if it still fails, send: docker logs --tail 50 $CADDY"
+
+cat <<DONE
 
 Documenso is live at https://$DOMAIN
 
 Next:
-1. Open https://$DOMAIN/signup and create the admin account with hr@flolabsinnovations.com.
-2. The confirmation email is caught on this server. On your computer run
-     ssh -N -L 8026:127.0.0.1:8026 root@$SERVER_IP
-   open http://localhost:8026 and click the link.
-3. Then close sign-up:  sudo bash $0 --lock
+1. Back up $DIR/.env somewhere safe. Without its keys the signed documents
+   cannot be read.
+2. Open https://$DOMAIN/signup and create the admin account with
+   hr@$SIGNUP_DOMAIN (only @$SIGNUP_DOMAIN addresses can sign up).
+3. The confirmation email is caught on this server. On your computer run
+     ssh -N -L 8026:127.0.0.1:8026 root@${SERVER_IP:-<server ip>}
+   open http://localhost:8026 and click only the email sent seconds after
+   your sign-up.
+4. Close sign-up:  sudo bash $SELF --lock
 DONE
-else
-  fail "https://$DOMAIN did not answer yet (last code $PUBLIC). Wait a minute and open it; if it still fails, send me: docker logs --tail 50 $CADDY"
-fi
