@@ -8,8 +8,9 @@ export const REMINDER_STAGES = [
   'OPT_2ND_REMINDER_BEFORE_MEETING',
 ];
 
-// The reminder email and the stage change land a few minutes apart, so an
-// email of ours inside this window before the stage change is the reminder.
+// The reminder email and the stage change land minutes apart, in either order,
+// and the timeline can date a change up to 10 minutes early.
 export const REMINDER_SEND_WINDOW_MS = 10 * 60 * 1000;
+export const REMINDER_EMAIL_AFTER_WINDOW_MS = 20 * 60 * 1000;
 
 export const MAX_REMINDED_AFTER_REPLY_DAYS = 90;

@@ -194,6 +194,31 @@ describe('ApplicantReplyCheckService', () => {
   });
 
   it('leaves out a reminder sent after we had answered', async () => {
+    messageRepository.find.mockResolvedValue([
+      ...CONVERSATION.messages,
+      { id: 'second-reminder', receivedAt: new Date('2026-11-06T10:00:00Z') },
+    ]);
+    participantRepository.find.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) => {
+        const rows = [
+          ...CONVERSATION.participants,
+          participant('second-reminder', MessageParticipantRole.FROM, HR),
+          participant(
+            'second-reminder',
+            MessageParticipantRole.TO,
+            ADA,
+            'ada-id',
+          ),
+        ];
+
+        return 'messageId' in where
+          ? rows
+          : rows.filter(
+              (row) => row.personId === 'ada-id' || row.handle === ADA,
+            );
+      },
+    );
+
     timelineRepository.createQueryBuilder.mockReturnValue(
       queryBuilder([
         {
@@ -237,5 +262,30 @@ describe('ApplicantReplyCheckService', () => {
         days: 30,
       }),
     ).toEqual([]);
+  });
+
+  it('counts a reminder email that went out after the stage change', async () => {
+    timelineRepository.createQueryBuilder.mockReturnValue(
+      queryBuilder([
+        {
+          id: 'change',
+          happensAt: '2026-11-05T09:45:00Z',
+          targetPersonId: 'ada-id',
+          properties: {
+            diff: { stage: { after: 'SECOND_REMINDER_CONTACTED' } },
+          },
+        },
+      ]),
+    );
+    personRepository.find.mockResolvedValue([ada]);
+
+    const [reminded] = await service.findRemindedAfterReply({
+      workspaceId: 'workspace-id',
+      days: 30,
+    });
+
+    expect(reminded?.applicantMessageAt).toEqual(
+      new Date('2026-11-02T10:00:00Z'),
+    );
   });
 });
