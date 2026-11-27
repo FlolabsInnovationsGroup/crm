@@ -215,4 +215,27 @@ describe('ApplicantReplyCheckService', () => {
       }),
     ).toEqual([]);
   });
+
+  it('leaves out a stage change with no reminder email next to it', async () => {
+    timelineRepository.createQueryBuilder.mockReturnValue(
+      queryBuilder([
+        {
+          id: 'import',
+          happensAt: '2026-11-03T12:16:00Z',
+          targetPersonId: 'ada-id',
+          properties: {
+            diff: { stage: { after: 'SECOND_REMINDER_CONTACTED' } },
+          },
+        },
+      ]),
+    );
+    personRepository.find.mockResolvedValue([ada]);
+
+    expect(
+      await service.findRemindedAfterReply({
+        workspaceId: 'workspace-id',
+        days: 30,
+      }),
+    ).toEqual([]);
+  });
 });

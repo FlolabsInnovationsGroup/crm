@@ -165,12 +165,22 @@ export class ApplicantReplyCheckService {
         }
 
         const remindedAt = new Date(reminder.happensAt);
+        const messages = conversations.get(person.id) ?? [];
+        // A stage change with no email from us next to it was set by hand or
+        // by an import, not by a reminder going out.
+        const hasReminderEmail = messages.some(
+          (message) =>
+            message.isSentToApplicant &&
+            Math.abs(message.receivedAt.getTime() - remindedAt.getTime()) <=
+              REMINDER_SEND_WINDOW_MS,
+        );
         const state = getApplicantReplyState({
-          messages: conversations.get(person.id) ?? [],
+          messages,
           before: new Date(remindedAt.getTime() - REMINDER_SEND_WINDOW_MS),
         });
 
         if (
+          !hasReminderEmail ||
           !isAwaitingOurReply(state) ||
           !isDefined(state.lastApplicantMessageAt)
         ) {
