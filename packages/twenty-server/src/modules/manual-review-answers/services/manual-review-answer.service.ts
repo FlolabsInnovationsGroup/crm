@@ -54,19 +54,26 @@ export class ManualReviewAnswerService {
         context: {},
       };
 
+      const templateName = toTrimmedOrNull(input.templateName);
+      // The text sent from the card is the answer; a later Done only fills
+      // an answer that is still missing.
+      const shouldWriteAnswer =
+        isDefined(answer) &&
+        (input.source === 'REPLY_FROM_CARD' ||
+          !isNonEmptyString(existing?.answer));
+
       const values = {
         name: toManualReviewAnswerName(input.question),
         question: input.question.trim(),
         applicantEmail: input.applicantEmail.trim().toLowerCase(),
         category: toTrimmedOrNull(input.category),
-        source: input.source,
         updatedBy: actor,
-        // A later Done without a reply keeps the answer sent from the card.
-        ...(isDefined(answer)
+        ...(isDefined(templateName) ? { templateName } : {}),
+        ...(shouldWriteAnswer
           ? {
               answer,
               answeredAt: new Date().toISOString(),
-              templateName: toTrimmedOrNull(input.templateName),
+              source: input.source,
             }
           : {}),
         personId:
@@ -80,11 +87,25 @@ export class ManualReviewAnswerService {
         return;
       }
 
-      await answerRepository.insert({
-        ...values,
-        reviewThreadId: input.reviewThreadId,
-        createdBy: actor,
-      });
+      try {
+        await answerRepository.insert({
+          source: input.source,
+          ...values,
+          reviewThreadId: input.reviewThreadId,
+          createdBy: actor,
+        });
+      } catch (error) {
+        // A teammate or a quick Done may have saved the same card first.
+        const savedMeanwhile = await answerRepository.findOne({
+          where: { reviewThreadId: input.reviewThreadId },
+        });
+
+        if (!isDefined(savedMeanwhile)) {
+          throw error;
+        }
+
+        await answerRepository.update(savedMeanwhile.id, values);
+      }
     }, buildSystemAuthContext(workspaceId));
   }
 

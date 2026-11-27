@@ -240,9 +240,9 @@ export const TeamInboxManualReviewCard = ({
   onToggleDone,
 }: TeamInboxManualReviewCardProps) => {
   const { openRecordInSidePanel } = useOpenRecordInSidePanel();
-  const openEmail = () =>
+  const openEmail = (threadId = thread.id) =>
     openRecordInSidePanel({
-      recordId: thread.id,
+      recordId: threadId,
       objectNameSingular: CoreObjectNameSingular.MessageThread,
     });
   const [isSaving, setIsSaving] = useState(false);
@@ -253,13 +253,14 @@ export const TeamInboxManualReviewCard = ({
     ? body.reply
     : getTeamInboxReviewExcerpt(thread.lastMessageBody);
   const applicantEmail = item.applicantEmail;
-  const groupItems = [item, ...earlier.map((entry) => entry.item)];
+  const groupEntries = [{ thread, item }, ...earlier];
+  const groupItems = groupEntries.map((entry) => entry.item);
   const canReply = groupItems.some(isTeamInboxApplicantMessage);
   // An approval folded into a reply card keeps its own button.
-  const approvals = groupItems.filter(
-    (groupItem, index) =>
-      isTeamInboxApproval(groupItem) &&
-      groupItems.findIndex(({ kind }) => kind === groupItem.kind) === index,
+  const approvals = groupEntries.filter(
+    (entry, index) =>
+      isTeamInboxApproval(entry.item) &&
+      groupItems.findIndex(({ kind }) => kind === entry.item.kind) === index,
   );
   const badge = getReasonBadge(item);
   const name = isNonEmptyString(person?.name)
@@ -296,7 +297,11 @@ export const TeamInboxManualReviewCard = ({
           colorSeed={person?.personId ?? name}
           size={42}
         />
-        <StyledWho type="button" title={t`Open the email`} onClick={openEmail}>
+        <StyledWho
+          type="button"
+          title={t`Open the email`}
+          onClick={() => openEmail()}
+        >
           <StyledName dir="auto">{name}</StyledName>
           <StyledMeta dir="auto" title={meta}>
             {meta}
@@ -349,7 +354,7 @@ export const TeamInboxManualReviewCard = ({
         </StyledTemplate>
       )}
       <StyledActions>
-        {approvals.map((approval) =>
+        {approvals.map(({ thread: approvalThread, item: approval }) =>
           isDefined(approval.approvalUrl) ? (
             <StyledPrimaryButton
               key={approval.kind}
@@ -368,7 +373,7 @@ export const TeamInboxManualReviewCard = ({
             <StyledPrimaryButton
               key={approval.kind}
               type="button"
-              onClick={openEmail}
+              onClick={() => openEmail(approvalThread.id)}
             >
               {t`Open the email`}
             </StyledPrimaryButton>

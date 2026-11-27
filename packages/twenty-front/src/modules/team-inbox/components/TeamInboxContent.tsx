@@ -477,6 +477,11 @@ export const TeamInboxContent = () => {
   const selectThread = (threadId: string | null) => updateParams({ threadId });
 
   const handleSelectThread = (threadId: string, isRead: boolean) => {
+    // A card's reply only counts in the conversation it was opened for.
+    if (pendingReview?.applicantThreadId !== threadId) {
+      setPendingReview(null);
+    }
+
     selectThread(threadId);
 
     if (!isRead) {
@@ -501,6 +506,7 @@ export const TeamInboxContent = () => {
   };
 
   const handleTabChange = (tab: TeamInboxTab) => {
+    setPendingReview(null);
     setReviewFilter(ALL_REVIEW_ITEMS);
     updateParams({ tab, threadId: null });
   };
@@ -509,6 +515,8 @@ export const TeamInboxContent = () => {
     context: ManualReviewAnswerContext,
     templateId: string | null,
   ) => {
+    setPendingReview(null);
+
     const threadId = await findApplicantThreadId(context.applicantEmail);
 
     if (!isDefined(threadId)) {
@@ -736,11 +744,21 @@ export const TeamInboxContent = () => {
                     }}
                     onToggleDone={async () => {
                       // The visible card goes last so it stays on screen
-                      // until the whole group is saved.
-                      const threadIds = [
-                        ...earlier.map((entry) => entry.thread.id),
-                        thread.id,
-                      ];
+                      // until the whole group is saved. An approval on a
+                      // card with a reply still waits for its own button,
+                      // so Done closes it only once it is all that is left.
+                      const entries = [...earlier, group];
+                      const hasOtherItems = entries.some(
+                        (entry) => !isTeamInboxApproval(entry.item),
+                      );
+                      const threadIds = entries
+                        .filter(
+                          (entry) =>
+                            isShowingDone ||
+                            !hasOtherItems ||
+                            !isTeamInboxApproval(entry.item),
+                        )
+                        .map((entry) => entry.thread.id);
 
                       for (const threadId of threadIds) {
                         const isSaved = await (isShowingDone
@@ -904,7 +922,10 @@ export const TeamInboxContent = () => {
           }
           onReplySent={handleReviewReplySent}
           onToggleClosed={() => handleToggleClosed(selectedThreadId)}
-          onBack={() => selectThread(null)}
+          onBack={() => {
+            setPendingReview(null);
+            selectThread(null);
+          }}
           onMarkUnread={() => {
             markThreadUnread(selectedThreadId);
             selectThread(null);

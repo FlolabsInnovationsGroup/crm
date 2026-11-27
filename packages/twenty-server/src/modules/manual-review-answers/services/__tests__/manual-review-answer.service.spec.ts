@@ -102,17 +102,16 @@ describe('ManualReviewAnswerService', () => {
     await service.recordAnswer({
       workspaceId: 'workspace-id',
       answeredBy,
-      input: input({ answer: null, source: 'MARKED_DONE' }),
+      input: input({ answer: null, templateName: null, source: 'MARKED_DONE' }),
     });
 
     const [, values] = answerRepository.update.mock.calls[0];
 
     expect(values).not.toHaveProperty('answer');
+    expect(values).not.toHaveProperty('source');
+    expect(values).not.toHaveProperty('templateName');
     expect(values).toEqual(
-      expect.objectContaining({
-        personId: 'linked-by-hand',
-        source: 'MARKED_DONE',
-      }),
+      expect.objectContaining({ personId: 'linked-by-hand' }),
     );
     expect(getMany).not.toHaveBeenCalled();
   });
@@ -134,5 +133,50 @@ describe('ManualReviewAnswerService', () => {
 
     expect(answerRepository.insert).not.toHaveBeenCalled();
     expect(answerRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps the template name even when the answer text is empty', async () => {
+    answerRepository.findOne.mockResolvedValue(null);
+
+    await service.recordAnswer({
+      workspaceId: 'workspace-id',
+      answeredBy,
+      input: input({ answer: '   ' }),
+    });
+
+    const [values] = answerRepository.insert.mock.calls[0];
+
+    expect(values).toEqual(
+      expect.objectContaining({
+        templateName: 'Paid or unpaid',
+        source: 'REPLY_FROM_CARD',
+      }),
+    );
+    expect(values).not.toHaveProperty('answer');
+  });
+
+  it('updates the row a teammate saved at the same moment', async () => {
+    answerRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: 'saved-meanwhile',
+      reviewThreadId: REVIEW_THREAD_ID,
+      answer: null,
+      personId: 'ada',
+    });
+    answerRepository.insert.mockRejectedValueOnce(
+      new Error('duplicate key value violates unique constraint'),
+    );
+
+    await service.recordAnswer({
+      workspaceId: 'workspace-id',
+      answeredBy,
+      input: input(),
+    });
+
+    expect(answerRepository.update).toHaveBeenCalledWith(
+      'saved-meanwhile',
+      expect.objectContaining({
+        answer: 'Hi Ada, it is unpaid and starts on Monday.',
+      }),
+    );
   });
 });
