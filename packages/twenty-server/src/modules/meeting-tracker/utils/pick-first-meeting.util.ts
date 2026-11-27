@@ -75,8 +75,14 @@ export const pickFirstMeeting = ({
     daysToMeeting: Math.round(
       (startOfUtcDay(firstMeeting.meetingAt) - appliedDay) / DAY_MS,
     ),
-    // A booking made before the application date belongs to an earlier one.
+    // Before the application it is an earlier booking; after the meeting it is
+    // when the CRM first saw an event with no booking time of its own.
     daysToBooking:
-      isDefined(daysToBooking) && daysToBooking >= 0 ? daysToBooking : null,
+      isDefined(daysToBooking) &&
+      daysToBooking >= 0 &&
+      isDefined(firstMeeting.bookedAt) &&
+      firstMeeting.bookedAt <= firstMeeting.meetingAt
+        ? daysToBooking
+        : null,
   };
 };

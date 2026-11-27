@@ -307,4 +307,31 @@ describe('MeetingTrackerService', () => {
 
     expect(personRepository.update).not.toHaveBeenCalled();
   });
+
+  it('fills days to booking for someone whose meeting was already stored', async () => {
+    personRepository.find.mockResolvedValue([
+      applicant({
+        firstMeetingAt: '2026-11-09T14:00:00Z',
+        meetingBookedAt: '2026-11-04T08:00:00Z',
+        daysToMeeting: 7,
+        daysToBooking: null,
+        firstMeetingEventId: 'interview',
+      }),
+    ]);
+    participantRepository.find.mockResolvedValue([
+      {
+        personId: 'applicant',
+        calendarEventId: 'interview',
+        responseStatus: 'ACCEPTED',
+      },
+    ]);
+    eventRepository.find.mockResolvedValue([calendarEvent('interview')]);
+
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(personRepository.update).toHaveBeenCalledWith(
+      'applicant',
+      expect.objectContaining({ daysToBooking: 2 }),
+    );
+  });
 });

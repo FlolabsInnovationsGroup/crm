@@ -96,4 +96,32 @@ describe('pickFirstMeeting', () => {
       })?.daysToBooking,
     ).toBeNull();
   });
+
+  it('counts a booking on the application day as 0 and a missing one as empty', () => {
+    expect(
+      pickFirstMeeting({
+        applicationDate: '2026-11-02T10:00:00Z',
+        meetings: [
+          meeting('2026-11-09T09:00:00Z', { bookedAt: '2026-11-02T20:00:00Z' }),
+        ],
+      })?.daysToBooking,
+    ).toBe(0);
+    expect(
+      pickFirstMeeting({
+        applicationDate: '2026-11-02T10:00:00Z',
+        meetings: [meeting('2026-11-09T09:00:00Z', { bookedAt: null })],
+      })?.daysToBooking,
+    ).toBeNull();
+  });
+
+  it('leaves days to booking empty when the booking time is after the meeting', () => {
+    expect(
+      pickFirstMeeting({
+        applicationDate: '2026-11-01T10:00:00Z',
+        meetings: [
+          meeting('2026-11-10T09:00:00Z', { bookedAt: '2026-11-20T09:00:00Z' }),
+        ],
+      })?.daysToBooking,
+    ).toBeNull();
+  });
 });
