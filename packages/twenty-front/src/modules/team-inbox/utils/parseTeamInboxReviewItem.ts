@@ -117,3 +117,7 @@ export const isTeamInboxAutomationIssue = (item: TeamInboxReviewItem) =>
 export const isTeamInboxQuestion = (item: TeamInboxReviewItem) =>
   item.kind === 'STUCK_APPLICANT' ||
   (isDefined(item.triage) && item.triage.reason === 'question');
+
+// Items that are the applicant writing to us, answered with a reply.
+export const isTeamInboxApplicantMessage = (item: TeamInboxReviewItem) =>
+  item.kind === 'REPLY_TRIAGE' || item.kind === 'STUCK_APPLICANT';

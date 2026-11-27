@@ -2,8 +2,9 @@ import { styled } from '@linaria/react';
 import { plural, t } from '@lingui/core/macro';
 import { useQuery } from '@apollo/client/react';
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { isDefined } from 'twenty-shared/utils';
+import { Link, useSearchParams } from 'react-router-dom';
+import { AppPath } from 'twenty-shared/types';
+import { getAppPath, isDefined } from 'twenty-shared/utils';
 import { IconChevronDown, IconSearch } from 'twenty-ui/icon';
 import { useDebounce } from 'use-debounce';
 
@@ -24,11 +25,17 @@ import { useInboxPeopleByEmail } from '@/team-inbox/hooks/useInboxPeopleByEmail'
 import { useInboxThreadClosed } from '@/team-inbox/hooks/useInboxThreadClosed';
 import { useManualReview } from '@/team-inbox/hooks/useManualReview';
 import { useManualReviewHistoryExport } from '@/team-inbox/hooks/useManualReviewHistoryExport';
+import { useRecordManualReviewAnswer } from '@/team-inbox/hooks/useRecordManualReviewAnswer';
 import { useTeamInboxReadState } from '@/team-inbox/hooks/useTeamInboxReadState';
 import { useTeamInboxThreads } from '@/team-inbox/hooks/useTeamInboxThreads';
 import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
 import { type ManualReviewHistoryPeriod } from '@/team-inbox/types/ManualReviewHistoryPeriod';
 import { type TeamInboxDirection } from '@/team-inbox/types/TeamInboxFilter';
+import { type TeamInboxSentReply } from '@/team-inbox/types/TeamInboxSentReply';
+import {
+  buildManualReviewAnswerContext,
+  type ManualReviewAnswerContext,
+} from '@/team-inbox/utils/buildManualReviewAnswerContext';
 import { getManualReviewHistorySince } from '@/team-inbox/utils/getManualReviewHistorySince';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
 import { groupReviewItemsByApplicant } from '@/team-inbox/utils/groupReviewItemsByApplicant';
@@ -71,6 +78,9 @@ const REVIEW_FILTER_MATCHERS: Partial<
 const ALL_REVIEW_ITEMS: ReviewFilter = 'ALL';
 
 const SEARCH_DEBOUNCE_MS = 350;
+
+// oxlint-disable-next-line lingui/no-unlocalized-strings -- An object name, not text.
+const MANUAL_REVIEW_ANSWERS_OBJECT = 'manualReviewAnswers';
 const SELECTED_THREAD_PARAM = 'thread';
 const TAB_PARAM = 'tab';
 const TABS: TeamInboxTab[] = [
@@ -222,6 +232,18 @@ const StyledMetaRow = styled.div`
   justify-content: space-between;
 `;
 
+const StyledAnswersLink = styled(Link)`
+  color: var(--fl-accent-ink);
+  display: inline-block;
+  font-size: 13px;
+  margin-top: 8px;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
 const StyledTextButton = styled.button`
   background: none;
   border: none;
@@ -335,6 +357,12 @@ export const TeamInboxContent = () => {
     threadId: string;
     templateId: string;
   } | null>(null);
+  // A reply started from a Needs review card closes that card when it is sent.
+  const [pendingReview, setPendingReview] = useState<{
+    applicantThreadId: string;
+    context: ManualReviewAnswerContext;
+  } | null>(null);
+  const { recordFromReply, recordFromDone } = useRecordManualReviewAnswer();
   const { unreadCount, markThreadRead, markThreadUnread, markAllRead } =
     useTeamInboxReadState();
   const {
@@ -397,11 +425,16 @@ export const TeamInboxContent = () => {
   // Grouped before filtering, so a card and its Done cover the same emails
   // whichever filter is open.
   const reviewGroups = groupReviewItemsByApplicant(reviewItems);
+  // A card counts for a filter when any item folded into it does.
+  const groupMatches = (
+    group: (typeof reviewGroups)[number],
+    matches: (item: TeamInboxReviewItem) => boolean,
+  ) => [group, ...group.earlier].some(({ item }) => matches(item));
   const countReviewItems = (matches: (item: TeamInboxReviewItem) => boolean) =>
-    reviewGroups.filter(({ item }) => matches(item)).length;
+    reviewGroups.filter((group) => groupMatches(group, matches)).length;
   const activeReviewMatcher = REVIEW_FILTER_MATCHERS[reviewFilter];
   const visibleReviewItems = isDefined(activeReviewMatcher)
-    ? reviewGroups.filter(({ item }) => activeReviewMatcher(item))
+    ? reviewGroups.filter((group) => groupMatches(group, activeReviewMatcher))
     : reviewGroups;
   const peopleByEmail = useInboxPeopleByEmail(
     reviewItems.map(({ item }) => item.applicantEmail).filter(isDefined),
@@ -473,17 +506,45 @@ export const TeamInboxContent = () => {
   };
 
   const handleReplyToApplicant = async (
-    applicantEmail: string,
+    context: ManualReviewAnswerContext,
     templateId: string | null,
   ) => {
-    const threadId = await findApplicantThreadId(applicantEmail);
+    const threadId = await findApplicantThreadId(context.applicantEmail);
 
     if (!isDefined(threadId)) {
       return;
     }
 
     setPendingTemplate(isDefined(templateId) ? { threadId, templateId } : null);
+    setPendingReview({ applicantThreadId: threadId, context });
     updateParams({ tab: TABS[0], threadId });
+  };
+
+  // Only the applicant's own emails close; an approval in the same card still
+  // needs its button.
+  const handleReviewReplySent = async (reply: TeamInboxSentReply) => {
+    if (
+      !isDefined(pendingReview) ||
+      pendingReview.applicantThreadId !== selectedThreadId
+    ) {
+      return;
+    }
+
+    const { context } = pendingReview;
+
+    setPendingReview(null);
+
+    for (const threadId of context.applicantMessageThreadIds) {
+      if (!(await markDone(threadId))) {
+        return;
+      }
+    }
+
+    await recordFromReply(
+      context,
+      reply.text,
+      templates.find(({ id }) => id === reply.templateId)?.name ?? null,
+    );
   };
 
   const tabs: {
@@ -593,8 +654,15 @@ export const TeamInboxContent = () => {
                     : t`Nothing needs a person`}
               </StyledTitle>
               <StyledReviewDescription>
-                {t`The automation could not finish these on its own: applicant replies, approvals and failed steps. Handle each one, then mark it done so the rest of the team skips it.`}
+                {t`The automation could not finish these on its own: applicant replies, approvals and failed steps. Handle each one, then mark it done so the rest of the team skips it. A reply sent from a card marks it done for you.`}
               </StyledReviewDescription>
+              <StyledAnswersLink
+                to={getAppPath(AppPath.RecordIndexPage, {
+                  objectNamePlural: MANUAL_REVIEW_ANSWERS_OBJECT,
+                })}
+              >
+                {t`Open Manual review answers`}
+              </StyledAnswersLink>
             </StyledReviewIntro>
             <StyledTabs role="tablist">
               {reviewFilters.map((filter) => (
@@ -630,48 +698,67 @@ export const TeamInboxContent = () => {
             </StyledEmpty>
           ) : (
             <StyledCardGrid>
-              {visibleReviewItems.map(({ thread, item, reply, earlier }) => (
-                <TeamInboxManualReviewCard
-                  key={thread.id}
-                  thread={thread}
-                  item={item}
-                  earlierReplies={earlier.map((entry) => entry.reply)}
-                  person={
-                    isDefined(item.applicantEmail)
-                      ? peopleByEmail.get(item.applicantEmail.toLowerCase())
-                      : undefined
-                  }
-                  suggestedTemplate={
-                    isDefined(item.triage)
-                      ? suggestInboxTemplate({
-                          reason: item.triage.reason,
-                          replyText: reply,
-                          templates,
-                        })
-                      : null
-                  }
-                  isDone={isShowingDone}
-                  onReply={handleReplyToApplicant}
-                  onToggleDone={async () => {
-                    // The visible card goes last so it stays on screen
-                    // until the whole group is saved.
-                    const threadIds = [
-                      ...earlier.map((entry) => entry.thread.id),
-                      thread.id,
-                    ];
+              {visibleReviewItems.map((group) => {
+                const { thread, item, earlier } = group;
+                const answerContext = buildManualReviewAnswerContext([
+                  group,
+                  ...earlier,
+                ]);
+                const newestApplicantMessage = [group, ...earlier].find(
+                  (entry) => isDefined(entry.item.triage),
+                );
 
-                    for (const threadId of threadIds) {
-                      const isSaved = await (isShowingDone
-                        ? undoDone(threadId)
-                        : markDone(threadId));
-
-                      if (!isSaved) {
-                        break;
-                      }
+                return (
+                  <TeamInboxManualReviewCard
+                    key={thread.id}
+                    thread={thread}
+                    item={item}
+                    earlier={earlier}
+                    person={
+                      isDefined(item.applicantEmail)
+                        ? peopleByEmail.get(item.applicantEmail.toLowerCase())
+                        : undefined
                     }
-                  }}
-                />
-              ))}
+                    suggestedTemplate={
+                      isDefined(newestApplicantMessage?.item.triage)
+                        ? suggestInboxTemplate({
+                            reason: newestApplicantMessage.item.triage.reason,
+                            replyText: newestApplicantMessage.reply,
+                            templates,
+                          })
+                        : null
+                    }
+                    isDone={isShowingDone}
+                    onReply={(templateId) => {
+                      if (isDefined(answerContext)) {
+                        handleReplyToApplicant(answerContext, templateId);
+                      }
+                    }}
+                    onToggleDone={async () => {
+                      // The visible card goes last so it stays on screen
+                      // until the whole group is saved.
+                      const threadIds = [
+                        ...earlier.map((entry) => entry.thread.id),
+                        thread.id,
+                      ];
+
+                      for (const threadId of threadIds) {
+                        const isSaved = await (isShowingDone
+                          ? undoDone(threadId)
+                          : markDone(threadId));
+
+                        if (!isSaved) {
+                          return;
+                        }
+                      }
+
+                      if (!isShowingDone && isDefined(answerContext)) {
+                        await recordFromDone(answerContext);
+                      }
+                    }}
+                  />
+                );
+              })}
               <CustomResolverFetchMoreLoader
                 loading={isFetchingMore}
                 onLastRowVisible={fetchMoreThreads}
@@ -810,6 +897,12 @@ export const TeamInboxContent = () => {
               : null
           }
           onInitialTemplateApplied={() => setPendingTemplate(null)}
+          reviewNotice={
+            pendingReview?.applicantThreadId === selectedThreadId
+              ? t`Answering a Needs review card: sending this reply marks it done and saves the question and answer.`
+              : null
+          }
+          onReplySent={handleReviewReplySent}
           onToggleClosed={() => handleToggleClosed(selectedThreadId)}
           onBack={() => selectThread(null)}
           onMarkUnread={() => {

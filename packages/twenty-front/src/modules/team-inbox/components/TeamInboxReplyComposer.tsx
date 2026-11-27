@@ -1,8 +1,8 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
-import { type KeyboardEvent, useEffect, useState } from 'react';
-import { isDefined } from 'twenty-shared/utils';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { isDefined, tipTapDocumentToMarkdown } from 'twenty-shared/utils';
 import { IconFileText, IconPaperclip, IconSend } from 'twenty-ui/icon';
 
 import { EmailAttachmentsField } from '@/activities/emails/components/EmailAttachmentsField';
@@ -23,6 +23,8 @@ import {
   type InboxEmailTemplate,
   useInboxEmailTemplates,
 } from '@/team-inbox/hooks/useInboxEmailTemplates';
+import { type TeamInboxSentReply } from '@/team-inbox/types/TeamInboxSentReply';
+import { getPlainTextFromMarkdown } from '~/utils/string/getPlainTextFromMarkdown';
 
 const StyledComposer = styled.div`
   background: var(--fl-surface);
@@ -194,7 +196,7 @@ type TeamInboxReplyComposerProps = {
   initialTemplateId: string | null;
   onInitialTemplateApplied: () => void;
   onClose: () => void;
-  onSent: () => void;
+  onSent: (reply: TeamInboxSentReply) => void;
 };
 
 const getRecipientName = (
@@ -230,6 +232,13 @@ export const TeamInboxReplyComposer = ({
   >(null);
   const templates = useInboxEmailTemplates();
   const { uploadEmailImage } = useUploadEmailImage();
+  // The send callback is created before the composer state, so it reads the
+  // sent body through a ref; nothing renders from it.
+  // oxlint-disable-next-line twenty/no-state-useref
+  const latestReplyRef = useRef<{ body: string; templateId: string | null }>({
+    body: '',
+    templateId: null,
+  });
 
   const composerState = useEmailComposerState({
     connectedAccountId: replyContext.connectedAccountId,
@@ -238,8 +247,16 @@ export const TeamInboxReplyComposer = ({
     defaultCc: replyMode === 'reply-all' ? replyContext.replyAllCc : '',
     defaultSubject: replyContext.subject,
     defaultInReplyTo: replyContext.inReplyTo,
-    onSent,
+    onSent: () =>
+      onSent({
+        text: getPlainTextFromMarkdown(
+          tipTapDocumentToMarkdown(latestReplyRef.current.body),
+        ),
+        templateId: latestReplyRef.current.templateId,
+      }),
   });
+
+  latestReplyRef.current = { body: composerState.body, templateId };
 
   const { openAttachmentPicker, isUploadingAttachments } = useAttachEmailFiles({
     onFilesAttached: composerState.setFiles,
