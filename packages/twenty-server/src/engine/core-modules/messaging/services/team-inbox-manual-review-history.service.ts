@@ -193,9 +193,7 @@ export class TeamInboxManualReviewHistoryService {
     }, buildSystemAuthContext(workspaceId));
   }
 
-  private async getWorkspaceMailboxHandles(
-    workspaceId: string,
-  ): Promise<Set<string>> {
+  async getWorkspaceMailboxHandles(workspaceId: string): Promise<Set<string>> {
     const connectedAccounts = await this.connectedAccountRepository.find({
       where: { workspaceId, archivedAt: IsNull() },
       select: {
@@ -220,7 +218,7 @@ export class TeamInboxManualReviewHistoryService {
 
   // Same rule as the inbox: message text only from mailboxes this member
   // owns or that share everything.
-  private async getFullyVisibleThreadIds(
+  async getFullyVisibleThreadIds(
     messageThreadIds: string[],
     workspaceMemberId: string,
     workspaceId: string,
@@ -246,7 +244,8 @@ export class TeamInboxManualReviewHistoryService {
     );
   }
 
-  private async getReviewReceivedAtByThreadId(
+  // Must run inside a workspace context.
+  async getReviewReceivedAtByThreadId(
     messageThreadIds: string[],
   ): Promise<Map<string, Date>> {
     const messages = await this.workspaceOrmManager

@@ -1,5 +1,8 @@
 export type EmailSentToApplicant = {
-  subject: string;
-  text: string;
-  receivedAt: string;
+  messageThreadId: string;
+  sentAt: string;
+  subject: string | null;
+  excerpt: string | null;
+  senderName: string | null;
+  senderEmail: string | null;
 };

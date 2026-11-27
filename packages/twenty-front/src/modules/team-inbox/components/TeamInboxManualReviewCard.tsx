@@ -288,6 +288,12 @@ export const TeamInboxManualReviewCard = ({
     ? person.name
     : (applicantEmail ?? t`Applicant`);
 
+  const emailSentSenderName =
+    emailSentSinceCard?.senderName ?? emailSentSinceCard?.senderEmail;
+  const emailSentWhen = isDefined(emailSentSinceCard)
+    ? beautifyPastDateRelativeToNow(emailSentSinceCard.sentAt)
+    : '';
+
   const meta = [
     isNonEmptyString(person?.stageLabel)
       ? person.stageLabel
@@ -367,10 +373,12 @@ export const TeamInboxManualReviewCard = ({
       {isDefined(emailSentSinceCard) && (
         <StyledSentSince>
           <StyledLabel>
-            {t`Emailed ${beautifyPastDateRelativeToNow(emailSentSinceCard.receivedAt)}`}
+            {isNonEmptyString(emailSentSenderName)
+              ? t`${emailSentSenderName} emailed them ${emailSentWhen}`
+              : t`Emailed them ${emailSentWhen}`}
           </StyledLabel>
           <StyledSentSinceText dir="auto">
-            {[emailSentSinceCard.subject, emailSentSinceCard.text]
+            {[emailSentSinceCard.subject, emailSentSinceCard.excerpt]
               .filter(isNonEmptyString)
               .join(' · ')}
           </StyledSentSinceText>

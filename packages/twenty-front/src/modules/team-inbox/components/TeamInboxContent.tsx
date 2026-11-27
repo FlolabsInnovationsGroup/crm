@@ -37,12 +37,11 @@ import {
   buildManualReviewAnswerContext,
   type ManualReviewAnswerContext,
 } from '@/team-inbox/utils/buildManualReviewAnswerContext';
-import { findEmailSentAfter } from '@/team-inbox/utils/findEmailSentAfter';
+import { getEmailSentToApplicantItem } from '@/team-inbox/utils/getEmailSentToApplicantItem';
 import { getManualReviewHistorySince } from '@/team-inbox/utils/getManualReviewHistorySince';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
 import { groupReviewItemsByApplicant } from '@/team-inbox/utils/groupReviewItemsByApplicant';
 import {
-  isTeamInboxApplicantMessage,
   isTeamInboxApproval,
   isTeamInboxAutomationIssue,
   isTeamInboxQuestion,
@@ -436,28 +435,25 @@ export const TeamInboxContent = () => {
   ) => [group, ...group.earlier].some(({ item }) => matches(item));
   const countReviewItems = (matches: (item: TeamInboxReviewItem) => boolean) =>
     reviewGroups.filter((group) => groupMatches(group, matches)).length;
-  const emailsSentToApplicants = useEmailsSentToApplicants(
+  const {
+    emailsByThreadId: emailsSentToApplicants,
+    loading: isLoadingEmailsSent,
+  } = useEmailsSentToApplicants(
     isShowingDone
       ? []
-      : reviewItems
-          .filter(({ item }) => isTeamInboxApplicantMessage(item))
-          .map(({ item }) => item.applicantEmail)
+      : reviewGroups
+          .map((group) =>
+            getEmailSentToApplicantItem([group, ...group.earlier]),
+          )
           .filter(isDefined),
   );
-  // An email to the applicant after their newest message often means someone
-  // answered outside the card; it may also be an automated one, so a person
-  // checks it before pressing Done.
+  // An email to the applicant after their card often means someone answered
+  // outside it; it may also be automated, so a person checks before Done.
   const getEmailSentSinceCard = (group: (typeof reviewGroups)[number]) => {
-    const newestApplicantMessage = [group, ...group.earlier].find(({ item }) =>
-      isTeamInboxApplicantMessage(item),
-    );
-    const applicantEmail = newestApplicantMessage?.item.applicantEmail;
+    const lookup = getEmailSentToApplicantItem([group, ...group.earlier]);
 
-    return isDefined(newestApplicantMessage) && isDefined(applicantEmail)
-      ? findEmailSentAfter(
-          emailsSentToApplicants.get(applicantEmail.toLowerCase()),
-          newestApplicantMessage.thread.lastMessageReceivedAt,
-        )
+    return isDefined(lookup)
+      ? (emailsSentToApplicants.get(lookup.messageThreadId) ?? null)
       : null;
   };
   const emailedSinceCount = reviewGroups.filter((group) =>
@@ -662,9 +658,10 @@ export const TeamInboxContent = () => {
     },
     {
       id: 'EMAILED_SINCE',
-      label: areReasonCountsExact
-        ? t`Emailed since · ${emailedSinceCount}`
-        : t`Emailed since`,
+      label:
+        areReasonCountsExact && !isLoadingEmailsSent
+          ? t`Emailed since · ${emailedSinceCount}`
+          : t`Emailed since`,
     },
     { id: 'DONE', label: t`Done · ${doneSinceCount}` },
   ];
@@ -738,7 +735,10 @@ export const TeamInboxContent = () => {
               />
             )}
           </StyledReviewHeader>
-          {isFirstLoad ? (
+          {isFirstLoad ||
+          (reviewFilter === 'EMAILED_SINCE' &&
+            isLoadingEmailsSent &&
+            visibleReviewItems.length === 0) ? (
             <SkeletonLoader />
           ) : visibleReviewItems.length === 0 ? (
             <StyledEmpty>
