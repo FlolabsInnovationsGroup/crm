@@ -1,14 +1,23 @@
 import { isDefined } from 'twenty-shared/utils';
 
-import { type TeamInboxReviewItem } from '@/team-inbox/utils/parseTeamInboxReviewItem';
+import {
+  type TeamInboxReviewItem,
+  type TeamInboxReviewKind,
+} from '@/team-inbox/utils/parseTeamInboxReviewItem';
 
 type ReviewEntry = { thread: { id: string }; item: TeamInboxReviewItem };
 
-const isGroupedByApplicant = (item: TeamInboxReviewItem) =>
-  item.kind === 'REPLY_TRIAGE' || item.kind === 'STUCK_APPLICANT';
+const APPLICANT_KINDS: TeamInboxReviewKind[] = [
+  'REPLY_TRIAGE',
+  'STUCK_APPLICANT',
+  'FORM_1_APPROVAL',
+  'ORIENTATION_APPROVAL',
+];
 
-// Each applicant reply is its own triage email, so one person can have
-// several open cards; they are answered together, so they show as one.
+// n8n sends a separate email for each reply and each approval, so one person
+// can have several open items; they are handled together, so they show as
+// one card. Automation issues name a teammate, not an applicant, so they stay
+// apart.
 export const groupReviewItemsByApplicant = <TEntry extends ReviewEntry>(
   entries: TEntry[],
 ): (TEntry & { earlier: TEntry[] })[] => {
@@ -17,7 +26,8 @@ export const groupReviewItemsByApplicant = <TEntry extends ReviewEntry>(
 
   for (const entry of entries) {
     const applicantKey =
-      isGroupedByApplicant(entry.item) && isDefined(entry.item.applicantEmail)
+      APPLICANT_KINDS.includes(entry.item.kind) &&
+      isDefined(entry.item.applicantEmail)
         ? entry.item.applicantEmail.toLowerCase()
         : null;
     const existingIndex = isDefined(applicantKey)

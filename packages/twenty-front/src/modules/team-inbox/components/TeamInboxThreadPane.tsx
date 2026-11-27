@@ -27,6 +27,7 @@ import { TeamInboxMenu } from '@/team-inbox/components/TeamInboxMenu';
 import { TeamInboxMessageBubble } from '@/team-inbox/components/TeamInboxMessageBubble';
 import { TeamInboxReplyComposer } from '@/team-inbox/components/TeamInboxReplyComposer';
 import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
+import { type TeamInboxSentReply } from '@/team-inbox/types/TeamInboxSentReply';
 import { getConversationContact } from '@/team-inbox/utils/getConversationContact';
 import { formatToHumanReadableDate } from '~/utils/date-utils';
 
@@ -170,6 +171,16 @@ const StyledReplyBar = styled.div`
   padding: 10px 12px;
 `;
 
+const StyledReviewNotice = styled.div`
+  background: var(--fl-accent-soft);
+  border-radius: 12px;
+  color: var(--fl-ink);
+  flex-shrink: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 8px 12px;
+`;
+
 const StyledReplyPrompt = styled.button`
   background: none;
   border: none;
@@ -223,6 +234,9 @@ type TeamInboxThreadPaneProps = {
   isReadOnly: boolean;
   initialTemplateId: string | null;
   onInitialTemplateApplied: () => void;
+  // Set when the reply answers a Needs review card.
+  reviewNotice: string | null;
+  onReplySent: (reply: TeamInboxSentReply) => void;
   onToggleClosed: () => Promise<void>;
   onBack: () => void;
   onMarkUnread: () => void;
@@ -246,6 +260,8 @@ export const TeamInboxThreadPane = ({
   isReadOnly,
   initialTemplateId,
   onInitialTemplateApplied,
+  reviewNotice,
+  onReplySent,
   onToggleClosed,
   onBack,
   onMarkUnread,
@@ -295,8 +311,9 @@ export const TeamInboxThreadPane = ({
     setDraftPrefill(null);
   };
 
-  const handleSent = async () => {
+  const handleSent = async (reply: TeamInboxSentReply) => {
     handleCloseComposer();
+    onReplySent(reply);
     await apolloCoreClient.refetchQueries({
       include: ['FindManyMessages', 'GetInboxThreads', 'GetInboxUnreadCount'],
     });
@@ -426,6 +443,9 @@ export const TeamInboxThreadPane = ({
             </>
           )}
         </StyledMessages>
+        {canReply && isNonEmptyString(reviewNotice) && (
+          <StyledReviewNotice>{reviewNotice}</StyledReviewNotice>
+        )}
         {canReply && isDefined(openReplyMode) ? (
           <TeamInboxReplyComposer
             key={`${openDraftPrefill?.messageId ?? 'reply'}-${openReplyMode}`}

@@ -13,6 +13,7 @@ import { getTeamInboxReviewAdvice } from '@/team-inbox/utils/getTeamInboxReviewA
 import { getTeamInboxReviewExcerpt } from '@/team-inbox/utils/getTeamInboxReviewExcerpt';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
 import {
+  isTeamInboxApplicantMessage,
   isTeamInboxApproval,
   isTeamInboxAutomationIssue,
   type TeamInboxReviewItem,
@@ -181,14 +182,20 @@ const StyledSecondaryButton = styled.button`
   }
 `;
 
+type ReviewCardEntry = {
+  thread: TimelineThread;
+  item: TeamInboxReviewItem;
+  reply: string | null;
+};
+
 type TeamInboxManualReviewCardProps = {
   thread: TimelineThread;
   item: TeamInboxReviewItem;
-  earlierReplies: string[];
+  earlier: ReviewCardEntry[];
   person: InboxPersonByEmail | undefined;
   suggestedTemplate: { id: string; name: string | null } | null;
   isDone: boolean;
-  onReply: (applicantEmail: string, templateId: string | null) => void;
+  onReply: (templateId: string | null) => void;
   onToggleDone: () => Promise<void>;
 };
 
@@ -225,7 +232,7 @@ const getReasonBadge = (
 export const TeamInboxManualReviewCard = ({
   thread,
   item,
-  earlierReplies,
+  earlier,
   person,
   suggestedTemplate,
   isDone,
@@ -246,7 +253,14 @@ export const TeamInboxManualReviewCard = ({
     ? body.reply
     : getTeamInboxReviewExcerpt(thread.lastMessageBody);
   const applicantEmail = item.applicantEmail;
-  const canReply = isTriage || item.kind === 'STUCK_APPLICANT';
+  const groupItems = [item, ...earlier.map((entry) => entry.item)];
+  const canReply = groupItems.some(isTeamInboxApplicantMessage);
+  // An approval folded into a reply card keeps its own button.
+  const approvals = groupItems.filter(
+    (groupItem, index) =>
+      isTeamInboxApproval(groupItem) &&
+      groupItems.findIndex(({ kind }) => kind === groupItem.kind) === index,
+  );
   const badge = getReasonBadge(item);
   const name = isNonEmptyString(person?.name)
     ? person.name
@@ -295,13 +309,13 @@ export const TeamInboxManualReviewCard = ({
       {isNonEmptyString(quote) && (
         <StyledQuote dir="auto">{isTriage ? `“${quote}”` : quote}</StyledQuote>
       )}
-      {earlierReplies.length > 0 && (
+      {earlier.length > 0 && (
         <StyledEarlierToggle
           type="button"
           aria-expanded={isShowingEarlier}
           onClick={() => setIsShowingEarlier(!isShowingEarlier)}
         >
-          {plural(earlierReplies.length, {
+          {plural(earlier.length, {
             one: '+ # earlier item from this applicant, marked done together',
             other:
               '+ # earlier items from this applicant, marked done together',
@@ -309,13 +323,17 @@ export const TeamInboxManualReviewCard = ({
         </StyledEarlierToggle>
       )}
       {isShowingEarlier &&
-        earlierReplies.map((earlierReply, index) =>
-          isNonEmptyString(earlierReply) ? (
-            <StyledQuote key={index} dir="auto">
-              “{earlierReply}”
+        earlier.map((entry) =>
+          isTeamInboxApproval(entry.item) ? (
+            <StyledAdviceText key={entry.thread.id}>
+              {getReasonBadge(entry.item)?.label}
+            </StyledAdviceText>
+          ) : isNonEmptyString(entry.reply) ? (
+            <StyledQuote key={entry.thread.id} dir="auto">
+              “{entry.reply}”
             </StyledQuote>
           ) : (
-            <StyledAdviceText key={index}>
+            <StyledAdviceText key={entry.thread.id}>
               {t`The text of this earlier email was not saved. Open it in the hr@ mailbox.`}
             </StyledAdviceText>
           ),
@@ -331,24 +349,30 @@ export const TeamInboxManualReviewCard = ({
         </StyledTemplate>
       )}
       <StyledActions>
-        {isDefined(item.approvalUrl) && (
-          <StyledPrimaryButton
-            type="button"
-            onClick={() => {
-              if (isDefined(item.approvalUrl)) {
-                openUrlInNewTab(item.approvalUrl);
-              }
-            }}
-          >
-            {item.kind === 'ORIENTATION_APPROVAL'
-              ? t`Choose date and send`
-              : t`Review and send`}
-          </StyledPrimaryButton>
-        )}
-        {isTeamInboxApproval(item) && !isDefined(item.approvalUrl) && (
-          <StyledPrimaryButton type="button" onClick={openEmail}>
-            {t`Open the email`}
-          </StyledPrimaryButton>
+        {approvals.map((approval) =>
+          isDefined(approval.approvalUrl) ? (
+            <StyledPrimaryButton
+              key={approval.kind}
+              type="button"
+              onClick={() => {
+                if (isDefined(approval.approvalUrl)) {
+                  openUrlInNewTab(approval.approvalUrl);
+                }
+              }}
+            >
+              {approval.kind === 'ORIENTATION_APPROVAL'
+                ? t`Choose date and send`
+                : t`Review and send`}
+            </StyledPrimaryButton>
+          ) : (
+            <StyledPrimaryButton
+              key={approval.kind}
+              type="button"
+              onClick={openEmail}
+            >
+              {t`Open the email`}
+            </StyledPrimaryButton>
+          ),
         )}
         {isTeamInboxAutomationIssue(item) && isDefined(person) && (
           <StyledPrimaryButton
@@ -366,9 +390,7 @@ export const TeamInboxManualReviewCard = ({
         {canReply && isDefined(applicantEmail) && (
           <StyledPrimaryButton
             type="button"
-            onClick={() =>
-              onReply(applicantEmail, suggestedTemplate?.id ?? null)
-            }
+            onClick={() => onReply(suggestedTemplate?.id ?? null)}
           >
             {isDefined(suggestedTemplate) ? t`Reply with template` : t`Reply`}
           </StyledPrimaryButton>
