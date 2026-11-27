@@ -5,11 +5,11 @@ Documenso (open source, AGPL-3.0) signs agreements for the CRM. It runs on the C
 ## Install (once)
 
 1. **DNS:** at the DNS provider (Dynadot), add an A record `sign` pointing to the CRM server's IP, and no AAAA record. Wait until `getent hosts sign.flolabsinnovations.com` on the server shows that IP.
-2. **Remove the trial** if it still runs: `sudo bash documenso-trial-remove.sh`. Both together do not fit in memory.
-3. **Copy the script to the server** from a checkout of this repo:
+2. **Copy the scripts to the server** from a checkout of this repo:
    ```
-   scp packages/twenty-utils/flolabs/setup-documenso.sh root@<server ip>:/opt/setup-documenso.sh
+   scp packages/twenty-utils/flolabs/setup-documenso.sh packages/twenty-utils/flolabs/documenso-trial-remove.sh root@<server ip>:/opt/
    ```
+3. **Remove the trial** if it still runs: `sudo bash /opt/documenso-trial-remove.sh`. Both together do not fit in memory.
 4. **On the server:**
    ```
    sudo bash /opt/setup-documenso.sh
@@ -25,7 +25,10 @@ Documenso (open source, AGPL-3.0) signs agreements for the CRM. It runs on the C
 5. **Back up `/opt/flolabs-sign/.env`** somewhere safe. It holds the encryption keys; without them the stored documents cannot be read.
 6. **Admin account:** open https://sign.flolabsinnovations.com/signup and sign up with hr@. Only @flolabsinnovations.com addresses can sign up.
    - The confirmation email does not leave the server. Open it through the tunnel the script prints, at http://localhost:8026, and click only the email sent seconds after your own sign-up.
-7. **Close sign-up:** `sudo bash /opt/setup-documenso.sh --lock`. It lists every account first; delete any you do not recognise.
+7. **Close sign-up:** `sudo bash /opt/setup-documenso.sh --lock`. It then lists every account. To remove one you do not recognise:
+   ```
+   cd /opt/flolabs-sign && docker compose exec database psql -U documenso -d documenso -c "delete from \"User\" where email = 'unknown@example.com'"
+   ```
 8. **API token for the CRM:** in Documenso, Settings > API tokens > create one with no expiry. It goes into the CRM's settings with the Send agreement feature, not into chat.
 
 ## What to know
@@ -34,6 +37,6 @@ Documenso (open source, AGPL-3.0) signs agreements for the CRM. It runs on the C
 - **Signing certificate:** self-signed, valid for 10 years. Signatures are valid, but Adobe shows the certificate as "not trusted". To fix that, replace `/opt/flolabs-sign/cert.p12` with one from a certificate authority and restart.
 - **Backups:** `/opt/flolabs-sign/.env`, `cert.p12`, and `docker exec flolabs-sign-database-1 pg_dump -U documenso documenso`. The documents are stored in that database.
 - **Upgrades:** take a backup, change the image tag in `setup-documenso.sh`, then run it again.
-- **Memory:** the limits add up to about 2.2 GB; the script refuses to start with less free.
+- **Memory:** the limits add up to about 2.2 GB; the script refuses a first start with less than 2.3 GB free.
 - **Network:** Documenso joins the CRM's Docker network so Caddy can reach it, as Listmonk does. That also lets it reach the CRM's Postgres and Redis.
 - **Removing it:** run `docker compose down` in `/opt/flolabs-sign`, then delete the `sign.flolabsinnovations.com` block from the Caddyfile and reload Caddy.

@@ -24,20 +24,19 @@ fail() {
 
 health() {
   docker compose -f "$DIR/compose.yml" exec -T documenso node -e \
-    "fetch('http://localhost:3000/api/health').then(r=>r.text()).then(t=>console.log(t)).catch(()=>console.log('{}'))" 2>/dev/null || echo '{}'
+    "fetch('http://127.0.0.1:3000/api/health').then(r=>r.json()).then(j=>console.log(j.status)).catch(()=>console.log('none'))" 2>/dev/null || echo none
 }
 
 if [ "${1:-}" = "--lock" ]; then
   cd "$DIR" 2>/dev/null && grep -q '^DISABLE_SIGNUP=' .env || fail "Run the install first."
-  echo "==> Accounts that exist now (delete any you do not know before going on):"
-  docker compose exec -T database psql -U documenso -d documenso -c \
-    'select email, "emailVerified" is not null as verified, "createdAt" from "User" order by "createdAt"'
   sed -i 's/^DISABLE_SIGNUP=.*/DISABLE_SIGNUP=true/' .env
   docker compose up -d documenso
   sleep 5
   [ "$(docker compose exec -T documenso printenv NEXT_PUBLIC_DISABLE_SIGNUP)" = true ] \
     || fail "Documenso did not pick up DISABLE_SIGNUP=true. Check: cd $DIR && docker compose logs --tail 80 documenso"
-  echo "Sign-up is closed. Only the accounts listed above can sign in."
+  echo "Sign-up is closed. These accounts can sign in; remove any you do not know (see docs/flolabs/documenso.md):"
+  docker compose exec -T database psql -U documenso -d documenso -c \
+    'select id, email, "emailVerified" is not null as verified, "createdAt" from "User" order by "createdAt"' || true
   exit 0
 fi
 
@@ -79,20 +78,23 @@ cd "$DIR"
 umask 077
 
 if [ ! -f .env ]; then
-  cat > .env.new <<ENV
-POSTGRES_PASSWORD=$(openssl rand -hex 24)
-NEXTAUTH_SECRET=$(openssl rand -hex 32)
-ENCRYPTION_KEY=$(openssl rand -hex 32)
-ENCRYPTION_SECONDARY_KEY=$(openssl rand -hex 32)
-CERT_PASS=$(openssl rand -hex 16)
-DISABLE_SIGNUP=false
-ENV
+  {
+    echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+    echo "NEXTAUTH_SECRET=$(openssl rand -hex 32)"
+    echo "ENCRYPTION_KEY=$(openssl rand -hex 32)"
+    echo "ENCRYPTION_SECONDARY_KEY=$(openssl rand -hex 32)"
+    echo "CERT_PASS=$(openssl rand -hex 16)"
+    echo "DISABLE_SIGNUP=false"
+  } > .env.new
+  grep -qE '^[A-Z_]+=$' .env.new && fail "openssl did not produce the secrets."
   mv .env.new .env
 fi
 
 # An earlier failed run can leave Docker's empty directory in its place.
 [ -d cert.p12 ] && rmdir cert.p12
+NEW_CERT=false
 if [ ! -f cert.p12 ]; then
+  NEW_CERT=true
   CERT_PASS=$(grep '^CERT_PASS=' .env | cut -d= -f2-)
   [ -n "$CERT_PASS" ] || fail "CERT_PASS is missing from $DIR/.env."
   # Self-signed, valid 10 years. Replace with a certificate authority's when
@@ -194,20 +196,27 @@ fi
 
 echo "==> Starting Documenso (the first start downloads about 1 GB)"
 docker compose up -d
+# A running container keeps whatever was mounted before the new certificate.
+[ "$NEW_CERT" = true ] && docker compose up -d --force-recreate documenso
 
 echo "==> Waiting for Documenso and its signing certificate"
-STATUS='{}'
+STATUS=none
 for _ in $(seq 1 60); do
   STATUS=$(health)
-  echo "$STATUS" | grep -q '"status":"ok"' && break
+  [ "$STATUS" = ok ] && break
   sleep 5
 done
-echo "$STATUS" | grep -q '"status":"ok"' \
-  || fail "Documenso is not healthy: $STATUS. Logs: cd $DIR && docker compose logs --tail 80 documenso"
+[ "$STATUS" = ok ] \
+  || fail "Documenso reports '$STATUS' (warning means the signing certificate does not open). Logs: cd $DIR && docker compose logs --tail 80 documenso"
 docker exec "$CADDY" wget -q --spider http://documenso:3000/api/health \
   || fail "Caddy cannot reach documenso:3000 on $CRM_NETWORK."
 
-if ! grep -rqxF --include='Caddyfile*' --include='*.caddy' "$DOMAIN {" "$CADDY_DIR"; then
+# The Caddyfile and the files it imports; the folder around it can be large.
+CADDY_FILES=("$CADDYFILE")
+while read -r IMPORTED; do
+  for FILE in "$CADDY_DIR"/$IMPORTED; do [ -f "$FILE" ] && CADDY_FILES+=("$FILE"); done
+done < <(awk '$1 == "import" {print $2}' "$CADDYFILE" | sed 's#^/etc/caddy/##')
+if ! grep -qxF "$DOMAIN {" "${CADDY_FILES[@]}"; then
   echo "==> Adding $DOMAIN to Caddy"
   cp "$CADDYFILE" "$CADDYFILE.before-documenso"
   cat >> "$CADDYFILE" <<CADDY
