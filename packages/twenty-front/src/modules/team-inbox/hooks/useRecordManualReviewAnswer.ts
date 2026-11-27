@@ -12,9 +12,15 @@ import { type ManualReviewAnswerContext } from '@/team-inbox/utils/buildManualRe
 export const useRecordManualReviewAnswer = () => {
   const apolloCoreClient = useApolloCoreClient();
   const { enqueueToast } = useToast();
-  const [recordAnswerMutation] = useMutation(RECORD_MANUAL_REVIEW_ANSWER, {
-    client: apolloCoreClient,
-  });
+  const [recordAnswerMutation] = useMutation<{
+    recordManualReviewAnswer: boolean;
+  }>(RECORD_MANUAL_REVIEW_ANSWER, { client: apolloCoreClient });
+
+  const warnNotSaved = () =>
+    enqueueToast({
+      status: 'error',
+      children: t`Marked done, but the answer could not be saved to Manual review answers.`,
+    });
 
   const record = async (
     context: ManualReviewAnswerContext,
@@ -29,7 +35,7 @@ export const useRecordManualReviewAnswer = () => {
     },
   ) => {
     try {
-      await recordAnswerMutation({
+      const { data } = await recordAnswerMutation({
         variables: {
           input: {
             reviewThreadId: context.reviewThreadId,
@@ -42,11 +48,12 @@ export const useRecordManualReviewAnswer = () => {
           },
         },
       });
+
+      if (data?.recordManualReviewAnswer !== true) {
+        warnNotSaved();
+      }
     } catch {
-      enqueueToast({
-        status: 'error',
-        children: t`Marked done, but the answer could not be saved to Manual review answers.`,
-      });
+      warnNotSaved();
     }
   };
 

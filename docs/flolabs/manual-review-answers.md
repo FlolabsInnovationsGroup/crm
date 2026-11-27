@@ -12,7 +12,7 @@ Requested on 27 Nov 2026 after the team saw cards stay open for applicants they 
 - **One card per applicant.**
   - Replies, stuck notices and approvals for the same email show as one card.
   - Each approval keeps its button, and the card counts under every filter its items match.
-  - Done closes everything on the card.
+  - Done closes everything on the card, except an approval on a card that also has a reply: that approval stays until its own button is used and Done is pressed again.
   - Automation issues name a teammate, not an applicant, so they stay as separate cards.
 - **Manual review answers** is a new list in the CRM, opened from the link under the Needs review title. It gets one row per card with an applicant question:
   - the question;
@@ -24,7 +24,7 @@ Requested on 27 Nov 2026 after the team saw cards stay open for applicants they 
 
   It fills itself in two ways:
   - **Reply from a card:** the text that was sent.
-  - **Done by hand:** the last email our mailboxes sent the applicant before Done, the same rule as the history export. When no such email is found, the row keeps the question with an empty answer.
+  - **Done by hand:** the last email our mailboxes sent the applicant before Done, the same rule as the history export. When no such email is found, the row keeps the question with an empty answer. An answer already saved from the card is kept.
 
   The list has the usual views, filters and CSV export. It is the raw material for new templates and for the AI drafts in plan item 9.
 

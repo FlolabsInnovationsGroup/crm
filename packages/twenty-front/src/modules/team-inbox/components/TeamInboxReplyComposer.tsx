@@ -2,7 +2,7 @@ import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
-import { isDefined, tipTapDocumentToMarkdown } from 'twenty-shared/utils';
+import { isDefined } from 'twenty-shared/utils';
 import { IconFileText, IconPaperclip, IconSend } from 'twenty-ui/icon';
 
 import { EmailAttachmentsField } from '@/activities/emails/components/EmailAttachmentsField';
@@ -24,7 +24,7 @@ import {
   useInboxEmailTemplates,
 } from '@/team-inbox/hooks/useInboxEmailTemplates';
 import { type TeamInboxSentReply } from '@/team-inbox/types/TeamInboxSentReply';
-import { getPlainTextFromMarkdown } from '~/utils/string/getPlainTextFromMarkdown';
+import { getEmailBodyPlainText } from '@/team-inbox/utils/getEmailBodyPlainText';
 
 const StyledComposer = styled.div`
   background: var(--fl-surface);
@@ -249,9 +249,7 @@ export const TeamInboxReplyComposer = ({
     defaultInReplyTo: replyContext.inReplyTo,
     onSent: () =>
       onSent({
-        text: getPlainTextFromMarkdown(
-          tipTapDocumentToMarkdown(latestReplyRef.current.body),
-        ),
+        text: getEmailBodyPlainText(latestReplyRef.current.body),
         templateId: latestReplyRef.current.templateId,
       }),
   });
