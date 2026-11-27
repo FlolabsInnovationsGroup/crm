@@ -40,7 +40,7 @@ In Settings > APIs & Webhooks > Playground, GraphQL, Core:
 query { findApplicantsRemindedAfterReply(days: 30) { name email currentStage reminderStage remindedAt applicantMessageAt lastSentBeforeReminderAt } }
 ```
 
-- It lists every move to a reminder stage in the period where, 10 minutes before the move, the applicant's email was newer than ours.
+- It lists every move to a reminder stage in the period where an email from us went out within 10 minutes of the move (the reminder) and, before it, the applicant's email was newer than ours. Stage changes with no email next to them, such as the import on 6 Nov, are left out.
 - The reminder time is when the person's Stage changed. That is the only record of a reminder the CRM keeps.
 - Up to 90 days back. Admins only.
 - The CRM merges updates made by the same automation within 10 minutes, so the reminder time can be a few minutes early, and a reminder stage replaced within 10 minutes may not show.

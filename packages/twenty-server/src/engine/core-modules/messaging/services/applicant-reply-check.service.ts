@@ -7,6 +7,7 @@ import { isDefined, isNonEmptyArray } from 'twenty-shared/utils';
 import { In, IsNull } from 'typeorm';
 
 import {
+  REMINDER_EMAIL_AFTER_WINDOW_MS,
   REMINDER_SEND_WINDOW_MS,
   REMINDER_STAGES,
 } from 'src/engine/core-modules/messaging/constants/applicant-reply-check.constants';
@@ -112,8 +113,8 @@ export class ApplicantReplyCheckService {
     }, buildSystemAuthContext(workspaceId));
   }
 
-  // Every reminder stage change in the period where, just before it, the
-  // applicant had written last.
+  // Every reminder stage change in the period that came with an email from
+  // us, where just before it the applicant had written last.
   async findRemindedAfterReply({
     workspaceId,
     days,
@@ -165,12 +166,25 @@ export class ApplicantReplyCheckService {
         }
 
         const remindedAt = new Date(reminder.happensAt);
+        const messages = conversations.get(person.id) ?? [];
+        // A stage change with no email from us next to it was set by hand or
+        // by an import, not by a reminder going out.
+        const hasReminderEmail = messages.some((message) => {
+          const offset = message.receivedAt.getTime() - remindedAt.getTime();
+
+          return (
+            message.isSentToApplicant &&
+            offset >= -REMINDER_SEND_WINDOW_MS &&
+            offset <= REMINDER_EMAIL_AFTER_WINDOW_MS
+          );
+        });
         const state = getApplicantReplyState({
-          messages: conversations.get(person.id) ?? [],
+          messages,
           before: new Date(remindedAt.getTime() - REMINDER_SEND_WINDOW_MS),
         });
 
         if (
+          !hasReminderEmail ||
           !isAwaitingOurReply(state) ||
           !isDefined(state.lastApplicantMessageAt)
         ) {
