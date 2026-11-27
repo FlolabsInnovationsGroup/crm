@@ -13,6 +13,7 @@ const applicant = (overrides: Record<string, unknown> = {}) => ({
   firstMeetingAt: null,
   meetingBookedAt: null,
   daysToMeeting: null,
+  daysToBooking: null,
   firstMeetingEventId: null,
   ...overrides,
 });
@@ -85,6 +86,7 @@ describe('MeetingTrackerService', () => {
       firstMeetingAt: '2026-11-09T14:00:00.000Z',
       meetingBookedAt: '2026-11-04T08:00:00.000Z',
       daysToMeeting: 7,
+      daysToBooking: 2,
       firstMeetingEventId: 'interview',
     });
   });
@@ -147,6 +149,7 @@ describe('MeetingTrackerService', () => {
       firstMeetingAt: null,
       meetingBookedAt: null,
       daysToMeeting: null,
+      daysToBooking: null,
       firstMeetingEventId: null,
     });
 
@@ -203,6 +206,7 @@ describe('MeetingTrackerService', () => {
       firstMeetingAt: '2026-11-06T09:00:00.000Z',
       meetingBookedAt: '2026-11-03T12:30:00.000Z',
       daysToMeeting: 4,
+      daysToBooking: 1,
       firstMeetingEventId: 'booking',
     });
   });
@@ -272,6 +276,7 @@ describe('MeetingTrackerService', () => {
       firstMeetingAt: '2026-11-09T14:00:00.000Z',
       meetingBookedAt: '2026-11-04T08:00:00.000Z',
       daysToMeeting: 7,
+      daysToBooking: 2,
       firstMeetingEventId: 'interview',
     });
   });
@@ -283,6 +288,7 @@ describe('MeetingTrackerService', () => {
         firstMeetingAt: new Date('2026-11-12T09:00:00Z'),
         meetingBookedAt: new Date('2026-11-05T12:00:00Z'),
         daysToMeeting: 10,
+        daysToBooking: 3,
         firstMeetingEventId: 'booking',
       }),
     ]);
@@ -300,5 +306,32 @@ describe('MeetingTrackerService', () => {
     await service.recalculatePeople('workspace-id', ['applicant']);
 
     expect(personRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('fills days to booking for someone whose meeting was already stored', async () => {
+    personRepository.find.mockResolvedValue([
+      applicant({
+        firstMeetingAt: '2026-11-09T14:00:00Z',
+        meetingBookedAt: '2026-11-04T08:00:00Z',
+        daysToMeeting: 7,
+        daysToBooking: null,
+        firstMeetingEventId: 'interview',
+      }),
+    ]);
+    participantRepository.find.mockResolvedValue([
+      {
+        personId: 'applicant',
+        calendarEventId: 'interview',
+        responseStatus: 'ACCEPTED',
+      },
+    ]);
+    eventRepository.find.mockResolvedValue([calendarEvent('interview')]);
+
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(personRepository.update).toHaveBeenCalledWith(
+      'applicant',
+      expect.objectContaining({ daysToBooking: 2 }),
+    );
   });
 });

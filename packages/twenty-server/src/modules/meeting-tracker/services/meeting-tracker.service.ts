@@ -266,6 +266,7 @@ export class MeetingTrackerService {
           firstMeetingAt: true,
           meetingBookedAt: true,
           daysToMeeting: true,
+          daysToBooking: true,
           firstMeetingEventId: true,
         },
       }),
@@ -356,6 +357,7 @@ export class MeetingTrackerService {
         firstMeetingAt: toIsoOrNull(firstMeeting?.meetingAt),
         meetingBookedAt: toIsoOrNull(firstMeeting?.bookedAt),
         daysToMeeting: firstMeeting?.daysToMeeting ?? null,
+        daysToBooking: firstMeeting?.daysToBooking ?? null,
         firstMeetingEventId: firstMeeting?.eventId ?? null,
       };
 
@@ -363,6 +365,7 @@ export class MeetingTrackerService {
         isSameInstant(person.firstMeetingAt, next.firstMeetingAt) &&
         isSameInstant(person.meetingBookedAt, next.meetingBookedAt) &&
         person.daysToMeeting === next.daysToMeeting &&
+        person.daysToBooking === next.daysToBooking &&
         // The ORM reads an empty text field back as ''.
         (isNonEmptyString(person.firstMeetingEventId)
           ? person.firstMeetingEventId

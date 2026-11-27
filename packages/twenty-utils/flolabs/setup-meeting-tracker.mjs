@@ -142,6 +142,12 @@ await ensureField(person, {
   type: 'NUMBER',
   icon: 'IconHourglass',
 });
+await ensureField(person, {
+  name: 'daysToBooking',
+  label: 'Days to booking',
+  type: 'NUMBER',
+  icon: 'IconHourglass',
+});
 
 let booking = await ensureObject({
   nameSingular: 'calendlyBooking',

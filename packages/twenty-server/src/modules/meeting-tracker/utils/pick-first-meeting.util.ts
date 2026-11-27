@@ -66,10 +66,23 @@ export const pickFirstMeeting = ({
     return null;
   }
 
+  const daysToBooking = isDefined(firstMeeting.bookedAt)
+    ? Math.round((startOfUtcDay(firstMeeting.bookedAt) - appliedDay) / DAY_MS)
+    : null;
+
   return {
     ...firstMeeting,
     daysToMeeting: Math.round(
       (startOfUtcDay(firstMeeting.meetingAt) - appliedDay) / DAY_MS,
     ),
+    // Before the application it is an earlier booking; after the meeting it is
+    // when the CRM first saw an event with no booking time of its own.
+    daysToBooking:
+      isDefined(daysToBooking) &&
+      daysToBooking >= 0 &&
+      isDefined(firstMeeting.bookedAt) &&
+      firstMeeting.bookedAt <= firstMeeting.meetingAt
+        ? daysToBooking
+        : null,
   };
 };

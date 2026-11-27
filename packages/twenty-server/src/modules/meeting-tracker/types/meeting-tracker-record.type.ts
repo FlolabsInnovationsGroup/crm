@@ -8,6 +8,7 @@ export type MeetingTrackerPersonRecord = {
   firstMeetingAt: StoredDate;
   meetingBookedAt: StoredDate;
   daysToMeeting: number | null;
+  daysToBooking: number | null;
   // A calendar event or Calendly booking id. Cancelled calendar events are
   // hard-deleted by sync, so this is the only way to find whose first meeting
   // just disappeared.
@@ -27,6 +28,7 @@ export type FirstMeeting = {
   meetingAt: Date;
   bookedAt: Date | null;
   daysToMeeting: number;
+  daysToBooking: number | null;
 };
 
 export type MeetingRecalculationResult = {
