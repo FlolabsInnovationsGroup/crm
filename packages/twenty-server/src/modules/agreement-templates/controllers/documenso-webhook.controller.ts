@@ -84,7 +84,7 @@ export class DocumensoWebhookController {
     }
 
     try {
-      await this.agreementSigningService.syncEnvelope(envelopeId);
+      await this.agreementSigningService.syncEnvelope(envelopeId, body.event);
       response.status(200).send({ received: true });
     } catch (error) {
       // A 5xx lets Documenso retry; syncAgreementRequest recovers the rest.

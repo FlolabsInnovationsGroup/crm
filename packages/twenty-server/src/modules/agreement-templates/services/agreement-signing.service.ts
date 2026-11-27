@@ -388,7 +388,7 @@ export class AgreementSigningService {
   // Called by the Documenso webhook, which is trusted only to name an
   // envelope. Its state, and the request it belongs to, come from Documenso,
   // since members can edit the envelope id stored on a request.
-  async syncEnvelope(envelopeId: string): Promise<void> {
+  async syncEnvelope(envelopeId: string, event: string): Promise<void> {
     const config = getAgreementSigningConfig();
 
     if (!isDefined(config)) {
@@ -403,7 +403,13 @@ export class AgreementSigningService {
     await this.workspaceOrmManager.executeInWorkspaceContext(async () => {
       const repository = this.getSystemRequestRepository();
 
+      // A 404 also comes from a token that cannot see the envelope, so only
+      // Documenso's own cancel event may cancel a request it cannot find.
       if (!isDefined(envelope)) {
+        if (event !== 'DOCUMENT_CANCELLED') {
+          throw new Error(`Documenso returned no envelope ${envelopeId}`);
+        }
+
         await repository.update(
           {
             documensoEnvelopeId: envelopeId,
@@ -452,16 +458,9 @@ export class AgreementSigningService {
 
     return this.workspaceOrmManager.executeInWorkspaceContext(async () => {
       if (!isDefined(envelope)) {
-        if (request.status === 'COMPLETED') {
-          return request.status;
-        }
-
-        await this.getSystemRequestRepository().update(request.id, {
-          status: 'CANCELLED',
-          updatedBy: DOCUMENSO_ACTOR,
-        });
-
-        return 'CANCELLED';
+        throw new AgreementSigningError(
+          'Documenso does not show this agreement: it was deleted there, or the CRM token cannot see it.',
+        );
       }
 
       return this.applyEnvelope(config, request, envelope);
@@ -613,8 +612,8 @@ export class AgreementSigningService {
         ...(await Promise.all(
           [...envelope.envelopeItems]
             .sort((first, second) => first.order - second.order)
-            .map(async (item) => ({
-              name: `Signed - ${toPdfFilename(`${item.title.replace(/\.pdf$/i, '')} (${reference})`)}`,
+            .map(async (item, index) => ({
+              name: `Signed - ${toPdfFilename(`${item.title.replace(/\.pdf$/i, '')} (${reference}-${index + 1})`)}`,
               pdf: await this.documensoApiService.downloadSignedItem(
                 config,
                 item.id,

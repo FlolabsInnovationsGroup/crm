@@ -292,7 +292,7 @@ describe('AgreementSigningService', () => {
       requestRepository.findOne.mockResolvedValue(REQUEST);
       documensoApiService.getEnvelope.mockResolvedValue(envelope());
 
-      await service.syncEnvelope('envelope_1');
+      await service.syncEnvelope('envelope_1', 'DOCUMENT_COMPLETED');
 
       expect(requestRepository.update).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'request-id' }),
@@ -312,7 +312,7 @@ describe('AgreementSigningService', () => {
       requestRepository.update.mockResolvedValueOnce({ affected: 0 });
       documensoApiService.getEnvelope.mockResolvedValue(envelope());
 
-      await service.syncEnvelope('envelope_1');
+      await service.syncEnvelope('envelope_1', 'DOCUMENT_COMPLETED');
 
       expect(sendEmailTool.execute).not.toHaveBeenCalled();
     });
@@ -338,7 +338,7 @@ describe('AgreementSigningService', () => {
         .mockResolvedValueOnce({ id: '20202020-0000-4000-8000-0000000000a1' })
         .mockResolvedValueOnce({ id: '20202020-0000-4000-8000-0000000000a2' });
 
-      await service.syncEnvelope('envelope_1');
+      await service.syncEnvelope('envelope_1', 'DOCUMENT_COMPLETED');
 
       expect(
         attachmentRepository.insert.mock.calls.map(([attachment]) => [
@@ -346,7 +346,7 @@ describe('AgreementSigningService', () => {
           attachment.targetPersonId,
         ]),
       ).toEqual([
-        ['Signed - Internship agreement (request-).pdf', 'person-id'],
+        ['Signed - Internship agreement (request--1).pdf', 'person-id'],
         ['Signing certificate (request-).pdf', 'person-id'],
       ]);
       expect(requestRepository.update).toHaveBeenCalledWith(
@@ -378,7 +378,9 @@ describe('AgreementSigningService', () => {
         Buffer.from(''),
       );
 
-      await expect(service.syncEnvelope('envelope_1')).rejects.toThrow('500');
+      await expect(
+        service.syncEnvelope('envelope_1', 'DOCUMENT_COMPLETED'),
+      ).rejects.toThrow('500');
       expect(requestRepository.update).toHaveBeenLastCalledWith('request-id', {
         signedFilesSavedAt: null,
       });
@@ -391,7 +393,7 @@ describe('AgreementSigningService', () => {
       });
       documensoApiService.getEnvelope.mockResolvedValue(envelope());
 
-      await service.syncEnvelope('envelope_1');
+      await service.syncEnvelope('envelope_1', 'DOCUMENT_COMPLETED');
 
       expect(requestRepository.findOne).toHaveBeenCalledWith({
         where: { id: 'request-id' },
@@ -403,12 +405,21 @@ describe('AgreementSigningService', () => {
     it('cancels a waiting request whose envelope was deleted in Documenso', async () => {
       documensoApiService.getEnvelope.mockResolvedValue(null);
 
-      await service.syncEnvelope('envelope_1');
+      await service.syncEnvelope('envelope_1', 'DOCUMENT_CANCELLED');
 
       expect(requestRepository.update).toHaveBeenCalledWith(
         expect.objectContaining({ documensoEnvelopeId: 'envelope_1' }),
         expect.objectContaining({ status: 'CANCELLED' }),
       );
+    });
+
+    it('does not cancel on a missing envelope without the cancel event', async () => {
+      documensoApiService.getEnvelope.mockResolvedValue(null);
+
+      await expect(
+        service.syncEnvelope('envelope_1', 'DOCUMENT_COMPLETED'),
+      ).rejects.toThrow('no envelope');
+      expect(requestRepository.update).not.toHaveBeenCalled();
     });
 
     it('leaves a recent claim on the signed files alone', async () => {
@@ -421,7 +432,7 @@ describe('AgreementSigningService', () => {
         envelope({ status: 'COMPLETED' }),
       );
 
-      await service.syncEnvelope('envelope_1');
+      await service.syncEnvelope('envelope_1', 'DOCUMENT_COMPLETED');
 
       expect(documensoApiService.downloadSignedItem).not.toHaveBeenCalled();
     });
@@ -446,7 +457,7 @@ describe('AgreementSigningService', () => {
       attachmentRepository.find.mockResolvedValue([
         {
           id: 'attachment-1',
-          name: 'Signed - Internship agreement (request-).pdf',
+          name: 'Signed - Internship agreement (request--1).pdf',
           targetPersonId: 'person-id',
           file: [{ fileId: '20202020-0000-4000-8000-0000000000a1' }],
         },
@@ -455,7 +466,7 @@ describe('AgreementSigningService', () => {
         id: '20202020-0000-4000-8000-0000000000a2',
       });
 
-      await service.syncEnvelope('envelope_1');
+      await service.syncEnvelope('envelope_1', 'DOCUMENT_COMPLETED');
 
       expect(requestRepository.update).toHaveBeenCalledWith(
         { id: 'request-id', signedFilesSavedAt: staleClaim },
