@@ -159,12 +159,18 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 
 | Item | Status |
 | --- | --- |
+| 1 | Solved (27 Nov) |
+| 2 | Pull request #40: the check n8n calls before a reminder, and the report of people reminded after replying. Left: merge and deploy, run the report for Nago, Mani adds the check to the reminder workflows |
 | 3 | Pull request #26 merged and deployed |
-| 4 | Pull request #28 merged and deployed |
-| 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook being set up |
+| 4 | Pull request #28 merged and deployed. Added on 27 Nov: a reply from a card closes it, one card per applicant, the Manual review answers list (#35, #37), and the email sent since each card (#39) |
+| 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook set up |
 | 5b | Pull request #31 merged and deployed; 7 disputes found in the last year (3 lost, 2 open, 2 won) |
-| 6 | Live on 27 Nov: PR #32 and #33 merged and deployed, Calendly bookings object created, webhooks registered in hr.team@ and people@. Left: warn Mani, then run syncCalendlyBookings once |
-| 8 | Documenso trial passed all four checks on 26 Nov; CRM work waits for John's agreement template |
+| 6 | Live on 27 Nov: Calendly bookings synced, days to meeting and days to booking on each person (#32, #33, #34, #38). Last 6 months: 59 days to the meeting at the median, 37 of them before the applicant books |
+| 7 | Pull request #41: applicant details on the approval card. Left: Mani's n8n change for the interviewer pair; time zone needs a field on the application form |
+| 8 | Documenso trial passed on 26 Nov. Agreement templates written in the CRM by hand, no limit: pull request in review. Left: Documenso on the server and the Send agreement button |
+| 9 | Waiting for the questions and answers list; the Manual review answers list is collecting real ones since 27 Nov |
+| 10 | Waiting for the bounce mailbox password, a reply mailbox and the Brevo export |
+| 11 | Waiting for a decision on a lead data source |
 
 ## Item 6: bookings read from Calendly (decided 27 Nov)
 
