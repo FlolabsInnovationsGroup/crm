@@ -16,7 +16,18 @@ export type InboxPersonByEmail = {
   stageLabel: string;
   stageColor: ThemeColor;
   position: string;
+  positions: string;
+  location: string;
+  applicationDate: string | null;
 };
+
+// Shown on approval cards so the booking is approved knowing who it is for.
+const SUMMARY_FIELD_NAMES = [
+  'country',
+  'city',
+  'candidateLocation',
+  'applicationDate',
+];
 
 type PersonRecord = ObjectRecord & {
   name?: { firstName?: string; lastName?: string } | null;
@@ -35,6 +46,16 @@ export const useInboxPeopleByEmail = (emails: string[]) => {
   const positionField = objectMetadataItem.fields.find(
     (field) => field.name === TEAM_INBOX_POSITION_FIELD_NAME && field.isActive,
   );
+  const summaryFields = objectMetadataItem.fields.filter(
+    (field) => SUMMARY_FIELD_NAMES.includes(field.name) && field.isActive,
+  );
+  const getSummaryValue = (person: PersonRecord, fieldName: string) => {
+    const field = summaryFields.find(({ name }) => name === fieldName);
+
+    return isDefined(field)
+      ? formatContactFieldValue(field, person[field.name])
+      : '';
+  };
   const sortedEmails = [
     ...new Set(emails.map((email) => email.toLowerCase())),
   ].sort();
@@ -53,6 +74,7 @@ export const useInboxPeopleByEmail = (emails: string[]) => {
       emails: true,
       ...(isDefined(stageField) ? { [stageField.name]: true } : {}),
       ...(isDefined(positionField) ? { [positionField.name]: true } : {}),
+      ...Object.fromEntries(summaryFields.map(({ name }) => [name, true])),
     },
     skip: sortedEmails.length === 0,
   });
@@ -78,6 +100,17 @@ export const useInboxPeopleByEmail = (emails: string[]) => {
             stageLabel: stageOption?.label ?? '',
             stageColor: stageOption?.color ?? 'gray',
             position: positions.split(', ')[0] ?? '',
+            positions,
+            location:
+              [
+                getSummaryValue(person, 'city'),
+                getSummaryValue(person, 'country'),
+              ]
+                .filter(isNonEmptyString)
+                .join(', ') || getSummaryValue(person, 'candidateLocation'),
+            applicationDate: isNonEmptyString(person.applicationDate)
+              ? person.applicationDate
+              : null,
           },
         ];
       }),

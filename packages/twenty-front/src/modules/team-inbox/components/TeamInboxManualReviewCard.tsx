@@ -3,13 +3,14 @@ import { plural, t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
 import { useState } from 'react';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
-import { isDefined } from 'twenty-shared/utils';
+import { isDefined, isNonEmptyArray } from 'twenty-shared/utils';
 import { IconFileText } from 'twenty-ui/icon';
 
 import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { TeamInboxAvatar } from '@/team-inbox/components/TeamInboxAvatar';
 import { type InboxPersonByEmail } from '@/team-inbox/hooks/useInboxPeopleByEmail';
 import { type EmailSentToApplicant } from '@/team-inbox/types/EmailSentToApplicant';
+import { getApprovalApplicantSummary } from '@/team-inbox/utils/getApprovalApplicantSummary';
 import { getTeamInboxReviewAdvice } from '@/team-inbox/utils/getTeamInboxReviewAdvice';
 import { getTeamInboxReviewExcerpt } from '@/team-inbox/utils/getTeamInboxReviewExcerpt';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
@@ -283,6 +284,9 @@ export const TeamInboxManualReviewCard = ({
       isTeamInboxApproval(entry.item) &&
       groupItems.findIndex(({ kind }) => kind === entry.item.kind) === index,
   );
+  const applicantSummary = isDefined(person)
+    ? getApprovalApplicantSummary(person)
+    : [];
   const badge = getReasonBadge(item);
   const name = isNonEmptyString(person?.name)
     ? person.name
@@ -340,6 +344,16 @@ export const TeamInboxManualReviewCard = ({
       </StyledHeader>
       {isNonEmptyString(quote) && (
         <StyledQuote dir="auto">{isTriage ? `“${quote}”` : quote}</StyledQuote>
+      )}
+      {isNonEmptyArray(approvals) && isNonEmptyArray(applicantSummary) && (
+        <StyledAdvice>
+          <StyledLabel>{t`Before you approve`}</StyledLabel>
+          {applicantSummary.map((line) => (
+            <StyledAdviceText key={line} dir="auto">
+              {line}
+            </StyledAdviceText>
+          ))}
+        </StyledAdvice>
       )}
       {earlier.length > 0 && (
         <StyledEarlierToggle
