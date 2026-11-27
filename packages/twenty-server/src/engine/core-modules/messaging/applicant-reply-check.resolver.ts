@@ -1,7 +1,10 @@
 import { UseFilters, UseGuards, UsePipes } from '@nestjs/common';
 import { Args, ArgsType, Field, Int, Query } from '@nestjs/graphql';
 
+import { isString } from '@sniptt/guards';
+import { Transform } from 'class-transformer';
 import { IsEmail, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { PermissionFlagType } from 'twenty-shared/constants';
 
 import { CoreResolver } from 'src/engine/api/graphql/graphql-config/decorators/core-resolver.decorator';
 import { AuthGraphqlApiExceptionFilter } from 'src/engine/core-modules/auth/filters/auth-graphql-api-exception.filter';
@@ -14,10 +17,12 @@ import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.ent
 import { AuthWorkspace } from 'src/engine/decorators/auth/auth-workspace.decorator';
 import { AuthPrincipalGuard } from 'src/engine/guards/auth-principal.guard';
 import { CustomPermissionGuard } from 'src/engine/guards/custom-permission.guard';
+import { SettingsPermissionGuard } from 'src/engine/guards/settings-permission.guard';
 
 @ArgsType()
 class GetApplicantReplyStateArgs {
   @Field(() => String)
+  @Transform(({ value }) => (isString(value) ? value.trim() : value))
   @IsEmail()
   email: string;
 
@@ -35,7 +40,6 @@ class FindApplicantsRemindedAfterReplyArgs {
   days: number;
 }
 
-// n8n calls this with its API key right before sending a reminder.
 @UseGuards(
   AuthPrincipalGuard({
     userSession: {
@@ -58,7 +62,10 @@ export class ApplicantReplyCheckResolver {
     private readonly applicantReplyCheckService: ApplicantReplyCheckService,
   ) {}
 
+  // n8n calls this with its API key right before sending a reminder; the
+  // key's role needs the Workflows permission.
   @Query(() => ApplicantReplyStateDTO)
+  @UseGuards(SettingsPermissionGuard(PermissionFlagType.WORKFLOWS))
   async getApplicantReplyState(
     @AuthWorkspace() workspace: WorkspaceEntity,
     @Args() { email, since }: GetApplicantReplyStateArgs,
@@ -70,7 +77,9 @@ export class ApplicantReplyCheckResolver {
     });
   }
 
+  // Lists applicants by name, so admins only.
   @Query(() => [ApplicantRemindedAfterReplyDTO])
+  @UseGuards(SettingsPermissionGuard(PermissionFlagType.WORKSPACE))
   async findApplicantsRemindedAfterReply(
     @AuthWorkspace() workspace: WorkspaceEntity,
     @Args() { days }: FindApplicantsRemindedAfterReplyArgs,

@@ -19,6 +19,15 @@ const ada = {
 
 type QueryBuilderMock = Record<string, jest.Mock>;
 
+function participant(
+  messageId: string,
+  role: MessageParticipantRole,
+  handle: string,
+  personId: string | null = null,
+) {
+  return { messageId, role, handle, personId };
+}
+
 const queryBuilder = (rows: unknown[]) => {
   const builder: QueryBuilderMock = {
     where: jest.fn(() => builder),
@@ -34,7 +43,7 @@ const queryBuilder = (rows: unknown[]) => {
 };
 
 // Ada replied on the 2nd; our earlier email was on the 1st and the reminder
-// went out on the 5th.
+// went out on the 5th, Bcc'd to her.
 const CONVERSATION = {
   messages: [
     { id: 'first', receivedAt: new Date('2026-11-01T10:00:00Z') },
@@ -42,12 +51,12 @@ const CONVERSATION = {
     { id: 'reminder', receivedAt: new Date('2026-11-05T10:00:00Z') },
   ],
   participants: [
-    { messageId: 'first', role: MessageParticipantRole.FROM, handle: HR },
-    { messageId: 'first', role: MessageParticipantRole.TO, handle: ADA },
-    { messageId: 'reply', role: MessageParticipantRole.FROM, handle: ADA },
-    { messageId: 'reply', role: MessageParticipantRole.TO, handle: HR },
-    { messageId: 'reminder', role: MessageParticipantRole.FROM, handle: HR },
-    { messageId: 'reminder', role: MessageParticipantRole.TO, handle: ADA },
+    participant('first', MessageParticipantRole.FROM, HR),
+    participant('first', MessageParticipantRole.TO, ADA, 'ada-id'),
+    participant('reply', MessageParticipantRole.FROM, ADA, 'ada-id'),
+    participant('reply', MessageParticipantRole.TO, HR),
+    participant('reminder', MessageParticipantRole.FROM, HR),
+    participant('reminder', MessageParticipantRole.BCC, ADA, 'ada-id'),
   ],
 };
 
@@ -75,12 +84,12 @@ describe('ApplicantReplyCheckService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     participantRepository.find.mockImplementation(
-      async ({ where }: { where: { handle?: unknown } }) =>
-        'handle' in where
-          ? CONVERSATION.participants.filter(
-              (participant) => participant.handle === ADA,
-            )
-          : CONVERSATION.participants,
+      async ({ where }: { where: Record<string, unknown> }) =>
+        'messageId' in where
+          ? CONVERSATION.participants
+          : CONVERSATION.participants.filter(
+              (row) => row.personId === 'ada-id' || row.handle === ADA,
+            ),
     );
     messageRepository.find.mockResolvedValue(CONVERSATION.messages);
 
@@ -121,6 +130,33 @@ describe('ApplicantReplyCheckService', () => {
         where: expect.objectContaining({ isDraft: false }),
       }),
     );
+    expect(participantRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { personId: expect.objectContaining({ _value: ['ada-id'] }) },
+      }),
+    );
+  });
+
+  it('falls back to the email when no person matches, and says when nothing came back', async () => {
+    personRepository.createQueryBuilder.mockReturnValue(queryBuilder([]));
+
+    expect(
+      await service.getReplyState({
+        workspaceId: 'workspace-id',
+        email: 'Ada@Gmail.com',
+        since: null,
+      }),
+    ).toMatchObject({
+      personId: null,
+      stage: null,
+      isAwaitingOurReply: false,
+      hasRepliedSince: false,
+    });
+    expect(participantRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { handle: expect.objectContaining({ _value: [ADA] }) },
+      }),
+    );
   });
 
   it('lists a reminder sent while the applicant was waiting for us', async () => {
@@ -147,7 +183,7 @@ describe('ApplicantReplyCheckService', () => {
       {
         personId: 'ada-id',
         name: 'Ada Lovelace',
-        email: ADA,
+        email: 'Ada@Gmail.com',
         currentStage: 'SECOND_REMINDER_CONTACTED',
         reminderStage: 'SECOND_REMINDER_CONTACTED',
         remindedAt: new Date('2026-11-05T10:02:00Z'),

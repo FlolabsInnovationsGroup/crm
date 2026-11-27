@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { FileUrlModule } from 'src/engine/core-modules/file/file-url/file-url.module';
 import { ApplicantReplyCheckResolver } from 'src/engine/core-modules/messaging/applicant-reply-check.resolver';
 import { ApplicantReplyCheckService } from 'src/engine/core-modules/messaging/services/applicant-reply-check.service';
-import { FileUrlModule } from 'src/engine/core-modules/file/file-url/file-url.module';
 import { GetMessagesService } from 'src/engine/core-modules/messaging/services/get-messages.service';
 import { TeamInboxEmailsSentToApplicantsService } from 'src/engine/core-modules/messaging/services/team-inbox-emails-sent-to-applicants.service';
 import { TeamInboxContactService } from 'src/engine/core-modules/messaging/services/team-inbox-contact.service';
