@@ -1,8 +1,12 @@
+// Postgres returns timestamps as Date objects; values written by the CRM or a
+// test are ISO strings, so readers accept both.
+export type StoredDate = string | Date | null;
+
 export type MeetingTrackerPersonRecord = {
   id: string;
-  applicationDate: string | null;
-  firstMeetingAt: string | null;
-  meetingBookedAt: string | null;
+  applicationDate: StoredDate;
+  firstMeetingAt: StoredDate;
+  meetingBookedAt: StoredDate;
   daysToMeeting: number | null;
   // A calendar event or Calendly booking id. Cancelled calendar events are
   // hard-deleted by sync, so this is the only way to find whose first meeting
@@ -12,8 +16,8 @@ export type MeetingTrackerPersonRecord = {
 
 export type MeetingCandidate = {
   eventId: string;
-  startsAt: string | null;
-  bookedAt: string | null;
+  startsAt: StoredDate;
+  bookedAt: StoredDate;
   isCanceled: boolean;
   isFullDay: boolean;
 };

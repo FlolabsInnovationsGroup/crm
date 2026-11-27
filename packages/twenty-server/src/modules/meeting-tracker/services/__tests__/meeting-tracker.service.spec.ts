@@ -234,4 +234,71 @@ describe('MeetingTrackerService', () => {
 
     expect(result).toEqual({ peopleChecked: 1, peopleWithMeeting: 1 });
   });
+
+  it('reads dates the database returns as Date objects', async () => {
+    personRepository.find.mockResolvedValue([
+      applicant({
+        applicationDate: new Date('2026-11-02T10:00:00Z'),
+        firstMeetingEventId: '',
+      }),
+    ]);
+    participantRepository.find.mockResolvedValue([
+      {
+        personId: 'applicant',
+        calendarEventId: 'interview',
+        responseStatus: 'ACCEPTED',
+      },
+    ]);
+    eventRepository.find.mockResolvedValue([
+      calendarEvent('interview', {
+        startsAt: new Date('2026-11-09T14:00:00Z'),
+        externalCreatedAt: new Date('2026-11-04T08:00:00Z'),
+        createdAt: new Date('2026-11-04T08:05:00Z'),
+      }),
+    ]);
+    bookingRepository.find.mockResolvedValue([
+      {
+        id: 'booking',
+        personId: 'applicant',
+        meetingStartsAt: new Date('2026-11-12T09:00:00Z'),
+        bookedAt: new Date('2026-11-05T12:00:00Z'),
+        bookingStatus: 'ACTIVE',
+      },
+    ]);
+
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(personRepository.update).toHaveBeenCalledWith('applicant', {
+      firstMeetingAt: '2026-11-09T14:00:00.000Z',
+      meetingBookedAt: '2026-11-04T08:00:00.000Z',
+      daysToMeeting: 7,
+      firstMeetingEventId: 'interview',
+    });
+  });
+
+  it('leaves a person alone when the stored Date values already match', async () => {
+    personRepository.find.mockResolvedValue([
+      applicant({
+        applicationDate: new Date('2026-11-02T10:00:00Z'),
+        firstMeetingAt: new Date('2026-11-12T09:00:00Z'),
+        meetingBookedAt: new Date('2026-11-05T12:00:00Z'),
+        daysToMeeting: 10,
+        firstMeetingEventId: 'booking',
+      }),
+    ]);
+    participantRepository.find.mockResolvedValue([]);
+    bookingRepository.find.mockResolvedValue([
+      {
+        id: 'booking',
+        personId: 'applicant',
+        meetingStartsAt: new Date('2026-11-12T09:00:00Z'),
+        bookedAt: new Date('2026-11-05T12:00:00Z'),
+        bookingStatus: 'ACTIVE',
+      },
+    ]);
+
+    await service.recalculatePeople('workspace-id', ['applicant']);
+
+    expect(personRepository.update).not.toHaveBeenCalled();
+  });
 });

@@ -16,6 +16,7 @@ import {
   type MeetingCandidate,
   type MeetingRecalculationResult,
   type MeetingTrackerPersonRecord,
+  type StoredDate,
 } from 'src/modules/meeting-tracker/types/meeting-tracker-record.type';
 import { pickFirstMeeting } from 'src/modules/meeting-tracker/utils/pick-first-meeting.util';
 
@@ -28,9 +29,9 @@ type ParticipantRecord = {
 
 type CalendarEventRecord = {
   id: string;
-  startsAt: string | null;
-  externalCreatedAt: string | null;
-  createdAt: string;
+  startsAt: StoredDate;
+  externalCreatedAt: StoredDate;
+  createdAt: StoredDate;
   isCanceled: boolean;
   isFullDay: boolean;
 };
@@ -40,7 +41,10 @@ const PAGE_SIZE = 500;
 const toIsoOrNull = (date: Date | null | undefined) =>
   date?.toISOString() ?? null;
 
-const isSameInstant = (stored: string | null, next: string | null) =>
+const hasDate = (value: StoredDate) =>
+  value instanceof Date || isNonEmptyString(value);
+
+const isSameInstant = (stored: StoredDate, next: string | null) =>
   (stored === null ? null : new Date(stored).getTime()) ===
   (next === null ? null : new Date(next).getTime());
 
@@ -324,7 +328,7 @@ export class MeetingTrackerService {
         .map((event) => ({
           eventId: event.id,
           startsAt: event.startsAt,
-          bookedAt: isNonEmptyString(event.externalCreatedAt)
+          bookedAt: hasDate(event.externalCreatedAt)
             ? event.externalCreatedAt
             : event.createdAt,
           isCanceled: event.isCanceled,

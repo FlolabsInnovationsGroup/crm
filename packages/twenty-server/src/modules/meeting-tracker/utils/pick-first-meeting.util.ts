@@ -4,12 +4,13 @@ import { isDefined } from 'twenty-shared/utils';
 import {
   type FirstMeeting,
   type MeetingCandidate,
+  type StoredDate,
 } from 'src/modules/meeting-tracker/types/meeting-tracker-record.type';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const toDate = (value: string | null): Date | null => {
-  if (!isNonEmptyString(value)) {
+const toDate = (value: StoredDate): Date | null => {
+  if (!(value instanceof Date) && !isNonEmptyString(value)) {
     return null;
   }
 
@@ -28,7 +29,7 @@ export const pickFirstMeeting = ({
   applicationDate,
   meetings,
 }: {
-  applicationDate: string | null;
+  applicationDate: StoredDate;
   meetings: MeetingCandidate[];
 }): FirstMeeting | null => {
   const appliedAt = toDate(applicationDate);
