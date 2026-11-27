@@ -23,3 +23,10 @@ export type AgreementRequestRecord = {
   createdBy?: ActorMetadata;
   updatedBy?: ActorMetadata;
 };
+
+export type AgreementAttachmentRecord = {
+  id: string;
+  name: string | null;
+  targetPersonId: string | null;
+  file: { fileId: string; label?: string | null }[] | null;
+};

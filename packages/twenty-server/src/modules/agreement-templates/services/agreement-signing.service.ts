@@ -22,6 +22,7 @@ import {
 } from 'src/modules/agreement-templates/constants/agreement-signing.constants';
 import { DocumensoApiService } from 'src/modules/agreement-templates/services/documenso-api.service';
 import {
+  type AgreementAttachmentRecord,
   type AgreementRequestRecord,
   type AgreementRequestStatus,
 } from 'src/modules/agreement-templates/types/agreement-request-record.type';
@@ -43,6 +44,7 @@ import {
   type AgreementSigningConfig,
   getAgreementSigningConfig,
 } from 'src/modules/agreement-templates/utils/get-agreement-signing-config.util';
+import { getAgreementFullName } from 'src/modules/agreement-templates/utils/get-agreement-full-name.util';
 import { getAgreementValues } from 'src/modules/agreement-templates/utils/get-agreement-values.util';
 import { getSignatureFields } from 'src/modules/agreement-templates/utils/get-signature-fields.util';
 import { renderAgreementPdf } from 'src/modules/agreement-templates/utils/render-agreement-pdf.util';
@@ -68,10 +70,8 @@ type SignedFile = { fileId: string; name: string; size: number };
 const toPdfFilename = (title: string) =>
   `${title.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Agreement'}.pdf`;
 
-const getFullName = (person: Pick<AgreementPersonRecord, 'name'> | null) =>
-  [person?.name?.firstName?.trim(), person?.name?.lastName?.trim()]
-    .filter(isNonEmptyString)
-    .join(' ');
+// A crashed run leaves its claim; another run may take it over after this.
+const SIGNED_FILES_CLAIM_TIMEOUT_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class AgreementSigningService {
@@ -153,7 +153,7 @@ export class AgreementSigningService {
       });
 
       const requestId = v4();
-      const applicantName = getFullName(person) || email;
+      const applicantName = getAgreementFullName(person.name) ?? email;
       const rendered = await Promise.all(
         documents.map(async (document) => ({
           title: document.title,
@@ -204,6 +204,9 @@ export class AgreementSigningService {
             {
               email: config.countersignerEmail,
               name: config.countersignerName,
+              // The link also sits in hr@'s synced mail; only a signed-in
+              // Documenso account can use it.
+              accessAuth: ['ACCOUNT'],
               role: 'SIGNER',
               signingOrder: 2,
               fields: getSignatureFields({
@@ -226,7 +229,7 @@ export class AgreementSigningService {
           throw new Error('Documenso returned no signing link for the intern');
         }
 
-        signingUrl = applicant.signingUrl;
+        signingUrl = this.getSigningUrl(config, applicant);
 
         await this.getSystemRequestRepository().update(requestId, {
           documensoEnvelopeId: envelopeId,
@@ -315,6 +318,13 @@ export class AgreementSigningService {
       config,
       request.documensoEnvelopeId,
     );
+
+    if (!isDefined(envelope)) {
+      throw new AgreementSigningError(
+        'This agreement was deleted in Documenso.',
+      );
+    }
+
     const { applicant, countersigner } = this.getSigners(envelope);
 
     if (envelope.status !== 'PENDING' || !isDefined(applicant)) {
@@ -342,7 +352,8 @@ export class AgreementSigningService {
             signingUrl: this.getSigningUrl(config, applicant),
           })
         : buildCountersignerAgreementEmail({
-            applicantName: getFullName(person) || applicant.email,
+            applicantName:
+              getAgreementFullName(person?.name) ?? applicant.email,
             documentTitles,
             signingUrl: this.getSigningUrl(config, recipient),
             personUrl: this.getPersonUrl(request.personId),
@@ -359,11 +370,24 @@ export class AgreementSigningService {
       throw new AgreementSigningError(`The email failed: ${sent.error}`);
     }
 
+    if (recipient === countersigner) {
+      await this.workspaceOrmManager.executeInWorkspaceContext(
+        () =>
+          this.getSystemRequestRepository().update(request.id, {
+            status: 'APPLICANT_SIGNED',
+            applicantSignedAt: applicant.signedAt ?? new Date().toISOString(),
+            countersignerEmailedAt: new Date().toISOString(),
+          }),
+        buildSystemAuthContext(config.workspaceId),
+      );
+    }
+
     return recipient.email;
   }
 
   // Called by the Documenso webhook, which is trusted only to name an
-  // envelope; its state is read back from Documenso.
+  // envelope. Its state, and the request it belongs to, come from Documenso,
+  // since members can edit the envelope id stored on a request.
   async syncEnvelope(envelopeId: string): Promise<void> {
     const config = getAgreementSigningConfig();
 
@@ -371,23 +395,40 @@ export class AgreementSigningService {
       return;
     }
 
-    const request = await this.workspaceOrmManager.executeInWorkspaceContext(
-      () =>
-        this.getSystemRequestRepository().findOne({
-          where: { documensoEnvelopeId: envelopeId },
-        }),
-      buildSystemAuthContext(config.workspaceId),
+    const envelope = await this.documensoApiService.getEnvelope(
+      config,
+      envelopeId,
     );
 
-    if (!isDefined(request)) {
-      this.logger.log(
-        `No agreement request for Documenso envelope ${envelopeId}`,
-      );
+    await this.workspaceOrmManager.executeInWorkspaceContext(async () => {
+      const repository = this.getSystemRequestRepository();
 
-      return;
-    }
+      if (!isDefined(envelope)) {
+        await repository.update(
+          {
+            documensoEnvelopeId: envelopeId,
+            status: In(['SENT', 'APPLICANT_SIGNED']),
+          },
+          { status: 'CANCELLED', updatedBy: DOCUMENSO_ACTOR },
+        );
 
-    await this.syncRequest(config, request);
+        return;
+      }
+
+      const request = isNonEmptyString(envelope.externalId)
+        ? await repository.findOne({ where: { id: envelope.externalId } })
+        : null;
+
+      if (!isDefined(request) || request.documensoEnvelopeId !== envelope.id) {
+        this.logger.log(
+          `No agreement request for Documenso envelope ${envelopeId}`,
+        );
+
+        return;
+      }
+
+      await this.applyEnvelope(config, request, envelope);
+    }, buildSystemAuthContext(config.workspaceId));
   }
 
   private async syncRequest(
@@ -403,55 +444,70 @@ export class AgreementSigningService {
       request.documensoEnvelopeId,
     );
 
-    if (envelope.externalId !== request.id) {
-      throw new Error(
-        `Documenso envelope ${envelope.id} does not belong to agreement request ${request.id}`,
+    if (isDefined(envelope) && envelope.externalId !== request.id) {
+      throw new AgreementSigningError(
+        'The Documenso envelope on this request belongs to another request.',
       );
     }
 
     return this.workspaceOrmManager.executeInWorkspaceContext(async () => {
-      const { applicant, countersigner } = this.getSigners(envelope);
-
-      if (envelope.status === 'REJECTED' || envelope.status === 'CANCELLED') {
-        const status =
-          envelope.status === 'REJECTED' ? 'REJECTED' : 'CANCELLED';
+      if (!isDefined(envelope)) {
+        if (request.status === 'COMPLETED') {
+          return request.status;
+        }
 
         await this.getSystemRequestRepository().update(request.id, {
-          status,
+          status: 'CANCELLED',
           updatedBy: DOCUMENSO_ACTOR,
         });
 
-        return status;
+        return 'CANCELLED';
       }
 
-      if (
-        applicant?.signingStatus === 'SIGNED' &&
-        !isDefined(request.countersignerEmailedAt) &&
-        envelope.status === 'PENDING'
-      ) {
-        await this.emailCountersigner({
-          config,
-          request,
-          applicant,
-          countersigner,
-        });
-      }
+      return this.applyEnvelope(config, request, envelope);
+    }, buildSystemAuthContext(config.workspaceId));
+  }
 
-      if (
-        envelope.status === 'COMPLETED' &&
-        !isDefined(request.signedFilesSavedAt)
-      ) {
-        await this.saveSignedFiles({ config, request, envelope });
+  // Must run inside the workspace context.
+  private async applyEnvelope(
+    config: AgreementSigningConfig,
+    request: AgreementRequestRecord,
+    envelope: DocumensoEnvelope,
+  ): Promise<AgreementRequestStatus | null> {
+    const repository = this.getSystemRequestRepository();
+    const { applicant, countersigner } = this.getSigners(envelope);
 
-        return 'COMPLETED';
-      }
+    if (envelope.status === 'REJECTED' || envelope.status === 'CANCELLED') {
+      const status = envelope.status === 'REJECTED' ? 'REJECTED' : 'CANCELLED';
 
-      const latest = await this.getSystemRequestRepository().findOne({
-        where: { id: request.id },
+      await repository.update(request.id, {
+        status,
+        updatedBy: DOCUMENSO_ACTOR,
       });
 
-      return latest?.status ?? request.status;
-    }, buildSystemAuthContext(config.workspaceId));
+      return status;
+    }
+
+    if (
+      applicant?.signingStatus === 'SIGNED' &&
+      !isDefined(request.countersignerEmailedAt) &&
+      envelope.status === 'PENDING'
+    ) {
+      await this.emailCountersigner({
+        config,
+        request,
+        applicant,
+        countersigner,
+      });
+    }
+
+    if (envelope.status === 'COMPLETED' && request.status !== 'COMPLETED') {
+      await this.saveSignedFiles({ config, request, envelope });
+    }
+
+    const latest = await repository.findOne({ where: { id: request.id } });
+
+    return latest?.status ?? request.status;
   }
 
   // Must run inside the workspace context. The conditional update claims the
@@ -495,7 +551,7 @@ export class AgreementSigningService {
         connectedAccountId: await this.getSenderAccountId(config),
         to: countersigner.email,
         ...buildCountersignerAgreementEmail({
-          applicantName: getFullName(person) || applicant.email,
+          applicantName: getAgreementFullName(person?.name) ?? applicant.email,
           documentTitles: this.getDocumentTitles(request),
           signingUrl: this.getSigningUrl(config, countersigner),
           personUrl: this.getPersonUrl(request.personId),
@@ -512,7 +568,8 @@ export class AgreementSigningService {
   }
 
   // Must run inside the workspace context. Claimed like the countersigner
-  // email, and released if anything fails so the next webhook retries.
+  // email and released if anything fails, so the next webhook retries; files
+  // already attached by an earlier try are not attached again.
   private async saveSignedFiles({
     config,
     request,
@@ -523,8 +580,24 @@ export class AgreementSigningService {
     envelope: DocumensoEnvelope;
   }) {
     const repository = this.getSystemRequestRepository();
+    const previousClaim = isDefined(request.signedFilesSavedAt)
+      ? new Date(request.signedFilesSavedAt)
+      : null;
+
+    if (
+      isDefined(previousClaim) &&
+      Date.now() - previousClaim.getTime() < SIGNED_FILES_CLAIM_TIMEOUT_MS
+    ) {
+      return;
+    }
+
     const claim = await repository.update(
-      { id: request.id, signedFilesSavedAt: IsNull() },
+      {
+        id: request.id,
+        signedFilesSavedAt: isDefined(previousClaim)
+          ? previousClaim.toISOString()
+          : IsNull(),
+      },
       { signedFilesSavedAt: new Date().toISOString() },
     );
 
@@ -532,6 +605,7 @@ export class AgreementSigningService {
       return;
     }
 
+    const reference = request.id.slice(0, 8);
     let savedFiles: SignedFile[];
 
     try {
@@ -540,7 +614,7 @@ export class AgreementSigningService {
           [...envelope.envelopeItems]
             .sort((first, second) => first.order - second.order)
             .map(async (item) => ({
-              name: `Signed - ${toPdfFilename(item.title.replace(/\.pdf$/i, ''))}`,
+              name: `Signed - ${toPdfFilename(`${item.title.replace(/\.pdf$/i, '')} (${reference})`)}`,
               pdf: await this.documensoApiService.downloadSignedItem(
                 config,
                 item.id,
@@ -548,7 +622,7 @@ export class AgreementSigningService {
             })),
         )),
         {
-          name: 'Signing certificate.pdf',
+          name: `Signing certificate (${reference}).pdf`,
           pdf: await this.documensoApiService.downloadCertificate(
             config,
             envelope.id,
@@ -573,27 +647,31 @@ export class AgreementSigningService {
     }
 
     // The files are saved; a failed copy to the intern is logged, not retried.
-    const { applicant } = this.getSigners(envelope);
-    const person = await this.getPerson(config, request.personId);
+    try {
+      const { applicant } = this.getSigners(envelope);
 
-    if (!isDefined(applicant)) {
-      return;
-    }
+      if (!isDefined(applicant)) {
+        return;
+      }
 
-    const sent = await this.trySendEmail({
-      workspaceId: config.workspaceId,
-      connectedAccountId: await this.getSenderAccountId(config),
-      to: applicant.email,
-      files: savedFiles,
-      ...buildApplicantSignedCopyEmail({
-        firstName: person?.name?.firstName?.trim() || null,
-        documentTitles: this.getDocumentTitles(request),
-      }),
-    });
+      const person = await this.getPerson(config, request.personId);
+      const sent = await this.trySendEmail({
+        workspaceId: config.workspaceId,
+        connectedAccountId: await this.getSenderAccountId(config),
+        to: applicant.email,
+        files: savedFiles,
+        ...buildApplicantSignedCopyEmail({
+          firstName: person?.name?.firstName?.trim() || null,
+          documentTitles: this.getDocumentTitles(request),
+        }),
+      });
 
-    if (!sent.success) {
+      if (!sent.success) {
+        throw new Error(sent.error ?? 'The email failed');
+      }
+    } catch (error) {
       this.logger.error(
-        `Signed copy of agreement request ${request.id} not emailed: ${sent.error}`,
+        `Signed copy of agreement request ${request.id} not emailed: ${error}`,
       );
     }
   }
@@ -612,13 +690,36 @@ export class AgreementSigningService {
       throw new Error('The agreement request has no person to attach files to');
     }
 
-    const attachmentRepository = this.workspaceOrmManager.getRepository(
-      'attachment',
-      { shouldBypassPermissionChecks: true },
+    const attachmentRepository =
+      this.workspaceOrmManager.getRepository<AgreementAttachmentRecord>(
+        'attachment',
+        { shouldBypassPermissionChecks: true },
+      );
+    const existing = await attachmentRepository.find({
+      where: {
+        targetPersonId: personId,
+        name: In(files.map(({ name }) => name)),
+      },
+    });
+    const existingFileByName = new Map(
+      existing.flatMap((attachment) => {
+        const fileId = attachment.file?.[0]?.fileId;
+
+        return isNonEmptyString(attachment.name) && isNonEmptyString(fileId)
+          ? [[attachment.name, fileId] as const]
+          : [];
+      }),
     );
     const saved: SignedFile[] = [];
 
     for (const { name, pdf } of files) {
+      const existingFileId = existingFileByName.get(name);
+
+      if (isDefined(existingFileId)) {
+        saved.push({ fileId: existingFileId, name, size: pdf.length });
+        continue;
+      }
+
       const uploadedFile = await this.filesFieldService.uploadFile({
         file: pdf,
         filename: name,
@@ -771,7 +872,7 @@ export class AgreementSigningService {
 
   private getSigningUrl(
     config: AgreementSigningConfig,
-    recipient: DocumensoRecipient,
+    recipient: Pick<DocumensoRecipient, 'token'>,
   ) {
     return `${config.documensoPublicUrl}/sign/${encodeURIComponent(recipient.token)}`;
   }

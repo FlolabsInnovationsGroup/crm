@@ -237,7 +237,7 @@ await ensureField(request, {
   name: 'countersignerEmailedAt',
   label: 'Sent to FloLabs signer',
   type: 'DATE_TIME',
-  icon: 'IconMailForward',
+  icon: 'IconSend',
 });
 await ensureField(request, {
   name: 'completedAt',

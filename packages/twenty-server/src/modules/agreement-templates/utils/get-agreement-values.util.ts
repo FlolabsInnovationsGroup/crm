@@ -2,6 +2,7 @@ import { isNonEmptyString } from '@sniptt/guards';
 import { isDefined } from 'twenty-shared/utils';
 
 import { type AgreementPersonRecord } from 'src/modules/agreement-templates/types/agreement-template-record.type';
+import { getAgreementFullName } from 'src/modules/agreement-templates/utils/get-agreement-full-name.util';
 
 const PAYMENT_PLAN_LABELS: Record<string, string> = {
   FULL_ONE_TIME: 'Full one-time payment',
@@ -58,7 +59,7 @@ export const getAgreementValues = (
   const lastName = person.name?.lastName?.trim() || null;
 
   return {
-    fullName: [firstName, lastName].filter(isNonEmptyString).join(' ') || null,
+    fullName: getAgreementFullName(person.name),
     firstName,
     lastName,
     email: person.emails?.primaryEmail?.trim() || null,
