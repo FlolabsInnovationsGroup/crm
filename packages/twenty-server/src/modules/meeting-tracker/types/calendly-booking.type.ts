@@ -1,3 +1,5 @@
+import { type StoredDate } from 'src/modules/meeting-tracker/types/meeting-tracker-record.type';
+
 export type CalendlyBookingStatus = 'ACTIVE' | 'CANCELED';
 
 // One invitee on one Calendly event, as read back from the Calendly API.
@@ -16,10 +18,10 @@ export type CalendlyBookingRecord = {
   id: string;
   personId: string | null;
   calendlyInviteeUri: string;
-  meetingStartsAt: string | null;
-  bookedAt: string | null;
+  meetingStartsAt: StoredDate;
+  bookedAt: StoredDate;
   bookingStatus: CalendlyBookingStatus | null;
-  deletedAt?: string | null;
+  deletedAt?: StoredDate;
 };
 
 export type RecordCalendlyBookingResult = {
