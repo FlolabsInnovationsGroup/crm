@@ -25,6 +25,7 @@ import { PublicFormModule } from 'src/modules/public-form/public-form.module';
 import { CrmAnalyticsModule } from 'src/modules/analytics/crm-analytics.module';
 import { SendingDomainModule } from 'src/modules/sending-domain/sending-domain.module';
 import { CampaignModule } from 'src/modules/campaign/campaign.module';
+import { AgreementTemplatesModule } from 'src/modules/agreement-templates/agreement-templates.module';
 import { ManualReviewAnswersModule } from 'src/modules/manual-review-answers/manual-review-answers.module';
 import { MeetingTrackerModule } from 'src/modules/meeting-tracker/meeting-tracker.module';
 import { PaymentTrackerModule } from 'src/modules/payment-tracker/payment-tracker.module';
@@ -48,6 +49,7 @@ import { WorkspaceMemberModule } from 'src/modules/workspace-member/workspace-me
     CampaignModule,
     MeetingTrackerModule,
     ManualReviewAnswersModule,
+    AgreementTemplatesModule,
     PaymentTrackerModule,
     MessagingWebhooksModule,
     ConnectedAccountSyncWebhooksModule,
