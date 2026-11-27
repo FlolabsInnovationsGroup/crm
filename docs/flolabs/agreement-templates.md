@@ -1,4 +1,4 @@
-# Agreement templates (plan item 8, first part)
+# Agreement templates and e-signature (plan item 8)
 
 Agreements are written and kept in the CRM, as many as the team wants. Dropbox Sign allows 5 templates on its plan, and all 5 are used.
 
@@ -32,7 +32,7 @@ Anything else, for example `{{startDate}}`, stays as written and is listed as mi
 
 ## Check a template for one person
 
-Until the Send agreement button exists, a template can be checked in Settings > APIs & Webhooks > Playground, GraphQL, Core:
+A template can be checked in Settings > APIs & Webhooks > Playground, GraphQL, Core:
 
 ```graphql
 query { previewAgreement(templateId: "<template id>", personId: "<person id>") { templateName text missingPlaceholders } }
@@ -50,14 +50,51 @@ Both ids are at the end of the record's address in the browser.
 
 Their text sits in PDFs inside Dropbox Sign. Copy each one into a new template, putting placeholders where the blanks are (date, name, address).
 
+## Send for signature (Documenso)
+
+The server side is ready; the button on a person comes next. Until then, run it from Settings > APIs & Webhooks > Playground, GraphQL, Core:
+
+```graphql
+mutation { sendAgreement(personId: "<person id>", templateIds: ["<template id>"]) { agreementRequestId emailSent emailError } }
+```
+
+What happens:
+
+1. Each template is filled for the person and turned into a PDF, with a last page for the signatures. Sending stops if any placeholder is still empty; fill it on the person first. Up to 5 templates go together and are signed in one go.
+2. Documenso gets the PDFs, with the intern signing first and the FloLabs signer second. Documenso sends no emails.
+3. The CRM emails the intern their signing link from hr@. An **Agreement request** record appears on the person, status *Waiting for the intern*.
+4. When the intern signs, the CRM emails the FloLabs signer their link. Status: *Waiting for FloLabs*.
+5. When both have signed, the signed PDFs and Documenso's signing certificate are attached to the person, the intern gets a copy by email, and the status becomes *Signed*.
+
+If an email went missing, `resendAgreementEmail(agreementRequestId: "<id>")` sends the current link again: to the intern while they have not signed, otherwise to the FloLabs signer. If a status looks stuck, `syncAgreementRequest(agreementRequestId: "<id>")` reads it again from Documenso.
+
+Who can send: anyone whose role may create Agreement requests and read the person and the templates.
+
 ## Setup (once, by an admin)
 
-```
-TWENTY_URL=https://crm.flolabsinnovations.com TWENTY_TOKEN_FILE=<file with an admin API key> node packages/twenty-utils/flolabs/setup-agreement-templates.mjs
-```
+1. **Create the objects** (Agreement templates and Agreement requests):
+   ```
+   TWENTY_URL=https://crm.flolabsinnovations.com TWENTY_TOKEN_FILE=<file with an admin API key> node packages/twenty-utils/flolabs/setup-agreement-templates.mjs
+   ```
+   Run it again after an update; it only adds what is missing. Run it before deploying the server version that sends agreements.
+2. **Documenso** must run first: see [documenso.md](documenso.md).
+3. **In Documenso** (signed in as hr@):
+   - Settings > API tokens: create a token with no expiry.
+   - Settings > Webhooks: add `https://crm.flolabsinnovations.com/webhooks/flolabs-documenso` with the events *Document recipient completed*, *Document completed*, *Document rejected* and *Document cancelled*, and a long random secret.
+4. **Add the settings on the server** in the CRM's env (never in chat or a screenshot), then restart the server:
+   - `FLOLABS_DOCUMENSO_API_TOKEN` = the Documenso token
+   - `FLOLABS_DOCUMENSO_WEBHOOK_SECRET` = the webhook secret
+   - `FLOLABS_AGREEMENT_COUNTERSIGNER_EMAIL` = the email of whoever signs for FloLabs
+   - `FLOLABS_AGREEMENT_COUNTERSIGNER_NAME` = their name as printed by Documenso
+   - Optional: `FLOLABS_AGREEMENT_SENDER` (default `hr@flolabsinnovations.com`, must be connected to the CRM), `FLOLABS_DOCUMENSO_API_URL` (default `http://documenso:3000`, inside Docker), `FLOLABS_DOCUMENSO_PUBLIC_URL` (default `https://sign.flolabsinnovations.com`).
+   - `FLOLABS_WORKSPACE_ID` (or `FLOLABS_PAYMENTS_WORKSPACE_ID`) is already set for the meeting tracker.
+5. **Roles:** Settings > Roles, decide who may create Agreement requests.
 
-Run it before deploying the server version with the preview.
+## Test before going live
 
-## Next
+Send to a test person whose email is `mohamedrad2022+crmtest@gmail.com`, with `FLOLABS_AGREEMENT_COUNTERSIGNER_EMAIL` set to another address you can read. Sign as the intern, then as FloLabs, and check that the person gets three things: both signed files and the certificate.
 
-Sending for signature through Documenso (signing link, John's countersignature, the signed PDF saved on the person) comes once Documenso runs at sign.flolabsinnovations.com.
+## Limits
+
+- The PDF font covers Latin letters, including accented ones. Text in other scripts prints as blanks.
+- Formatting kept from the editor: headings, paragraphs, bullet and numbered lists, bold. Tables and images are not.

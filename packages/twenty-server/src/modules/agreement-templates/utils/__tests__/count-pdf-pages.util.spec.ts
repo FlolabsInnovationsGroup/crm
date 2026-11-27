@@ -1,0 +1,18 @@
+import { countPdfPages } from 'src/modules/agreement-templates/utils/count-pdf-pages.util';
+
+describe('countPdfPages', () => {
+  it('reads the page tree count', () => {
+    expect(
+      countPdfPages(
+        Buffer.from(
+          '%PDF-1.3\n2 0 obj\n<< /Type /Pages /Count 4 /Kids [3 0 R] >>\nendobj\n',
+          'latin1',
+        ),
+      ),
+    ).toBe(4);
+  });
+
+  it('refuses a buffer that is not a PDF', () => {
+    expect(() => countPdfPages(Buffer.from('not a pdf'))).toThrow();
+  });
+});

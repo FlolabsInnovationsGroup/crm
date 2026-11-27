@@ -1,6 +1,6 @@
-// Creates the Agreement templates object: agreements and other documents to
-// sign, written and edited in the CRM, as many as the team needs. Safe to run
-// again: existing objects and fields are left untouched.
+// Creates the Agreement templates object (documents to sign, written in the
+// CRM) and Agreement requests (one per Send agreement, tracked until signed).
+// Safe to run again: existing objects and fields are left untouched.
 //
 //   TWENTY_URL=https://crm.example.com TWENTY_TOKEN=<api key> node setup-agreement-templates.mjs
 // or put the key in a file and pass TWENTY_TOKEN_FILE=<path> instead.
@@ -171,4 +171,88 @@ await ensureField(template, {
   description: 'Who signs, in what order, and anything else to remember',
 });
 
-console.log('Agreement templates are ready.');
+const person = await findObject('person');
+
+const request = await ensureObject({
+  nameSingular: 'agreementRequest',
+  namePlural: 'agreementRequests',
+  labelSingular: 'Agreement request',
+  labelPlural: 'Agreement requests',
+  icon: 'IconSignature',
+  description: 'Agreements sent for e-signature, from sending until signed',
+});
+
+await ensureField(request, {
+  name: 'person',
+  label: 'Person',
+  type: 'RELATION',
+  icon: 'IconUser',
+  relationCreationPayload: {
+    type: 'MANY_TO_ONE',
+    targetObjectMetadataId: person.id,
+    targetFieldLabel: 'Agreement requests',
+    targetFieldIcon: 'IconSignature',
+  },
+});
+await ensureField(request, {
+  name: 'status',
+  label: 'Status',
+  type: 'SELECT',
+  icon: 'IconProgressCheck',
+  defaultValue: "'SENT'",
+  options: [
+    option('SENT', 'Waiting for the intern', 'blue', 0),
+    option('APPLICANT_SIGNED', 'Waiting for FloLabs', 'purple', 1),
+    option('COMPLETED', 'Signed', 'green', 2),
+    option('REJECTED', 'Declined', 'red', 3),
+    option('CANCELLED', 'Cancelled', 'gray', 4),
+  ],
+});
+await ensureField(request, {
+  name: 'documents',
+  label: 'Documents',
+  type: 'TEXT',
+  icon: 'IconFiles',
+  description: 'The templates sent together',
+});
+await ensureField(request, {
+  name: 'documensoEnvelopeId',
+  label: 'Documenso envelope',
+  type: 'TEXT',
+  icon: 'IconId',
+});
+await ensureField(request, {
+  name: 'sentAt',
+  label: 'Sent',
+  type: 'DATE_TIME',
+  icon: 'IconSend',
+});
+await ensureField(request, {
+  name: 'applicantSignedAt',
+  label: 'Intern signed',
+  type: 'DATE_TIME',
+  icon: 'IconSignature',
+});
+await ensureField(request, {
+  name: 'countersignerEmailedAt',
+  label: 'Sent to FloLabs signer',
+  type: 'DATE_TIME',
+  icon: 'IconMailForward',
+});
+await ensureField(request, {
+  name: 'completedAt',
+  label: 'Completed',
+  type: 'DATE_TIME',
+  icon: 'IconCircleCheck',
+});
+await ensureField(request, {
+  name: 'signedFilesSavedAt',
+  label: 'Signed files saved',
+  type: 'DATE_TIME',
+  icon: 'IconPaperclip',
+  description: 'When the signed PDFs were attached to the person',
+});
+
+console.log(
+  'Agreement templates and requests are ready. Next: in Settings > Roles, decide who may create Agreement requests; that is who can send agreements.',
+);
