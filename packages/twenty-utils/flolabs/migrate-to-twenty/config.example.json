@@ -1,0 +1,11 @@
+{
+  "source": {
+    "url": "https://crm.flolabsinnovations.com",
+    "apiKey": "PASTE THE READ-ONLY KEY FROM FLOLABS HERE"
+  },
+  "target": {
+    "url": "https://YOUR-CRM-ADDRESS",
+    "apiKey": "PASTE AN ADMIN API KEY FROM YOUR CRM HERE"
+  },
+  "outputFolder": "./migration-output"
+}
