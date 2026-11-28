@@ -9,6 +9,7 @@ import {
 import { type WorkspaceRouteObject } from '@/app/routing/types/WorkspaceRouteObject';
 import { CRM_ANALYTICS_PATH } from '@/crm-analytics/constants/CrmAnalyticsPath';
 import { CAMPAIGNS_PATH } from '@/campaigns/constants/CampaignsPath';
+import { AGREEMENTS_PATH } from '@/agreements/constants/AgreementsPath';
 import { RecordIndexSkeletonLoader } from '@/object-record/record-index/components/RecordIndexSkeletonLoader';
 
 const AgentCoreIndexPage = lazy(() =>
@@ -50,6 +51,12 @@ const TeamInboxPage = lazy(() =>
 const CampaignsPage = lazy(() =>
   import('~/pages/campaigns/CampaignsPage').then((module) => ({
     default: module.CampaignsPage,
+  })),
+);
+
+const AgreementsPage = lazy(() =>
+  import('~/pages/agreements/AgreementsPage').then((module) => ({
+    default: module.AgreementsPage,
   })),
 );
 
@@ -165,6 +172,14 @@ export const createWorkspaceRouteObjects = ({
       element: (
         <LazyRoute>
           <CampaignsPage />
+        </LazyRoute>
+      ),
+    },
+    {
+      path: AGREEMENTS_PATH,
+      element: (
+        <LazyRoute>
+          <AgreementsPage />
         </LazyRoute>
       ),
     },
