@@ -909,10 +909,7 @@ export class AgreementSigningService {
           .getRepository<AgreementPersonRecord>('person', {
             shouldBypassPermissionChecks: true,
           })
-          .findOne({
-            where: { id: personId },
-            select: { id: true, name: true },
-          }),
+          .findOne({ where: { id: personId } }),
       buildSystemAuthContext(config.workspaceId),
     );
   }
