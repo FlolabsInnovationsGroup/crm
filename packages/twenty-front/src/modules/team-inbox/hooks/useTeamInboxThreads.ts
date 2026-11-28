@@ -14,7 +14,10 @@ type GetInboxThreadsResult = {
   };
 };
 
-export const useTeamInboxThreads = (filter: TeamInboxFilter) => {
+export const useTeamInboxThreads = (
+  filter: TeamInboxFilter,
+  { skip = false }: { skip?: boolean } = {},
+) => {
   const apolloCoreClient = useApolloCoreClient();
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
@@ -36,6 +39,7 @@ export const useTeamInboxThreads = (filter: TeamInboxFilter) => {
       client: apolloCoreClient,
       variables,
       fetchPolicy: 'cache-and-network',
+      skip,
     });
 
   const threads = data?.getInboxThreads.timelineThreads ?? [];

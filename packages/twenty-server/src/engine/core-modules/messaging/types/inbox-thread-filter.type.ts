@@ -2,6 +2,8 @@ import { type TeamInboxReadState } from 'src/engine/core-modules/messaging/utils
 
 export type InboxThreadDirection = 'INCOMING' | 'OUTGOING';
 
+export type InboxThreadSortDirection = 'ASC' | 'DESC';
+
 // FloLabs team inbox: threads from every mailbox instead of one record's.
 export type InboxThreadFilter = {
   direction?: InboxThreadDirection;
@@ -15,4 +17,6 @@ export type InboxThreadFilter = {
   system?: boolean;
   // Set: only closed threads when `only`, otherwise none of them.
   closed?: { threadIds: string[]; only: boolean };
+  // By newest message; unset is newest first.
+  sortDirection?: InboxThreadSortDirection;
 };

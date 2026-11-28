@@ -14,6 +14,11 @@ import { type TimelineThreadsWithTotal } from '~/generated/graphql';
 
 const MANUAL_REVIEW_COUNT_POLL_INTERVAL_MS = 60_000;
 
+const MANUAL_REVIEW_COUNT_QUERIES = [
+  'GetManualReviewCount',
+  'GetManualReviewDoneCount',
+];
+
 export const useManualReview = (doneSince: string) => {
   const apolloCoreClient = useApolloCoreClient();
   const { enqueueToast } = useToast();
@@ -44,10 +49,15 @@ export const useManualReview = (doneSince: string) => {
     ],
   });
 
-  const setDone = async (messageThreadId: string, isDone: boolean) => {
+  const setDone = async (
+    messageThreadId: string,
+    isDone: boolean,
+    refetchQueries?: string[],
+  ) => {
     try {
       await setManualReviewDoneMutation({
         variables: { messageThreadId, isDone },
+        ...(isDefined(refetchQueries) ? { refetchQueries } : {}),
       });
 
       return true;
@@ -66,6 +76,28 @@ export const useManualReview = (doneSince: string) => {
   const markDone = (messageThreadId: string) => setDone(messageThreadId, true);
 
   const undoDone = (messageThreadId: string) => setDone(messageThreadId, false);
+
+  const refetchManualReviewCounts = () =>
+    apolloCoreClient.refetchQueries({ include: MANUAL_REVIEW_COUNT_QUERIES });
+
+  // The Needs review list reloads itself, so only the counts refetch, once.
+  // Stops at the first failure and says which ids were saved before it.
+  const setDoneWithoutListRefetch = async (
+    messageThreadIds: string[],
+    isDone: boolean,
+  ) => {
+    const savedThreadIds: string[] = [];
+
+    for (const messageThreadId of messageThreadIds) {
+      if (!(await setDone(messageThreadId, isDone, []))) {
+        return { savedThreadIds, isComplete: false };
+      }
+
+      savedThreadIds.push(messageThreadId);
+    }
+
+    return { savedThreadIds, isComplete: true };
+  };
 
   const findApplicantThreadId = async (applicantEmail: string) => {
     const { data: threadData } = await apolloCoreClient.query<{
@@ -101,6 +133,8 @@ export const useManualReview = (doneSince: string) => {
     doneSinceCount: doneData?.getManualReviewDoneCount ?? 0,
     markDone,
     undoDone,
+    setDoneWithoutListRefetch,
+    refetchManualReviewCounts,
     findApplicantThreadId,
   };
 };

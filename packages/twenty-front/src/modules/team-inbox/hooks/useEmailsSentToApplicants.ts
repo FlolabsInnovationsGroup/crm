@@ -40,6 +40,7 @@ export const useEmailsSentToApplicants = (
       emails.map((email) => [email.messageThreadId, email]),
     ),
     loading: loading && sortedItems.length > 0,
+    hasLoaded: sortedItems.length === 0 || isDefined(data ?? previousData),
     hasFailed: isDefined(error),
   };
 };

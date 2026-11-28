@@ -1,0 +1,2 @@
+// The server's TIMELINE_THREADS_MAX_PAGE_SIZE.
+export const MANUAL_REVIEW_PAGE_SIZE = 50;

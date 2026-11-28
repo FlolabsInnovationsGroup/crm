@@ -1,7 +1,7 @@
 import { styled } from '@linaria/react';
 import { plural, t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 import {
@@ -236,6 +236,7 @@ type TeamInboxThreadPaneProps = {
   onInitialTemplateApplied: () => void;
   // Set when the reply answers a Needs review card.
   reviewNotice: string | null;
+  reviewBar?: ReactNode;
   onReplySent: (reply: TeamInboxSentReply) => void;
   onToggleClosed: () => Promise<void>;
   onBack: () => void;
@@ -261,6 +262,7 @@ export const TeamInboxThreadPane = ({
   initialTemplateId,
   onInitialTemplateApplied,
   reviewNotice,
+  reviewBar,
   onReplySent,
   onToggleClosed,
   onBack,
@@ -367,6 +369,7 @@ export const TeamInboxThreadPane = ({
         <StyledBackButton type="button" onClick={onBack}>
           {t`Back to list`}
         </StyledBackButton>
+        {reviewBar}
         <StyledHeader>
           <StyledHeading>
             <StyledSubject dir="auto">
