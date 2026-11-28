@@ -1,5 +1,6 @@
 import { styled } from '@linaria/react';
 import { plural, t } from '@lingui/core/macro';
+import { isNonEmptyString } from '@sniptt/guards';
 import { useQuery } from '@apollo/client/react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -13,41 +14,56 @@ import { SkeletonLoader } from '@/activities/components/SkeletonLoader';
 import { ToastOnQueryErrorEffect } from '@/apollo/components/ToastOnQueryErrorEffect';
 import { useFormBuilderFocusHandlers } from '@/form-builder/hooks/useFormBuilderFocusHandlers';
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
+import { TeamInboxApplicantConversations } from '@/team-inbox/components/TeamInboxApplicantConversations';
 import { TeamInboxManualReviewCard } from '@/team-inbox/components/TeamInboxManualReviewCard';
+import { TeamInboxManualReviewRow } from '@/team-inbox/components/TeamInboxManualReviewRow';
+import { TeamInboxManualReviewToolbar } from '@/team-inbox/components/TeamInboxManualReviewToolbar';
 import { TeamInboxMenu } from '@/team-inbox/components/TeamInboxMenu';
 import { TeamInboxReviewHistoryBar } from '@/team-inbox/components/TeamInboxReviewHistoryBar';
 import { TeamInboxThreadListItem } from '@/team-inbox/components/TeamInboxThreadListItem';
 import { TeamInboxThreadPane } from '@/team-inbox/components/TeamInboxThreadPane';
+import { TeamInboxThreadPaneReviewBar } from '@/team-inbox/components/TeamInboxThreadPaneReviewBar';
+import { MANUAL_REVIEW_FILTERS } from '@/team-inbox/constants/ManualReviewFilters';
+import { MANUAL_REVIEW_SORT_DIRECTIONS } from '@/team-inbox/constants/ManualReviewSortDirections';
+import { MANUAL_REVIEW_SORT_STORAGE_KEY } from '@/team-inbox/constants/ManualReviewSortStorageKey';
+import { MANUAL_REVIEW_VIEW_MODE_STORAGE_KEY } from '@/team-inbox/constants/ManualReviewViewModeStorageKey';
+import { MANUAL_REVIEW_VIEW_MODES } from '@/team-inbox/constants/ManualReviewViewModes';
 import { GET_INBOX_MAILBOXES } from '@/team-inbox/graphql/getInboxMailboxes';
 import { useInboxContactPeople } from '@/team-inbox/hooks/useInboxContactPeople';
 import { useInboxEmailTemplates } from '@/team-inbox/hooks/useInboxEmailTemplates';
 import { useInboxPeopleByEmail } from '@/team-inbox/hooks/useInboxPeopleByEmail';
 import { useInboxThreadClosed } from '@/team-inbox/hooks/useInboxThreadClosed';
 import { useManualReview } from '@/team-inbox/hooks/useManualReview';
-import { useEmailsSentToApplicants } from '@/team-inbox/hooks/useEmailsSentToApplicants';
+import { useManualReviewCards } from '@/team-inbox/hooks/useManualReviewCards';
 import { useManualReviewHistoryExport } from '@/team-inbox/hooks/useManualReviewHistoryExport';
+import { useManualReviewScrollPosition } from '@/team-inbox/hooks/useManualReviewScrollPosition';
+import { useManualReviewThreads } from '@/team-inbox/hooks/useManualReviewThreads';
 import { useRecordManualReviewAnswer } from '@/team-inbox/hooks/useRecordManualReviewAnswer';
+import { useTeamInboxPreference } from '@/team-inbox/hooks/useTeamInboxPreference';
 import { useTeamInboxReadState } from '@/team-inbox/hooks/useTeamInboxReadState';
 import { useTeamInboxThreads } from '@/team-inbox/hooks/useTeamInboxThreads';
 import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
+import { type ManualReviewFilter } from '@/team-inbox/types/ManualReviewFilter';
+import { type ManualReviewGroup } from '@/team-inbox/types/ManualReviewGroup';
 import { type ManualReviewHistoryPeriod } from '@/team-inbox/types/ManualReviewHistoryPeriod';
+import { type ManualReviewSortDirection } from '@/team-inbox/types/ManualReviewSortDirection';
+import { type ManualReviewViewMode } from '@/team-inbox/types/ManualReviewViewMode';
 import { type TeamInboxDirection } from '@/team-inbox/types/TeamInboxFilter';
 import { type TeamInboxSentReply } from '@/team-inbox/types/TeamInboxSentReply';
 import {
   buildManualReviewAnswerContext,
   type ManualReviewAnswerContext,
 } from '@/team-inbox/utils/buildManualReviewAnswerContext';
-import { getEmailSentToApplicantItem } from '@/team-inbox/utils/getEmailSentToApplicantItem';
+import { buildManualReviewGroups } from '@/team-inbox/utils/buildManualReviewGroups';
 import { getManualReviewHistorySince } from '@/team-inbox/utils/getManualReviewHistorySince';
-import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
-import { groupReviewItemsByApplicant } from '@/team-inbox/utils/groupReviewItemsByApplicant';
+import { getReviewCardDoneThreadIds } from '@/team-inbox/utils/getReviewCardDoneThreadIds';
 import {
   isTeamInboxApproval,
   isTeamInboxAutomationIssue,
   isTeamInboxQuestion,
-  parseTeamInboxReviewItem,
   type TeamInboxReviewItem,
 } from '@/team-inbox/utils/parseTeamInboxReviewItem';
+import { sortByLastMessage } from '@/team-inbox/utils/sortByLastMessage';
 import { suggestInboxTemplate } from '@/team-inbox/utils/suggestInboxTemplate';
 
 type TeamInboxTab =
@@ -56,20 +72,12 @@ type TeamInboxTab =
   | 'CLOSED'
   | 'SYSTEM'
   | 'MANUAL_REVIEW';
-type ReviewFilter =
-  | 'ALL'
-  | 'QUESTION'
-  | 'NOT_INTERESTED'
-  | 'APPROVAL'
-  | 'AUTOMATION'
-  | 'EMAILED_SINCE'
-  | 'DONE';
 
 const isNotInterested = (item: TeamInboxReviewItem) =>
   item.triage?.reason === 'not interested';
 
 const REVIEW_FILTER_MATCHERS: Partial<
-  Record<ReviewFilter, (item: TeamInboxReviewItem) => boolean>
+  Record<ManualReviewFilter, (item: TeamInboxReviewItem) => boolean>
 > = {
   QUESTION: isTeamInboxQuestion,
   NOT_INTERESTED: isNotInterested,
@@ -78,7 +86,7 @@ const REVIEW_FILTER_MATCHERS: Partial<
 };
 
 // oxlint-disable-next-line lingui/no-unlocalized-strings -- A filter id, not text.
-const ALL_REVIEW_ITEMS: ReviewFilter = 'ALL';
+const ALL_REVIEW_ITEMS: ManualReviewFilter = 'ALL';
 
 const SEARCH_DEBOUNCE_MS = 350;
 
@@ -86,6 +94,10 @@ const SEARCH_DEBOUNCE_MS = 350;
 const MANUAL_REVIEW_ANSWERS_OBJECT = 'manualReviewAnswers';
 const SELECTED_THREAD_PARAM = 'thread';
 const TAB_PARAM = 'tab';
+// In the URL so browser back returns to the same Needs review section.
+const REVIEW_FILTER_PARAM = 'filter';
+// The card a conversation was opened from, for its Done and way back.
+const REVIEW_CARD_PARAM = 'reviewCard';
 const TABS: TeamInboxTab[] = [
   // oxlint-disable-next-line lingui/no-unlocalized-strings -- A tab id, not text.
   'ALL',
@@ -343,6 +355,12 @@ const StyledCardGrid = styled.div`
   grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
 `;
 
+const StyledRowList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
 export const TeamInboxContent = () => {
   const apolloCoreClient = useApolloCoreClient();
   const focusHandlers = useFormBuilderFocusHandlers();
@@ -351,8 +369,21 @@ export const TeamInboxContent = () => {
   const activeTab = TABS.find((tab) => tab === tabParam) ?? TABS[0];
   const isManualReview = activeTab === 'MANUAL_REVIEW';
   const isSystem = activeTab === 'SYSTEM';
-  const [reviewFilter, setReviewFilter] =
-    useState<ReviewFilter>(ALL_REVIEW_ITEMS);
+  const reviewFilterParam = searchParams.get(REVIEW_FILTER_PARAM);
+  const reviewFilter =
+    MANUAL_REVIEW_FILTERS.find((filter) => filter === reviewFilterParam) ??
+    ALL_REVIEW_ITEMS;
+  const reviewCardId = searchParams.get(REVIEW_CARD_PARAM);
+  const [sortDirection, setSortDirection] = useTeamInboxPreference(
+    MANUAL_REVIEW_SORT_STORAGE_KEY,
+    MANUAL_REVIEW_SORT_DIRECTIONS,
+    'NEWEST_FIRST',
+  );
+  const [viewMode, setViewMode] = useTeamInboxPreference(
+    MANUAL_REVIEW_VIEW_MODE_STORAGE_KEY,
+    MANUAL_REVIEW_VIEW_MODES,
+    'CARDS',
+  );
   const [historyPeriod, setHistoryPeriod] =
     useState<ManualReviewHistoryPeriod>('TODAY');
   const doneSince = getManualReviewHistorySince(historyPeriod, new Date());
@@ -365,15 +396,19 @@ export const TeamInboxContent = () => {
     applicantThreadId: string;
     context: ManualReviewAnswerContext;
   } | null>(null);
+  const [markAllProgress, setMarkAllProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const { recordFromReply, recordFromDone } = useRecordManualReviewAnswer();
   const { unreadCount, markThreadRead, markThreadUnread, markAllRead } =
     useTeamInboxReadState();
   const {
     manualReviewCount,
-    isManualReviewCountLoaded,
     doneSinceCount,
     markDone,
-    undoDone,
+    setDoneWithoutListRefetch,
+    refetchManualReviewCounts,
     findApplicantThreadId,
   } = useManualReview(doneSince);
   const { setThreadClosed } = useInboxThreadClosed();
@@ -397,80 +432,85 @@ export const TeamInboxContent = () => {
     isFetchingMore,
     error,
     fetchMoreThreads,
-  } = useTeamInboxThreads({
-    direction:
-      activeTab === 'UNREAD' ||
-      activeTab === 'CLOSED' ||
-      activeTab === 'SYSTEM' ||
-      activeTab === 'MANUAL_REVIEW'
-        ? 'ALL'
-        : activeTab,
-    unreadOnly: activeTab === 'UNREAD',
-    closedOnly: activeTab === 'CLOSED',
-    manualReview: isManualReview,
-    system: isSystem,
-    manualReviewDoneSince: isShowingDone ? doneSince : null,
-    messageChannelId:
-      messageChannelId === ALL_MAILBOXES ? null : messageChannelId,
-    searchTerm,
-  });
+  } = useTeamInboxThreads(
+    {
+      direction:
+        activeTab === 'UNREAD' ||
+        activeTab === 'CLOSED' ||
+        activeTab === 'SYSTEM' ||
+        activeTab === 'MANUAL_REVIEW'
+          ? 'ALL'
+          : activeTab,
+      unreadOnly: activeTab === 'UNREAD',
+      closedOnly: activeTab === 'CLOSED',
+      manualReview: isManualReview,
+      system: isSystem,
+      manualReviewDoneSince: isShowingDone ? doneSince : null,
+      messageChannelId:
+        messageChannelId === ALL_MAILBOXES ? null : messageChannelId,
+      searchTerm,
+    },
+    // Needs review loads every page itself, below.
+    { skip: isManualReview },
+  );
 
   const mailboxes = mailboxData?.getInboxMailboxes ?? [];
   const ownHandles = mailboxes.map((mailbox) => mailbox.handle);
 
-  const reviewItems = isManualReview
-    ? threads.map((thread) => ({
-        thread,
-        item: parseTeamInboxReviewItem(thread.subject, thread.lastMessageBody),
-        reply: parseManualReviewBody(thread.lastMessageBody).reply,
-      }))
+  const openCards = useManualReviewCards({
+    sortDirection,
+    skip: !isManualReview && !isDefined(reviewCardId),
+  });
+  const doneThreads = useManualReviewThreads({
+    doneSince,
+    sortDirection,
+    skip: !isShowingDone,
+  });
+  const doneGroups = isShowingDone
+    ? buildManualReviewGroups(doneThreads.threads)
     : [];
-  // Grouped before filtering, so a card and its Done cover the same emails
-  // whichever filter is open.
-  const reviewGroups = groupReviewItemsByApplicant(reviewItems);
+
   // A card counts for a filter when any item folded into it does.
   const groupMatches = (
-    group: (typeof reviewGroups)[number],
+    group: ManualReviewGroup,
     matches: (item: TeamInboxReviewItem) => boolean,
   ) => [group, ...group.earlier].some(({ item }) => matches(item));
   const countReviewItems = (matches: (item: TeamInboxReviewItem) => boolean) =>
-    reviewGroups.filter((group) => groupMatches(group, matches)).length;
-  const {
-    emailsByThreadId: emailsSentToApplicants,
-    loading: isLoadingEmailsSent,
-    hasFailed: hasEmailsSentFailed,
-  } = useEmailsSentToApplicants(
-    isShowingDone
-      ? []
-      : reviewGroups
-          .map((group) =>
-            getEmailSentToApplicantItem([group, ...group.earlier]),
-          )
-          .filter(isDefined),
-  );
-  // An email to the applicant after their card often means someone answered
-  // outside it; it may also be automated, so a person checks before Done.
-  const getEmailSentSinceCard = (group: (typeof reviewGroups)[number]) => {
-    const lookup = getEmailSentToApplicantItem([group, ...group.earlier]);
-
-    return isDefined(lookup)
-      ? (emailsSentToApplicants.get(lookup.messageThreadId) ?? null)
-      : null;
-  };
-  const emailedSinceCount = reviewGroups.filter((group) =>
-    isDefined(getEmailSentSinceCard(group)),
-  ).length;
+    openCards.toHandle.filter((group) => groupMatches(group, matches)).length;
   const activeReviewMatcher = REVIEW_FILTER_MATCHERS[reviewFilter];
-  const visibleReviewItems =
-    reviewFilter === 'EMAILED_SINCE'
-      ? reviewGroups.filter((group) => isDefined(getEmailSentSinceCard(group)))
-      : isDefined(activeReviewMatcher)
-        ? reviewGroups.filter((group) =>
-            groupMatches(group, activeReviewMatcher),
-          )
-        : reviewGroups;
+  const visibleReviewGroups = sortByLastMessage(
+    isShowingDone
+      ? doneGroups
+      : reviewFilter === 'EMAILED_SINCE'
+        ? openCards.emailedSince
+        : isDefined(activeReviewMatcher)
+          ? openCards.toHandle.filter((group) =>
+              groupMatches(group, activeReviewMatcher),
+            )
+          : openCards.toHandle,
+    sortDirection,
+  );
+  const visibleReviewList = isShowingDone ? doneThreads : openCards;
+  const isReviewListLoading =
+    visibleReviewList.isFirstLoad ||
+    (!isShowingDone && !openCards.isSplitReady);
+
+  const { containerRef, handleScroll, scrollToStart, scrollToEnd } =
+    useManualReviewScrollPosition({
+      viewKey: `${reviewFilter}:${sortDirection}:${viewMode}`,
+      renderedCardIds: isReviewListLoading
+        ? []
+        : visibleReviewGroups.map(({ thread }) => thread.id),
+      canSave: visibleReviewList.isComplete,
+    });
+
   const peopleByEmail = useInboxPeopleByEmail(
-    reviewItems.map(({ item }) => item.applicantEmail).filter(isDefined),
+    isManualReview
+      ? [...openCards.groups, ...doneGroups]
+          .flatMap((group) => [group, ...group.earlier])
+          .map(({ item }) => item.applicantEmail)
+          .filter(isDefined)
+      : [],
   );
 
   const contactPeople = useInboxContactPeople(
@@ -483,28 +523,56 @@ export const TeamInboxContent = () => {
   const selectedThread = threads.find(
     (thread) => thread.id === selectedThreadId,
   );
+  const reviewCardGroup = isDefined(reviewCardId)
+    ? openCards.groups.find((group) =>
+        [group, ...group.earlier].some(
+          ({ thread }) => thread.id === reviewCardId,
+        ),
+      )
+    : undefined;
 
-  const updateParams = (params: {
+  const updateParams = ({
+    tab,
+    threadId,
+    reviewCardId: nextReviewCardId = null,
+    reviewFilter: nextReviewFilter,
+    replace = true,
+  }: {
     tab?: TeamInboxTab;
     threadId: string | null;
+    reviewCardId?: string | null;
+    reviewFilter?: ManualReviewFilter;
+    replace?: boolean;
   }) =>
     setSearchParams(
       (previous) => {
         const next = new URLSearchParams(previous);
 
-        if (isDefined(params.tab)) {
-          next.set(TAB_PARAM, params.tab);
+        if (isDefined(tab)) {
+          next.set(TAB_PARAM, tab);
         }
 
-        if (isDefined(params.threadId)) {
-          next.set(SELECTED_THREAD_PARAM, params.threadId);
+        if (isDefined(threadId)) {
+          next.set(SELECTED_THREAD_PARAM, threadId);
         } else {
           next.delete(SELECTED_THREAD_PARAM);
         }
 
+        if (isDefined(nextReviewCardId)) {
+          next.set(REVIEW_CARD_PARAM, nextReviewCardId);
+        } else {
+          next.delete(REVIEW_CARD_PARAM);
+        }
+
+        if (nextReviewFilter === ALL_REVIEW_ITEMS) {
+          next.delete(REVIEW_FILTER_PARAM);
+        } else if (isDefined(nextReviewFilter)) {
+          next.set(REVIEW_FILTER_PARAM, nextReviewFilter);
+        }
+
         return next;
       },
-      { replace: true },
+      { replace },
     );
 
   const selectThread = (threadId: string | null) => updateParams({ threadId });
@@ -540,11 +608,35 @@ export const TeamInboxContent = () => {
 
   const handleTabChange = (tab: TeamInboxTab) => {
     setPendingReview(null);
-    setReviewFilter(ALL_REVIEW_ITEMS);
-    updateParams({ tab, threadId: null });
+    updateParams({ tab, threadId: null, reviewFilter: ALL_REVIEW_ITEMS });
+  };
+
+  // A section opens at its top unless it has a saved position to restore.
+  const handleReviewFilterChange = (filter: ManualReviewFilter) => {
+    scrollToStart();
+    updateParams({ threadId: null, reviewFilter: filter });
+  };
+
+  const handleSortDirectionChange = (
+    nextSortDirection: ManualReviewSortDirection,
+  ) => {
+    scrollToStart();
+    setSortDirection(nextSortDirection);
+  };
+
+  const handleViewModeChange = (nextViewMode: ManualReviewViewMode) => {
+    scrollToStart();
+    setViewMode(nextViewMode);
+  };
+
+  // The filter stays in the URL, so this lands on the section it came from.
+  const handleBackToReview = () => {
+    setPendingReview(null);
+    updateParams({ tab: 'MANUAL_REVIEW', threadId: null });
   };
 
   const handleReplyToApplicant = async (
+    group: ManualReviewGroup,
     context: ManualReviewAnswerContext,
     templateId: string | null,
   ) => {
@@ -558,7 +650,13 @@ export const TeamInboxContent = () => {
 
     setPendingTemplate(isDefined(templateId) ? { threadId, templateId } : null);
     setPendingReview({ applicantThreadId: threadId, context });
-    updateParams({ tab: TABS[0], threadId });
+    // Pushed, so browser back returns to the card.
+    updateParams({
+      tab: TABS[0],
+      threadId,
+      reviewCardId: group.thread.id,
+      replace: false,
+    });
   };
 
   // Only the applicant's own emails close; an approval in the same card still
@@ -581,11 +679,80 @@ export const TeamInboxContent = () => {
       }
     }
 
+    openCards.removeThreads(context.applicantMessageThreadIds);
+
     await recordFromReply(
       context,
       reply.text,
       templates.find(({ id }) => id === reply.templateId)?.name ?? null,
     );
+  };
+
+  // The same for a card's Done, a list row, the thread pane and Mark all.
+  const setGroupDone = async (group: ManualReviewGroup, isUndo: boolean) => {
+    const threadIds = getReviewCardDoneThreadIds(group, isUndo);
+
+    if (!(await setDoneWithoutListRefetch(threadIds, !isUndo))) {
+      return false;
+    }
+
+    (isUndo ? doneThreads : openCards).removeThreads(threadIds);
+
+    const answerContext = buildManualReviewAnswerContext([
+      group,
+      ...group.earlier,
+    ]);
+
+    if (!isUndo && isDefined(answerContext)) {
+      await recordFromDone(answerContext);
+    }
+
+    return true;
+  };
+
+  const refreshAfterDone = async () => {
+    await refetchManualReviewCounts();
+    openCards.reload();
+
+    if (isShowingDone) {
+      doneThreads.reload();
+    }
+  };
+
+  const handleToggleGroupDone = async (group: ManualReviewGroup) => {
+    await setGroupDone(group, isShowingDone);
+    await refreshAfterDone();
+  };
+
+  const handlePaneReviewDone = isDefined(reviewCardGroup)
+    ? async () => {
+        const isSaved = await setGroupDone(reviewCardGroup, false);
+
+        if (isSaved) {
+          handleBackToReview();
+        }
+
+        await refreshAfterDone();
+      }
+    : null;
+
+  const handleMarkAllEmailedSinceDone = async () => {
+    const groups = sortByLastMessage(openCards.emailedSince, sortDirection);
+
+    setMarkAllProgress({ done: 0, total: groups.length });
+
+    try {
+      for (const [index, group] of groups.entries()) {
+        if (!(await setGroupDone(group, false))) {
+          break;
+        }
+
+        setMarkAllProgress({ done: index + 1, total: groups.length });
+      }
+    } finally {
+      setMarkAllProgress(null);
+      await refreshAfterDone();
+    }
   };
 
   const tabs: {
@@ -613,63 +780,136 @@ export const TeamInboxContent = () => {
     },
   ];
 
-  // Reason counts come from the loaded cards, so they show only when every
-  // open card is loaded.
-  const areReasonCountsExact =
-    !isFirstLoad && !isShowingDone && threads.length >= totalNumberOfThreads;
+  // Counts are of cards (one per applicant), so they show once every open
+  // review email is loaded and checked for emails sent since.
+  const areReviewCountsExact = openCards.isComplete && openCards.isSplitReady;
 
+  const toHandleCount = openCards.toHandle.length;
+  const emailedSinceCount = openCards.emailedSince.length;
   const questionCount = countReviewItems(isTeamInboxQuestion);
   const notInterestedCount = countReviewItems(isNotInterested);
   const approvalCount = countReviewItems(isTeamInboxApproval);
   const automationCount = countReviewItems(isTeamInboxAutomationIssue);
 
-  // Cards are grouped, so once all are loaded the counts follow the cards.
-  const reviewCardCount = areReasonCountsExact
-    ? reviewGroups.length
-    : manualReviewCount;
-
-  const reviewFilters: { id: ReviewFilter; label: string }[] = [
+  const reviewFilters: { id: ManualReviewFilter; label: string }[] = [
     {
       id: ALL_REVIEW_ITEMS,
-      label: isManualReviewCountLoaded ? t`All · ${reviewCardCount}` : t`All`,
+      label: areReviewCountsExact ? t`All · ${toHandleCount}` : t`All`,
     },
     {
       id: 'QUESTION',
-      label: areReasonCountsExact
+      label: areReviewCountsExact
         ? t`Questions · ${questionCount}`
         : t`Questions`,
     },
     {
       id: 'NOT_INTERESTED',
-      label: areReasonCountsExact
+      label: areReviewCountsExact
         ? t`Not interested · ${notInterestedCount}`
         : t`Not interested`,
     },
     {
       id: 'APPROVAL',
-      label: areReasonCountsExact
+      label: areReviewCountsExact
         ? t`Approvals · ${approvalCount}`
         : t`Approvals`,
     },
     {
       id: 'AUTOMATION',
-      label: areReasonCountsExact
+      label: areReviewCountsExact
         ? t`Automation issues · ${automationCount}`
         : t`Automation issues`,
     },
     {
       id: 'EMAILED_SINCE',
       label:
-        areReasonCountsExact && !isLoadingEmailsSent && !hasEmailsSentFailed
+        areReviewCountsExact && !openCards.hasEmailsSentFailed
           ? t`Emailed since · ${emailedSinceCount}`
           : t`Emailed since`,
     },
     { id: 'DONE', label: t`Done · ${doneSinceCount}` },
   ];
 
+  const openCardCount = openCards.groups.length;
+  const reviewEmailCount = openCards.totalNumberOfThreads;
+  const loadedReviewEmailCount = openCards.threads.length;
+  const openCardsLabel = plural(openCardCount, {
+    one: '# applicant card',
+    other: '# applicant cards',
+  });
+  const reviewEmailsLabel = plural(reviewEmailCount, {
+    one: '# review email',
+    other: '# review emails',
+  });
+  const reviewSummary = isShowingDone
+    ? null
+    : !openCards.isComplete
+      ? t`Loading every review email…`
+      : openCards.isTruncated
+        ? t`Showing ${loadedReviewEmailCount} of ${reviewEmailCount} review emails`
+        : t`${openCardsLabel} from ${reviewEmailsLabel}`;
+
+  const isOldestAtEnd = sortDirection === 'NEWEST_FIRST';
+
   const selectedMailbox = mailboxes.find(
     (mailbox) => mailbox.id === messageChannelId,
   );
+
+  const renderReviewCard = (group: ManualReviewGroup) => {
+    const { thread, item, earlier } = group;
+    const answerContext = buildManualReviewAnswerContext([group, ...earlier]);
+    const newestApplicantMessage = [group, ...earlier].find((entry) =>
+      isDefined(entry.item.triage),
+    );
+    const suggestedTemplate = isDefined(newestApplicantMessage?.item.triage)
+      ? suggestInboxTemplate({
+          reason: newestApplicantMessage.item.triage.reason,
+          replyText: newestApplicantMessage.reply,
+          templates,
+        })
+      : null;
+    const emailSentSinceCard = isShowingDone
+      ? null
+      : openCards.getEmailSentSinceCard(group);
+    const person = isDefined(item.applicantEmail)
+      ? peopleByEmail.get(item.applicantEmail.toLowerCase())
+      : undefined;
+    const handleReply = (templateId: string | null) => {
+      if (isDefined(answerContext)) {
+        handleReplyToApplicant(group, answerContext, templateId);
+      }
+    };
+
+    return (
+      <div key={thread.id} data-review-card-id={thread.id}>
+        {viewMode === 'LIST' ? (
+          <TeamInboxManualReviewRow
+            thread={thread}
+            item={item}
+            earlier={earlier}
+            emailSentSinceCard={emailSentSinceCard}
+            person={person}
+            suggestedTemplateId={suggestedTemplate?.id ?? null}
+            isDone={isShowingDone}
+            onReply={handleReply}
+            onToggleDone={() => handleToggleGroupDone(group)}
+          />
+        ) : (
+          <TeamInboxManualReviewCard
+            thread={thread}
+            item={item}
+            earlier={earlier}
+            emailSentSinceCard={emailSentSinceCard}
+            person={person}
+            suggestedTemplate={suggestedTemplate}
+            isDone={isShowingDone}
+            onReply={handleReply}
+            onToggleDone={() => handleToggleGroupDone(group)}
+          />
+        )}
+      </div>
+    );
+  };
 
   if (isManualReview) {
     return (
@@ -677,8 +917,8 @@ export const TeamInboxContent = () => {
         onFocusCapture={focusHandlers.onFocusCapture}
         onBlurCapture={focusHandlers.onBlurCapture}
       >
-        <ToastOnQueryErrorEffect error={error} />
-        <StyledReviewLayout>
+        <ToastOnQueryErrorEffect error={visibleReviewList.error} />
+        <StyledReviewLayout ref={containerRef} onScroll={handleScroll}>
           <StyledReviewHeader>
             <StyledReviewIntro>
               <StyledBreadcrumb aria-label={t`Breadcrumb`}>
@@ -692,10 +932,10 @@ export const TeamInboxContent = () => {
                 <strong>{t`Needs review`}</strong>
               </StyledBreadcrumb>
               <StyledTitle size={28}>
-                {!isManualReviewCountLoaded
+                {!areReviewCountsExact
                   ? t`Needs review`
-                  : reviewCardCount > 0
-                    ? plural(reviewCardCount, {
+                  : toHandleCount > 0
+                    ? plural(toHandleCount, {
                         one: '# item needs a person',
                         other: '# items need a person',
                       })
@@ -721,7 +961,7 @@ export const TeamInboxContent = () => {
                   aria-selected={reviewFilter === filter.id}
                   isActive={reviewFilter === filter.id}
                   tone="surface"
-                  onClick={() => setReviewFilter(filter.id)}
+                  onClick={() => handleReviewFilterChange(filter.id)}
                 >
                   {filter.label}
                 </StyledTab>
@@ -736,99 +976,45 @@ export const TeamInboxContent = () => {
               />
             )}
           </StyledReviewHeader>
-          {isFirstLoad ||
-          (reviewFilter === 'EMAILED_SINCE' &&
-            isLoadingEmailsSent &&
-            visibleReviewItems.length === 0) ? (
+          <TeamInboxManualReviewToolbar
+            sortDirection={sortDirection}
+            viewMode={viewMode}
+            summary={reviewSummary}
+            markAllDone={
+              reviewFilter === 'EMAILED_SINCE' && areReviewCountsExact
+                ? {
+                    cardCount: emailedSinceCount,
+                    progress: markAllProgress,
+                    onConfirm: () => {
+                      handleMarkAllEmailedSinceDone();
+                    },
+                  }
+                : null
+            }
+            onSortDirectionChange={handleSortDirectionChange}
+            onViewModeChange={handleViewModeChange}
+            onJumpToNewest={isOldestAtEnd ? scrollToStart : scrollToEnd}
+            onJumpToOldest={isOldestAtEnd ? scrollToEnd : scrollToStart}
+          />
+          {isReviewListLoading ? (
             <SkeletonLoader />
-          ) : visibleReviewItems.length === 0 ? (
+          ) : visibleReviewGroups.length === 0 ? (
             <StyledEmpty>
               {isShowingDone
                 ? t`Nothing marked done in this period.`
                 : reviewFilter === 'EMAILED_SINCE'
-                  ? hasEmailsSentFailed
+                  ? openCards.hasEmailsSentFailed
                     ? t`Could not check the emails sent to applicants. Try again later.`
                     : t`No card has an email sent to the applicant since it arrived.`
                   : t`Nothing needs a manual review.`}
             </StyledEmpty>
+          ) : viewMode === 'LIST' ? (
+            <StyledRowList>
+              {visibleReviewGroups.map(renderReviewCard)}
+            </StyledRowList>
           ) : (
             <StyledCardGrid>
-              {visibleReviewItems.map((group) => {
-                const { thread, item, earlier } = group;
-                const answerContext = buildManualReviewAnswerContext([
-                  group,
-                  ...earlier,
-                ]);
-                const newestApplicantMessage = [group, ...earlier].find(
-                  (entry) => isDefined(entry.item.triage),
-                );
-
-                return (
-                  <TeamInboxManualReviewCard
-                    key={thread.id}
-                    thread={thread}
-                    item={item}
-                    earlier={earlier}
-                    emailSentSinceCard={getEmailSentSinceCard(group)}
-                    person={
-                      isDefined(item.applicantEmail)
-                        ? peopleByEmail.get(item.applicantEmail.toLowerCase())
-                        : undefined
-                    }
-                    suggestedTemplate={
-                      isDefined(newestApplicantMessage?.item.triage)
-                        ? suggestInboxTemplate({
-                            reason: newestApplicantMessage.item.triage.reason,
-                            replyText: newestApplicantMessage.reply,
-                            templates,
-                          })
-                        : null
-                    }
-                    isDone={isShowingDone}
-                    onReply={(templateId) => {
-                      if (isDefined(answerContext)) {
-                        handleReplyToApplicant(answerContext, templateId);
-                      }
-                    }}
-                    onToggleDone={async () => {
-                      // The visible card goes last so it stays on screen
-                      // until the whole group is saved. An approval on a
-                      // card with a reply still waits for its own button,
-                      // so Done closes it only once it is all that is left.
-                      const entries = [...earlier, group];
-                      const hasOtherItems = entries.some(
-                        (entry) => !isTeamInboxApproval(entry.item),
-                      );
-                      const threadIds = entries
-                        .filter(
-                          (entry) =>
-                            isShowingDone ||
-                            !hasOtherItems ||
-                            !isTeamInboxApproval(entry.item),
-                        )
-                        .map((entry) => entry.thread.id);
-
-                      for (const threadId of threadIds) {
-                        const isSaved = await (isShowingDone
-                          ? undoDone(threadId)
-                          : markDone(threadId));
-
-                        if (!isSaved) {
-                          return;
-                        }
-                      }
-
-                      if (!isShowingDone && isDefined(answerContext)) {
-                        await recordFromDone(answerContext);
-                      }
-                    }}
-                  />
-                );
-              })}
-              <CustomResolverFetchMoreLoader
-                loading={isFetchingMore}
-                onLastRowVisible={fetchMoreThreads}
-              />
+              {visibleReviewGroups.map(renderReviewCard)}
             </StyledCardGrid>
           )}
         </StyledReviewLayout>
@@ -968,9 +1154,38 @@ export const TeamInboxContent = () => {
               ? t`Answering a Needs review card: sending this reply marks it done and saves the question and answer.`
               : null
           }
+          reviewBar={
+            isDefined(reviewCardId) ? (
+              <>
+                <TeamInboxThreadPaneReviewBar
+                  onDone={handlePaneReviewDone}
+                  onBack={handleBackToReview}
+                />
+                {isNonEmptyString(reviewCardGroup?.item.applicantEmail) && (
+                  <TeamInboxApplicantConversations
+                    applicantEmail={reviewCardGroup.item.applicantEmail}
+                    selectedThreadId={selectedThreadId}
+                    onSelect={(threadId) =>
+                      updateParams({
+                        threadId,
+                        reviewCardId,
+                        replace: false,
+                      })
+                    }
+                  />
+                )}
+              </>
+            ) : null
+          }
           onReplySent={handleReviewReplySent}
           onToggleClosed={() => handleToggleClosed(selectedThreadId)}
           onBack={() => {
+            if (isDefined(reviewCardId)) {
+              handleBackToReview();
+
+              return;
+            }
+
             setPendingReview(null);
             selectThread(null);
           }}

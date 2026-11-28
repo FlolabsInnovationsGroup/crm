@@ -8,9 +8,11 @@ import { IconFileText } from 'twenty-ui/icon';
 
 import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { TeamInboxAvatar } from '@/team-inbox/components/TeamInboxAvatar';
+import { TeamInboxCopyEmail } from '@/team-inbox/components/TeamInboxCopyEmail';
 import { type InboxPersonByEmail } from '@/team-inbox/hooks/useInboxPeopleByEmail';
 import { type EmailSentToApplicant } from '@/team-inbox/types/EmailSentToApplicant';
 import { getApprovalApplicantSummary } from '@/team-inbox/utils/getApprovalApplicantSummary';
+import { getManualReviewReasonBadge } from '@/team-inbox/utils/getManualReviewReasonBadge';
 import { getTeamInboxReviewAdvice } from '@/team-inbox/utils/getTeamInboxReviewAdvice';
 import { getTeamInboxReviewExcerpt } from '@/team-inbox/utils/getTeamInboxReviewExcerpt';
 import { parseManualReviewBody } from '@/team-inbox/utils/parseManualReviewBody';
@@ -220,36 +222,6 @@ type TeamInboxManualReviewCardProps = {
   onToggleDone: () => Promise<void>;
 };
 
-const getReasonBadge = (
-  item: TeamInboxReviewItem,
-): { label: string; tone: 'warn' | 'quiet' } | null => {
-  switch (item.kind) {
-    case 'REPLY_TRIAGE': {
-      const reason = item.triage?.reason ?? '';
-
-      if (!isNonEmptyString(reason)) {
-        return null;
-      }
-
-      return reason === 'question'
-        ? { label: t`Question`, tone: 'warn' }
-        : reason === 'not interested'
-          ? { label: t`Not interested`, tone: 'quiet' }
-          : { label: reason, tone: 'warn' };
-    }
-    case 'STUCK_APPLICANT':
-      return { label: t`Stuck`, tone: 'warn' };
-    case 'FORM_1_APPROVAL':
-      return { label: t`Form 1 approval`, tone: 'warn' };
-    case 'ORIENTATION_APPROVAL':
-      return { label: t`Orientation approval`, tone: 'warn' };
-    case 'OTHER':
-      return null;
-    default:
-      return { label: t`Automation issue`, tone: 'warn' };
-  }
-};
-
 export const TeamInboxManualReviewCard = ({
   thread,
   item,
@@ -287,7 +259,7 @@ export const TeamInboxManualReviewCard = ({
   const applicantSummary = isDefined(person)
     ? getApprovalApplicantSummary(person)
     : [];
-  const badge = getReasonBadge(item);
+  const badge = getManualReviewReasonBadge(item);
   const name = isNonEmptyString(person?.name)
     ? person.name
     : (applicantEmail ?? t`Applicant`);
@@ -342,6 +314,9 @@ export const TeamInboxManualReviewCard = ({
           <StyledReason tone={badge.tone}>{badge.label}</StyledReason>
         )}
       </StyledHeader>
+      {isNonEmptyString(applicantEmail) && (
+        <TeamInboxCopyEmail email={applicantEmail} />
+      )}
       {isNonEmptyString(quote) && (
         <StyledQuote dir="auto">{isTriage ? `“${quote}”` : quote}</StyledQuote>
       )}
@@ -372,7 +347,7 @@ export const TeamInboxManualReviewCard = ({
         earlier.map((entry) =>
           isTeamInboxApproval(entry.item) ? (
             <StyledAdviceText key={entry.thread.id}>
-              {getReasonBadge(entry.item)?.label}
+              {getManualReviewReasonBadge(entry.item)?.label}
             </StyledAdviceText>
           ) : isNonEmptyString(entry.reply) ? (
             <StyledQuote key={entry.thread.id} dir="auto">

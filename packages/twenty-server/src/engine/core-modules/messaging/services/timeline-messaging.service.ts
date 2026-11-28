@@ -176,7 +176,7 @@ export class TimelineMessagingService {
         .addSelect('MAX(messages.receivedAt)', 'max_received_at')
         .innerJoin('messageThread.messages', 'messages')
         .groupBy('messageThread.id')
-        .orderBy('max_received_at', 'DESC')
+        .orderBy('max_received_at', inboxFilter?.sortDirection ?? 'DESC')
         .offset(offset)
         .limit(pageSize);
 
@@ -282,7 +282,7 @@ export class TimelineMessagingService {
 
       const messageThreadIds = threadIdsQuery.map((thread) => thread.id);
 
-      const messageThreads = await messageThreadRepository.find({
+      const foundMessageThreads = await messageThreadRepository.find({
         where: {
           id: In(messageThreadIds),
         },
@@ -293,6 +293,15 @@ export class TimelineMessagingService {
         },
         relations: ['messages'],
       });
+      // find() returns threads newest first whatever the page order was.
+      const messageThreads =
+        inboxFilter?.sortDirection === 'ASC'
+          ? [...foundMessageThreads].sort(
+              (first, second) =>
+                messageThreadIds.indexOf(first.id) -
+                messageThreadIds.indexOf(second.id),
+            )
+          : foundMessageThreads;
 
       return {
         messageThreads: messageThreads.map((messageThread) => {

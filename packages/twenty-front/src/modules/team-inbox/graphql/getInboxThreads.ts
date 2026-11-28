@@ -14,6 +14,7 @@ export const GET_INBOX_THREADS = gql`
     $system: Boolean
     $closed: Boolean
     $manualReviewDoneSince: DateTime
+    $sortDirection: String
   ) {
     getInboxThreads(
       page: $page
@@ -26,6 +27,7 @@ export const GET_INBOX_THREADS = gql`
       system: $system
       closed: $closed
       manualReviewDoneSince: $manualReviewDoneSince
+      sortDirection: $sortDirection
     ) {
       ...TimelineThreadsWithTotalFragment
       timelineThreads {

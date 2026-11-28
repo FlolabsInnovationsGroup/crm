@@ -26,7 +26,10 @@ import { TeamInboxManualReviewService } from 'src/engine/core-modules/messaging/
 import { TeamInboxReadStateService } from 'src/engine/core-modules/messaging/services/team-inbox-read-state.service';
 import { TimelineMessagingService } from 'src/engine/core-modules/messaging/services/timeline-messaging.service';
 import { isTeamInboxThreadRead } from 'src/engine/core-modules/messaging/utils/team-inbox-read-state.util';
-import { type InboxThreadDirection } from 'src/engine/core-modules/messaging/types/inbox-thread-filter.type';
+import {
+  type InboxThreadDirection,
+  type InboxThreadSortDirection,
+} from 'src/engine/core-modules/messaging/types/inbox-thread-filter.type';
 import { UserService } from 'src/engine/core-modules/user/services/user.service';
 import { type AuthContextUser } from 'src/engine/core-modules/auth/types/auth-context.type';
 import { AuthGraphqlApiExceptionFilter } from 'src/engine/core-modules/auth/filters/auth-graphql-api-exception.filter';
@@ -100,6 +103,11 @@ class GetInboxThreadsArgs {
   @Field(() => Date, { nullable: true })
   @IsOptional()
   manualReviewDoneSince?: Date;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsIn(['ASC', 'DESC'])
+  sortDirection?: InboxThreadSortDirection;
 }
 
 @ArgsType()
@@ -239,7 +247,7 @@ export class TimelineMessagingResolver {
     );
   }
 
-  // FloLabs team inbox: every mailbox's threads, newest first. Thread
+  // FloLabs team inbox: every mailbox's threads, newest first by default. Thread
   // visibility still follows each mailbox's sharing setting.
   @Query(() => TimelineThreadsWithTotalDTO)
   async getInboxThreads(
@@ -257,6 +265,7 @@ export class TimelineMessagingResolver {
       system,
       closed,
       manualReviewDoneSince,
+      sortDirection,
     }: GetInboxThreadsArgs,
   ) {
     const workspaceMember = await this.userService.loadWorkspaceMember(
@@ -315,6 +324,7 @@ export class TimelineMessagingResolver {
         closed: isClosedFilterApplied
           ? { threadIds: closedThreadIds, only: closed === true }
           : undefined,
+        sortDirection,
       },
     );
 
