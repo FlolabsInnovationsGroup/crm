@@ -136,14 +136,14 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 | Item | Status |
 | --- | --- |
 | 1 | Solved (27 Nov) |
-| 2 | Merged and deployed (#40, #43); report of people reminded after replying ready (67 reminders, 59 people). Left: send it to Nago, Mani adds the check to the reminder workflows |
+| 2 | Merged and deployed (#40, #43); report of people reminded after replying ready (67 reminders, 59 people). Left: send it to Nago; Mani adds the reply check to the n8n "CRM Reminders" workflow (checked 28 Nov: it still re-checks only the stage before sending) |
 | 3 | Pull request #26 merged and deployed |
-| 4 | Pull request #28 merged and deployed. Added on 27 Nov: a reply from a card closes it, one card per applicant, the Manual review answers list (#35, #37), and the email sent since each card (#39) |
+| 4 | Pull request #28 merged and deployed. Added on 27 Nov: a reply from a card closes it, one card per applicant, the Manual review answers list (#35, #37), and the email sent since each card (#39). Added on 28 Nov: Needs review reworked (#54): an Emailed since section with Mark all as done, counts per applicant, sort, the full list, a List view and Done inside the conversation; a signature per mailbox for Team inbox replies (#53) |
 | 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook set up |
 | 5b | Pull request #31 merged and deployed; 7 disputes found in the last year (3 lost, 2 open, 2 won) |
 | 6 | Live on 27 Nov: Calendly bookings synced, days to meeting and days to booking on each person (#32, #33, #34, #38). Last 6 months: 59 days to the meeting at the median, 37 of them before the applicant books |
 | 7 | Applicant details on the approval card merged (#41). Left: Mani's n8n change for the interviewer pair; time zone needs a field on the application form |
-| 8 | Agreement templates in the CRM (#42, merged). Documenso setup script merged (#45), review fixes in #46. Send agreement built: server and the Agreements page, reviewed, pull requests open. Left: the `sign` DNS record, running the script, the Documenso token and webhook, a Documenso account for the FloLabs signer, then a test with a +crmtest address |
+| 8 | Live and tested on 28 Nov. Documenso runs at sign.flolabsinnovations.com (#45, #46, #49); agreement templates (#42) and Send agreement (#47, #48, #51, #52) are in the CRM. A test agreement went through end to end: both signatures, the countersign email to hr@, the signed copy to the intern and the signed files on the person. Left: John's Documenso account, then the FloLabs signer moves from hr@ to John with a new webhook secret, sign-up is closed, the TEST template is deleted, and the 5 Dropbox Sign templates are moved in |
 
 ## Item 6: bookings read from Calendly (decided 27 Nov)
 
