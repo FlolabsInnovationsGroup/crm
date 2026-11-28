@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 
 import { isNonEmptyString } from '@sniptt/guards';
 import chunk from 'lodash.chunk';
-import { FIELD_RESTRICTED_ADDITIONAL_PERMISSIONS_REQUIRED } from 'twenty-shared/constants';
 import { MessageParticipantRole } from 'twenty-shared/types';
 import {
   escapeForIlike,
@@ -10,7 +10,7 @@ import {
   isNonEmptyArray,
   isValidUuid,
 } from 'twenty-shared/utils';
-import { ILike, In } from 'typeorm';
+import { ILike, In, type Repository } from 'typeorm';
 
 import {
   APPLICANT_EMAIL_HISTORY_MAX_CANDIDATES,
@@ -18,15 +18,19 @@ import {
 } from 'src/engine/core-modules/messaging/constants/applicant-email-history.constants';
 import { type ApplicantEmailHistoryDTO } from 'src/engine/core-modules/messaging/dtos/applicant-email-history.dto';
 import { TeamInboxManualReviewHistoryService } from 'src/engine/core-modules/messaging/services/team-inbox-manual-review-history.service';
+import { getFullyVisibleMessageIds } from 'src/engine/core-modules/messaging/utils/get-fully-visible-message-ids.util';
 import {
   type ApplicantMatcher,
   type HistoryParticipant,
   isApplicantParticipant,
   toApplicantEmailHistoryMessage,
 } from 'src/engine/core-modules/messaging/utils/to-applicant-email-history-message.util';
+import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
+import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
+import { MessageChannelEntity } from 'src/engine/metadata-modules/message-channel/entities/message-channel.entity';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
-import { ApplyMessagesVisibilityRestrictionsService } from 'src/modules/messaging/common/query-hooks/message/apply-messages-visibility-restrictions.service';
+import { type MessageChannelMessageAssociationWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-channel-message-association.workspace-entity';
 import { type MessageParticipantWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-participant.workspace-entity';
 import { type MessageWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message.workspace-entity';
 
@@ -50,9 +54,6 @@ const EMPTY_HISTORY: ApplicantEmailHistoryDTO = {
   isTruncated: false,
 };
 
-const isRestricted = (value: string | null) =>
-  value === FIELD_RESTRICTED_ADDITIONAL_PERMISSIONS_REQUIRED;
-
 // Every email to or from one applicant across all threads, for the Needs
 // review "All emails" view. Same visibility as the inbox thread list and the
 // thread view: a message is returned only when its body would be shown there.
@@ -61,7 +62,12 @@ export class TeamInboxApplicantEmailHistoryService {
   constructor(
     private readonly workspaceOrmManager: WorkspaceOrmManager,
     private readonly teamInboxManualReviewHistoryService: TeamInboxManualReviewHistoryService,
-    private readonly applyMessagesVisibilityRestrictionsService: ApplyMessagesVisibilityRestrictionsService,
+    @InjectRepository(MessageChannelEntity)
+    private readonly messageChannelRepository: Repository<MessageChannelEntity>,
+    @InjectRepository(ConnectedAccountEntity)
+    private readonly connectedAccountRepository: Repository<ConnectedAccountEntity>,
+    @InjectRepository(UserWorkspaceEntity)
+    private readonly userWorkspaceRepository: Repository<UserWorkspaceEntity>,
   ) {}
 
   async getApplicantEmailHistory({
@@ -87,16 +93,18 @@ export class TeamInboxApplicantEmailHistoryService {
       handle:
         isNonEmptyString(handle) && !ownHandles.has(handle) ? handle : null,
       personId: isDefined(personId) && isValidUuid(personId) ? personId : null,
+      ownHandles,
     };
 
     if (!isDefined(applicant.handle) && !isDefined(applicant.personId)) {
       return EMPTY_HISTORY;
     }
 
-    const candidates = await this.workspaceOrmManager.executeInWorkspaceContext(
-      () => this.getCandidates(applicant),
-      buildSystemAuthContext(workspaceId),
-    );
+    const { candidates, isCandidateLimitHit } =
+      await this.workspaceOrmManager.executeInWorkspaceContext(
+        () => this.getCandidates(applicant),
+        buildSystemAuthContext(workspaceId),
+      );
 
     const visibleThreadIds =
       await this.teamInboxManualReviewHistoryService.getFullyVisibleThreadIds(
@@ -105,36 +113,47 @@ export class TeamInboxApplicantEmailHistoryService {
         workspaceId,
       );
 
-    const visibleMessages: MessageWorkspaceEntity[] = [];
+    const ownedConnectedAccountIds = await this.getOwnedConnectedAccountIds(
+      userId,
+      workspaceId,
+    );
+    const visibleCandidates: Candidate[] = [];
 
     // Newest first, so the cap keeps the latest emails.
     for (const candidateChunk of chunk(
       candidates.filter((candidate) =>
         visibleThreadIds.has(candidate.messageThreadId),
       ),
-      APPLICANT_EMAIL_HISTORY_MAX_MESSAGES + 1,
+      LOOKUP_CHUNK_SIZE,
     )) {
-      visibleMessages.push(
-        ...(await this.getFullyVisibleMessages(
-          candidateChunk,
-          workspaceId,
-          userId,
-        )),
+      const fullyVisibleIds = await this.getFullyVisibleMessageIds(
+        candidateChunk.map(({ id }) => id),
+        ownedConnectedAccountIds,
+        workspaceId,
       );
 
-      if (visibleMessages.length > APPLICANT_EMAIL_HISTORY_MAX_MESSAGES) {
+      visibleCandidates.push(
+        ...candidateChunk.filter(({ id }) => fullyVisibleIds.has(id)),
+      );
+
+      if (visibleCandidates.length > APPLICANT_EMAIL_HISTORY_MAX_MESSAGES) {
         break;
       }
     }
 
-    const messages = visibleMessages.slice(
+    const keptCandidates = visibleCandidates.slice(
       0,
       APPLICANT_EMAIL_HISTORY_MAX_MESSAGES,
     );
 
-    if (!isNonEmptyArray(messages)) {
+    if (!isNonEmptyArray(keptCandidates)) {
       return EMPTY_HISTORY;
     }
+
+    const messages = await this.workspaceOrmManager.executeInWorkspaceContext(
+      () => this.getMessages(keptCandidates),
+      buildSystemAuthContext(workspaceId),
+    );
 
     const participantsByMessageId =
       await this.workspaceOrmManager.executeInWorkspaceContext(
@@ -155,18 +174,19 @@ export class TeamInboxApplicantEmailHistoryService {
           },
           participants: participantsByMessageId.get(message.id) ?? [],
           applicant,
-          ownHandles,
         }),
       ),
+      // A hit participant limit may have left out older emails.
       isTruncated:
-        visibleMessages.length > APPLICANT_EMAIL_HISTORY_MAX_MESSAGES,
+        isCandidateLimitHit ||
+        visibleCandidates.length > APPLICANT_EMAIL_HISTORY_MAX_MESSAGES,
     };
   }
 
   // Must run inside a workspace context. Newest first, drafts left out.
   private async getCandidates(
     applicant: ApplicantMatcher,
-  ): Promise<Candidate[]> {
+  ): Promise<{ candidates: Candidate[]; isCandidateLimitHit: boolean }> {
     const participants = await this.workspaceOrmManager
       .getRepository<MessageParticipantWorkspaceEntity>('messageParticipant', {
         shouldBypassPermissionChecks: true,
@@ -185,7 +205,12 @@ export class TeamInboxApplicantEmailHistoryService {
             ? [{ personId: applicant.personId, role: In(PARTICIPANT_ROLES) }]
             : []),
         ],
-        select: { messageId: true, handle: true, personId: true },
+        select: {
+          messageId: true,
+          handle: true,
+          personId: true,
+          workspaceMemberId: true,
+        },
         order: { createdAt: 'DESC' },
         take: APPLICANT_EMAIL_HISTORY_MAX_CANDIDATES,
       });
@@ -230,58 +255,105 @@ export class TeamInboxApplicantEmailHistoryService {
       }
     }
 
-    return candidates.sort(
-      (first, second) =>
-        second.sortAt - first.sortAt || second.id.localeCompare(first.id),
-    );
+    return {
+      candidates: candidates.sort(
+        (first, second) =>
+          second.sortAt - first.sortAt || second.id.localeCompare(first.id),
+      ),
+      isCandidateLimitHit:
+        participants.length >= APPLICANT_EMAIL_HISTORY_MAX_CANDIDATES,
+    };
   }
 
-  // The thread view's per-message rule, so this view never shows a body the
-  // thread would hide. Keeps the candidates' order.
-  private async getFullyVisibleMessages(
-    candidates: Candidate[],
-    workspaceId: string,
+  private async getOwnedConnectedAccountIds(
     userId: string,
-  ): Promise<MessageWorkspaceEntity[]> {
-    const found = await this.workspaceOrmManager.executeInWorkspaceContext(
-      () =>
-        this.workspaceOrmManager
-          .getRepository<MessageWorkspaceEntity>('message', {
-            shouldBypassPermissionChecks: true,
-          })
-          .find({
-            where: { id: In(candidates.map(({ id }) => id)) },
-            select: {
-              id: true,
-              messageThreadId: true,
-              subject: true,
-              text: true,
-              receivedAt: true,
-              headerMessageId: true,
-            },
-          }),
-      buildSystemAuthContext(workspaceId),
-    );
+    workspaceId: string,
+  ): Promise<Set<string>> {
+    const userWorkspace = await this.userWorkspaceRepository.findOne({
+      where: { userId, workspaceId },
+      select: { id: true },
+    });
 
+    if (!isDefined(userWorkspace)) {
+      return new Set();
+    }
+
+    const connectedAccounts = await this.connectedAccountRepository.find({
+      where: { userWorkspaceId: userWorkspace.id, workspaceId },
+      select: { id: true },
+    });
+
+    return new Set(connectedAccounts.map(({ id }) => id));
+  }
+
+  // The thread view's per-message rule, batched: see
+  // getFullyVisibleMessageIds.
+  private async getFullyVisibleMessageIds(
+    messageIds: string[],
+    ownedConnectedAccountIds: Set<string>,
+    workspaceId: string,
+  ): Promise<Set<string>> {
+    const associations =
+      await this.workspaceOrmManager.executeInWorkspaceContext(
+        () =>
+          this.workspaceOrmManager
+            .getRepository<MessageChannelMessageAssociationWorkspaceEntity>(
+              'messageChannelMessageAssociation',
+              { shouldBypassPermissionChecks: true },
+            )
+            .find({
+              where: { messageId: In(messageIds) },
+              select: { messageId: true, messageChannelId: true },
+            }),
+        buildSystemAuthContext(workspaceId),
+      );
+    const messageChannelIds = [
+      ...new Set(associations.map(({ messageChannelId }) => messageChannelId)),
+    ];
+
+    if (!isNonEmptyArray(messageChannelIds)) {
+      return new Set();
+    }
+
+    const channels = await this.messageChannelRepository.find({
+      where: { id: In(messageChannelIds), workspaceId },
+      select: { id: true, visibility: true, connectedAccountId: true },
+    });
+
+    return getFullyVisibleMessageIds({
+      associations,
+      channels,
+      ownedConnectedAccountIds,
+    });
+  }
+
+  // Must run inside a workspace context. Keeps the candidates' order.
+  private async getMessages(
+    candidates: Candidate[],
+  ): Promise<MessageWorkspaceEntity[]> {
+    const found = await this.workspaceOrmManager
+      .getRepository<MessageWorkspaceEntity>('message', {
+        shouldBypassPermissionChecks: true,
+      })
+      .find({
+        where: { id: In(candidates.map(({ id }) => id)) },
+        select: {
+          id: true,
+          messageThreadId: true,
+          subject: true,
+          text: true,
+          receivedAt: true,
+          headerMessageId: true,
+        },
+      });
     const orderById = new Map(candidates.map(({ id }, index) => [id, index]));
-    const ordered = found
+
+    return found
       .filter((message) => orderById.has(message.id))
       .sort(
         (first, second) =>
           (orderById.get(first.id) ?? 0) - (orderById.get(second.id) ?? 0),
       );
-
-    const visible =
-      await this.applyMessagesVisibilityRestrictionsService.applyMessagesVisibilityRestrictions(
-        ordered,
-        workspaceId,
-        userId,
-      );
-
-    return visible.filter(
-      (message) =>
-        !isRestricted(message.text) && !isRestricted(message.subject),
-    );
   }
 
   // Must run inside a workspace context.

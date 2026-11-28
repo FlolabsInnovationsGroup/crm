@@ -1,13 +1,18 @@
 import { Test } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 
-import { FIELD_RESTRICTED_ADDITIONAL_PERMISSIONS_REQUIRED } from 'twenty-shared/constants';
-import { MessageParticipantRole } from 'twenty-shared/types';
+import {
+  MessageChannelVisibility,
+  MessageParticipantRole,
+} from 'twenty-shared/types';
 import { type FindOperator } from 'typeorm';
 
 import { TeamInboxApplicantEmailHistoryService } from 'src/engine/core-modules/messaging/services/team-inbox-applicant-email-history.service';
 import { TeamInboxManualReviewHistoryService } from 'src/engine/core-modules/messaging/services/team-inbox-manual-review-history.service';
+import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
+import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
+import { MessageChannelEntity } from 'src/engine/metadata-modules/message-channel/entities/message-channel.entity';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
-import { ApplyMessagesVisibilityRestrictionsService } from 'src/modules/messaging/common/query-hooks/message/apply-messages-visibility-restrictions.service';
 
 const PERSON_ID = '22222222-2222-4222-8222-222222222222';
 
@@ -37,11 +42,36 @@ const at = (day: number) =>
 const operatorValue = <TValue>(operator: unknown) =>
   (operator as FindOperator<TValue>).value;
 
+// The member owns account-own; the other channels belong to colleagues.
+const CHANNELS = [
+  {
+    id: 'channel-shared',
+    visibility: MessageChannelVisibility.SHARE_EVERYTHING,
+    connectedAccountId: 'account-team',
+  },
+  {
+    id: 'channel-subject',
+    visibility: MessageChannelVisibility.SUBJECT,
+    connectedAccountId: 'account-colleague',
+  },
+  {
+    id: 'channel-metadata',
+    visibility: MessageChannelVisibility.METADATA,
+    connectedAccountId: 'account-colleague',
+  },
+  {
+    id: 'channel-own-private',
+    visibility: MessageChannelVisibility.METADATA,
+    connectedAccountId: 'account-own',
+  },
+];
+
 describe('TeamInboxApplicantEmailHistoryService', () => {
   let storedMessages: StoredMessage[];
   let storedParticipants: StoredParticipant[];
   let hiddenThreadIds: Set<string>;
-  let restrictedMessageIds: Set<string>;
+  // Every message sits in channel-shared unless a test says otherwise.
+  let channelIdsByMessageId: Map<string, string[]>;
 
   const participantRepository = {
     // Matches loosely on purpose, so exactness must come from the service.
@@ -85,9 +115,39 @@ describe('TeamInboxApplicantEmailHistoryService', () => {
       },
     ),
   };
+  const associationRepository = {
+    find: jest.fn(async ({ where }: { where: { messageId: unknown } }) =>
+      operatorValue<string[]>(where.messageId).flatMap((messageId) =>
+        (channelIdsByMessageId.get(messageId) ?? ['channel-shared']).map(
+          (messageChannelId) => ({ messageId, messageChannelId }),
+        ),
+      ),
+    ),
+  };
+  const messageChannelRepository = {
+    find: jest.fn(
+      async ({ where }: { where: { id: unknown; workspaceId: string } }) =>
+        where.workspaceId === 'workspace-id'
+          ? CHANNELS.filter((channel) =>
+              operatorValue<string[]>(where.id).includes(channel.id),
+            )
+          : [],
+    ),
+  };
+  const userWorkspaceRepository = {
+    findOne: jest.fn(async () => ({ id: 'user-workspace-id' })),
+  };
+  const connectedAccountRepository = {
+    find: jest.fn(async ({ where }: { where: { userWorkspaceId: string } }) =>
+      where.userWorkspaceId === 'user-workspace-id'
+        ? [{ id: 'account-own' }]
+        : [],
+    ),
+  };
   const repositories: Record<string, unknown> = {
     messageParticipant: participantRepository,
     message: messageRepository,
+    messageChannelMessageAssociation: associationRepository,
   };
   const workspaceOrmManager = {
     executeInWorkspaceContext: jest.fn((callback: () => unknown) => callback()),
@@ -102,20 +162,6 @@ describe('TeamInboxApplicantEmailHistoryService', () => {
         new Set(threadIds.filter((threadId) => !hiddenThreadIds.has(threadId))),
     ),
   };
-  const visibilityService = {
-    applyMessagesVisibilityRestrictions: jest.fn(
-      async (messages: StoredMessage[]) =>
-        messages.map((message) =>
-          restrictedMessageIds.has(message.id)
-            ? {
-                ...message,
-                text: FIELD_RESTRICTED_ADDITIONAL_PERMISSIONS_REQUIRED,
-              }
-            : message,
-        ),
-    ),
-  };
-
   let service: TeamInboxApplicantEmailHistoryService;
 
   const addMessage = ({
@@ -181,7 +227,7 @@ describe('TeamInboxApplicantEmailHistoryService', () => {
     storedMessages = [];
     storedParticipants = [];
     hiddenThreadIds = new Set();
-    restrictedMessageIds = new Set();
+    channelIdsByMessageId = new Map();
 
     const module = await Test.createTestingModule({
       providers: [
@@ -192,8 +238,16 @@ describe('TeamInboxApplicantEmailHistoryService', () => {
           useValue: historyService,
         },
         {
-          provide: ApplyMessagesVisibilityRestrictionsService,
-          useValue: visibilityService,
+          provide: getRepositoryToken(MessageChannelEntity),
+          useValue: messageChannelRepository,
+        },
+        {
+          provide: getRepositoryToken(ConnectedAccountEntity),
+          useValue: connectedAccountRepository,
+        },
+        {
+          provide: getRepositoryToken(UserWorkspaceEntity),
+          useValue: userWorkspaceRepository,
         },
       ],
     }).compile();
@@ -352,7 +406,7 @@ describe('TeamInboxApplicantEmailHistoryService', () => {
       to: 'hr@flolabs.test',
     });
     hiddenThreadIds.add('thread-private');
-    restrictedMessageIds.add('metadata-only');
+    channelIdsByMessageId.set('metadata-only', ['channel-metadata']);
 
     const history = await run('ada@x.com');
 
@@ -362,9 +416,39 @@ describe('TeamInboxApplicantEmailHistoryService', () => {
       'member-id',
       'workspace-id',
     );
-    expect(
-      visibilityService.applyMessagesVisibilityRestrictions,
-    ).toHaveBeenCalledWith(expect.any(Array), 'workspace-id', 'user-id');
+    expect(userWorkspaceRepository.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-id', workspaceId: 'workspace-id' },
+      }),
+    );
+  });
+
+  it("keeps a body only where the thread view shows it: a shared or the member's own channel", async () => {
+    const channelIdByMessage: Record<string, string[]> = {
+      shared: ['channel-shared'],
+      subject: ['channel-subject'],
+      metadata: ['channel-metadata'],
+      'own-private': ['channel-own-private'],
+      'subject-and-shared': ['channel-subject', 'channel-shared'],
+      'no-channel': [],
+      'other-workspace-channel': ['channel-unknown'],
+    };
+
+    Object.entries(channelIdByMessage).forEach(([id, channelIds], index) => {
+      addMessage({
+        id,
+        day: index + 1,
+        from: 'ada@x.com',
+        to: 'hr@flolabs.test',
+      });
+      channelIdsByMessageId.set(id, channelIds);
+    });
+
+    expect((await run('ada@x.com')).messages.map(({ id }) => id)).toEqual([
+      'shared',
+      'own-private',
+      'subject-and-shared',
+    ]);
   });
 
   it('keeps the latest 200 emails and says the list was cut', async () => {
@@ -397,6 +481,30 @@ describe('TeamInboxApplicantEmailHistoryService', () => {
     expect(history.messages[199].id).toBe('m-204');
   });
 
+  it('says the list may be cut when the participant lookup hits its limit', async () => {
+    addMessage({
+      id: 'real',
+      day: 1,
+      from: 'ada@x.com',
+      to: 'hr@flolabs.test',
+    });
+    for (let index = 0; index < 9_999; index++) {
+      storedParticipants.push({
+        messageId: `gone-${index}`,
+        role: MessageParticipantRole.TO,
+        handle: 'ada@x.com',
+        displayName: null,
+        personId: null,
+        workspaceMemberId: null,
+      });
+    }
+
+    const history = await run('ada@x.com');
+
+    expect(history.messages.map(({ id }) => id)).toEqual(['real']);
+    expect(history.isTruncated).toBe(true);
+  });
+
   it('also matches the linked person, and never lists a team mailbox', async () => {
     addMessage({
       id: 'other-address',
@@ -421,5 +529,35 @@ describe('TeamInboxApplicantEmailHistoryService', () => {
       isTruncated: false,
     });
     expect(participantRepository.find).not.toHaveBeenCalled();
+  });
+
+  it('never treats one of our mailboxes as the applicant through a valid person id', async () => {
+    addMessage({
+      id: 'mailbox',
+      day: 1,
+      from: 'hr@flolabs.test',
+      to: 'someone@z.com',
+    });
+    addMessage({
+      id: 'member',
+      day: 2,
+      from: 'nago@flolabs.test',
+      to: 'other@z.com',
+    });
+    storedParticipants = storedParticipants.map((participant) =>
+      participant.role === MessageParticipantRole.FROM
+        ? {
+            ...participant,
+            personId: PERSON_ID,
+            workspaceMemberId:
+              participant.messageId === 'member' ? 'member-nago' : null,
+          }
+        : participant,
+    );
+
+    const history = await run('hr@flolabs.test', PERSON_ID);
+
+    expect(participantRepository.find).toHaveBeenCalled();
+    expect(history.messages).toEqual([]);
   });
 });

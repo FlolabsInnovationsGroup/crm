@@ -25,7 +25,6 @@ import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-ac
 import { MessageChannelEntity } from 'src/engine/metadata-modules/message-channel/entities/message-channel.entity';
 import { PermissionsModule } from 'src/engine/metadata-modules/permissions/permissions.module';
 import { ConnectedAccountModule } from 'src/modules/connected-account/connected-account.module';
-import { ApplyMessagesVisibilityRestrictionsService } from 'src/modules/messaging/common/query-hooks/message/apply-messages-visibility-restrictions.service';
 import { TargetModule } from 'src/engine/core-modules/target/target.module';
 
 @Module({
@@ -60,7 +59,6 @@ import { TargetModule } from 'src/engine/core-modules/target/target.module';
     TeamInboxContactService,
     TeamInboxApplicantEmailHistoryService,
     TeamInboxApplicantEmailHistoryResolver,
-    ApplyMessagesVisibilityRestrictionsService,
   ],
 })
 export class TimelineMessagingModule {}

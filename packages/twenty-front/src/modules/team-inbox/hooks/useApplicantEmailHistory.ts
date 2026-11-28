@@ -13,10 +13,12 @@ import { pickApplicantHistoryReplyTarget } from '@/team-inbox/utils/pickApplican
 export const useApplicantEmailHistory = ({
   applicantEmail,
   personId,
+  ownHandles,
   skip,
 }: {
   applicantEmail: string;
   personId: string | null;
+  ownHandles: string[];
   skip: boolean;
 }) => {
   const apolloCoreClient = useApolloCoreClient();
@@ -46,6 +48,7 @@ export const useApplicantEmailHistory = ({
     replyContext: buildApplicantHistoryReplyContext(
       threadReplyContext,
       replyTarget,
+      { applicantEmail, ownHandles },
     ),
   };
 };

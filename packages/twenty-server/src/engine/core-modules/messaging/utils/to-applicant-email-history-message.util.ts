@@ -8,6 +8,8 @@ export type ApplicantMatcher = {
   // Lower-cased; null when only the person is known.
   handle: string | null;
   personId: string | null;
+  // Lower-cased team mailbox handles; never the applicant.
+  ownHandles: Set<string>;
 };
 
 export type HistoryParticipant = {
@@ -33,26 +35,39 @@ const RECIPIENT_ROLES: MessageParticipantRole[] = [
   MessageParticipantRole.BCC,
 ];
 
-// Exact, case-insensitive: ada@x.com must never match nada@x.com.
+// Exact, case-insensitive: ada@x.com must never match nada@x.com. A person
+// can be matched onto one of our mailboxes, so those never count.
 export const isApplicantParticipant = (
-  participant: Pick<HistoryParticipant, 'handle' | 'personId'>,
+  participant: Pick<
+    HistoryParticipant,
+    'handle' | 'personId' | 'workspaceMemberId'
+  >,
   applicant: ApplicantMatcher,
-): boolean =>
-  (isDefined(applicant.handle) &&
-    participant.handle?.trim().toLowerCase() === applicant.handle) ||
-  (isDefined(applicant.personId) &&
-    participant.personId === applicant.personId);
+): boolean => {
+  const handle = participant.handle?.trim().toLowerCase() ?? '';
+
+  if (
+    isDefined(participant.workspaceMemberId) ||
+    applicant.ownHandles.has(handle)
+  ) {
+    return false;
+  }
+
+  return (
+    (isDefined(applicant.handle) && handle === applicant.handle) ||
+    (isDefined(applicant.personId) &&
+      participant.personId === applicant.personId)
+  );
+};
 
 export const toApplicantEmailHistoryMessage = ({
   message,
   participants,
   applicant,
-  ownHandles,
 }: {
   message: HistoryMessage;
   participants: HistoryParticipant[];
   applicant: ApplicantMatcher;
-  ownHandles: Set<string>;
 }): ApplicantEmailHistoryMessageDTO => {
   const toDto = ({ role, handle, displayName }: HistoryParticipant) => ({
     role,
@@ -65,7 +80,7 @@ export const toApplicantEmailHistoryMessage = ({
   const isOutgoing =
     isDefined(sender) &&
     (isDefined(sender.workspaceMemberId) ||
-      ownHandles.has(sender.handle?.trim().toLowerCase() ?? ''));
+      applicant.ownHandles.has(sender.handle?.trim().toLowerCase() ?? ''));
 
   return {
     ...message,

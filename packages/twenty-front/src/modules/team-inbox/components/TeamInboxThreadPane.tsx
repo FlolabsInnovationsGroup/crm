@@ -306,6 +306,7 @@ export const TeamInboxThreadPane = ({
   const applicantHistory = useApplicantEmailHistory({
     applicantEmail: applicantEmail ?? '',
     personId: applicantContact?.personId ?? null,
+    ownHandles,
     skip: !isAllEmailsView,
   });
   const activeReplyContext = isAllEmailsView
@@ -348,7 +349,8 @@ export const TeamInboxThreadPane = ({
         'FindManyMessages',
         'GetInboxThreads',
         'GetInboxUnreadCount',
-        'GetApplicantEmailHistory',
+        // A skipped query would make Apollo warn about an unknown query.
+        ...(isAllEmailsView ? ['GetApplicantEmailHistory'] : []),
       ],
     });
   };
@@ -459,7 +461,7 @@ export const TeamInboxThreadPane = ({
               applicantContact?.displayName ?? null,
               applicantEmail,
             )}
-            isDisabled={isDefined(replyMode)}
+            isDisabled={canReply && isDefined(openReplyMode)}
             onChange={setConversationView}
           />
         )}
