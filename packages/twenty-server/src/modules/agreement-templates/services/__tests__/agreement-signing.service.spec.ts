@@ -195,6 +195,11 @@ describe('AgreementSigningService', () => {
         templateIds: ['template-id'],
       });
 
+      const [inserted] = requestRepository.insert.mock.calls[0];
+
+      expect(inserted.createdBy).toBeDefined();
+      expect(inserted.updatedBy).toEqual(inserted.createdBy);
+
       const [, created] = documensoApiService.createEnvelope.mock.calls[0];
 
       expect(created.externalId).toBe(result.agreementRequestId);

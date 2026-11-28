@@ -153,6 +153,7 @@ export class AgreementSigningService {
       });
 
       const requestId = v4();
+      const sender = buildActorMetadataFromAuthContext(authContext);
       const applicantName = getAgreementFullName(person.name) ?? email;
       const rendered = await Promise.all(
         documents.map(async (document) => ({
@@ -176,7 +177,9 @@ export class AgreementSigningService {
           personId,
           status: 'SENT',
           documents: documentTitles.join('\n'),
-          createdBy: buildActorMetadataFromAuthContext(authContext),
+          // The repository fills neither actor; both columns are required.
+          createdBy: sender,
+          updatedBy: sender,
         });
 
       let envelopeId: string | null = null;
