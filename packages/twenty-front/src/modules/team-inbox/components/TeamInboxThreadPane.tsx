@@ -22,12 +22,17 @@ import { type EmailThreadMessageWithSender } from '@/activities/emails/types/Ema
 import { getEmailDraftPrefillFromMessage } from '@/activities/emails/utils/getEmailDraftPrefillFromMessage';
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
 import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
+import { TeamInboxApplicantHistory } from '@/team-inbox/components/TeamInboxApplicantHistory';
 import { TeamInboxContactPane } from '@/team-inbox/components/TeamInboxContactPane';
+import { TeamInboxConversationViewSwitch } from '@/team-inbox/components/TeamInboxConversationViewSwitch';
 import { TeamInboxMenu } from '@/team-inbox/components/TeamInboxMenu';
 import { TeamInboxMessageBubble } from '@/team-inbox/components/TeamInboxMessageBubble';
 import { TeamInboxReplyComposer } from '@/team-inbox/components/TeamInboxReplyComposer';
+import { useApplicantEmailHistory } from '@/team-inbox/hooks/useApplicantEmailHistory';
 import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
+import { type TeamInboxConversationView } from '@/team-inbox/types/TeamInboxConversationView';
 import { type TeamInboxSentReply } from '@/team-inbox/types/TeamInboxSentReply';
+import { getApplicantFirstName } from '@/team-inbox/utils/getApplicantFirstName';
 import { getConversationContact } from '@/team-inbox/utils/getConversationContact';
 import { formatToHumanReadableDate } from '~/utils/date-utils';
 
@@ -237,6 +242,8 @@ type TeamInboxThreadPaneProps = {
   // Set when the reply answers a Needs review card.
   reviewNotice: string | null;
   reviewBar?: ReactNode;
+  // Set when opened from a Needs review card; offers the all-emails view.
+  applicantEmail?: string | null;
   onReplySent: (reply: TeamInboxSentReply) => void;
   onToggleClosed: () => Promise<void>;
   onBack: () => void;
@@ -263,6 +270,7 @@ export const TeamInboxThreadPane = ({
   onInitialTemplateApplied,
   reviewNotice,
   reviewBar,
+  applicantEmail = null,
   onReplySent,
   onToggleClosed,
   onBack,
@@ -281,13 +289,32 @@ export const TeamInboxThreadPane = ({
   );
   const [isShowingEarlier, setIsShowingEarlier] = useState(false);
   const [isTogglingClosed, setIsTogglingClosed] = useState(false);
+  const [conversationView, setConversationView] =
+    useState<TeamInboxConversationView>('THREAD');
 
   const subject = messages[0]?.subject ?? fallbackSubject;
   const contact = getConversationContact(messages, ownHandles);
   const firstMessageAt = messages[0]?.receivedAt;
 
+  const applicantContact =
+    isNonEmptyString(applicantEmail) &&
+    contact?.handle.toLowerCase() === applicantEmail.trim().toLowerCase()
+      ? contact
+      : null;
+  const isAllEmailsView =
+    conversationView === 'ALL_EMAILS' && isNonEmptyString(applicantEmail);
+  const applicantHistory = useApplicantEmailHistory({
+    applicantEmail: applicantEmail ?? '',
+    personId: applicantContact?.personId ?? null,
+    skip: !isAllEmailsView,
+  });
+  const activeReplyContext = isAllEmailsView
+    ? applicantHistory.replyContext
+    : replyContext;
+
   const lastMessage = messages[messages.length - 1];
-  const trailingDraft = lastMessage?.isDraft === true ? lastMessage : null;
+  const trailingDraft =
+    !isAllEmailsView && lastMessage?.isDraft === true ? lastMessage : null;
   const openReplyMode =
     replyMode ?? (isDefined(trailingDraft) ? 'reply' : null);
   const openDraftPrefill =
@@ -317,7 +344,12 @@ export const TeamInboxThreadPane = ({
     handleCloseComposer();
     onReplySent(reply);
     await apolloCoreClient.refetchQueries({
-      include: ['FindManyMessages', 'GetInboxThreads', 'GetInboxUnreadCount'],
+      include: [
+        'FindManyMessages',
+        'GetInboxThreads',
+        'GetInboxUnreadCount',
+        'GetApplicantEmailHistory',
+      ],
     });
   };
 
@@ -341,13 +373,18 @@ export const TeamInboxThreadPane = ({
   };
 
   const canReply =
-    !isReadOnly && isDefined(replyContext) && replyContext.loading === false;
-  const canReplyAll = canReply && isNonEmptyString(replyContext.replyAllCc);
+    !isReadOnly &&
+    isDefined(activeReplyContext) &&
+    activeReplyContext.loading === false;
+  const canReplyAll =
+    canReply &&
+    !isAllEmailsView &&
+    isNonEmptyString(activeReplyContext.replyAllCc);
   const contactName = contact?.displayName ?? '';
   const fromHandle = canReply
     ? (mailboxes.find(
         (mailbox) =>
-          mailbox.connectedAccountId === replyContext.connectedAccountId,
+          mailbox.connectedAccountId === activeReplyContext.connectedAccountId,
       )?.handle ?? null)
     : null;
 
@@ -415,8 +452,26 @@ export const TeamInboxThreadPane = ({
             />
           </StyledHeaderActions>
         </StyledHeader>
+        {isNonEmptyString(applicantEmail) && (
+          <TeamInboxConversationViewSwitch
+            view={conversationView}
+            applicantFirstName={getApplicantFirstName(
+              applicantContact?.displayName ?? null,
+              applicantEmail,
+            )}
+            isDisabled={isDefined(replyMode)}
+            onChange={setConversationView}
+          />
+        )}
         <StyledMessages>
-          {threadLoading && messages.length === 0 ? (
+          {isAllEmailsView ? (
+            <TeamInboxApplicantHistory
+              messages={applicantHistory.messages}
+              isTruncated={applicantHistory.isTruncated}
+              isLoading={applicantHistory.isLoading}
+              hasFailed={applicantHistory.hasFailed}
+            />
+          ) : threadLoading && messages.length === 0 ? (
             <EmailLoader loadingText={t`Loading thread`} />
           ) : (
             <>
@@ -451,8 +506,8 @@ export const TeamInboxThreadPane = ({
         )}
         {canReply && isDefined(openReplyMode) ? (
           <TeamInboxReplyComposer
-            key={`${openDraftPrefill?.messageId ?? 'reply'}-${openReplyMode}`}
-            replyContext={replyContext}
+            key={`${openDraftPrefill?.messageId ?? 'reply'}-${openReplyMode}-${conversationView}`}
+            replyContext={activeReplyContext}
             replyMode={openReplyMode}
             draftPrefill={openDraftPrefill}
             fromHandle={fromHandle}

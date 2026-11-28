@@ -70,17 +70,29 @@ const StyledQuoted = styled.div`
   white-space: pre-line;
 `;
 
-type TeamInboxMessageBubbleProps = {
-  message: EmailThreadMessageWithSender;
-  isOurs: boolean;
-  onDraftClick: (message: EmailThreadMessageWithSender) => void;
+// Also renders the applicant's all-emails view, which has no full thread record.
+type TeamInboxMessageBubbleMessage = Pick<
+  EmailThreadMessageWithSender,
+  'text' | 'receivedAt' | 'isDraft'
+> & {
+  sender?: { displayName: string | null; handle: string } | null;
 };
 
-export const TeamInboxMessageBubble = ({
+type TeamInboxMessageBubbleProps<
+  TMessage extends TeamInboxMessageBubbleMessage,
+> = {
+  message: TMessage;
+  isOurs: boolean;
+  onDraftClick: (message: TMessage) => void;
+};
+
+export const TeamInboxMessageBubble = <
+  TMessage extends TeamInboxMessageBubbleMessage,
+>({
   message,
   isOurs,
   onDraftClick,
-}: TeamInboxMessageBubbleProps) => {
+}: TeamInboxMessageBubbleProps<TMessage>) => {
   const [isQuoteVisible, setIsQuoteVisible] = useState(false);
   const isRestricted = isFieldValueRestricted(message.text);
   const { reply, quoted } = splitQuotedReply(message.text ?? '');

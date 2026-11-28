@@ -1202,6 +1202,11 @@ export const TeamInboxContent = () => {
               </>
             ) : null
           }
+          applicantEmail={
+            isDefined(reviewCardId)
+              ? (reviewCardGroup?.item.applicantEmail ?? null)
+              : null
+          }
           onReplySent={handleReviewReplySent}
           onToggleClosed={() => handleToggleClosed(selectedThreadId)}
           onBack={() => {
