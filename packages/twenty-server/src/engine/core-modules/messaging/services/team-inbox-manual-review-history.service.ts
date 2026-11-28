@@ -290,10 +290,7 @@ export class TeamInboxManualReviewHistoryService {
       .getRepository<WorkspaceMemberWorkspaceEntity>('workspaceMember', {
         shouldBypassPermissionChecks: true,
       })
-      .find({
-        where: { id: In([...new Set(workspaceMemberIds)]) },
-        select: { id: true, name: true },
-      });
+      .find({ where: { id: In([...new Set(workspaceMemberIds)]) } });
 
     return new Map(
       workspaceMembers.map((workspaceMember) => [
