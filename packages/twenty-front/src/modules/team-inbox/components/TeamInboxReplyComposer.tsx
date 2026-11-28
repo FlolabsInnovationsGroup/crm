@@ -23,7 +23,9 @@ import {
   type InboxEmailTemplate,
   useInboxEmailTemplates,
 } from '@/team-inbox/hooks/useInboxEmailTemplates';
+import { useTeamMailboxSignature } from '@/team-inbox/hooks/useTeamMailboxSignature';
 import { type TeamInboxSentReply } from '@/team-inbox/types/TeamInboxSentReply';
+import { appendEmailSignature } from '@/team-inbox/utils/appendEmailSignature';
 import { getEmailBodyPlainText } from '@/team-inbox/utils/getEmailBodyPlainText';
 
 const StyledComposer = styled.div`
@@ -231,6 +233,10 @@ export const TeamInboxReplyComposer = ({
     string | null
   >(null);
   const templates = useInboxEmailTemplates();
+  const { signature, isSignatureLoading } = useTeamMailboxSignature(
+    replyContext.connectedAccountId,
+  );
+  const [isSignatureSeeded, setIsSignatureSeeded] = useState(false);
   const { uploadEmailImage } = useUploadEmailImage();
   // The send callback is created before the composer state, so it reads the
   // sent body through a ref; nothing renders from it.
@@ -256,6 +262,23 @@ export const TeamInboxReplyComposer = ({
 
   latestReplyRef.current = { body: composerState.body, templateId };
 
+  // A new reply starts with the mailbox signature, as in Gmail; a saved draft
+  // already has its own.
+  if (!isSignatureSeeded && !isSignatureLoading) {
+    setIsSignatureSeeded(true);
+
+    if (
+      !isDefined(draftPrefill) &&
+      !isNonEmptyString(composerState.body) &&
+      isNonEmptyString(signature)
+    ) {
+      composerState.applyTemplate({
+        subject: composerState.subject,
+        body: appendEmailSignature('', signature),
+      });
+    }
+  }
+
   const { openAttachmentPicker, isUploadingAttachments } = useAttachEmailFiles({
     onFilesAttached: composerState.setFiles,
   });
@@ -272,7 +295,10 @@ export const TeamInboxReplyComposer = ({
     // A reply keeps its "Re:" subject; the template only fills the body.
     composerState.applyTemplate({
       subject: composerState.subject,
-      body: fillEmailTemplateVariables(getEmailTemplateBody(template), name),
+      body: appendEmailSignature(
+        fillEmailTemplateVariables(getEmailTemplateBody(template), name),
+        signature,
+      ),
     });
   };
 
@@ -282,6 +308,7 @@ export const TeamInboxReplyComposer = ({
     if (
       !isNonEmptyString(initialTemplateId) ||
       isDefined(draftPrefill) ||
+      isSignatureLoading ||
       appliedInitialTemplateId === initialTemplateId
     ) {
       return;
@@ -296,7 +323,13 @@ export const TeamInboxReplyComposer = ({
     }
     // applyTemplate is rebuilt every render; the ids decide when to run.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, initialTemplateId, appliedInitialTemplateId, draftPrefill]);
+  }, [
+    templates,
+    initialTemplateId,
+    appliedInitialTemplateId,
+    draftPrefill,
+    isSignatureLoading,
+  ]);
 
   // The full fields have their own Ctrl+Enter on the recipient inputs.
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
