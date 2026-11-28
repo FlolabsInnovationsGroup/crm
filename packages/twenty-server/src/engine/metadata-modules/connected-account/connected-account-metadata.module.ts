@@ -9,8 +9,10 @@ import { CalendarChannelEntity } from 'src/engine/metadata-modules/calendar-chan
 import { ConnectedAccountMetadataService } from 'src/engine/metadata-modules/connected-account/connected-account-metadata.service';
 import { ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
 import { ConnectedAccountResolver } from 'src/engine/metadata-modules/connected-account/resolvers/connected-account.resolver';
+import { TeamMailboxSignatureResolver } from 'src/engine/metadata-modules/connected-account/resolvers/team-mailbox-signature.resolver';
 import { TeamMailboxResolver } from 'src/engine/metadata-modules/connected-account/resolvers/team-mailbox.resolver';
 import { ConnectedAccountOwnershipTransferService } from 'src/engine/metadata-modules/connected-account/services/connected-account-ownership-transfer.service';
+import { TeamMailboxSignatureService } from 'src/engine/metadata-modules/connected-account/services/team-mailbox-signature.service';
 import { TeamMailboxService } from 'src/engine/metadata-modules/connected-account/services/team-mailbox.service';
 import { WorkspaceManyOrAllFlatEntityMapsCacheModule } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.module';
 import { MessageChannelEntity } from 'src/engine/metadata-modules/message-channel/entities/message-channel.entity';
@@ -44,6 +46,8 @@ import { ApplicationRegistrationLookupModule } from 'src/engine/core-modules/app
     ConnectedAccountResolver,
     TeamMailboxService,
     TeamMailboxResolver,
+    TeamMailboxSignatureService,
+    TeamMailboxSignatureResolver,
   ],
   exports: [
     ConnectedAccountMetadataService,

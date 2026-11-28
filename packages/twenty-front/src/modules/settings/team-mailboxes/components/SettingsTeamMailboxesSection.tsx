@@ -9,6 +9,7 @@ import { Card } from 'twenty-ui/primitives/surfaces';
 import { GET_MY_SENDER_CONNECTED_ACCOUNTS } from '@/accounts/graphql/queries/getMySenderConnectedAccounts';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { SettingsOptionCardContentSwitch } from '@/settings/components/SettingsOptions/SettingsOptionCardContentSwitch';
+import { SettingsTeamMailboxSignature } from '@/settings/team-mailboxes/components/SettingsTeamMailboxSignature';
 import {
   GET_TEAM_MAILBOXES,
   SET_TEAM_MAILBOX_MEMBERS,
@@ -120,6 +121,7 @@ export const SettingsTeamMailboxesSection = () => {
               );
             })}
           </Card.Root>
+          <SettingsTeamMailboxSignature connectedAccountId={mailbox.id} />
         </Section.Root>
       ))}
     </>
