@@ -5,6 +5,7 @@ import { useManualReviewThreads } from '@/team-inbox/hooks/useManualReviewThread
 import { type ManualReviewGroup } from '@/team-inbox/types/ManualReviewGroup';
 import { type ManualReviewSortDirection } from '@/team-inbox/types/ManualReviewSortDirection';
 import { buildManualReviewGroups } from '@/team-inbox/utils/buildManualReviewGroups';
+import { getEmailSentAfterNewestReply } from '@/team-inbox/utils/getEmailSentAfterNewestReply';
 import { getEmailSentToApplicantItem } from '@/team-inbox/utils/getEmailSentToApplicantItem';
 import { splitManualReviewGroups } from '@/team-inbox/utils/splitManualReviewGroups';
 
@@ -35,13 +36,9 @@ export const useManualReviewCards = ({
 
   // An email to the applicant after their card often means someone answered
   // outside it; it may also be automated, so a person checks before Done.
-  const getEmailSentSinceCard = (group: ManualReviewGroup) => {
-    const lookup = getEmailSentToApplicantItem([group, ...group.earlier]);
-
-    return isDefined(lookup)
-      ? (emailsByThreadId.get(lookup.messageThreadId) ?? null)
-      : null;
-  };
+  // The marker, the section, its count and Mark all share this rule.
+  const getEmailSentSinceCard = (group: ManualReviewGroup) =>
+    getEmailSentAfterNewestReply([group, ...group.earlier], emailsByThreadId);
 
   const { toHandle, emailedSince } = splitManualReviewGroups(groups, (group) =>
     isDefined(getEmailSentSinceCard(group)),

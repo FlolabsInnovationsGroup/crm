@@ -12,6 +12,7 @@ import { FileUrlService } from 'src/engine/core-modules/file/file-url/file-url.s
 import { type InboxMailboxDTO } from 'src/engine/core-modules/messaging/dtos/inbox-mailbox.dto';
 import { type TimelineThreadDTO } from 'src/engine/core-modules/messaging/dtos/timeline-thread.dto';
 import { type InboxThreadFilter } from 'src/engine/core-modules/messaging/types/inbox-thread-filter.type';
+import { normalizeInboxThreadSortDirection } from 'src/engine/core-modules/messaging/utils/normalize-inbox-thread-sort-direction.util';
 import { MANUAL_REVIEW_SUBJECT_PREFIXES } from 'src/engine/core-modules/messaging/utils/team-inbox-manual-review.util';
 import { TEAM_INBOX_SYSTEM_SUBJECT_PREFIX } from 'src/engine/core-modules/messaging/utils/team-inbox-system.util';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
@@ -166,6 +167,9 @@ export class TimelineMessagingService {
           { shouldBypassPermissionChecks: true },
         );
 
+      const orderDirection = normalizeInboxThreadSortDirection(
+        inboxFilter?.sortDirection,
+      );
       const totalQueryBuilder = messageThreadRepository
         .createQueryBuilder('messageThread')
         .innerJoin('messageThread.messages', 'messages')
@@ -176,7 +180,9 @@ export class TimelineMessagingService {
         .addSelect('MAX(messages.receivedAt)', 'max_received_at')
         .innerJoin('messageThread.messages', 'messages')
         .groupBy('messageThread.id')
-        .orderBy('max_received_at', inboxFilter?.sortDirection ?? 'DESC')
+        .orderBy('max_received_at', orderDirection)
+        // Equal timestamps would otherwise let OFFSET pages skip a thread.
+        .addOrderBy('messageThread.id', orderDirection)
         .offset(offset)
         .limit(pageSize);
 
@@ -295,7 +301,7 @@ export class TimelineMessagingService {
       });
       // find() returns threads newest first whatever the page order was.
       const messageThreads =
-        inboxFilter?.sortDirection === 'ASC'
+        orderDirection === 'ASC'
           ? [...foundMessageThreads].sort(
               (first, second) =>
                 messageThreadIds.indexOf(first.id) -

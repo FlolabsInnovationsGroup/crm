@@ -25,6 +25,7 @@ import { TeamInboxClosedService } from 'src/engine/core-modules/messaging/servic
 import { TeamInboxManualReviewService } from 'src/engine/core-modules/messaging/services/team-inbox-manual-review.service';
 import { TeamInboxReadStateService } from 'src/engine/core-modules/messaging/services/team-inbox-read-state.service';
 import { TimelineMessagingService } from 'src/engine/core-modules/messaging/services/timeline-messaging.service';
+import { normalizeInboxThreadSortDirection } from 'src/engine/core-modules/messaging/utils/normalize-inbox-thread-sort-direction.util';
 import { isTeamInboxThreadRead } from 'src/engine/core-modules/messaging/utils/team-inbox-read-state.util';
 import {
   type InboxThreadDirection,
@@ -324,7 +325,7 @@ export class TimelineMessagingResolver {
         closed: isClosedFilterApplied
           ? { threadIds: closedThreadIds, only: closed === true }
           : undefined,
-        sortDirection,
+        sortDirection: normalizeInboxThreadSortDirection(sortDirection),
       },
     );
 

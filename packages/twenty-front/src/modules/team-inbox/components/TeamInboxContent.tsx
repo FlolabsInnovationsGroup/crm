@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AppPath } from 'twenty-shared/types';
 import { getAppPath, isDefined } from 'twenty-shared/utils';
+import { useToast } from 'twenty-ui/components/feedback';
 import { IconChevronDown, IconSearch } from 'twenty-ui/icon';
 import { useDebounce } from 'use-debounce';
 
@@ -401,6 +402,7 @@ export const TeamInboxContent = () => {
     total: number;
   } | null>(null);
   const { recordFromReply, recordFromDone } = useRecordManualReviewAnswer();
+  const { enqueueToast } = useToast();
   const { unreadCount, markThreadRead, markThreadUnread, markAllRead } =
     useTeamInboxReadState();
   const {
@@ -689,14 +691,20 @@ export const TeamInboxContent = () => {
   };
 
   // The same for a card's Done, a list row, the thread pane and Mark all.
+  // A card saved only in part still records its answer: the row is keyed by
+  // review thread, so its next Done updates the same row.
   const setGroupDone = async (group: ManualReviewGroup, isUndo: boolean) => {
     const threadIds = getReviewCardDoneThreadIds(group, isUndo);
+    const { savedThreadIds, isComplete } = await setDoneWithoutListRefetch(
+      threadIds,
+      !isUndo,
+    );
 
-    if (!(await setDoneWithoutListRefetch(threadIds, !isUndo))) {
+    if (savedThreadIds.length === 0) {
       return false;
     }
 
-    (isUndo ? doneThreads : openCards).removeThreads(threadIds);
+    (isUndo ? doneThreads : openCards).removeThreads(savedThreadIds);
 
     const answerContext = buildManualReviewAnswerContext([
       group,
@@ -707,7 +715,7 @@ export const TeamInboxContent = () => {
       await recordFromDone(answerContext);
     }
 
-    return true;
+    return isComplete;
   };
 
   const refreshAfterDone = async () => {
@@ -738,19 +746,26 @@ export const TeamInboxContent = () => {
 
   const handleMarkAllEmailedSinceDone = async () => {
     const groups = sortByLastMessage(openCards.emailedSince, sortDirection);
+    const cardTotal = groups.length;
+    let markedCount = 0;
 
-    setMarkAllProgress({ done: 0, total: groups.length });
+    setMarkAllProgress({ done: 0, total: cardTotal });
 
     try {
-      for (const [index, group] of groups.entries()) {
+      for (const group of groups) {
         if (!(await setGroupDone(group, false))) {
           break;
         }
 
-        setMarkAllProgress({ done: index + 1, total: groups.length });
+        markedCount += 1;
+        setMarkAllProgress({ done: markedCount, total: cardTotal });
       }
     } finally {
       setMarkAllProgress(null);
+      enqueueToast({
+        status: markedCount === cardTotal ? 'success' : 'error',
+        children: t`Marked ${markedCount} of ${cardTotal} as done`,
+      });
       await refreshAfterDone();
     }
   };
@@ -841,13 +856,18 @@ export const TeamInboxContent = () => {
     one: '# review email',
     other: '# review emails',
   });
-  const reviewSummary = isShowingDone
-    ? null
-    : !openCards.isComplete
-      ? t`Loading every review email…`
-      : openCards.isTruncated
-        ? t`Showing ${loadedReviewEmailCount} of ${reviewEmailCount} review emails`
-        : t`${openCardsLabel} from ${reviewEmailsLabel}`;
+  // A failed load keeps what it got but must not look like it is still going.
+  const hasReviewLoadFailed =
+    isDefined(visibleReviewList.error) && !visibleReviewList.isComplete;
+  const reviewSummary = hasReviewLoadFailed
+    ? t`Could not load every review email.`
+    : isShowingDone
+      ? null
+      : !openCards.isComplete
+        ? t`Loading every review email…`
+        : openCards.isTruncated
+          ? t`Showing ${loadedReviewEmailCount} of ${reviewEmailCount} review emails`
+          : t`${openCardsLabel} from ${reviewEmailsLabel}`;
 
   const isOldestAtEnd = sortDirection === 'NEWEST_FIRST';
 
@@ -981,7 +1001,9 @@ export const TeamInboxContent = () => {
             viewMode={viewMode}
             summary={reviewSummary}
             markAllDone={
-              reviewFilter === 'EMAILED_SINCE' && areReviewCountsExact
+              reviewFilter === 'EMAILED_SINCE' &&
+              areReviewCountsExact &&
+              !openCards.hasEmailsSentFailed
                 ? {
                     cardCount: emailedSinceCount,
                     progress: markAllProgress,
@@ -991,6 +1013,7 @@ export const TeamInboxContent = () => {
                   }
                 : null
             }
+            onRetry={hasReviewLoadFailed ? visibleReviewList.reload : null}
             onSortDirectionChange={handleSortDirectionChange}
             onViewModeChange={handleViewModeChange}
             onJumpToNewest={isOldestAtEnd ? scrollToStart : scrollToEnd}
@@ -1000,13 +1023,15 @@ export const TeamInboxContent = () => {
             <SkeletonLoader />
           ) : visibleReviewGroups.length === 0 ? (
             <StyledEmpty>
-              {isShowingDone
-                ? t`Nothing marked done in this period.`
-                : reviewFilter === 'EMAILED_SINCE'
-                  ? openCards.hasEmailsSentFailed
-                    ? t`Could not check the emails sent to applicants. Try again later.`
-                    : t`No card has an email sent to the applicant since it arrived.`
-                  : t`Nothing needs a manual review.`}
+              {hasReviewLoadFailed
+                ? t`Could not load every review email.`
+                : isShowingDone
+                  ? t`Nothing marked done in this period.`
+                  : reviewFilter === 'EMAILED_SINCE'
+                    ? openCards.hasEmailsSentFailed
+                      ? t`Could not check the emails sent to applicants. Try again later.`
+                      : t`No card has an email sent to the applicant since it arrived.`
+                    : t`Nothing needs a manual review.`}
             </StyledEmpty>
           ) : viewMode === 'LIST' ? (
             <StyledRowList>

@@ -81,17 +81,22 @@ export const useManualReview = (doneSince: string) => {
     apolloCoreClient.refetchQueries({ include: MANUAL_REVIEW_COUNT_QUERIES });
 
   // The Needs review list reloads itself, so only the counts refetch, once.
+  // Stops at the first failure and says which ids were saved before it.
   const setDoneWithoutListRefetch = async (
     messageThreadIds: string[],
     isDone: boolean,
   ) => {
+    const savedThreadIds: string[] = [];
+
     for (const messageThreadId of messageThreadIds) {
       if (!(await setDone(messageThreadId, isDone, []))) {
-        return false;
+        return { savedThreadIds, isComplete: false };
       }
+
+      savedThreadIds.push(messageThreadId);
     }
 
-    return true;
+    return { savedThreadIds, isComplete: true };
   };
 
   const findApplicantThreadId = async (applicantEmail: string) => {

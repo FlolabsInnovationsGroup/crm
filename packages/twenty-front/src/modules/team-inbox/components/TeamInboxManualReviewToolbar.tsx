@@ -93,6 +93,7 @@ type TeamInboxManualReviewToolbarProps = {
   viewMode: ManualReviewViewMode;
   summary: string | null;
   markAllDone: MarkAllDone | null;
+  onRetry: (() => void) | null;
   onSortDirectionChange: (sortDirection: ManualReviewSortDirection) => void;
   onViewModeChange: (viewMode: ManualReviewViewMode) => void;
   onJumpToNewest: () => void;
@@ -104,6 +105,7 @@ export const TeamInboxManualReviewToolbar = ({
   viewMode,
   summary,
   markAllDone,
+  onRetry,
   onSortDirectionChange,
   onViewModeChange,
   onJumpToNewest,
@@ -179,6 +181,11 @@ export const TeamInboxManualReviewToolbar = ({
         </StyledChipButton>
       )}
       {isNonEmptyString(summary) && <StyledSummary>{summary}</StyledSummary>}
+      {isDefined(onRetry) && (
+        <StyledChipButton type="button" onClick={onRetry}>
+          {t`Retry`}
+        </StyledChipButton>
+      )}
       {isDefined(markAllDone) && (
         <ConfirmationDialog
           dialogId={MARK_ALL_DONE_DIALOG_ID}

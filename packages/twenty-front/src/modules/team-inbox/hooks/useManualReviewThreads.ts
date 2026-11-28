@@ -119,9 +119,16 @@ export const useManualReviewThreads = ({
   }, [apolloCoreClient, doneSince, sortDirection, setSnapshot]);
 
   useEffect(() => {
-    if (!skip) {
-      reload();
+    if (skip) {
+      return;
     }
+
+    reload();
+
+    // Leaving the tab or changing the filter drops the pages still to come.
+    return () => {
+      latestLoadIdRef.current += 1;
+    };
   }, [reload, skip]);
 
   // A load already in flight may predate the Done, so it is dropped; the
