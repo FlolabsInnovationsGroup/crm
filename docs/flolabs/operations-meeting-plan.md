@@ -2,7 +2,7 @@
 
 26 Nov 2026. Approved by Mohamed on 26 Nov 2026. The living copy is the Claude Doc "FloLabs CRM: Plan for the Operations Meeting Requests"; this file is the snapshot kept with the code.
 
-This plan turns the CRM requests from the Operations meeting of 25 Nov 2026 into 11 pieces of work in 3 phases. Each piece ships as its own pull request that a person merges.
+This plan turns the CRM requests from the Operations meeting of 25 Nov 2026 into 9 pieces of work in 3 phases. Items 9 to 11 (AI-drafted replies, removing Brevo, Ash's campaign requests) were taken out on 28 Nov. Each piece ships as its own pull request that a person merges.
 
 ## The plan at a glance
 
@@ -19,9 +19,6 @@ Phase 1 fixes what hurts applicants today and should finish within a week of app
 | 6 | Time from application to meeting, per person and per month | 2 | 2 + 1.5 (Calendly) | Calendly tokens for hr.team@ and people@ |
 | 7 | Applicant summary before the booking email | 2 | 1 (CRM) + n8n work | Mani for the n8n side |
 | 8 | E-signature inside the CRM with Documenso, replacing Dropbox Sign | 3 | 1 (trial) + 8 to 10 | The agreement template from John |
-| 9 | AI drafts replies to multi-question emails | 3 | 5 or more | John's list of about 20 questions and answers |
-| 10 | Remove Brevo | 3 | 2 to 3 | Bounce and reply mailboxes, Brevo contact export |
-| 11 | Ash's requests: AI-personalised campaign emails, follow-ups in the CRM, lead search | 3 | 3 to 5 | A decision on a lead data source |
 
 Effort counts building, the second-agent review and fixes. It does not count waiting for inputs, merges or deploys.
 
@@ -108,24 +105,6 @@ Effort counts building, the second-agent review and fixes. It does not count wai
   - The trial is started and removed with `packages/twenty-utils/flolabs/documenso-trial.sh` and `documenso-trial-remove.sh`.
 - **Done when:** a new template is made in the CRM, edited for one test person, and sent with the Academic Integrity document to an internal `+crmtest` address; it is signed in one go, and the signed PDFs, the certificate and the new Stage appear on the person.
 
-### 9. AI drafts replies to multi-question emails
-
-- **Why:** most Manual Review emails ask several questions at once (paid or not, fees, start date, duration, offer letter), so no single template fits.
-- **How:** a Questions and Answers list in the CRM, starting with John's 20 or so. For each Manual Review email, the AI splits it into questions, matches each to an answer, and drafts one reply in the applicant's order. Questions with no match are marked for a person. The draft appears on the card for Nago to edit and send. When Nago answers a new question by hand, the AI proposes it as a new entry, but it joins the list only after an approver (John or Nago) accepts it. Every change to an answer is kept as a version, and each sent reply records which versions it used. After 2 weeks of correct drafts, the team decides whether the simple cases may be sent automatically.
-- **Done when:** for a week of real Manual Review emails, Nago sends most drafts with little or no editing, and these targets hold: every reply uses only approved answers; every question with no approved answer goes to a person; no Manual Review item waits more than 24 hours without an alert; and item 4's export shows the share of routine emails answered from approved answers, working towards John's 90%.
-
-### 10. Remove Brevo
-
-- **Why:** John wants Brevo gone as soon as possible. The free campaign system in the CRM is already live and passed SPF, DKIM and DMARC on 19 Nov.
-- **How, in order:** new bounce-mailbox password and mailbox switched on; a reply mailbox for campaigns; export the Brevo contacts with their unsubscribe and blocklist state and import them; unsubscribes and bounces flow back to the person in the CRM; one real campaign from the CRM; then close Brevo.
-- **Done when:** one real campaign has gone out from the CRM, bounces and unsubscribes show on people, and Brevo is cancelled.
-
-### 11. Ash's campaign requests
-
-- **AI-personalised emails:** the campaign form gets a Personalise with AI option that writes the opening lines for each recipient from their CRM details; a person reviews a sample before sending.
-- **Follow-ups visible in the CRM:** comes with item 10 (opens, clicks, replies and unsubscribes on each person).
-- **Lead search inside the CRM:** needs a data source. The good ones (for example Apollo) are paid; free routes are slower (importing lists, scraping public pages within their terms). Needs a decision before any work.
-
 ## What is needed from whom
 
 | Needed | From | For item |
@@ -141,9 +120,6 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 | The n8n change to the booking approval card | Mani | 7 |
 | Confirm the agreement's 3 payment versions, who signs first, and whether "Letter of Collaboration" is still used | John | 8 |
 | Go-ahead to download the 837 signed documents from Dropbox Sign before it is cancelled | Mohamed | 8 |
-| The list of common questions and their answers | John, Nago | 9 |
-| Bounce mailbox password, reply mailbox, Brevo export | Mohamed | 10 |
-| Decision on a lead data source (free or paid) | John, Ash | 11 |
 
 ## How the work is done and checked
 
@@ -159,12 +135,15 @@ Effort counts building, the second-agent review and fixes. It does not count wai
 
 | Item | Status |
 | --- | --- |
+| 1 | Solved (27 Nov) |
+| 2 | Merged and deployed (#40, #43); report of people reminded after replying ready (67 reminders, 59 people). Left: send it to Nago, Mani adds the check to the reminder workflows |
 | 3 | Pull request #26 merged and deployed |
-| 4 | Pull request #28 merged and deployed |
-| 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook being set up |
+| 4 | Pull request #28 merged and deployed. Added on 27 Nov: a reply from a card closes it, one card per applicant, the Manual review answers list (#35, #37), and the email sent since each card (#39) |
+| 5 | Pull request #29 merged and deployed; payment fields created and limited to admins; live Stripe key and webhook set up |
 | 5b | Pull request #31 merged and deployed; 7 disputes found in the last year (3 lost, 2 open, 2 won) |
-| 6 | Live on 27 Nov: PR #32 and #33 merged and deployed, Calendly bookings object created, webhooks registered in hr.team@ and people@. Left: warn Mani, then run syncCalendlyBookings once |
-| 8 | Documenso trial passed all four checks on 26 Nov; CRM work waits for John's agreement template |
+| 6 | Live on 27 Nov: Calendly bookings synced, days to meeting and days to booking on each person (#32, #33, #34, #38). Last 6 months: 59 days to the meeting at the median, 37 of them before the applicant books |
+| 7 | Applicant details on the approval card merged (#41). Left: Mani's n8n change for the interviewer pair; time zone needs a field on the application form |
+| 8 | Agreement templates in the CRM (#42, merged). Documenso setup script merged (#45), review fixes in #46. Send agreement built: server and the Agreements page, reviewed, pull requests open. Left: the `sign` DNS record, running the script, the Documenso token and webhook, a Documenso account for the FloLabs signer, then a test with a +crmtest address |
 
 ## Item 6: bookings read from Calendly (decided 27 Nov)
 
