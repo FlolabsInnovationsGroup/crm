@@ -21,13 +21,32 @@ read -rsp "Paste the Documenso API token (starts with api_): " TOKEN
 echo
 [[ "$TOKEN" =~ ^api_[A-Za-z0-9_-]+$ ]] || fail "That does not look like a Documenso API token."
 
+# Checked through the running CRM before anything changes, so a wrong token
+# leaves the server as it was. The token goes in on stdin, never as an argument.
+echo "==> Checking the token with Documenso"
+CODE=$(printf '%s' "$TOKEN" | docker compose exec -T server node -e "
+let token = '';
+process.stdin.on('data', (chunk) => (token += chunk)).on('end', () =>
+  fetch((process.env.FLOLABS_DOCUMENSO_API_URL || 'http://documenso:3000') + '/api/v2/envelope?perPage=1', { headers: { authorization: token } })
+    .then((response) => console.log(response.status))
+    .catch(() => console.log('unreachable')));" 2>/dev/null || echo unreachable)
+case "$CODE" in
+  200) echo "  Documenso accepted the token." ;;
+  401 | 403) fail "Documenso refused the token. Make a new one in Documenso and run this again." ;;
+  429) fail "Documenso is rate limiting; wait a minute and run this again." ;;
+  *) fail "The CRM could not reach Documenso (answer: $CODE). Check: cd /opt/flolabs-sign && docker compose ps" ;;
+esac
+
 read -rp "Email of the person who signs for FloLabs [john@flolabsinnovations.com]: " COUNTERSIGNER_EMAIL
 COUNTERSIGNER_EMAIL=${COUNTERSIGNER_EMAIL:-john@flolabsinnovations.com}
-[[ "$COUNTERSIGNER_EMAIL" =~ ^[^[:space:]\'@]+@[^[:space:]\'@]+\.[a-z]+$ ]] || fail "That is not an email address."
+EMAIL_PATTERN='^[^[:space:]"$@'"'"']+@[^[:space:]"$@'"'"']+\.[A-Za-z]+$'
+[[ "$COUNTERSIGNER_EMAIL" =~ $EMAIL_PATTERN ]] || fail "That is not an email address."
 
 read -rp "Their name as it should appear on the agreement [John Hazlewood]: " COUNTERSIGNER_NAME
 COUNTERSIGNER_NAME=${COUNTERSIGNER_NAME:-John Hazlewood}
-[[ "$COUNTERSIGNER_NAME" =~ ^[^\'\"]+$ ]] || fail "The name cannot contain quotes."
+# Compose reads $ as a variable even inside quotes.
+NAME_PATTERN='^[^"$'"'"']+$'
+[[ "$COUNTERSIGNER_NAME" =~ $NAME_PATTERN ]] || fail "The name cannot contain quotes or \$."
 
 # Documenso keeps the secret it was given, so a new one is only safe together
 # with pasting it into Documenso's webhook again.
@@ -62,7 +81,7 @@ YAML
 chmod 600 "$SIGNING_FILE"
 unset TOKEN ENVIRONMENT
 
-if ! grep -q "$SIGNING_FILE" .env; then
+if ! grep -q '^COMPOSE_FILE=.*docker-compose\.flolabs-documenso\.yml' .env; then
   sed -i "s#^COMPOSE_FILE=\(.*\)#COMPOSE_FILE=\1:$SIGNING_FILE#" .env
 fi
 
@@ -78,8 +97,10 @@ rollback() {
   exit 1
 }
 
+docker compose config -q >/dev/null || rollback
+
 echo "==> Restarting the CRM"
-docker compose up -d server worker
+docker compose up -d server worker || rollback
 
 STATUS=unknown
 for _ in $(seq 1 60); do
@@ -88,28 +109,26 @@ for _ in $(seq 1 60); do
   sleep 5
 done
 [ "$STATUS" = healthy ] || rollback
+rm -f "$SIGNING_FILE".before-*
 
 echo "==> Checking the settings reached the CRM (names only, no values)"
-docker compose exec -T server sh -c 'for name in FLOLABS_WORKSPACE_ID FLOLABS_PAYMENTS_WORKSPACE_ID FLOLABS_DOCUMENSO_API_TOKEN FLOLABS_DOCUMENSO_WEBHOOK_SECRET FLOLABS_AGREEMENT_COUNTERSIGNER_EMAIL; do eval "v=\${$name:-}"; [ -n "$v" ] && echo "  $name: set" || echo "  $name: missing"; done'
-
-echo "==> Checking the CRM can reach Documenso with the token"
-CODE=$(docker compose exec -T server node -e "
-fetch('http://documenso:3000/api/v2/envelope?perPage=1', { headers: { authorization: process.env.FLOLABS_DOCUMENSO_API_TOKEN } })
-  .then((response) => console.log(response.status))
-  .catch(() => console.log('unreachable'))" 2>/dev/null || echo unreachable)
-case "$CODE" in
-  200) echo "  Documenso accepted the token." ;;
-  401 | 403) fail "Documenso refused the token. Make a new one in Documenso and run this again." ;;
-  *) fail "The CRM could not reach Documenso (answer: $CODE). Check: cd /opt/flolabs-sign && docker compose ps" ;;
-esac
+docker compose exec -T server sh -c '
+missing=0
+check() { if [ -n "$2" ]; then echo "  $1: set"; else echo "  $1: MISSING"; missing=1; fi; }
+check "FLOLABS_WORKSPACE_ID or FLOLABS_PAYMENTS_WORKSPACE_ID" "${FLOLABS_WORKSPACE_ID:-${FLOLABS_PAYMENTS_WORKSPACE_ID:-}}"
+check FLOLABS_DOCUMENSO_API_TOKEN "${FLOLABS_DOCUMENSO_API_TOKEN:-}"
+check FLOLABS_DOCUMENSO_WEBHOOK_SECRET "${FLOLABS_DOCUMENSO_WEBHOOK_SECRET:-}"
+check FLOLABS_AGREEMENT_COUNTERSIGNER_EMAIL "${FLOLABS_AGREEMENT_COUNTERSIGNER_EMAIL:-}"
+check FLOLABS_AGREEMENT_COUNTERSIGNER_NAME "${FLOLABS_AGREEMENT_COUNTERSIGNER_NAME:-}"
+exit $missing' || fail "Send agreement stays off until the missing settings are there."
 
 if [ "$NEW_SECRET" = true ]; then
   cat <<DONE
 
 Last step, in Documenso (signed in as hr@): Settings > Webhooks > Create webhook
   URL:     $WEBHOOK_URL
-  Events:  Document recipient completed, Document completed,
-           Document rejected, Document cancelled
+  Events:  document.recipient.completed, document.completed,
+           document.rejected, document.cancelled
   Secret:  $SECRET
 Copy the secret straight into that form. Do not send it in chat or email.
 DONE
