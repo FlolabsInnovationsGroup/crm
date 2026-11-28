@@ -284,6 +284,9 @@ export const TeamInboxReplyComposer = ({
   });
 
   const canSendReply = composerState.canSend && !isUploadingAttachments;
+  const { signature: senderSignature } = useTeamMailboxSignature(
+    composerState.connectedAccountId,
+  );
 
   const applyTemplate = (template: InboxEmailTemplate) => {
     const name = getRecipientName(
@@ -297,7 +300,7 @@ export const TeamInboxReplyComposer = ({
       subject: composerState.subject,
       body: appendEmailSignature(
         fillEmailTemplateVariables(getEmailTemplateBody(template), name),
-        signature,
+        senderSignature,
       ),
     });
   };

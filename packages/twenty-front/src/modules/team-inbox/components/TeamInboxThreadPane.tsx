@@ -26,6 +26,7 @@ import { TeamInboxContactPane } from '@/team-inbox/components/TeamInboxContactPa
 import { TeamInboxMenu } from '@/team-inbox/components/TeamInboxMenu';
 import { TeamInboxMessageBubble } from '@/team-inbox/components/TeamInboxMessageBubble';
 import { TeamInboxReplyComposer } from '@/team-inbox/components/TeamInboxReplyComposer';
+import { useTeamMailboxSignature } from '@/team-inbox/hooks/useTeamMailboxSignature';
 import { type InboxMailbox } from '@/team-inbox/types/InboxMailbox';
 import { type TeamInboxSentReply } from '@/team-inbox/types/TeamInboxSentReply';
 import { getConversationContact } from '@/team-inbox/utils/getConversationContact';
@@ -271,6 +272,11 @@ export const TeamInboxThreadPane = ({
   const { messages, fetchMoreMessages, threadLoading } =
     useEmailThread(threadId);
   const replyContext = useReplyContext(threadId);
+  // Loaded before Reply is clicked so the composer starts with it; text typed
+  // before it arrives would otherwise skip the signature.
+  useTeamMailboxSignature(
+    replyContext?.loading === false ? replyContext.connectedAccountId : null,
+  );
   const [replyMode, setReplyMode] = useState<EmailReplyMode | null>(
     isDefined(initialTemplateId) ? 'reply' : null,
   );
